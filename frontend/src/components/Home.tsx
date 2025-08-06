@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import styled from 'styled-components'
 import reactLogo from '../assets/react.svg'
-import viteLogo from '/vite.svg'
 
 const HomeContainer = styled.div`
   text-align: center;
@@ -82,9 +81,6 @@ const Home = () => {
   return (
     <HomeContainer>
       <LogoContainer>
-        <a href="https://vite.dev" target="_blank" rel="noopener noreferrer">
-          <Logo src={viteLogo} alt="Vite logo" />
-        </a>
         <a href="https://react.dev" target="_blank" rel="noopener noreferrer">
           <Logo src={reactLogo} className="react" alt="React logo" />
         </a>
