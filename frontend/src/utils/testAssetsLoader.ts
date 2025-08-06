@@ -73,7 +73,7 @@ export const getCaseMetadata = async (caseId: string): Promise<CaseMetadata | nu
 }
 
 // Function to load email data for a case
-export const loadCaseEmails = async (caseId: string): Promise<any[]> => {
+export const loadCaseEmails = async (caseId: string): Promise<unknown[]> => {
   try {
     const emailFiles = [
       `${caseId}_email1.json`,
@@ -89,7 +89,7 @@ export const loadCaseEmails = async (caseId: string): Promise<any[]> => {
           const emailData = await response.json()
           emails.push(emailData)
         }
-      } catch (error) {
+      } catch {
         // Skip missing email files
         console.warn(`Email file ${emailFile} not found for case ${caseId}`)
       }

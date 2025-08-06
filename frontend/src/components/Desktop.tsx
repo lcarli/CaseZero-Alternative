@@ -2,7 +2,7 @@ import React from 'react'
 import styled from 'styled-components'
 import Dock from './Dock'
 import Window from './Window'
-import { useWindowContext } from '../contexts/WindowContext'
+import { useWindowContext } from '../hooks/useWindowContext'
 
 const DesktopContainer = styled.div`
   width: 100vw;

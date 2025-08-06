@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react'
+import React, { createContext, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { WindowData } from '../components/Window'
 
@@ -15,14 +15,6 @@ interface WindowContextType {
 }
 
 const WindowContext = createContext<WindowContextType | undefined>(undefined)
-
-export const useWindowContext = (): WindowContextType => {
-  const context = useContext(WindowContext)
-  if (!context) {
-    throw new Error('useWindowContext must be used within a WindowProvider')
-  }
-  return context
-}
 
 interface WindowProviderProps {
   children: ReactNode
