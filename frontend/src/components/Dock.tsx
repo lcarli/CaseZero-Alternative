@@ -4,6 +4,7 @@ import FileViewer from './apps/FileViewer'
 import Email from './apps/Email'
 import Notebook from './apps/Notebook'
 import SubmitCase from './apps/SubmitCase'
+import Logs from './apps/Logs'
 
 const DockContainer = styled.div`
   position: fixed;
@@ -110,6 +111,12 @@ const Dock: React.FC<DockProps> = ({ onOpenWindow }) => {
       title: 'Email',
       icon: '📧',
       component: Email
+    },
+    {
+      id: 'logs',
+      title: 'Logs',
+      icon: '📋',
+      component: Logs
     },
     {
       id: 'notebook',

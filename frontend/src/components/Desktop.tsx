@@ -2,6 +2,7 @@ import React, { useEffect } from 'react'
 import styled from 'styled-components'
 import Dock from './Dock'
 import Window from './Window'
+import Clock from './Clock'
 import { useWindowContext } from '../hooks/useWindowContext'
 import { useCase } from '../hooks/useCaseContext'
 
@@ -140,6 +141,8 @@ const Desktop: React.FC = () => {
       <PoliceBadge>
         Metropolitan Police Dept
       </PoliceBadge>
+      
+      <Clock />
       
       <SystemInfo>
         <div><span className="label">User:</span> Detective John Doe</div>
