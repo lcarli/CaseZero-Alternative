@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
+import { useCase } from '../../hooks/useCaseContext'
 
 const EmailContainer = styled.div`
   height: 100%;
@@ -7,11 +8,32 @@ const EmailContainer = styled.div`
   flex-direction: column;
 `
 
+const TwoColumnLayout = styled.div`
+  display: flex;
+  height: 100%;
+  gap: 1rem;
+`
+
+const LeftPanel = styled.div`
+  width: 350px;
+  min-width: 300px;
+  max-width: 450px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding-right: 1rem;
+`
+
+const RightPanel = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`
+
 const EmailList = styled.div`
   flex: 1;
   overflow-y: auto;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 1rem;
 `
 
 const EmailItem = styled.div<{ $isSelected: boolean; $isUnread: boolean }>`
@@ -60,11 +82,11 @@ const EmailPreview = styled.div`
 `
 
 const EmailContent = styled.div`
+  flex: 1;
   padding: 1rem;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  max-height: 200px;
   overflow-y: auto;
 `
 
@@ -121,29 +143,6 @@ const AttachmentButton = styled.button`
   }
 `
 
-const CaseSelector = styled.div`
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-`
-
-const CaseSelect = styled.select`
-  background: rgba(0, 0, 0, 0.3);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  padding: 0.5rem;
-  font-size: 13px;
-  width: 100%;
-  
-  option {
-    background: #1a1a2e;
-    color: white;
-  }
-`
-
 const PriorityBadge = styled.span<{ $priority: 'high' | 'medium' | 'low' }>`
   padding: 2px 6px;
   border-radius: 3px;
@@ -182,7 +181,7 @@ interface EmailData {
 
 const Email: React.FC = () => {
   const [selectedEmail, setSelectedEmail] = useState<string | null>('case001_email1')
-  const [currentCase, setCurrentCase] = useState<string>('CASE-2024-001')
+  const { currentCase } = useCase()
 
   const getCaseEmails = (caseId: string): EmailData[] => {
     const caseEmails: { [key: string]: EmailData[] } = {
@@ -349,15 +348,10 @@ Fingerprint Analysis Unit
     return caseEmails[caseId] || caseEmails['CASE-2024-001']
   }
 
-  const emails = getCaseEmails(currentCase)
+  const emails = getCaseEmails(currentCase || 'CASE-2024-001')
 
   const handleEmailClick = (emailId: string) => {
     setSelectedEmail(emailId)
-  }
-
-  const handleCaseChange = (newCase: string) => {
-    setCurrentCase(newCase)
-    setSelectedEmail(null)
   }
 
   const handleAttachmentOpen = (attachmentName: string) => {
@@ -371,100 +365,105 @@ Fingerprint Analysis Unit
 
   return (
     <EmailContainer>
-      <h3 style={{ margin: '0 0 1rem 0' }}>Police Email System</h3>
+      <h3 style={{ margin: '0 0 1rem 0' }}>Police Email System - {currentCase || 'No Case'}</h3>
       
-      <CaseSelector>
-        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)' }}>
-          Active Case:
-        </label>
-        <CaseSelect 
-          value={currentCase} 
-          onChange={(e) => handleCaseChange(e.target.value)}
-        >
-          <option value="CASE-2024-001">Case 2024-001 - Office Break-in</option>
-          <option value="CASE-2024-002">Case 2024-002 - Mall Pickpocketing</option>
-        </CaseSelect>
-      </CaseSelector>
-
-      <EmailList>
-        {emails.map(email => (
-          <EmailItem
-            key={email.id}
-            $isSelected={email.id === selectedEmail}
-            $isUnread={email.isUnread}
-            onClick={() => handleEmailClick(email.id)}
-          >
-            <EmailHeader>
-              <EmailSender $isUnread={email.isUnread}>
-                {email.sender}
-                <PriorityBadge $priority={email.priority}>
-                  {email.priority}
-                </PriorityBadge>
-              </EmailSender>
-              <EmailTime>{email.time}</EmailTime>
-            </EmailHeader>
-            <EmailSubject $isUnread={email.isUnread}>
-              {email.subject}
-            </EmailSubject>
-            <EmailPreview>
-              {email.preview}
-              {email.attachments && email.attachments.length > 0 && (
-                <span style={{ marginLeft: '0.5rem', color: '#4a9eff' }}>
-                  📎 {email.attachments.length} attachment{email.attachments.length > 1 ? 's' : ''}
-                </span>
-              )}
-            </EmailPreview>
-          </EmailItem>
-        ))}
-      </EmailList>
-
-      {selectedEmailData && (
-        <EmailContent>
-          <h4 style={{ margin: '0 0 0.5rem 0', color: '#4a9eff' }}>
-            {selectedEmailData.subject}
-          </h4>
-          <p style={{ margin: '0 0 1rem 0', fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)' }}>
-            From: {selectedEmailData.sender} • {selectedEmailData.time}
-          </p>
-          <pre style={{ 
-            margin: 0, 
-            whiteSpace: 'pre-wrap', 
-            fontFamily: 'inherit', 
-            fontSize: '14px', 
-            lineHeight: '1.5',
-            color: 'rgba(255, 255, 255, 0.9)'
-          }}>
-            {selectedEmailData.content}
-          </pre>
-          
-          {selectedEmailData.attachments && selectedEmailData.attachments.length > 0 && (
-            <AttachmentList>
-              <h5 style={{ margin: '0 0 0.5rem 0', color: 'rgba(255, 255, 255, 0.8)', fontSize: '13px' }}>
-                Attachments ({selectedEmailData.attachments.length})
-              </h5>
-              {selectedEmailData.attachments.map((attachment, index) => (
-                <AttachmentItem key={index}>
-                  <AttachmentInfo>
-                    <span style={{ fontSize: '16px' }}>
-                      {attachment.type === 'image' ? '🖼️' : 
-                       attachment.type === 'pdf' ? '📋' : '📄'}
+      <TwoColumnLayout>
+        <LeftPanel>
+          <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>Inbox</h4>
+          <EmailList>
+            {emails.map(email => (
+              <EmailItem
+                key={email.id}
+                $isSelected={email.id === selectedEmail}
+                $isUnread={email.isUnread}
+                onClick={() => handleEmailClick(email.id)}
+              >
+                <EmailHeader>
+                  <EmailSender $isUnread={email.isUnread}>
+                    {email.sender}
+                    <PriorityBadge $priority={email.priority}>
+                      {email.priority}
+                    </PriorityBadge>
+                  </EmailSender>
+                  <EmailTime>{email.time}</EmailTime>
+                </EmailHeader>
+                <EmailSubject $isUnread={email.isUnread}>
+                  {email.subject}
+                </EmailSubject>
+                <EmailPreview>
+                  {email.preview}
+                  {email.attachments && email.attachments.length > 0 && (
+                    <span style={{ marginLeft: '0.5rem', color: '#4a9eff' }}>
+                      📎 {email.attachments.length} attachment{email.attachments.length > 1 ? 's' : ''}
                     </span>
-                    <div>
-                      <AttachmentName>{attachment.name}</AttachmentName>
-                      <div>
-                        <AttachmentMeta>{attachment.size} • {attachment.type.toUpperCase()}</AttachmentMeta>
-                      </div>
-                    </div>
-                  </AttachmentInfo>
-                  <AttachmentButton onClick={() => handleAttachmentOpen(attachment.name)}>
-                    Open in File Viewer
-                  </AttachmentButton>
-                </AttachmentItem>
-              ))}
-            </AttachmentList>
+                  )}
+                </EmailPreview>
+              </EmailItem>
+            ))}
+          </EmailList>
+        </LeftPanel>
+
+        <RightPanel>
+          {selectedEmailData ? (
+            <EmailContent>
+              <h4 style={{ margin: '0 0 0.5rem 0', color: '#4a9eff' }}>
+                {selectedEmailData.subject}
+              </h4>
+              <p style={{ margin: '0 0 1rem 0', fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)' }}>
+                From: {selectedEmailData.sender} • {selectedEmailData.time}
+              </p>
+              <pre style={{ 
+                margin: 0, 
+                whiteSpace: 'pre-wrap', 
+                fontFamily: 'inherit', 
+                fontSize: '14px', 
+                lineHeight: '1.5',
+                color: 'rgba(255, 255, 255, 0.9)'
+              }}>
+                {selectedEmailData.content}
+              </pre>
+              
+              {selectedEmailData.attachments && selectedEmailData.attachments.length > 0 && (
+                <AttachmentList>
+                  <h5 style={{ margin: '0 0 0.5rem 0', color: 'rgba(255, 255, 255, 0.8)', fontSize: '13px' }}>
+                    Attachments ({selectedEmailData.attachments.length})
+                  </h5>
+                  {selectedEmailData.attachments.map((attachment, index) => (
+                    <AttachmentItem key={index}>
+                      <AttachmentInfo>
+                        <span style={{ fontSize: '16px' }}>
+                          {attachment.type === 'image' ? '🖼️' : 
+                           attachment.type === 'pdf' ? '📋' : '📄'}
+                        </span>
+                        <div>
+                          <AttachmentName>{attachment.name}</AttachmentName>
+                          <div>
+                            <AttachmentMeta>{attachment.size} • {attachment.type.toUpperCase()}</AttachmentMeta>
+                          </div>
+                        </div>
+                      </AttachmentInfo>
+                      <AttachmentButton onClick={() => handleAttachmentOpen(attachment.name)}>
+                        Open in File Viewer
+                      </AttachmentButton>
+                    </AttachmentItem>
+                  ))}
+                </AttachmentList>
+              )}
+            </EmailContent>
+          ) : (
+            <div style={{ 
+              flex: 1, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              color: 'rgba(255, 255, 255, 0.6)',
+              fontSize: '16px'
+            }}>
+              Select an email to view its contents
+            </div>
           )}
-        </EmailContent>
-      )}
+        </RightPanel>
+      </TwoColumnLayout>
     </EmailContainer>
   )
 }

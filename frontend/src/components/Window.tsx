@@ -96,11 +96,12 @@ const WindowControl = styled.button`
   }
 `
 
-const WindowContent = styled.div`
+const WindowContent = styled.div<{ $isResizing: boolean }>`
   flex: 1;
   overflow: auto;
   padding: 1rem;
   color: white;
+  user-select: ${props => props.$isResizing ? 'none' : 'auto'};
 `
 
 const ResizeHandle = styled.div`
@@ -220,7 +221,7 @@ const Window: React.FC<WindowProps> = ({
           <WindowControl className="close" onClick={onClose}>×</WindowControl>
         </WindowControls>
       </WindowHeader>
-      <WindowContent>
+      <WindowContent $isResizing={isResizing}>
         <Component />
       </WindowContent>
       <ResizeHandle onMouseDown={handleResizeMouseDown} />

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import styled from 'styled-components'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuthContext'
 import { casesApi } from '../services/api'
 import type { Dashboard } from '../services/api'
 
