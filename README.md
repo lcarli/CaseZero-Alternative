@@ -9,6 +9,32 @@ Um sistema imersivo de investigação detetivesca onde você assume o papel de u
 - **Gestão de Casos**: Dashboard com estatísticas e progresso do usuário
 - **Interface Policial Autêntica**: Ambiente desktop simulando sistemas policiais reais
 - **API Robusta**: Backend .NET com Entity Framework e SQLite
+- **Sistema Objeto Caso**: Estrutura modular para criação de casos investigativos
+
+## 🔍 Sistema Objeto Caso
+
+**NOVO!** Sistema completo para criação e gerenciamento de casos investigativos modulares:
+
+### Características Principais:
+- **Casos Modulares**: Estrutura padronizada para fácil criação de novos casos
+- **Progressão Controlada**: Sistema de desbloqueio baseado em evidências e tempo
+- **Análises Forenses**: Simulação realista de laboratório com tempos de resposta
+- **Eventos Temporais**: Memos, testemunhas e atualizações que aparecem dinamicamente
+- **Timeline Interativa**: Reconstrução cronológica dos eventos do crime
+- **API REST Completa**: Endpoints para carregamento e validação de casos
+
+### Exemplo Incluído: Case001
+"Homicídio no Edifício Corporativo" - Um caso completo de assassinato com:
+- 6 evidências interconectadas (documentos, fotos, vídeos, dados)
+- 3 suspeitos com perfis detalhados e motivos
+- 4 análises forenses (DNA, digitais, perícia digital)
+- 3 eventos temporais (memos do chefe, nova testemunha, atualizações)
+- Timeline completa do crime
+- Solução definitiva com evidências conclusivas
+
+### Documentação:
+- 📖 [Documentação Completa do Sistema Objeto Caso](docs/OBJETO_CASO.md)
+- 🛠️ Script de validação: `./validate_case.sh Case001`
 
 ## 🚀 Como Executar
 
@@ -37,7 +63,7 @@ dotnet restore
 dotnet run
 ```
 
-O backend estará disponível em: `http://localhost:5006`
+O backend estará disponível em: `http://localhost:5000`
 
 ### 3. Configure o Frontend
 
@@ -62,6 +88,34 @@ O sistema vem com um usuário pré-configurado para testes:
 - **Email:** `detective@police.gov`
 - **Senha:** `Password123!`
 
+## 🧪 Testando o Sistema Objeto Caso
+
+### Via Script de Validação:
+```bash
+./validate_case.sh Case001
+```
+
+### Via API:
+```bash
+# 1. Obter token de autenticação
+TOKEN=$(curl -X POST "http://localhost:5000/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "detective@police.gov", "password": "Password123!"}' | \
+  jq -r '.token')
+
+# 2. Listar casos disponíveis
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:5000/api/caseobject
+
+# 3. Carregar Case001
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:5000/api/caseobject/Case001
+
+# 4. Validar estrutura do caso
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:5000/api/caseobject/Case001/validate
+```
+
 ## 🏗️ Arquitetura
 
 ### Frontend (React + TypeScript)
@@ -77,6 +131,7 @@ O sistema vem com um usuário pré-configurado para testes:
 - **Autenticação:** JWT + ASP.NET Identity
 - **API:** RESTful endpoints
 - **CORS:** Configurado para localhost:5173
+- **Sistema de Casos:** CaseObjectService + API endpoints
 
 ## 📋 Fluxo do Usuário
 
@@ -85,6 +140,7 @@ O sistema vem com um usuário pré-configurado para testes:
 3. **Login** - Autenticação com email/senha
 4. **Dashboard** - Visão geral de estatísticas e casos
 5. **Desktop** - Ambiente de trabalho para investigação de casos
+6. **Casos** - Sistema modular de casos investigativos
 
 ## 🗂️ Estrutura do Projeto
 
@@ -103,8 +159,17 @@ O sistema vem com um usuário pré-configurado para testes:
 │       ├── DTOs/           # Data Transfer Objects
 │       ├── Data/           # DbContext
 │       └── Services/       # Business logic
-├── cases/                  # Casos de teste e assets
-└── docs/                   # Documentação
+├── cases/                  # Casos investigativos
+│   └── Case001/           # Exemplo: Homicídio Corporativo
+│       ├── case.json      # Configuração do caso
+│       ├── evidence/      # Evidências
+│       ├── suspects/      # Suspeitos
+│       ├── forensics/     # Análises forenses
+│       ├── memos/         # Memorandos temporais
+│       └── witnesses/     # Testemunhas
+├── docs/                   # Documentação
+│   └── OBJETO_CASO.md     # Doc. do Sistema de Casos
+└── validate_case.sh       # Script de validação
 ```
 
 ## 🔧 Desenvolvimento
@@ -125,6 +190,31 @@ dotnet build           # Compilar projeto
 dotnet ef migrations   # Gerenciar migrações
 ```
 
+**Casos:**
+```bash
+./validate_case.sh CaseXXX  # Validar estrutura do caso
+```
+
+## 📈 Criando Novos Casos
+
+1. **Copie a estrutura do Case001**:
+```bash
+cp -r cases/Case001 cases/Case002
+```
+
+2. **Edite o arquivo `case.json`** com novos dados
+
+3. **Substitua os arquivos** nas subpastas com novo conteúdo
+
+4. **Valide a estrutura**:
+```bash
+./validate_case.sh Case002
+```
+
+5. **Teste via API** com os endpoints do CaseObjectController
+
+Ver [documentação completa](docs/OBJETO_CASO.md) para detalhes.
+
 ## 🛡️ Segurança
 
 - Autenticação JWT com tokens de 7 dias
@@ -132,6 +222,7 @@ dotnet ef migrations   # Gerenciar migrações
 - Validação de dados no frontend e backend
 - Proteção de rotas sensíveis
 - CORS configurado adequadamente
+- Validação de arquivos de caso com sandboxing
 
 ## 📱 Responsividade
 
@@ -147,6 +238,12 @@ O sistema foi desenvolvido com design responsivo, funcionando em:
 3. Commit suas mudanças (`git commit -m 'Add AmazingFeature'`)
 4. Push para a branch (`git push origin feature/AmazingFeature`)
 5. Abra um Pull Request
+
+### Criando Novos Casos:
+1. Use o Case001 como template
+2. Siga a estrutura documentada em `docs/OBJETO_CASO.md`
+3. Valide com `./validate_case.sh`
+4. Teste todos os endpoints da API
 
 ## 📄 Licença
 
