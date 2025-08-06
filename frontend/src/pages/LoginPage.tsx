@@ -11,18 +11,31 @@ const PageContainer = styled.div`
   align-items: center;
   justify-content: center;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  padding: 2rem;
+  padding: 1rem;
+  box-sizing: border-box;
+  
+  @media (max-height: 700px) {
+    align-items: flex-start;
+    padding-top: 2rem;
+  }
 `
 
 const LoginCard = styled.div`
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(52, 152, 219, 0.3);
   border-radius: 1rem;
-  padding: 3rem;
+  padding: 2rem;
   backdrop-filter: blur(15px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   width: 100%;
   max-width: 400px;
+  margin: 1rem 0;
+  
+  @media (max-width: 480px) {
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin: 0.5rem 0;
+  }
 `
 
 const Header = styled.div`
@@ -31,15 +44,24 @@ const Header = styled.div`
 `
 
 const Logo = styled.div`
-  font-size: 3rem;
+  font-size: 2.5rem;
   margin-bottom: 1rem;
+  
+  @media (max-width: 480px) {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
 `
 
 const Title = styled.h1`
   color: white;
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   margin: 0 0 0.5rem 0;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  
+  @media (max-width: 480px) {
+    font-size: 1.3rem;
+  }
 `
 
 const Subtitle = styled.p`
@@ -51,7 +73,11 @@ const Subtitle = styled.p`
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.2rem;
+  
+  @media (max-width: 480px) {
+    gap: 1rem;
+  }
 `
 
 const FormGroup = styled.div`
@@ -163,10 +189,15 @@ const BackLink = styled(Link)`
 `
 
 const TestCredentials = styled.div`
-  margin-top: 1.5rem;
+  margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(52, 152, 219, 0.1);
   text-align: left;
+  
+  @media (max-width: 480px) {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+  }
 `
 
 const TestCredentialsTitle = styled.p`
