@@ -99,11 +99,12 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     context.Database.EnsureCreated();
     
-    // Seed a test user if none exists
+    // Seed test users if none exist
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
     if (!userManager.Users.Any())
     {
-        var testUser = new User
+        // Primary test user
+        var testUser1 = new User
         {
             UserName = "detective@police.gov",
             Email = "detective@police.gov",
@@ -112,32 +113,60 @@ using (var scope = app.Services.CreateScope())
             Department = "Investigation Division",
             Position = "Detective",
             BadgeNumber = "4729",
-            IsApproved = true
+            IsApproved = true,
+            Rank = DetectiveRank.Detective2,
+            CasesResolved = 1,
+            SuccessRate = 33.3,
+            AverageScore = 4.8
         };
         
-        await userManager.CreateAsync(testUser, "Password123!");
+        await userManager.CreateAsync(testUser1, "Password123!");
         
-        // Assign the user to all seeded cases
-        var cases = context.Cases.ToList();
-        foreach (var case_ in cases)
+        // Secondary test user
+        var testUser2 = new User
         {
-            context.UserCases.Add(new UserCase
+            UserName = "inspector@police.gov",
+            Email = "inspector@police.gov",
+            FirstName = "Sarah",
+            LastName = "Connor",
+            Department = "Homicide Division",
+            Position = "Inspector",
+            BadgeNumber = "1984",
+            IsApproved = true,
+            Rank = DetectiveRank.Sergeant,
+            CasesResolved = 8,
+            SuccessRate = 88.9,
+            AverageScore = 4.2
+        };
+        
+        await userManager.CreateAsync(testUser2, "Inspector456!");
+        
+        // Assign both users to all seeded cases
+        var cases = context.Cases.ToList();
+        var users = new[] { testUser1, testUser2 };
+        
+        foreach (var user in users)
+        {
+            foreach (var case_ in cases)
             {
-                UserId = testUser.Id,
-                CaseId = case_.Id,
-                Role = UserCaseRole.Detective
-            });
-            
-            // Add some mock progress data
-            context.CaseProgresses.Add(new CaseProgress
-            {
-                UserId = testUser.Id,
-                CaseId = case_.Id,
-                EvidencesCollected = Random.Shared.Next(5, 15),
-                InterviewsCompleted = Random.Shared.Next(1, 5),
-                ReportsSubmitted = Random.Shared.Next(1, 3),
-                CompletionPercentage = case_.Status == CaseStatus.Resolved ? 100.0 : Random.Shared.Next(20, 80)
-            });
+                context.UserCases.Add(new UserCase
+                {
+                    UserId = user.Id,
+                    CaseId = case_.Id,
+                    Role = UserCaseRole.Detective
+                });
+                
+                // Add some mock progress data
+                context.CaseProgresses.Add(new CaseProgress
+                {
+                    UserId = user.Id,
+                    CaseId = case_.Id,
+                    EvidencesCollected = Random.Shared.Next(5, 15),
+                    InterviewsCompleted = Random.Shared.Next(1, 5),
+                    ReportsSubmitted = Random.Shared.Next(1, 3),
+                    CompletionPercentage = case_.Status == CaseStatus.Resolved ? 100.0 : Random.Shared.Next(20, 80)
+                });
+            }
         }
         
         await context.SaveChangesAsync();
