@@ -7,12 +7,12 @@ import { useWindowContext } from '../hooks/useWindowContext'
 const DesktopContainer = styled.div`
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #0a0f23 0%, #1a2140 25%, #2a3458 50%, #1a2140 75%, #0a0f23 100%);
   background-image: 
     radial-gradient(circle at 20% 80%, rgba(52, 152, 219, 0.1) 0%, transparent 50%),
     radial-gradient(circle at 80% 20%, rgba(74, 158, 255, 0.08) 0%, transparent 50%),
     repeating-linear-gradient(90deg, transparent, rgba(52, 152, 219, 0.03) 2px, transparent 4px),
-    repeating-linear-gradient(0deg, transparent, rgba(52, 152, 219, 0.03) 2px, transparent 4px);
+    repeating-linear-gradient(0deg, transparent, rgba(52, 152, 219, 0.03) 2px, transparent 4px),
+    linear-gradient(135deg, #0a0f23 0%, #1a2140 25%, #2a3458 50%, #1a2140 75%, #0a0f23 100%);
   position: relative;
   overflow: hidden;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
