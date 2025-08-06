@@ -15,6 +15,10 @@ namespace CaseZeroApi.Data
         public DbSet<UserCase> UserCases { get; set; }
         public DbSet<CaseProgress> CaseProgresses { get; set; }
         public DbSet<Evidence> Evidences { get; set; }
+        public DbSet<ForensicAnalysis> ForensicAnalyses { get; set; }
+        public DbSet<CaseSubmission> CaseSubmissions { get; set; }
+        public DbSet<Suspect> Suspects { get; set; }
+        public DbSet<Email> Emails { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -57,7 +61,64 @@ namespace CaseZeroApi.Data
                 .HasForeignKey(e => e.CollectedByUserId)
                 .IsRequired(false);
 
-            // Seed some initial cases
+            // Configure ForensicAnalysis
+            builder.Entity<ForensicAnalysis>()
+                .HasOne(fa => fa.Evidence)
+                .WithMany(e => e.ForensicAnalyses)
+                .HasForeignKey(fa => fa.EvidenceId);
+
+            builder.Entity<ForensicAnalysis>()
+                .HasOne(fa => fa.RequestedByUser)
+                .WithMany(u => u.ForensicAnalysesRequested)
+                .HasForeignKey(fa => fa.RequestedByUserId);
+
+            // Configure CaseSubmission
+            builder.Entity<CaseSubmission>()
+                .HasOne(cs => cs.Case)
+                .WithMany(c => c.CaseSubmissions)
+                .HasForeignKey(cs => cs.CaseId);
+
+            builder.Entity<CaseSubmission>()
+                .HasOne(cs => cs.SubmittedByUser)
+                .WithMany(u => u.CaseSubmissions)
+                .HasForeignKey(cs => cs.SubmittedByUserId);
+
+            builder.Entity<CaseSubmission>()
+                .HasOne(cs => cs.EvaluatedByUser)
+                .WithMany(u => u.CaseSubmissionsEvaluated)
+                .HasForeignKey(cs => cs.EvaluatedByUserId)
+                .IsRequired(false);
+
+            // Configure Suspect
+            builder.Entity<Suspect>()
+                .HasOne(s => s.Case)
+                .WithMany(c => c.Suspects)
+                .HasForeignKey(s => s.CaseId);
+
+            builder.Entity<Suspect>()
+                .HasOne(s => s.AddedByUser)
+                .WithMany()
+                .HasForeignKey(s => s.AddedByUserId)
+                .IsRequired(false);
+
+            // Configure Email
+            builder.Entity<Email>()
+                .HasOne(e => e.ToUser)
+                .WithMany()
+                .HasForeignKey(e => e.ToUserId);
+
+            builder.Entity<Email>()
+                .HasOne(e => e.FromUser)
+                .WithMany()
+                .HasForeignKey(e => e.FromUserId);
+
+            builder.Entity<Email>()
+                .HasOne(e => e.Case)
+                .WithMany()
+                .HasForeignKey(e => e.CaseId)
+                .IsRequired(false);
+
+            // Seed some initial cases with GDD enhancements
             builder.Entity<Case>().HasData(
                 new Case
                 {
@@ -66,7 +127,16 @@ namespace CaseZeroApi.Data
                     Description = "Investigação de roubo milionário no Banco Central",
                     Status = CaseStatus.InProgress,
                     Priority = CasePriority.High,
-                    CreatedAt = DateTime.UtcNow.AddDays(-7)
+                    CreatedAt = DateTime.UtcNow.AddDays(-7),
+                    Type = CaseType.Investigation,
+                    MinimumRankRequired = DetectiveRank.Detective2,
+                    Location = "Banco Central - Centro da Cidade",
+                    IncidentDate = DateTime.UtcNow.AddDays(-8),
+                    BriefingText = "Roubo milionário ocorreu durante a madrugada. Sistema de segurança foi comprometido de forma sofisticada.",
+                    HasMultipleSuspects = true,
+                    EstimatedDifficultyLevel = 7,
+                    CorrectSuspectName = "Marcus Silva",
+                    MaxScore = 100.0
                 },
                 new Case
                 {
@@ -75,7 +145,16 @@ namespace CaseZeroApi.Data
                     Description = "Suspeita de fraude contábil na empresa TechCorp",
                     Status = CaseStatus.Open,
                     Priority = CasePriority.Medium,
-                    CreatedAt = DateTime.UtcNow.AddDays(-5)
+                    CreatedAt = DateTime.UtcNow.AddDays(-5),
+                    Type = CaseType.Investigation,
+                    MinimumRankRequired = DetectiveRank.Detective,
+                    Location = "TechCorp Headquarters",
+                    IncidentDate = DateTime.UtcNow.AddDays(-10),
+                    BriefingText = "Auditoria interna detectou irregularidades nos relatórios financeiros dos últimos 2 anos.",
+                    HasMultipleSuspects = true,
+                    EstimatedDifficultyLevel = 5,
+                    CorrectSuspectName = "Ana Rodriguez",
+                    MaxScore = 100.0
                 },
                 new Case
                 {
@@ -85,7 +164,16 @@ namespace CaseZeroApi.Data
                     Status = CaseStatus.Resolved,
                     Priority = CasePriority.High,
                     CreatedAt = DateTime.UtcNow.AddDays(-30),
-                    ClosedAt = DateTime.UtcNow.AddDays(-2)
+                    ClosedAt = DateTime.UtcNow.AddDays(-2),
+                    Type = CaseType.Investigation,
+                    MinimumRankRequired = DetectiveRank.Sergeant,
+                    Location = "Porto da Cidade - Cais 7",
+                    IncidentDate = DateTime.UtcNow.AddDays(-31),
+                    BriefingText = "Corpo encontrado no cais 7 durante patrulha noturna. Indícios de luta e possível execução.",
+                    HasMultipleSuspects = true,
+                    EstimatedDifficultyLevel = 8,
+                    CorrectSuspectName = "Roberto Santos",
+                    MaxScore = 100.0
                 }
             );
         }
