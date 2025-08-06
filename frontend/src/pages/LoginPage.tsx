@@ -162,6 +162,28 @@ const BackLink = styled(Link)`
   }
 `
 
+const TestCredentials = styled.div`
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(52, 152, 219, 0.1);
+  text-align: left;
+`
+
+const TestCredentialsTitle = styled.p`
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  margin: 0 0 0.5rem 0;
+  font-weight: 500;
+`
+
+const TestCredentialsText = styled.p`
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.7rem;
+  margin: 0.25rem 0;
+  font-family: monospace;
+  line-height: 1.3;
+`
+
 const LoginPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
@@ -255,6 +277,12 @@ const LoginPage = () => {
         <Footer>
           <FooterText>Não possui acesso ao sistema?</FooterText>
           <FooterLink to="/register">Solicitar Registro</FooterLink>
+          
+          <TestCredentials>
+            <TestCredentialsTitle>Credenciais de Teste:</TestCredentialsTitle>
+            <TestCredentialsText>detective@police.gov / Password123!</TestCredentialsText>
+            <TestCredentialsText>inspector@police.gov / Inspector456!</TestCredentialsText>
+          </TestCredentials>
         </Footer>
       </LoginCard>
     </PageContainer>
