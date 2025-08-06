@@ -1,0 +1,36 @@
+# Video File: Câmeras de Segurança do Lobby
+# Este arquivo representaria o vídeo real das câmeras
+
+GRAVAÇÃO DE SEGURANÇA - EDIFÍCIO EMPRESARIAL TORRES
+Data: 14/01/2024
+Período: 20:00h às 24:00h
+Câmera: Lobby Principal
+
+EVENTOS REGISTRADOS:
+
+20:15h - Carlos Mendoza sai do prédio (confirmado)
+20:45h - Movimento normal de funcionários saindo
+21:30h - Últimos funcionários regulares saem
+22:00h - FALHA NO SISTEMA (início)
+22:15h - Sistema volta a funcionar
+22:17h - Marina Silva entra no prédio (usando cartão próprio)
+22:45h - Mulher loira sai apressadamente
+        - Tenta usar saída lateral
+        - Muda para saída principal ao ver segurança
+        - Características físicas compatíveis com Marina Silva
+23:00h - NOVA FALHA NO SISTEMA (fim)
+23:15h - Sistema reestabelecido
+23:15h - Segurança José Santos chama emergência
+
+ANÁLISE TÉCNICA REQUERIDA:
+- Aprimoramento da imagem da mulher às 22:45h
+- Análise facial comparativa
+- Verificação de timestamps
+- Investigação das falhas do sistema
+
+OBSERVAÇÕES:
+- Falhas do sistema coincidem com período crítico
+- Possível sabotagem ou conhecimento técnico
+- Qualidade da imagem permite identificação parcial
+
+STATUS: Requer análise forense digital
