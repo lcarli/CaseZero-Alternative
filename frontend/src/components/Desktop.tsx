@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React from 'react'
 import styled from 'styled-components'
 import Dock from './Dock'
 import Window from './Window'
-import type { WindowData } from './Window'
+import { useWindowContext } from '../contexts/WindowContext'
 
 const DesktopContainer = styled.div`
   width: 100vw;
@@ -111,64 +111,14 @@ const DesktopArea = styled.div`
 `
 
 const Desktop: React.FC = () => {
-  const [windows, setWindows] = useState<WindowData[]>([])
-  const [highestZIndex, setHighestZIndex] = useState(1000)
-
-  const openWindow = (id: string, title: string, component: React.ComponentType) => {
-    const existingWindow = windows.find(w => w.id === id)
-    
-    if (existingWindow) {
-      // Bring existing window to front
-      bringToFront(id)
-      return
-    }
-
-    const newWindow: WindowData = {
-      id,
-      title,
-      component,
-      isOpen: true,
-      position: { 
-        x: Math.random() * 300 + 100, 
-        y: Math.random() * 200 + 100 
-      },
-      size: { width: 600, height: 400 },
-      zIndex: highestZIndex + 1
-    }
-
-    setWindows(prev => [...prev, newWindow])
-    setHighestZIndex(prev => prev + 1)
-  }
-
-  const closeWindow = (id: string) => {
-    setWindows(prev => prev.filter(w => w.id !== id))
-  }
-
-  const bringToFront = (id: string) => {
-    const newZIndex = highestZIndex + 1
-    setWindows(prev => 
-      prev.map(w => 
-        w.id === id ? { ...w, zIndex: newZIndex } : w
-      )
-    )
-    setHighestZIndex(newZIndex)
-  }
-
-  const updateWindowPosition = (id: string, position: { x: number; y: number }) => {
-    setWindows(prev => 
-      prev.map(w => 
-        w.id === id ? { ...w, position } : w
-      )
-    )
-  }
-
-  const updateWindowSize = (id: string, size: { width: number; height: number }) => {
-    setWindows(prev => 
-      prev.map(w => 
-        w.id === id ? { ...w, size } : w
-      )
-    )
-  }
+  const {
+    windows,
+    openWindow,
+    closeWindow,
+    bringToFront,
+    updateWindowPosition,
+    updateWindowSize
+  } = useWindowContext()
 
   return (
     <DesktopContainer>

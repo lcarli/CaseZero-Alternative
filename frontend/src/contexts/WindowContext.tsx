@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react'
-import { WindowData } from '../components/Window'
+import React, { createContext, useContext, useState } from 'react'
+import type { ReactNode } from 'react'
+import type { WindowData } from '../components/Window'
 
 interface WindowContextType {
   windows: WindowData[]

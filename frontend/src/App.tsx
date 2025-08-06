@@ -1,7 +1,12 @@
 import Desktop from './components/Desktop'
+import { WindowProvider } from './contexts/WindowContext'
 
 function App() {
-  return <Desktop />
+  return (
+    <WindowProvider>
+      <Desktop />
+    </WindowProvider>
+  )
 }
 
 export default App
