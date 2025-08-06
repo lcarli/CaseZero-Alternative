@@ -1,10 +1,34 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
+import { useCase } from '../../hooks/useCaseContext'
 
 const FileViewerContainer = styled.div`
   height: 100%;
   display: flex;
   flex-direction: column;
+`
+
+const TwoColumnLayout = styled.div`
+  display: flex;
+  height: 100%;
+  gap: 1rem;
+`
+
+const LeftPanel = styled.div`
+  width: 300px;
+  min-width: 250px;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding-right: 1rem;
+`
+
+const RightPanel = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 `
 
 const FileExplorer = styled.div`
@@ -66,13 +90,11 @@ const FileName = styled.span`
 `
 
 const FileContent = styled.div`
-  margin-top: 1rem;
+  flex: 1;
   padding: 1rem;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 6px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  min-height: 200px;
-  max-height: 400px;
   overflow-y: auto;
 `
 
@@ -125,29 +147,6 @@ const FileInfoItem = styled.span`
   gap: 0.25rem;
 `
 
-const CaseSelector = styled.div`
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-`
-
-const CaseSelect = styled.select`
-  background: rgba(0, 0, 0, 0.3);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-  padding: 0.5rem;
-  font-size: 13px;
-  width: 100%;
-  
-  option {
-    background: #1a1a2e;
-    color: white;
-  }
-`
-
 interface FileData {
   name: string
   icon: string
@@ -171,7 +170,7 @@ interface CaseData {
 const FileViewer: React.FC = () => {
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set(['case-files']))
   const [selectedFile, setSelectedFile] = useState<string | null>('case001.txt')
-  const [currentCase, setCurrentCase] = useState<string>('CASE-2024-001')
+  const { currentCase } = useCase()
 
   // Updated data structure with notes about TestAssets integration
   const getCaseData = (caseId: string): CaseData => {
@@ -472,7 +471,7 @@ STATUS: Pending further analysis
     return caseFiles[caseId] || caseFiles['CASE-2024-001']
   }
 
-  const fileStructure = getCaseData(currentCase)
+  const fileStructure = getCaseData(currentCase || 'CASE-2024-001')
 
   const toggleFolder = (folderId: string) => {
     const newOpenFolders = new Set(openFolders)
@@ -490,12 +489,6 @@ STATUS: Pending further analysis
       if (file) return file
     }
     return null
-  }
-
-  const handleCaseChange = (newCase: string) => {
-    setCurrentCase(newCase)
-    setSelectedFile(null)
-    setOpenFolders(new Set(['case-files']))
   }
 
   const renderFileContent = (file: FileData) => {
@@ -549,74 +542,82 @@ STATUS: Pending further analysis
 
   return (
     <FileViewerContainer>
-      <h3 style={{ margin: '0 0 1rem 0' }}>Police File System</h3>
+      <h3 style={{ margin: '0 0 1rem 0' }}>Police File System - {currentCase || 'No Case'}</h3>
       
-      <CaseSelector>
-        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)' }}>
-          Active Case:
-        </label>
-        <CaseSelect 
-          value={currentCase} 
-          onChange={(e) => handleCaseChange(e.target.value)}
-        >
-          <option value="CASE-2024-001">Case 2024-001 - Office Break-in</option>
-          <option value="CASE-2024-002">Case 2024-002 - Mall Pickpocketing</option>
-        </CaseSelect>
-      </CaseSelector>
-      
-      <FileExplorer>
-        {Object.entries(fileStructure).map(([folderId, folder]) => (
-          <div key={folderId}>
-            <FolderHeader onClick={() => toggleFolder(folderId)}>
-              <FolderIcon>{openFolders.has(folderId) ? '📂' : '📁'}</FolderIcon>
-              <FolderName>{folder.name}</FolderName>
-            </FolderHeader>
-            {openFolders.has(folderId) && (
-              <FileList>
-                {folder.files.map(file => (
-                  <FileItem
-                    key={file.name}
-                    onClick={() => setSelectedFile(file.name)}
-                  >
-                    <FileIcon>{file.icon}</FileIcon>
-                    <FileName>{file.name}</FileName>
-                  </FileItem>
-                ))}
-              </FileList>
-            )}
-          </div>
-        ))}
-      </FileExplorer>
-      
-      {selectedFile && (
-        <FileContent>
-          {(() => {
-            const file = getFileContent(selectedFile)
-            if (!file) return <div>File not found</div>
-            
-            return (
-              <>
-                <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>{selectedFile}</h4>
-                <FileInfo>
-                  <FileInfoItem>
-                    <span>📊</span>
-                    {file.size}
-                  </FileInfoItem>
-                  <FileInfoItem>
-                    <span>📅</span>
-                    {file.modified}
-                  </FileInfoItem>
-                  <FileInfoItem>
-                    <span>📄</span>
-                    {file.type.toUpperCase()}
-                  </FileInfoItem>
-                </FileInfo>
-                {renderFileContent(file)}
-              </>
-            )
-          })()}
-        </FileContent>
-      )}
+      <TwoColumnLayout>
+        <LeftPanel>
+          <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>Files & Folders</h4>
+          <FileExplorer>
+            {Object.entries(fileStructure).map(([folderId, folder]) => (
+              <div key={folderId}>
+                <FolderHeader onClick={() => toggleFolder(folderId)}>
+                  <FolderIcon>{openFolders.has(folderId) ? '📂' : '📁'}</FolderIcon>
+                  <FolderName>{folder.name}</FolderName>
+                </FolderHeader>
+                {openFolders.has(folderId) && (
+                  <FileList>
+                    {folder.files.map(file => (
+                      <FileItem
+                        key={file.name}
+                        onClick={() => setSelectedFile(file.name)}
+                        style={{ 
+                          background: selectedFile === file.name ? 'rgba(74, 158, 255, 0.2)' : 'transparent' 
+                        }}
+                      >
+                        <FileIcon>{file.icon}</FileIcon>
+                        <FileName>{file.name}</FileName>
+                      </FileItem>
+                    ))}
+                  </FileList>
+                )}
+              </div>
+            ))}
+          </FileExplorer>
+        </LeftPanel>
+        
+        <RightPanel>
+          {selectedFile ? (
+            <FileContent>
+              {(() => {
+                const file = getFileContent(selectedFile)
+                if (!file) return <div>File not found</div>
+                
+                return (
+                  <>
+                    <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>{selectedFile}</h4>
+                    <FileInfo>
+                      <FileInfoItem>
+                        <span>📊</span>
+                        {file.size}
+                      </FileInfoItem>
+                      <FileInfoItem>
+                        <span>📅</span>
+                        {file.modified}
+                      </FileInfoItem>
+                      <FileInfoItem>
+                        <span>📄</span>
+                        {file.type.toUpperCase()}
+                      </FileInfoItem>
+                    </FileInfo>
+                    {renderFileContent(file)}
+                  </>
+                )
+              })()}
+            </FileContent>
+          ) : (
+            <div style={{ 
+              flex: 1, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              color: 'rgba(255, 255, 255, 0.6)',
+              fontSize: '16px'
+            }}>
+              Select a file to view its contents
+            </div>
+          )}
+        </RightPanel>
+      </TwoColumnLayout>
     </FileViewerContainer>
   )
 }

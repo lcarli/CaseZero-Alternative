@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../hooks/useAuthContext'
 import { ApiError } from '../services/api'
 
 const PageContainer = styled.div`

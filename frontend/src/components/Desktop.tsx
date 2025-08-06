@@ -3,6 +3,7 @@ import styled from 'styled-components'
 import Dock from './Dock'
 import Window from './Window'
 import { useWindowContext } from '../hooks/useWindowContext'
+import { useCase } from '../hooks/useCaseContext'
 
 const DesktopContainer = styled.div`
   width: 100vw;
@@ -124,6 +125,8 @@ const Desktop: React.FC = () => {
     updateWindowSize
   } = useWindowContext()
 
+  const { currentCase } = useCase()
+
   // Add desktop-mode class when component mounts, remove when it unmounts
   useEffect(() => {
     document.body.classList.add('desktop-mode')
@@ -142,6 +145,7 @@ const Desktop: React.FC = () => {
         <div><span className="label">User:</span> Detective John Doe</div>
         <div><span className="label">Unit:</span> Investigation Division</div>
         <div><span className="label">Badge:</span> #4729</div>
+        <div><span className="label">Case:</span> {currentCase || 'No Case'}</div>
         <div><span className="label">Status:</span> Active</div>
       </SystemInfo>
       
