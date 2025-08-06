@@ -69,6 +69,7 @@ builder.Services.AddCors(options =>
 
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<DataSeedingService>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -141,6 +142,10 @@ using (var scope = app.Services.CreateScope())
         
         await context.SaveChangesAsync();
     }
+    
+    // Seed GDD-specific data
+    var seedingService = scope.ServiceProvider.GetRequiredService<DataSeedingService>();
+    await seedingService.SeedGDDDataAsync();
 }
 
 app.Run();

@@ -300,7 +300,7 @@ namespace CaseZeroApi.Controllers
                 var email = new Email
                 {
                     ToUserId = user.Id,
-                    FromUserId = "system", // System user
+                    FromUserId = user.Id, // Simplified - in reality this would be from system admin
                     Subject = $"Promoção para {GetRankName(newRank)}",
                     Content = $"Parabéns! Você foi promovido para {GetRankName(newRank)} com base em seu excelente desempenho. " +
                              $"Pontos de experiência: {user.ExperiencePoints}, Taxa de sucesso: {user.SuccessRate:F1}%",
