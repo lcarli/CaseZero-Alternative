@@ -1,0 +1,26 @@
+TIMESTAMP,EVENTO,PESSOA,CARTAO_ID,SETOR,OBSERVACOES
+2024-01-14T08:15:00Z,ENTRADA,Marina Silva,MS001,23F,Entrada normal
+2024-01-14T08:22:00Z,ENTRADA,Carlos Mendoza,CM002,23F,Entrada normal
+2024-01-14T08:45:00Z,ENTRADA,Dr. Eduardo Martins,EM003,23F,Entrada normal - CEO
+2024-01-14T09:30:00Z,ENTRADA,Ana Souza,AS004,22F,Secretária geral
+2024-01-14T12:00:00Z,SAIDA,Ana Souza,AS004,22F,Almoço
+2024-01-14T13:15:00Z,ENTRADA,Ana Souza,AS004,22F,Retorno almoço
+2024-01-14T17:30:00Z,SAIDA,Carlos Mendoza,CM002,23F,Saída fim de expediente
+2024-01-14T18:00:00Z,SAIDA,Marina Silva,MS001,23F,Saída normal
+2024-01-14T18:15:00Z,SAIDA,Ana Souza,AS004,22F,Saída fim de expediente
+2024-01-14T20:00:00Z,ENTRADA,José Santos,JS005,LOBBY,Início turno noturno
+2024-01-14T21:30:00Z,ACESSO,Dr. Eduardo Martins,EM003,23F,Última atividade registrada
+2024-01-14T22:15:00Z,TENTATIVA,DESCONHECIDO,INVAL,23F,Cartão inválido tentativa 1
+2024-01-14T22:16:00Z,TENTATIVA,DESCONHECIDO,INVAL,23F,Cartão inválido tentativa 2
+2024-01-14T22:17:00Z,ACESSO,Marina Silva,MS001,23F,ACESSO FORA DO HORARIO
+2024-01-14T22:47:00Z,SAIDA,Marina Silva,MS001,23F,Saída não autorizada
+2024-01-15T06:00:00Z,ENTRADA,José Santos,JS005,LOBBY,Ronda matinal
+2024-01-15T07:30:00Z,ENTRADA,Equipe Limpeza,EL006,GERAL,Limpeza matinal
+2024-01-15T08:00:00Z,ENTRADA,Equipe Policial,POL007,23F,Investigação iniciada
+
+OBSERVACOES IMPORTANTES:
+- Marina Silva retornou ao prédio às 22:17h, bem após o horário normal
+- Duas tentativas de acesso com cartão inválido às 22:15h e 22:16h
+- Dr. Eduardo não registrou saída - última atividade às 21:30h
+- Sistema de câmeras apresentou falha entre 22:00h e 23:00h (sob investigação)
+- Segurança noturno José Santos não reportou movimentação suspeita até 23:15h
