@@ -3,37 +3,34 @@ import styled from 'styled-components'
 import { useTimeContext } from '../hooks/useTimeContext'
 
 const ClockContainer = styled.div`
-  position: absolute;
-  top: 20px;
-  right: 120px;
-  background: rgba(0, 0, 0, 0.85);
-  border: 2px solid rgba(52, 152, 219, 0.6);
+  position: relative;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(52, 152, 219, 0.4);
   border-radius: 8px;
-  padding: 12px 16px;
+  padding: 8px 12px;
   color: rgba(255, 255, 255, 0.95);
   font-family: 'Courier New', monospace;
   font-weight: 600;
-  backdrop-filter: blur(15px);
+  backdrop-filter: blur(10px);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-  z-index: 100;
   cursor: pointer;
   transition: all 0.3s ease;
   user-select: none;
+  margin-left: auto;
 
   &:hover {
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(52, 152, 219, 0.3);
     border-color: rgba(52, 152, 219, 0.8);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.2);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px rgba(52, 152, 219, 0.3);
   }
 
   &:active {
-    transform: translateY(0);
+    transform: translateY(-2px);
   }
 
   @media (max-width: 768px) {
-    right: 10px;
-    padding: 8px 12px;
+    padding: 6px 8px;
     font-size: 12px;
   }
 `
@@ -46,22 +43,22 @@ const TimeDisplay = styled.div`
 `
 
 const TimeText = styled.div`
-  font-size: 16px;
+  font-size: 14px;
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   
   @media (max-width: 768px) {
-    font-size: 14px;
+    font-size: 12px;
   }
 `
 
 const DateText = styled.div`
-  font-size: 11px;
+  font-size: 10px;
   color: rgba(52, 152, 219, 0.9);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   
   @media (max-width: 768px) {
-    font-size: 10px;
+    font-size: 9px;
   }
 `
 
@@ -87,7 +84,7 @@ const StatusIndicator = styled.div.withConfig({
 
 const ExpandedClock = styled.div`
   position: absolute;
-  top: 60px;
+  bottom: 80px;
   right: 0;
   background: rgba(0, 0, 0, 0.9);
   border: 2px solid rgba(52, 152, 219, 0.6);

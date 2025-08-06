@@ -5,6 +5,7 @@ import Email from './apps/Email'
 import Notebook from './apps/Notebook'
 import SubmitCase from './apps/SubmitCase'
 import Logs from './apps/Logs'
+import Clock from './Clock'
 
 const DockContainer = styled.div`
   position: fixed;
@@ -17,10 +18,23 @@ const DockContainer = styled.div`
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 2rem;
+  justify-content: space-between;
   padding: 0 2rem;
   z-index: 10000;
+`
+
+const DockCenter = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  flex: 1;
+`
+
+const DockRight = styled.div`
+  display: flex;
+  align-items: center;
+  margin-left: 2rem;
 `
 
 const DockIcon = styled.button`
@@ -84,13 +98,27 @@ const DockIcon = styled.button`
 const ResponsiveDockContainer = styled(DockContainer)`
   @media (max-width: 768px) {
     height: 70px;
-    gap: 1rem;
     padding: 0 1rem;
+    
+    ${DockCenter} {
+      gap: 1rem;
+    }
+    
+    ${DockRight} {
+      margin-left: 1rem;
+    }
   }
 
   @media (max-width: 480px) {
-    gap: 0.5rem;
     padding: 0 0.5rem;
+    
+    ${DockCenter} {
+      gap: 0.5rem;
+    }
+    
+    ${DockRight} {
+      margin-left: 0.5rem;
+    }
   }
 `
 
@@ -134,15 +162,20 @@ const Dock: React.FC<DockProps> = ({ onOpenWindow }) => {
 
   return (
     <ResponsiveDockContainer>
-      {dockItems.map(item => (
-        <DockIcon
-          key={item.id}
-          data-title={item.title}
-          onClick={() => onOpenWindow(item.id, item.title, item.component)}
-        >
-          {item.icon}
-        </DockIcon>
-      ))}
+      <DockCenter>
+        {dockItems.map(item => (
+          <DockIcon
+            key={item.id}
+            data-title={item.title}
+            onClick={() => onOpenWindow(item.id, item.title, item.component)}
+          >
+            {item.icon}
+          </DockIcon>
+        ))}
+      </DockCenter>
+      <DockRight>
+        <Clock />
+      </DockRight>
     </ResponsiveDockContainer>
   )
 }
