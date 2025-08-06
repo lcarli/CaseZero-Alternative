@@ -1,0 +1,13 @@
+{
+  "id": "case001_email2",
+  "sender": "Forensics Lab",
+  "subject": "DNA Results - Case #001",
+  "preview": "DNA analysis complete for evidence submitted from downtown break-in...",
+  "content": "Lab Report - Case #001\n\nDNA analysis has been completed for the evidence submitted from the downtown office break-in.\n\nResults Summary:\n- Sample from window frame: Partial match found (85% confidence)\n- Subject: David Thompson, DOB: 03/15/1987\n- Criminal History: Minor theft (2019), Breaking & Entering (2021)\n- Current Status: On probation\n\nRecommendations:\n1. Interview David Thompson regarding whereabouts on January 15, 2024\n2. Obtain fresh DNA sample for definitive comparison\n3. Check alibi and known associates\n\nFull detailed report is attached for your review.\n\nDr. Emily Chen, PhD\nMetropolitan Forensics Laboratory",
+  "time": "1 day ago",
+  "isUnread": false,
+  "priority": "medium",
+  "attachments": [
+    { "name": "dna_results.txt", "size": "3.7 KB", "type": "text" }
+  ]
+}

@@ -207,7 +207,9 @@ Please review the attached case files and begin investigation immediately.
 Evidence files have been uploaded to the system for your review.
 
 Chief Johnson
-Metropolitan Police Department`,
+Metropolitan Police Department
+
+[Email Source: /cases/TestAssets/CASE-2024-001/emails/case001_email1.json]`,
           time: '2 hours ago',
           isUnread: true,
           priority: 'high',
@@ -239,7 +241,9 @@ Recommendations:
 Full detailed report is attached for your review.
 
 Dr. Emily Chen, PhD
-Metropolitan Forensics Laboratory`,
+Metropolitan Forensics Laboratory
+
+[Email Source: /cases/TestAssets/CASE-2024-001/emails/case001_email2.json]`,
           time: '1 day ago',
           isUnread: false,
           priority: 'medium',
@@ -265,7 +269,9 @@ Key points from the statement:
 The complete witness statement PDF is attached and also available in the case file system.
 
 Detective Sarah Johnson
-Investigating Officer`,
+Investigating Officer
+
+[Email Source: /cases/TestAssets/CASE-2024-001/emails/case001_email3.json]`,
           time: '2 days ago',
           isUnread: false,
           priority: 'medium',
@@ -296,7 +302,9 @@ Security footage has been collected and is available for review in the attached 
 Please prioritize this investigation as we suspect this may be part of a larger organized theft ring.
 
 Detective Mike Rodriguez
-Theft Investigation Unit`,
+Theft Investigation Unit
+
+[Email Source: /cases/TestAssets/CASE-2024-002/emails/case002_email1.json]`,
           time: '3 hours ago',
           isUnread: true,
           priority: 'high',
@@ -325,7 +333,9 @@ The analysis is ongoing, and we expect to have more conclusive results within th
 Will update you as soon as we have any database matches.
 
 CSI Jennifer Walsh
-Fingerprint Analysis Unit`,
+Fingerprint Analysis Unit
+
+[Email Source: /cases/TestAssets/CASE-2024-002/emails/case002_email2.json]`,
           time: '1 day ago',
           isUnread: false,
           priority: 'medium',
