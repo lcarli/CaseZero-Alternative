@@ -1,19 +1,24 @@
 import { useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
+import Navigation from '../components/Navigation'
 
 const PageContainer = styled.div`
   min-height: 100vh;
   background: linear-gradient(135deg, #0a0f23 0%, #1a2140 25%, #2a3458 50%, #1a2140 75%, #0a0f23 100%);
-  background-image: 
-    radial-gradient(circle at 20% 80%, rgba(52, 152, 219, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(74, 158, 255, 0.08) 0%, transparent 50%);
+  display: flex;
+  flex-direction: column;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: white;
+`
+
+const MainContent = styled.main`
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  color: white;
-  padding: 2rem;
+  padding: 6rem 2rem 2rem;
+  min-height: 100vh;
 `
 
 const LogoContainer = styled.div`
@@ -53,14 +58,22 @@ const Description = styled.div`
 `
 
 const GameInfo = styled.div`
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(52, 152, 219, 0.3);
   border-radius: 1rem;
   padding: 2rem;
   margin-bottom: 3rem;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(15px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   max-width: 600px;
   text-align: left;
+`
+
+const GameInfoTitle = styled.h3`
+  color: rgba(52, 152, 219, 0.9);
+  margin: 0 0 1rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
 `
 
 const FeatureList = styled.ul`
@@ -71,10 +84,13 @@ const FeatureList = styled.ul`
   li {
     padding: 0.5rem 0;
     color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     
     &::before {
-      content: '🔍 ';
-      margin-right: 0.5rem;
+      content: '🔍';
+      font-size: 1rem;
     }
   }
 `
@@ -89,7 +105,7 @@ const ButtonContainer = styled.div`
 const Button = styled.button`
   padding: 1rem 2rem;
   font-size: 1.1rem;
-  font-weight: 500;
+  font-weight: 600;
   border: none;
   border-radius: 0.5rem;
   cursor: pointer;
@@ -126,46 +142,50 @@ const HomePage = () => {
 
   return (
     <PageContainer>
-      <LogoContainer>
-        <LogoIcon>🕵️‍♂️</LogoIcon>
-        <div>
-          <Title>CaseZero</Title>
-          <Subtitle>Detective Investigation System</Subtitle>
-        </div>
-      </LogoContainer>
+      <Navigation />
+      
+      <MainContent>
+        <LogoContainer>
+          <LogoIcon>🕵️‍♂️</LogoIcon>
+          <div>
+            <Title>CaseZero</Title>
+            <Subtitle>Detective Investigation System</Subtitle>
+          </div>
+        </LogoContainer>
 
-      <Description>
-        Bem-vindo ao CaseZero, um jogo imersivo de investigação detetivesca onde você assume o papel 
-        de um detetive experiente resolvendo casos complexos. Use suas habilidades analíticas, 
-        examine evidências, entreviste suspeitos e desvende mistérios intrigantes.
-      </Description>
+        <Description>
+          Bem-vindo ao CaseZero, um jogo imersivo de investigação detetivesca onde você assume o papel 
+          de um detetive experiente resolvendo casos complexos. Use suas habilidades analíticas, 
+          examine evidências, entreviste suspeitos e desvende mistérios intrigantes.
+        </Description>
 
-      <GameInfo>
-        <h3 style={{ color: 'rgba(52, 152, 219, 0.9)', marginTop: 0 }}>🎮 Características do Jogo</h3>
-        <FeatureList>
-          <li>Casos investigativos realistas e envolventes</li>
-          <li>Sistema de evidências detalhado</li>
-          <li>Interface de computador policial autêntica</li>
-          <li>Múltiplos casos para resolver</li>
-          <li>Progressão do detetive baseada em performance</li>
-          <li>Análise forense e coleta de pistas</li>
-        </FeatureList>
-      </GameInfo>
+        <GameInfo>
+          <GameInfoTitle>🎮 Características do Jogo</GameInfoTitle>
+          <FeatureList>
+            <li>Casos investigativos realistas e envolventes</li>
+            <li>Sistema de evidências detalhado</li>
+            <li>Interface de computador policial autêntica</li>
+            <li>Múltiplos casos para resolver</li>
+            <li>Progressão do detetive baseada em performance</li>
+            <li>Análise forense e coleta de pistas</li>
+          </FeatureList>
+        </GameInfo>
 
-      <ButtonContainer>
-        <Button 
-          className="primary" 
-          onClick={() => navigate('/login')}
-        >
-          Entrar no Sistema
-        </Button>
-        <Button 
-          className="secondary" 
-          onClick={() => navigate('/register')}
-        >
-          Registrar-se
-        </Button>
-      </ButtonContainer>
+        <ButtonContainer>
+          <Button 
+            className="primary" 
+            onClick={() => navigate('/login')}
+          >
+            Entrar no Sistema
+          </Button>
+          <Button 
+            className="secondary" 
+            onClick={() => navigate('/register')}
+          >
+            Registrar-se
+          </Button>
+        </ButtonContainer>
+      </MainContent>
     </PageContainer>
   )
 }
