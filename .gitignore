@@ -163,3 +163,22 @@ project.lock.json
 project.fragment.lock.json
 artifacts/
 **/Properties/launchSettings.json
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# .NET publishing
+wwwroot/
+
+# Entity Framework
+Migrations/
+
+# Visual Studio
+.vs/
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates

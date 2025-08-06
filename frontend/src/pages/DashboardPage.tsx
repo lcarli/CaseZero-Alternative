@@ -1,5 +1,9 @@
 import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import styled from 'styled-components'
+import { useAuth } from '../contexts/AuthContext'
+import { casesApi } from '../services/api'
+import type { Dashboard } from '../services/api'
 
 const PageContainer = styled.div`
   min-height: 100vh;
@@ -225,9 +229,29 @@ const Button = styled.button`
 
 const DashboardPage = () => {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const data = await casesApi.getDashboard()
+        setDashboard(data)
+      } catch (err) {
+        setError('Erro ao carregar dashboard')
+        console.error('Dashboard error:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadDashboard()
+  }, [])
 
   const handleLogout = () => {
-    // TODO: Implement actual logout
+    logout()
     navigate('/')
   }
 
@@ -235,38 +259,68 @@ const DashboardPage = () => {
     navigate(`/desktop/${caseId}`)
   }
 
-  const mockCases = [
-    {
-      id: 'CASE-2024-001',
-      title: 'Roubo no Banco Central',
-      status: 'in-progress',
-      priority: 'Alta',
-      description: 'Investigação de roubo milionário'
-    },
-    {
-      id: 'CASE-2024-002',
-      title: 'Fraude Corporativa TechCorp',
-      status: 'open',
-      priority: 'Média',
-      description: 'Suspeita de fraude contábil'
-    },
-    {
-      id: 'CASE-2024-003',
-      title: 'Homicídio no Porto',
-      status: 'resolved',
-      priority: 'Alta',
-      description: 'Caso resolvido com sucesso'
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'Open': return 'Aberto'
+      case 'InProgress': return 'Em Andamento'
+      case 'Resolved': return 'Resolvido'
+      case 'Closed': return 'Fechado'
+      default: return status
     }
-  ]
+  }
+
+  const getStatusClass = (status: string) => {
+    switch (status) {
+      case 'Open': return 'open'
+      case 'InProgress': return 'in-progress'
+      case 'Resolved': return 'resolved'
+      case 'Closed': return 'resolved'
+      default: return 'open'
+    }
+  }
+
+  const getPriorityText = (priority: string) => {
+    switch (priority) {
+      case 'Low': return 'Baixa'
+      case 'Medium': return 'Média'
+      case 'High': return 'Alta'
+      case 'Critical': return 'Crítica'
+      default: return priority
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <PageContainer>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <div style={{ color: 'white', fontSize: '1.2rem' }}>Carregando...</div>
+        </div>
+      </PageContainer>
+    )
+  }
+
+  if (error) {
+    return (
+      <PageContainer>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <div style={{ color: 'rgba(231, 76, 60, 0.9)', fontSize: '1.2rem' }}>{error}</div>
+        </div>
+      </PageContainer>
+    )
+  }
+
+  if (!dashboard) {
+    return null
+  }
 
   return (
     <PageContainer>
       <Header>
         <UserInfo>
-          <Avatar>JD</Avatar>
+          <Avatar>{user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}</Avatar>
           <UserDetails>
-            <h2>Detective John Doe</h2>
-            <p>Investigation Division • Badge #4729</p>
+            <h2>{user?.firstName} {user?.lastName}</h2>
+            <p>{user?.department} • Badge #{user?.badgeNumber}</p>
           </UserDetails>
         </UserInfo>
         <LogoutButton onClick={handleLogout}>
@@ -282,19 +336,19 @@ const DashboardPage = () => {
             </CardHeader>
             <StatsGrid>
               <StatCard>
-                <div className="stat-value">23</div>
+                <div className="stat-value">{dashboard.stats.casesResolved}</div>
                 <div className="stat-label">Casos Resolvidos</div>
               </StatCard>
               <StatCard>
-                <div className="stat-value">5</div>
+                <div className="stat-value">{dashboard.stats.casesActive}</div>
                 <div className="stat-label">Casos Ativos</div>
               </StatCard>
               <StatCard>
-                <div className="stat-value">92%</div>
+                <div className="stat-value">{dashboard.stats.successRate}%</div>
                 <div className="stat-label">Taxa de Sucesso</div>
               </StatCard>
               <StatCard>
-                <div className="stat-value">4.8</div>
+                <div className="stat-value">{dashboard.stats.averageRating}</div>
                 <div className="stat-label">Avaliação Média</div>
               </StatCard>
             </StatsGrid>
@@ -308,20 +362,19 @@ const DashboardPage = () => {
               </Button>
             </CardHeader>
             <CaseList>
-              {mockCases.map(case_ => (
+              {dashboard.cases.map(case_ => (
                 <CaseItem 
                   key={case_.id} 
                   onClick={() => handleCaseClick(case_.id)}
                 >
                   <div className="case-header">
                     <span className="case-id">{case_.id}</span>
-                    <span className={`case-status ${case_.status}`}>
-                      {case_.status === 'open' ? 'Aberto' : 
-                       case_.status === 'in-progress' ? 'Em Andamento' : 'Resolvido'}
+                    <span className={`case-status ${getStatusClass(case_.status)}`}>
+                      {getStatusText(case_.status)}
                     </span>
                   </div>
                   <div className="case-title">{case_.title}</div>
-                  <div className="case-priority">Prioridade: {case_.priority}</div>
+                  <div className="case-priority">Prioridade: {getPriorityText(case_.priority)}</div>
                 </CaseItem>
               ))}
             </CaseList>
@@ -362,10 +415,9 @@ const DashboardPage = () => {
             </CardHeader>
             <div>
               <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem' }}>
-                <p>• Caso BANK-2024-001 resolvido (Ontem)</p>
-                <p>• Nova evidência coletada em TECH-2024-002 (2 dias)</p>
-                <p>• Entrevista realizada com suspeito (3 dias)</p>
-                <p>• Relatório forense recebido (5 dias)</p>
+                {dashboard.recentActivities.map((activity, index) => (
+                  <p key={index}>• {activity.description}</p>
+                ))}
               </div>
             </div>
           </Card>

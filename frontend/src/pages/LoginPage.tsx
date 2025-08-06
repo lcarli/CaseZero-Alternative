@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
+import { useAuth } from '../contexts/AuthContext'
+import { ApiError } from '../services/api'
 
 const PageContainer = styled.div`
   min-height: 100vh;
@@ -135,6 +137,17 @@ const FooterLink = styled(Link)`
   }
 `
 
+const ErrorMessage = styled.div`
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: rgba(231, 76, 60, 0.9);
+  font-size: 0.9rem;
+  text-align: center;
+`
+
 const BackLink = styled(Link)`
   color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
@@ -151,11 +164,14 @@ const BackLink = styled(Link)`
 
 const LoginPage = () => {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { login } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -163,19 +179,30 @@ const LoginPage = () => {
       ...prev,
       [name]: value
     }))
+    // Clear error when user starts typing
+    if (error) setError('')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError('')
     
-    // TODO: Implement actual authentication
-    // For now, simulate a login process
-    setTimeout(() => {
+    try {
+      await login(formData.email, formData.password)
+      
+      // Navigate to the intended page or dashboard
+      const from = location.state?.from?.pathname || '/dashboard'
+      navigate(from, { replace: true })
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message)
+      } else {
+        setError('An unexpected error occurred. Please try again.')
+      }
+    } finally {
       setIsLoading(false)
-      // Navigate to dashboard after successful login
-      navigate('/dashboard')
-    }, 1000)
+    }
   }
 
   return (
@@ -192,6 +219,8 @@ const LoginPage = () => {
         </Header>
 
         <Form onSubmit={handleSubmit}>
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+          
           <FormGroup>
             <Label htmlFor="email">Email ou Número de Identificação</Label>
             <Input
