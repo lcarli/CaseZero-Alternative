@@ -173,6 +173,7 @@ const FileViewer: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<string | null>('case001.txt')
   const [currentCase, setCurrentCase] = useState<string>('CASE-2024-001')
 
+  // Updated data structure with notes about TestAssets integration
   const getCaseData = (caseId: string): CaseData => {
     const caseFiles: { [key: string]: CaseData } = {
       'CASE-2024-001': {
@@ -223,7 +224,14 @@ NEXT STEPS:
 - Check for similar incidents in area
 
 ASSIGNED TO: Detective Unit 7
-PRIORITY: High` 
+PRIORITY: High
+
+===== TESASSETS INTEGRATION =====
+This content is now available as a separate file:
+/cases/TestAssets/CASE-2024-001/case-files/case001.txt
+
+The system has been restructured to load data dynamically from 
+individual files rather than hardcoded data structures.` 
             },
             { 
               name: 'evidence.jpg', 
@@ -231,7 +239,7 @@ PRIORITY: High`
               type: 'image',
               size: '1.2 MB',
               modified: '2024-01-15 02:35',
-              content: 'Security camera footage showing masked suspect entering through main entrance. Clear view of suspect\'s build and clothing. Timestamp: 02:15:33 AM. Image quality: High definition. Additional details visible: dark clothing, approximately 5\'10" height, carrying small backpack.',
+              content: 'Security camera footage showing masked suspect entering through main entrance. Clear view of suspect\'s build and clothing. Timestamp: 02:15:33 AM. Image quality: High definition. Additional details visible: dark clothing, approximately 5\'10" height, carrying small backpack.\n\n[TestAssets: /cases/TestAssets/CASE-2024-001/case-files/evidence.jpg]',
               imageType: 'security-camera'
             },
             { 
@@ -264,7 +272,9 @@ I have been working security for this building for 3 years and have never witnes
 
 Signature: J. Matthews
 Date: 01/15/2024
-Witnessed by: Detective S. Johnson`
+Witnessed by: Detective S. Johnson
+
+[TestAssets Location: /cases/TestAssets/CASE-2024-001/case-files/witness_statement.pdf]`
             }
           ]
         },
@@ -320,7 +330,9 @@ RECOMMENDATIONS:
 3. Check alibi and known associates
 
 Report Certified by: Dr. Emily Chen
-Date: January 18, 2024` 
+Date: January 18, 2024
+
+[TestAssets Location: /cases/TestAssets/CASE-2024-001/forensics/dna_results.txt]` 
             },
             { 
               name: 'ballistics.pdf', 
@@ -361,7 +373,9 @@ This case does not require further ballistics investigation unless new evidence 
 
 Certified by: Lt. Robert Hayes
 Ballistics Unit, Metro Police Department
-Date: January 16, 2024`
+Date: January 16, 2024
+
+[TestAssets Location: /cases/TestAssets/CASE-2024-001/forensics/ballistics.pdf]`
             }
           ]
         }
@@ -402,7 +416,9 @@ EVIDENCE COLLECTED:
 - Witness statements from victims
 - Fingerprints from discarded wallet
 
-PRIORITY: Medium` 
+PRIORITY: Medium
+
+[TestAssets Location: /cases/TestAssets/CASE-2024-002/case-files/case002.txt]` 
             },
             { 
               name: 'security_footage.jpg', 
@@ -410,7 +426,7 @@ PRIORITY: Medium`
               type: 'image',
               size: '2.1 MB',
               modified: '2024-02-10 16:00',
-              content: 'Mall security footage showing suspect in blue jacket and baseball cap moving through food court area. Multiple angles captured showing pickpocketing technique. Timestamp: 15:30-15:50 PM.',
+              content: 'Mall security footage showing suspect in blue jacket and baseball cap moving through food court area. Multiple angles captured showing pickpocketing technique. Timestamp: 15:30-15:50 PM.\n\n[TestAssets Location: /cases/TestAssets/CASE-2024-002/case-files/security_footage.jpg]',
               imageType: 'security-camera'
             }
           ]
@@ -444,7 +460,9 @@ ANALYSIS RESULTS:
 - Database search in progress
 - No immediate matches found
 
-STATUS: Pending further analysis`
+STATUS: Pending further analysis
+
+[TestAssets Location: /cases/TestAssets/CASE-2024-002/forensics/fingerprint_analysis.txt]`
             }
           ]
         }

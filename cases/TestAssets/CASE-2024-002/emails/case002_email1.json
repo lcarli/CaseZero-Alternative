@@ -1,0 +1,14 @@
+{
+  "id": "case002_email1",
+  "sender": "Detective Mike Rodriguez",
+  "subject": "NEW: Mall Pickpocketing Investigation",
+  "preview": "Multiple theft incidents reported at Metro Shopping Mall during lunch rush...",
+  "content": "Officer,\n\nWe have a new case requiring immediate attention. Multiple pickpocketing incidents have been reported at the Metro Shopping Mall food court area.\n\nCase Details:\n- Date: February 10, 2024, approximately 15:45 PM\n- Location: Metro Shopping Mall, Food Court Area\n- At least 5 confirmed victims\n- Suspect: Male, mid-30s, wearing baseball cap\n- Pattern suggests organized theft operation\n\nSecurity footage has been collected and is available for review in the attached files.\n\nPlease prioritize this investigation as we suspect this may be part of a larger organized theft ring.\n\nDetective Mike Rodriguez\nTheft Investigation Unit",
+  "time": "3 hours ago",
+  "isUnread": true,
+  "priority": "high",
+  "attachments": [
+    { "name": "case002.txt", "size": "1.8 KB", "type": "text" },
+    { "name": "security_footage.jpg", "size": "2.1 MB", "type": "image" }
+  ]
+}

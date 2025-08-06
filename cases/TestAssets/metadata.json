@@ -1,0 +1,100 @@
+{
+  "cases": {
+    "CASE-2024-001": {
+      "name": "Case 2024-001 - Office Break-in",
+      "status": "Under Investigation",
+      "priority": "High",
+      "folders": {
+        "case-files": {
+          "name": "Case Files",
+          "icon": "📁",
+          "files": [
+            {
+              "name": "case001.txt",
+              "icon": "📄",
+              "type": "text",
+              "size": "2.4 KB",
+              "modified": "2024-01-15 14:30"
+            },
+            {
+              "name": "evidence.jpg",
+              "icon": "🖼️",
+              "type": "image",
+              "size": "1.2 MB",
+              "modified": "2024-01-15 02:35",
+              "imageType": "security-camera"
+            },
+            {
+              "name": "witness_statement.pdf",
+              "icon": "📋",
+              "type": "pdf",
+              "size": "156 KB",
+              "modified": "2024-01-15 09:45"
+            }
+          ]
+        },
+        "forensics": {
+          "name": "Forensics",
+          "icon": "🔬",
+          "files": [
+            {
+              "name": "dna_results.txt",
+              "icon": "🧬",
+              "type": "text",
+              "size": "3.7 KB",
+              "modified": "2024-01-18 16:22"
+            },
+            {
+              "name": "ballistics.pdf",
+              "icon": "🎯",
+              "type": "pdf",
+              "size": "89 KB",
+              "modified": "2024-01-16 11:15"
+            }
+          ]
+        }
+      }
+    },
+    "CASE-2024-002": {
+      "name": "Case 2024-002 - Mall Pickpocketing",
+      "status": "Active Investigation",
+      "priority": "Medium",
+      "folders": {
+        "case-files": {
+          "name": "Case Files",
+          "icon": "📁",
+          "files": [
+            {
+              "name": "case002.txt",
+              "icon": "📄",
+              "type": "text",
+              "size": "1.8 KB",
+              "modified": "2024-02-10 10:15"
+            },
+            {
+              "name": "security_footage.jpg",
+              "icon": "🖼️",
+              "type": "image",
+              "size": "2.1 MB",
+              "modified": "2024-02-10 16:00",
+              "imageType": "security-camera"
+            }
+          ]
+        },
+        "forensics": {
+          "name": "Forensics",
+          "icon": "🔬",
+          "files": [
+            {
+              "name": "fingerprint_analysis.txt",
+              "icon": "🔍",
+              "type": "text",
+              "size": "2.1 KB",
+              "modified": "2024-02-12 14:00"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

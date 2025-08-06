@@ -1,0 +1,14 @@
+{
+  "id": "case001_email1",
+  "sender": "Chief Johnson",
+  "subject": "URGENT: Case Assignment #001",
+  "preview": "New high-priority case has been assigned to your unit. Downtown office break-in...",
+  "content": "Officer,\n\nA new high-priority case has been assigned to your unit. Case #001 involves a break-in at the Downtown Office Building at 123 Main Street.\n\nKey Details:\n- Incident occurred at 02:30 AM on January 15, 2024\n- Security system was compromised\n- Suspect appeared to be searching for specific documents\n- No random theft - electronics and cash left untouched\n\nPlease review the attached case files and begin investigation immediately.\n\nEvidence files have been uploaded to the system for your review.\n\nChief Johnson\nMetropolitan Police Department",
+  "time": "2 hours ago",
+  "isUnread": true,
+  "priority": "high",
+  "attachments": [
+    { "name": "case001.txt", "size": "2.4 KB", "type": "text" },
+    { "name": "evidence.jpg", "size": "1.2 MB", "type": "image" }
+  ]
+}
