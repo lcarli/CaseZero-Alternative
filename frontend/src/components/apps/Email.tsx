@@ -68,6 +68,82 @@ const EmailContent = styled.div`
   overflow-y: auto;
 `
 
+const AttachmentList = styled.div`
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+`
+
+const AttachmentItem = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+`
+
+const AttachmentInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+`
+
+const AttachmentName = styled.span`
+  font-weight: 500;
+  color: #4a9eff;
+`
+
+const AttachmentMeta = styled.span`
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+`
+
+const AttachmentButton = styled.button`
+  background: #4a9eff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: #357abd;
+  }
+`
+
+const CaseSelector = styled.div`
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+`
+
+const CaseSelect = styled.select`
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 0.5rem;
+  font-size: 13px;
+  width: 100%;
+  
+  option {
+    background: #1a1a2e;
+    color: white;
+  }
+`
+
 const PriorityBadge = styled.span<{ $priority: 'high' | 'medium' | 'low' }>`
   padding: 2px 6px;
   border-radius: 3px;
@@ -86,6 +162,12 @@ const PriorityBadge = styled.span<{ $priority: 'high' | 'medium' | 'low' }>`
   margin-left: 0.5rem;
 `
 
+interface AttachmentData {
+  name: string
+  size: string
+  type: string
+}
+
 interface EmailData {
   id: string
   sender: string
@@ -95,87 +177,184 @@ interface EmailData {
   time: string
   isUnread: boolean
   priority: 'high' | 'medium' | 'low'
+  attachments?: AttachmentData[]
 }
 
 const Email: React.FC = () => {
-  const [selectedEmail, setSelectedEmail] = useState<string | null>('email1')
-  const [emails, setEmails] = useState<EmailData[]>([
-    {
-      id: 'email1',
-      sender: 'Chief Johnson',
-      subject: 'URGENT: Case Assignment #247',
-      preview: 'New high-priority case has been assigned to your unit. Suspect last seen downtown...',
-      content: `Officer,
+  const [selectedEmail, setSelectedEmail] = useState<string | null>('case001_email1')
+  const [currentCase, setCurrentCase] = useState<string>('CASE-2024-001')
 
-A new high-priority case has been assigned to your unit. Case #247 involves a series of break-ins in the downtown area.
+  const getCaseEmails = (caseId: string): EmailData[] => {
+    const caseEmails: { [key: string]: EmailData[] } = {
+      'CASE-2024-001': [
+        {
+          id: 'case001_email1',
+          sender: 'Chief Johnson',
+          subject: 'URGENT: Case Assignment #001',
+          preview: 'New high-priority case has been assigned to your unit. Downtown office break-in...',
+          content: `Officer,
+
+A new high-priority case has been assigned to your unit. Case #001 involves a break-in at the Downtown Office Building at 123 Main Street.
 
 Key Details:
-- 3 incidents in the past week
-- Similar MO: entry through rear windows
-- Missing items: Electronics and cash
-- Suspect: Male, 5'8", dark clothing
+- Incident occurred at 02:30 AM on January 15, 2024
+- Security system was compromised
+- Suspect appeared to be searching for specific documents
+- No random theft - electronics and cash left untouched
 
-Please review the case files and begin investigation immediately.
+Please review the attached case files and begin investigation immediately.
+
+Evidence files have been uploaded to the system for your review.
 
 Chief Johnson
 Metropolitan Police Department`,
-      time: '2 hours ago',
-      isUnread: true,
-      priority: 'high'
-    },
-    {
-      id: 'email2',
-      sender: 'Forensics Lab',
-      subject: 'DNA Results - Case #245',
-      preview: 'DNA analysis complete for evidence submitted last Tuesday...',
-      content: `Lab Report - Case #245
+          time: '2 hours ago',
+          isUnread: true,
+          priority: 'high',
+          attachments: [
+            { name: 'case001.txt', size: '2.4 KB', type: 'text' },
+            { name: 'evidence.jpg', size: '1.2 MB', type: 'image' }
+          ]
+        },
+        {
+          id: 'case001_email2',
+          sender: 'Forensics Lab',
+          subject: 'DNA Results - Case #001',
+          preview: 'DNA analysis complete for evidence submitted from downtown break-in...',
+          content: `Lab Report - Case #001
 
-DNA analysis has been completed for the evidence submitted on Tuesday.
+DNA analysis has been completed for the evidence submitted from the downtown office break-in.
 
-Results:
-- Sample 1: No match found in database
-- Sample 2: Partial match (78% confidence)
-- Sample 3: Match found - John Doe (Criminal ID: 12345)
+Results Summary:
+- Sample from window frame: Partial match found (85% confidence)
+- Subject: David Thompson, DOB: 03/15/1987
+- Criminal History: Minor theft (2019), Breaking & Entering (2021)
+- Current Status: On probation
 
-Full report attached to case file.
+Recommendations:
+1. Interview David Thompson regarding whereabouts on January 15, 2024
+2. Obtain fresh DNA sample for definitive comparison
+3. Check alibi and known associates
 
-Dr. Sarah Mitchell
-Forensics Department`,
-      time: '1 day ago',
-      isUnread: false,
-      priority: 'medium'
-    },
-    {
-      id: 'email3',
-      sender: 'IT Department',
-      subject: 'System Maintenance Reminder',
-      preview: 'Scheduled system maintenance tonight from 11 PM to 2 AM...',
-      content: `System Maintenance Notice
+Full detailed report is attached for your review.
 
-Please be advised that scheduled system maintenance will occur tonight from 11:00 PM to 2:00 AM.
+Dr. Emily Chen, PhD
+Metropolitan Forensics Laboratory`,
+          time: '1 day ago',
+          isUnread: false,
+          priority: 'medium',
+          attachments: [
+            { name: 'dna_results.txt', size: '3.7 KB', type: 'text' }
+          ]
+        },
+        {
+          id: 'case001_email3',
+          sender: 'Detective Sarah Johnson',
+          subject: 'Witness Statement Available',
+          preview: 'Night security guard witness statement has been processed and is ready for review...',
+          content: `Case Update - Witness Statement
 
-During this time:
-- Database access may be limited
-- Case management system will be offline
-- Email services may be intermittent
+The witness statement from John Matthews, the night security guard, has been processed and is now available in the case files.
 
-Please save all work before 11:00 PM.
+Key points from the statement:
+- Suspect appeared familiar with building layout
+- Individual avoided several camera angles
+- Carried something when leaving that wasn't visible when entering
+- Guard had never witnessed anything similar in 3 years of employment
 
-IT Support Team`,
-      time: '3 days ago',
-      isUnread: false,
-      priority: 'low'
+The complete witness statement PDF is attached and also available in the case file system.
+
+Detective Sarah Johnson
+Investigating Officer`,
+          time: '2 days ago',
+          isUnread: false,
+          priority: 'medium',
+          attachments: [
+            { name: 'witness_statement.pdf', size: '156 KB', type: 'pdf' }
+          ]
+        }
+      ],
+      'CASE-2024-002': [
+        {
+          id: 'case002_email1',
+          sender: 'Detective Mike Rodriguez',
+          subject: 'NEW: Mall Pickpocketing Investigation',
+          preview: 'Multiple theft incidents reported at Metro Shopping Mall during lunch rush...',
+          content: `Officer,
+
+We have a new case requiring immediate attention. Multiple pickpocketing incidents have been reported at the Metro Shopping Mall food court area.
+
+Case Details:
+- Date: February 10, 2024, approximately 15:45 PM
+- Location: Metro Shopping Mall, Food Court Area
+- At least 5 confirmed victims
+- Suspect: Male, mid-30s, wearing baseball cap
+- Pattern suggests organized theft operation
+
+Security footage has been collected and is available for review in the attached files.
+
+Please prioritize this investigation as we suspect this may be part of a larger organized theft ring.
+
+Detective Mike Rodriguez
+Theft Investigation Unit`,
+          time: '3 hours ago',
+          isUnread: true,
+          priority: 'high',
+          attachments: [
+            { name: 'case002.txt', size: '1.8 KB', type: 'text' },
+            { name: 'security_footage.jpg', size: '2.1 MB', type: 'image' }
+          ]
+        },
+        {
+          id: 'case002_email2',
+          sender: 'CSI Jennifer Walsh',
+          subject: 'Fingerprint Analysis Update',
+          preview: 'Partial fingerprints recovered from discarded wallet found in mall restroom...',
+          content: `Fingerprint Analysis Report - Case #002
+
+We have recovered partial fingerprints from the discarded wallet found in the mall restroom.
+
+Analysis Status:
+- 7 partial fingerprints identified
+- 3 prints of sufficient quality for comparison
+- Database search currently in progress
+- No immediate matches found yet
+
+The analysis is ongoing, and we expect to have more conclusive results within the next 24-48 hours.
+
+Will update you as soon as we have any database matches.
+
+CSI Jennifer Walsh
+Fingerprint Analysis Unit`,
+          time: '1 day ago',
+          isUnread: false,
+          priority: 'medium',
+          attachments: [
+            { name: 'fingerprint_analysis.txt', size: '2.1 KB', type: 'text' }
+          ]
+        }
+      ]
     }
-  ])
+    
+    return caseEmails[caseId] || caseEmails['CASE-2024-001']
+  }
+
+  const emails = getCaseEmails(currentCase)
 
   const handleEmailClick = (emailId: string) => {
     setSelectedEmail(emailId)
-    // Mark as read
-    setEmails(prev => 
-      prev.map(email => 
-        email.id === emailId ? { ...email, isUnread: false } : email
-      )
-    )
+  }
+
+  const handleCaseChange = (newCase: string) => {
+    setCurrentCase(newCase)
+    setSelectedEmail(null)
+  }
+
+  const handleAttachmentOpen = (attachmentName: string) => {
+    // This will trigger opening the file in FileViewer
+    // For now, we'll just log it - this would need to be implemented with inter-component communication
+    console.log(`Opening file: ${attachmentName} in FileViewer`)
+    alert(`File "${attachmentName}" would be opened in the File Viewer component.`)
   }
 
   const selectedEmailData = emails.find(email => email.id === selectedEmail)
@@ -183,6 +362,20 @@ IT Support Team`,
   return (
     <EmailContainer>
       <h3 style={{ margin: '0 0 1rem 0' }}>Police Email System</h3>
+      
+      <CaseSelector>
+        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '13px', color: 'rgba(255, 255, 255, 0.8)' }}>
+          Active Case:
+        </label>
+        <CaseSelect 
+          value={currentCase} 
+          onChange={(e) => handleCaseChange(e.target.value)}
+        >
+          <option value="CASE-2024-001">Case 2024-001 - Office Break-in</option>
+          <option value="CASE-2024-002">Case 2024-002 - Mall Pickpocketing</option>
+        </CaseSelect>
+      </CaseSelector>
+
       <EmailList>
         {emails.map(email => (
           <EmailItem
@@ -203,7 +396,14 @@ IT Support Team`,
             <EmailSubject $isUnread={email.isUnread}>
               {email.subject}
             </EmailSubject>
-            <EmailPreview>{email.preview}</EmailPreview>
+            <EmailPreview>
+              {email.preview}
+              {email.attachments && email.attachments.length > 0 && (
+                <span style={{ marginLeft: '0.5rem', color: '#4a9eff' }}>
+                  📎 {email.attachments.length} attachment{email.attachments.length > 1 ? 's' : ''}
+                </span>
+              )}
+            </EmailPreview>
           </EmailItem>
         ))}
       </EmailList>
@@ -226,6 +426,33 @@ IT Support Team`,
           }}>
             {selectedEmailData.content}
           </pre>
+          
+          {selectedEmailData.attachments && selectedEmailData.attachments.length > 0 && (
+            <AttachmentList>
+              <h5 style={{ margin: '0 0 0.5rem 0', color: 'rgba(255, 255, 255, 0.8)', fontSize: '13px' }}>
+                Attachments ({selectedEmailData.attachments.length})
+              </h5>
+              {selectedEmailData.attachments.map((attachment, index) => (
+                <AttachmentItem key={index}>
+                  <AttachmentInfo>
+                    <span style={{ fontSize: '16px' }}>
+                      {attachment.type === 'image' ? '🖼️' : 
+                       attachment.type === 'pdf' ? '📋' : '📄'}
+                    </span>
+                    <div>
+                      <AttachmentName>{attachment.name}</AttachmentName>
+                      <div>
+                        <AttachmentMeta>{attachment.size} • {attachment.type.toUpperCase()}</AttachmentMeta>
+                      </div>
+                    </div>
+                  </AttachmentInfo>
+                  <AttachmentButton onClick={() => handleAttachmentOpen(attachment.name)}>
+                    Open in File Viewer
+                  </AttachmentButton>
+                </AttachmentItem>
+              ))}
+            </AttachmentList>
+          )}
         </EmailContent>
       )}
     </EmailContainer>
