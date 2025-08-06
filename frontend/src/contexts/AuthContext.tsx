@@ -24,7 +24,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Check if user is already authenticated on app start
     const checkAuth = () => {
       const isAuth = authApi.isAuthenticated()
-      if (!isAuth) {
+      
+      // In development mode, if not authenticated, set a mock user
+      if (!isAuth && import.meta.env.DEV) {
+        const mockUser: User = {
+          id: 'dev-user',
+          email: 'detective@police.gov',
+          firstName: 'John',
+          lastName: 'Doe',
+          department: 'Investigation Division',
+          position: 'Detective',
+          badgeNumber: '4729',
+          isApproved: true
+        }
+        setUser(mockUser)
+      } else if (!isAuth) {
         setUser(null)
       }
       setIsLoading(false)

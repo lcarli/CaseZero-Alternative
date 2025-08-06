@@ -1,6 +1,7 @@
 import { useParams } from 'react-router-dom'
 import Desktop from '../components/Desktop'
 import { CaseProvider } from '../contexts/CaseContext'
+import { TimeProvider } from '../contexts/TimeContext'
 
 const DesktopPage = () => {
   const { caseId } = useParams()
@@ -12,7 +13,9 @@ const DesktopPage = () => {
   
   return (
     <CaseProvider caseId={activeCaseId}>
-      <Desktop />
+      <TimeProvider caseId={activeCaseId}>
+        <Desktop />
+      </TimeProvider>
     </CaseProvider>
   )
 }
