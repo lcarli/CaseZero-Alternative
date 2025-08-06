@@ -1,13 +1,15 @@
 {
   "id": "case001_email2",
-  "sender": "Forensics Lab",
-  "subject": "DNA Results - Case #001",
-  "preview": "DNA analysis complete for evidence submitted from downtown break-in...",
-  "content": "Lab Report - Case #001\n\nDNA analysis has been completed for the evidence submitted from the downtown office break-in.\n\nResults Summary:\n- Sample from window frame: Partial match found (85% confidence)\n- Subject: David Thompson, DOB: 03/15/1987\n- Criminal History: Minor theft (2019), Breaking & Entering (2021)\n- Current Status: On probation\n\nRecommendations:\n1. Interview David Thompson regarding whereabouts on January 15, 2024\n2. Obtain fresh DNA sample for definitive comparison\n3. Check alibi and known associates\n\nFull detailed report is attached for your review.\n\nDr. Emily Chen, PhD\nMetropolitan Forensics Laboratory",
+  "sender": "Lab Technician Maria Santos",
+  "subject": "Resultados da Análise Forense - Impressões Digitais",
+  "preview": "Análise das impressões digitais coletadas no cofre do banco foi concluída. Encontramos correspondências...",
+  "content": "RELATÓRIO DE ANÁLISE FORENSE\n\nCaso: CASE-2024-001 - Roubo no Banco Central\nTipo de Análise: Impressões Digitais\nAmostra: fingerprints_vault.jpg\n\nRESULTADOS:\n- Padrão de impressão: Loop (85% clareza)\n- Pontos de minutiae identificados: 12\n- Correspondência encontrada: SIM\n- Pessoa identificada: Marcus Silva\n- Nível de confiança: 94%\n\nOBSERVAÇÕES:\n- As impressões foram coletadas na maçaneta do cofre principal\n- Qualidade da amostra é excelente\n- Não foram encontradas outras impressões no local\n- Recomenda-se confronto com banco de dados nacional\n\nEste resultado pode ser usado como evidência em tribunal.\n\nMaria Santos\nLaboratório de Perícia Criminal\nTel: (11) 3456-7890",
   "time": "1 day ago",
   "isUnread": false,
-  "priority": "medium",
+  "priority": "high",
+  "type": "ForensicResults",
   "attachments": [
-    { "name": "dna_results.txt", "size": "3.7 KB", "type": "text" }
+    { "name": "fingerprint_analysis_report.pdf", "size": "2.3 MB", "type": "pdf" },
+    { "name": "comparison_chart.jpg", "size": "856 KB", "type": "image" }
   ]
 }
