@@ -5,6 +5,7 @@ import Email from './apps/Email'
 import Notebook from './apps/Notebook'
 import SubmitCase from './apps/SubmitCase'
 import Logs from './apps/Logs'
+import ForensicModule from './apps/ForensicModule'
 import Clock from './Clock'
 
 const DockContainer = styled.div`
@@ -139,6 +140,12 @@ const Dock: React.FC<DockProps> = ({ onOpenWindow }) => {
       title: 'Email',
       icon: '📧',
       component: Email
+    },
+    {
+      id: 'forensic',
+      title: 'Forensic Module',
+      icon: '🔬',
+      component: ForensicModule
     },
     {
       id: 'logs',
