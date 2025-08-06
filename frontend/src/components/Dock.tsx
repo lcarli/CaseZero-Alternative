@@ -25,8 +25,8 @@ const DockContainer = styled.div`
 const DockIcon = styled.button`
   width: 60px;
   height: 60px;
-  border: none;
-  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(52, 152, 219, 0.4);
+  background: rgba(0, 0, 0, 0.6);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -37,11 +37,14 @@ const DockIcon = styled.button`
   color: white;
   font-size: 24px;
   position: relative;
+  backdrop-filter: blur(10px);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(52, 152, 219, 0.3);
+    border-color: rgba(52, 152, 219, 0.8);
     transform: translateY(-4px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 25px rgba(52, 152, 219, 0.3);
   }
 
   &:active {
@@ -55,9 +58,13 @@ const DockIcon = styled.button`
     left: 50%;
     transform: translateX(-50%);
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.9);
     white-space: nowrap;
     pointer-events: none;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-shadow: none;
   }
 
   @media (max-width: 768px) {
@@ -68,6 +75,7 @@ const DockIcon = styled.button`
     &::after {
       font-size: 8px;
       bottom: -25px;
+      padding: 1px 4px;
     }
   }
 `

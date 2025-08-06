@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import styled from 'styled-components'
 import Dock from './Dock'
 import Window from './Window'
@@ -54,23 +54,25 @@ const PoliceBadge = styled.div`
   position: absolute;
   top: 20px;
   right: 20px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 2px solid rgba(52, 152, 219, 0.5);
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(52, 152, 219, 0.7);
   border-radius: 8px;
   padding: 10px 15px;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(15px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
   z-index: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   
   &::before {
     content: '👮';
     margin-right: 8px;
     font-size: 16px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
   }
 `
 
@@ -78,15 +80,16 @@ const SystemInfo = styled.div`
   position: absolute;
   bottom: 100px;
   left: 20px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(52, 152, 219, 0.3);
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(52, 152, 219, 0.5);
   border-radius: 6px;
   padding: 8px 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.9);
   font-size: 11px;
   font-family: 'Courier New', monospace;
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(10px);
   z-index: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
   
   div {
     margin-bottom: 2px;
@@ -97,9 +100,10 @@ const SystemInfo = styled.div`
   }
   
   .label {
-    color: rgba(52, 152, 219, 0.8);
+    color: rgba(52, 152, 219, 0.9);
     display: inline-block;
     width: 60px;
+    font-weight: 600;
   }
 `
 
@@ -119,6 +123,14 @@ const Desktop: React.FC = () => {
     updateWindowPosition,
     updateWindowSize
   } = useWindowContext()
+
+  // Add desktop-mode class when component mounts, remove when it unmounts
+  useEffect(() => {
+    document.body.classList.add('desktop-mode')
+    return () => {
+      document.body.classList.remove('desktop-mode')
+    }
+  }, [])
 
   return (
     <DesktopContainer>

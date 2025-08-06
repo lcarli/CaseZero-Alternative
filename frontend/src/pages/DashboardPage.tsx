@@ -10,19 +10,31 @@ const PageContainer = styled.div`
   background: linear-gradient(135deg, #0a0f23 0%, #1a2140 25%, #2a3458 50%, #1a2140 75%, #0a0f23 100%);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   color: white;
-  padding: 2rem;
+  padding: 1rem;
+  box-sizing: border-box;
+  
+  @media (max-width: 768px) {
+    padding: 0.5rem;
+  }
 `
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  padding: 1rem 2rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(52, 152, 219, 0.3);
   border-radius: 1rem;
   backdrop-filter: blur(10px);
+  
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 1rem;
+    padding: 0.75rem;
+    margin-bottom: 1rem;
+  }
 `
 
 const UserInfo = styled.div`
@@ -75,31 +87,45 @@ const LogoutButton = styled.button`
 const Dashboard = styled.div`
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 2rem;
+  gap: 1.5rem;
   
   @media (max-width: 1200px) {
     grid-template-columns: 1fr;
+    gap: 1rem;
   }
 `
 
 const MainContent = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
+  
+  @media (max-width: 768px) {
+    gap: 1rem;
+  }
 `
 
 const Sidebar = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
+  
+  @media (max-width: 768px) {
+    gap: 1rem;
+  }
 `
 
 const Card = styled.div`
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(52, 152, 219, 0.3);
   border-radius: 1rem;
-  padding: 2rem;
+  padding: 1.5rem;
   backdrop-filter: blur(10px);
+  
+  @media (max-width: 768px) {
+    padding: 1rem;
+    border-radius: 0.5rem;
+  }
 `
 
 const CardHeader = styled.div`
@@ -117,28 +143,46 @@ const CardHeader = styled.div`
 
 const StatsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
 `
 
 const StatCard = styled.div`
   background: rgba(52, 152, 219, 0.1);
   border: 1px solid rgba(52, 152, 219, 0.3);
   border-radius: 0.5rem;
-  padding: 1.5rem;
+  padding: 1rem;
   text-align: center;
   
   .stat-value {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: bold;
     color: rgba(52, 152, 219, 0.9);
     margin-bottom: 0.5rem;
   }
   
   .stat-label {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     color: rgba(255, 255, 255, 0.8);
+  }
+  
+  @media (max-width: 768px) {
+    padding: 0.75rem;
+    
+    .stat-value {
+      font-size: 1.25rem;
+    }
+    
+    .stat-label {
+      font-size: 0.75rem;
+    }
   }
 `
 
