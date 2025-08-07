@@ -416,6 +416,15 @@ const DashboardPage = () => {
                   </div>
                   <div className="case-title">{case_.title}</div>
                   <div className="case-priority">Prioridade: {getPriorityText(case_.priority)}</div>
+                  {case_.userProgress?.lastActivity && (
+                    <div className="case-last-session" style={{ 
+                      fontSize: '0.75rem', 
+                      color: 'rgba(52, 152, 219, 0.8)', 
+                      marginTop: '0.25rem' 
+                    }}>
+                      Última sessão: {new Date(case_.userProgress.lastActivity).toLocaleString('pt-BR')}
+                    </div>
+                  )}
                 </CaseItem>
               ))}
             </CaseList>

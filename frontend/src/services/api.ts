@@ -74,6 +74,27 @@ export interface RecentActivity {
   caseId?: string
 }
 
+export interface CaseSession {
+  id: number
+  userId: string
+  caseId: string
+  sessionStart: string
+  sessionEnd?: string
+  sessionDurationMinutes: number
+  gameTimeAtStart?: string
+  gameTimeAtEnd?: string
+  isActive: boolean
+}
+
+export interface StartCaseSessionRequest {
+  caseId: string
+  gameTimeAtStart?: string
+}
+
+export interface EndCaseSessionRequest {
+  gameTimeAtEnd?: string
+}
+
 class ApiError extends Error {
   public status: number
   
@@ -168,6 +189,31 @@ export const casesApi = {
   
   getCase: async (id: string): Promise<Case> => {
     return apiFetch(`/cases/${id}`)
+  }
+}
+
+// Case Session API
+export const caseSessionApi = {
+  startSession: async (request: StartCaseSessionRequest): Promise<CaseSession> => {
+    return apiFetch('/casesession/start', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
+  },
+  
+  endSession: async (caseId: string, request: EndCaseSessionRequest): Promise<CaseSession> => {
+    return apiFetch(`/casesession/end/${caseId}`, {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
+  },
+  
+  getLastSession: async (caseId: string): Promise<CaseSession> => {
+    return apiFetch(`/casesession/last/${caseId}`)
+  },
+  
+  getCaseSessions: async (caseId: string): Promise<CaseSession[]> => {
+    return apiFetch(`/casesession/${caseId}`)
   }
 }
 

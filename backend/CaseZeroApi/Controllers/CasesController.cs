@@ -5,6 +5,7 @@ using System.Security.Claims;
 using CaseZeroApi.Data;
 using CaseZeroApi.DTOs;
 using CaseZeroApi.Models;
+using CaseZeroApi.Services;
 
 namespace CaseZeroApi.Controllers
 {
@@ -14,11 +15,13 @@ namespace CaseZeroApi.Controllers
     public class CasesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly ICaseObjectService _caseObjectService;
         private readonly ILogger<CasesController> _logger;
 
-        public CasesController(ApplicationDbContext context, ILogger<CasesController> logger)
+        public CasesController(ApplicationDbContext context, ICaseObjectService caseObjectService, ILogger<CasesController> logger)
         {
             _context = context;
+            _caseObjectService = caseObjectService;
             _logger = logger;
         }
 
@@ -207,17 +210,76 @@ namespace CaseZeroApi.Controllers
             if (user == null)
                 return Unauthorized();
 
-            // Get user cases
-            var userCases = await _context.UserCases
-                .Where(uc => uc.UserId == userId)
-                .Include(uc => uc.Case)
-                .ThenInclude(c => c.CaseProgresses.Where(cp => cp.UserId == userId))
-                .ToListAsync();
+            // Get available cases from filesystem
+            var availableCaseIds = await _caseObjectService.GetAvailableCasesAsync();
+            var cases = new List<CaseDto>();
 
-            // Calculate stats
-            var resolvedCases = userCases.Count(uc => uc.Case.Status == CaseStatus.Resolved);
-            var activeCases = userCases.Count(uc => uc.Case.Status == CaseStatus.Open || uc.Case.Status == CaseStatus.InProgress);
-            var totalCases = userCases.Count;
+            foreach (var caseId in availableCaseIds)
+            {
+                try
+                {
+                    var caseObject = await _caseObjectService.LoadCaseObjectAsync(caseId);
+                    if (caseObject?.Metadata != null)
+                    {
+                        // Get last session for this case (handle if table doesn't exist)
+                        CaseSession? lastSession = null;
+                        try 
+                        {
+                            lastSession = await _context.CaseSessions
+                                .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
+                                .OrderByDescending(cs => cs.SessionStart)
+                                .FirstOrDefaultAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Could not load session data for case {CaseId}", caseId);
+                        }
+
+                        // Get case progress if it exists
+                        var caseProgress = await _context.CaseProgresses
+                            .FirstOrDefaultAsync(cp => cp.UserId == userId && cp.CaseId == caseId);
+
+                        var caseDto = new CaseDto
+                        {
+                            Id = caseId,
+                            Title = caseObject.Metadata.Title,
+                            Description = caseObject.Metadata.Description,
+                            Status = DetermineCaseStatus(lastSession, caseProgress),
+                            Priority = GetPriorityFromDifficulty(caseObject.Metadata.Difficulty),
+                            CreatedAt = caseObject.Metadata.StartDateTime,
+                            Location = caseObject.Metadata.Location,
+                            IncidentDate = caseObject.Metadata.IncidentDateTime,
+                            BriefingText = caseObject.Metadata.Briefing,
+                            EstimatedDifficultyLevel = caseObject.Metadata.Difficulty,
+                            UserProgress = caseProgress != null ? new CaseProgressDto
+                            {
+                                UserId = caseProgress.UserId,
+                                CaseId = caseProgress.CaseId,
+                                EvidencesCollected = caseProgress.EvidencesCollected,
+                                InterviewsCompleted = caseProgress.InterviewsCompleted,
+                                ReportsSubmitted = caseProgress.ReportsSubmitted,
+                                LastActivity = lastSession?.SessionEnd ?? lastSession?.SessionStart ?? caseProgress.LastActivity,
+                                CompletionPercentage = caseProgress.CompletionPercentage
+                            } : null,
+                            AssignedUsers = new List<UserDto>(), // Empty for now
+                            Evidences = new List<EvidenceDto>(),
+                            Suspects = new List<SuspectDto>()
+                        };
+                        
+                        cases.Add(caseDto);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to load case {CaseId} for dashboard", caseId);
+                    // Continue with other cases
+                }
+            }
+
+            // Calculate stats based on loaded cases
+            var resolvedCases = cases.Count(c => c.Status == CaseStatus.Resolved);
+            var activeCases = cases.Count(c => c.Status == CaseStatus.Open || c.Status == CaseStatus.InProgress);
+            var totalCases = cases.Count;
             var successRate = totalCases > 0 ? (double)resolvedCases / totalCases * 100 : 0;
 
             var stats = new UserStatsDto
@@ -231,82 +293,33 @@ namespace CaseZeroApi.Controllers
                 RankName = GetRankName(user.Rank)
             };
 
-            // Get recent cases with enhanced information
-            var cases = userCases
-                .Where(uc => uc.Case.MinimumRankRequired <= user.Rank || user.CanAccessHighPriorityCases)
-                .Select(uc => new CaseDto
-                {
-                    Id = uc.Case.Id,
-                    Title = uc.Case.Title,
-                    Description = uc.Case.Description,
-                    Status = uc.Case.Status,
-                    Priority = uc.Case.Priority,
-                    CreatedAt = uc.Case.CreatedAt,
-                    ClosedAt = uc.Case.ClosedAt,
-                    Type = uc.Case.Type,
-                    MinimumRankRequired = uc.Case.MinimumRankRequired,
-                    Location = uc.Case.Location,
-                    IncidentDate = uc.Case.IncidentDate,
-                    BriefingText = uc.Case.BriefingText,
-                    VictimInfo = uc.Case.VictimInfo,
-                    HasMultipleSuspects = uc.Case.HasMultipleSuspects,
-                    EstimatedDifficultyLevel = uc.Case.EstimatedDifficultyLevel,
-                    MaxScore = uc.Case.MaxScore,
-                    UserProgress = uc.Case.CaseProgresses.FirstOrDefault() != null ? new CaseProgressDto
-                    {
-                        UserId = uc.Case.CaseProgresses.First().UserId,
-                        CaseId = uc.Case.CaseProgresses.First().CaseId,
-                        EvidencesCollected = uc.Case.CaseProgresses.First().EvidencesCollected,
-                        InterviewsCompleted = uc.Case.CaseProgresses.First().InterviewsCompleted,
-                        ReportsSubmitted = uc.Case.CaseProgresses.First().ReportsSubmitted,
-                        LastActivity = uc.Case.CaseProgresses.First().LastActivity,
-                        CompletionPercentage = uc.Case.CaseProgresses.First().CompletionPercentage
-                    } : null
-                }).OrderByDescending(c => c.CreatedAt).ToList();
-
-            // Get recent activities
+            // Get recent activities - simplify for now since we're using filesystem cases
             var recentActivities = new List<RecentActivityDto>();
 
-            // Add case submission activities
-            var recentSubmissions = await _context.CaseSubmissions
-                .Where(cs => cs.SubmittedByUserId == userId)
-                .Include(cs => cs.Case)
-                .OrderByDescending(cs => cs.SubmittedAt)
-                .Take(3)
-                .ToListAsync();
-
-            foreach (var submission in recentSubmissions)
+            // Add recent case sessions as activities (handle if table doesn't exist)
+            try 
             {
-                recentActivities.Add(new RecentActivityDto
+                var recentSessions = await _context.CaseSessions
+                    .Where(cs => cs.UserId == userId && !cs.IsActive)
+                    .OrderByDescending(cs => cs.SessionEnd)
+                    .Take(5)
+                    .ToListAsync();
+
+                foreach (var session in recentSessions)
                 {
-                    Description = submission.Status == SubmissionStatus.Approved 
-                        ? $"Caso {submission.Case.Title} resolvido com sucesso"
-                        : $"Relatório submetido para {submission.Case.Title}",
-                    Date = submission.SubmittedAt,
-                    CaseId = submission.CaseId
-                });
+                    var caseTitle = cases.FirstOrDefault(c => c.Id == session.CaseId)?.Title ?? session.CaseId;
+                    recentActivities.Add(new RecentActivityDto
+                    {
+                        Description = $"Sessão de investigação concluída - {caseTitle}",
+                        Date = session.SessionEnd ?? session.SessionStart,
+                        CaseId = session.CaseId
+                    });
+                }
             }
-
-            // Add forensic analysis activities
-            var recentAnalyses = await _context.ForensicAnalyses
-                .Where(fa => fa.RequestedByUserId == userId && fa.Status == ForensicAnalysisStatus.Completed)
-                .Include(fa => fa.Evidence)
-                .ThenInclude(e => e.Case)
-                .OrderByDescending(fa => fa.CompletedAt)
-                .Take(2)
-                .ToListAsync();
-
-            foreach (var analysis in recentAnalyses)
+            catch (Exception ex)
             {
-                recentActivities.Add(new RecentActivityDto
-                {
-                    Description = $"Análise {analysis.AnalysisType} concluída - {analysis.Evidence.Name}",
-                    Date = analysis.CompletedAt ?? analysis.RequestedAt,
-                    CaseId = analysis.Evidence.CaseId
-                });
+                _logger.LogWarning(ex, "Could not load session activities");
             }
-
-            recentActivities = recentActivities.OrderByDescending(ra => ra.Date).Take(5).ToList();
 
             // Get recent emails
             var recentEmails = await _context.Emails
@@ -333,12 +346,38 @@ namespace CaseZeroApi.Controllers
             var dashboard = new DashboardDto
             {
                 Stats = stats,
-                Cases = cases,
+                Cases = cases.OrderByDescending(c => c.UserProgress?.LastActivity ?? c.CreatedAt).ToList(),
                 RecentActivities = recentActivities,
                 RecentEmails = recentEmails
             };
 
             return Ok(dashboard);
+        }
+
+        private static CaseStatus DetermineCaseStatus(CaseSession? lastSession, CaseProgress? caseProgress)
+        {
+            if (caseProgress != null && caseProgress.CompletionPercentage >= 100)
+            {
+                return CaseStatus.Resolved;
+            }
+            
+            if (lastSession != null || caseProgress != null)
+            {
+                return CaseStatus.InProgress;
+            }
+            
+            return CaseStatus.Open;
+        }
+
+        private static CasePriority GetPriorityFromDifficulty(int difficulty)
+        {
+            return difficulty switch
+            {
+                >= 8 => CasePriority.Critical,
+                >= 6 => CasePriority.High,
+                >= 4 => CasePriority.Medium,
+                _ => CasePriority.Low
+            };
         }
 
         private static string GetRankName(DetectiveRank rank)

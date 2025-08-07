@@ -1,9 +1,13 @@
 import React, { useEffect } from 'react'
 import styled from 'styled-components'
+import { useNavigate } from 'react-router-dom'
 import Dock from './Dock'
 import Window from './Window'
 import { useWindowContext } from '../hooks/useWindowContext'
 import { useCase } from '../hooks/useCaseContext'
+import { useAuth } from '../hooks/useAuthContext'
+import { useTimeContext } from '../hooks/useTimeContext'
+import { caseSessionApi } from '../services/api'
 
 const DesktopContainer = styled.div`
   width: 100vw;
@@ -48,6 +52,39 @@ const DesktopContainer = styled.div`
     justify-content: center;
     font-size: 32px;
     z-index: 2;
+  }
+`
+
+const LogoutButton = styled.button`
+  position: absolute;
+  top: 20px;
+  right: 120px;
+  background: rgba(231, 76, 60, 0.1);
+  border: 2px solid rgba(231, 76, 60, 0.7);
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  color: rgba(231, 76, 60, 0.9);
+  cursor: pointer;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(15px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(231, 76, 60, 0.2);
+    border-color: rgba(231, 76, 60, 0.9);
+    transform: scale(1.05);
+  }
+  
+  &::before {
+    content: '🚪';
+    font-size: 28px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
   }
 `
 
@@ -116,6 +153,9 @@ const DesktopArea = styled.div`
 `
 
 const Desktop: React.FC = () => {
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const { gameTime } = useTimeContext()
   const {
     windows,
     openWindow,
@@ -137,16 +177,39 @@ const Desktop: React.FC = () => {
     }
   }, [])
 
+  const handleLogout = async () => {
+    try {
+      // Save current session time if we have a case and game time
+      if (currentCase && gameTime) {
+        await caseSessionApi.endSession(currentCase, {
+          gameTimeAtEnd: gameTime.toISOString()
+        })
+        console.log('Session saved successfully for case:', currentCase)
+      }
+      
+      // Logout and navigate to dashboard
+      logout()
+      navigate('/dashboard')
+    } catch (error) {
+      console.error('Error during logout:', error)
+      // Still logout even if session save fails
+      logout()
+      navigate('/dashboard')
+    }
+  }
+
   return (
     <DesktopContainer>
+      <LogoutButton onClick={handleLogout} title="Sair do Sistema" />
+      
       <PoliceBadge>
         Metropolitan Police Dept
       </PoliceBadge>
       
       <SystemInfo>
-        <div><span className="label">User:</span> Detective John Doe</div>
-        <div><span className="label">Unit:</span> Investigation Division</div>
-        <div><span className="label">Badge:</span> #4729</div>
+        <div><span className="label">User:</span> {user?.firstName} {user?.lastName}</div>
+        <div><span className="label">Unit:</span> {user?.department || 'Investigation Division'}</div>
+        <div><span className="label">Badge:</span> #{user?.badgeNumber || '4729'}</div>
         <div><span className="label">Case:</span> {currentCase || 'No Case'}</div>
         <div><span className="label">Status:</span> Active</div>
       </SystemInfo>
