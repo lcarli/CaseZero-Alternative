@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import styled from 'styled-components'
 import { useLanguage } from '../hooks/useLanguageContext'
+import LanguageSelector from './LanguageSelector'
 
 const NavContainer = styled.nav`
   position: fixed;
@@ -45,6 +46,14 @@ const NavMenu = styled.div`
   display: flex;
   gap: 1rem;
   align-items: center;
+`
+
+const LanguageSelectorWrapper = styled.div`
+  min-width: 140px;
+  
+  @media (max-width: 768px) {
+    min-width: 120px;
+  }
 `
 
 const NavButton = styled(Link)`
@@ -97,6 +106,9 @@ const Navigation: React.FC<NavigationProps> = ({ showAuth = true }) => {
         
         {showAuth && (
           <NavMenu>
+            <LanguageSelectorWrapper>
+              <LanguageSelector />
+            </LanguageSelectorWrapper>
             <NavButton to="/login" className="secondary">
               {t('login')}
             </NavButton>
