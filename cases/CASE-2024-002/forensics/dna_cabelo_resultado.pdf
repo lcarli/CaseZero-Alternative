@@ -1,0 +1,130 @@
+LABORATÓRIO DE GENÉTICA FORENSE - INSTITUTO CRIMINAL
+=================================================
+
+LAUDO DE ANÁLISE DE DNA
+======================
+
+CASO: CASE-2024-002 - Roubo na Clínica São Lucas
+EVIDÊNCIA: EVD002 - Fio de cabelo loiro
+DATA DA ANÁLISE: 06/02/2024
+ANALISTA RESPONSÁVEL: Dra. Patricia Oliveira - CRB 54321
+
+DADOS DA AMOSTRA:
+================
+- Identificação: Fio de cabelo loiro coletado na cena do crime
+- Localização: Sala do cofre - Clínica São Lucas  
+- Data de coleta: 05/02/2024
+- Perito coletor: Dr. Fernando Costa
+- Estado: Fio com raiz preservada
+- Comprimento: 8cm aproximadamente
+
+METODOLOGIA:
+===========
+- Extração de DNA de células da raiz capilar
+- Amplificação por PCR de regiões STR
+- Análise de 16 marcadores genéticos + Amelogenina
+- Protocolo PowerPlex® ESX 17 System
+- Equipamento: ABI 3500xl Genetic Analyzer
+
+RESULTADOS:
+==========
+
+PERFIL GENÉTICO ENCONTRADO:
+---------------------------
+D8S1179: 12, 15
+D21S11: 28, 30
+D7S820: 8, 11
+CSF1PO: 11, 12
+D3S1358: 15, 16
+TH01: 7, 9.3
+D13S317: 11, 12
+D16S539: 9, 13
+D2S1338: 19, 23
+D19S433: 13, 14
+vWA: 16, 18
+TPOX: 8, 11
+D18S51: 14, 17
+D5S818: 11, 13
+FGA: 21, 24
+Amelogenina: X, X (Perfil feminino)
+
+COMPARAÇÕES REALIZADAS:
+======================
+
+1. JOANA DUARTE (Amostra referência - saliva):
+   -------------------------------------------
+   D8S1179: 12, 15 ✓ COMPATÍVEL
+   D21S11: 28, 30 ✓ COMPATÍVEL  
+   D7S820: 8, 11 ✓ COMPATÍVEL
+   CSF1PO: 11, 12 ✓ COMPATÍVEL
+   D3S1358: 15, 16 ✓ COMPATÍVEL
+   TH01: 7, 9.3 ✓ COMPATÍVEL
+   D13S317: 11, 12 ✓ COMPATÍVEL
+   D16S539: 9, 13 ✓ COMPATÍVEL
+   D2S1338: 19, 23 ✓ COMPATÍVEL
+   D19S433: 13, 14 ✓ COMPATÍVEL
+   vWA: 16, 18 ✓ COMPATÍVEL
+   TPOX: 8, 11 ✓ COMPATÍVEL
+   D18S51: 14, 17 ✓ COMPATÍVEL
+   D5S818: 11, 13 ✓ COMPATÍVEL
+   FGA: 21, 24 ✓ COMPATÍVEL
+   Amelogenina: X, X ✓ COMPATÍVEL
+
+   RESULTADO: MATCH COMPLETO (16/16 marcadores)
+   PROBABILIDADE: >99,99% (1 em 10 trilhões)
+
+2. ROBERTO SILVA (Amostra referência - saliva):
+   --------------------------------------------
+   D8S1179: 13, 16 ✗ INCOMPATÍVEL
+   D21S11: 29, 31 ✗ INCOMPATÍVEL
+   D7S820: 9, 12 ✗ INCOMPATÍVEL
+   [Análise interrompida - incompatibilidade evidente]
+
+   RESULTADO: SEM COMPATIBILIDADE
+   CONCLUSÃO: EXCLUÍDO como fonte do material genético
+
+3. CARMEN RODRIGUEZ (Amostra referência - saliva):
+   -----------------------------------------------
+   D8S1179: 14, 17 ✗ INCOMPATÍVEL
+   D21S11: 27, 29 ✗ INCOMPATÍVEL
+   [Análise interrompida - incompatibilidade evidente]
+
+   RESULTADO: SEM COMPATIBILIDADE
+   CONCLUSÃO: EXCLUÍDA como fonte do material genético
+
+CONCLUSÃO TÉCNICA:
+=================
+
+O perfil genético extraído do fio de cabelo loiro encontrado na cena do crime (sala do cofre) é IDÊNTICO ao perfil genético de JOANA DUARTE em todos os 16 marcadores analisados.
+
+A probabilidade de outro indivíduo não relacionado apresentar o mesmo perfil genético é inferior a 1 em 10 trilhões (1:10^13).
+
+Os perfis de ROBERTO SILVA e CARMEN RODRIGUEZ foram EXCLUÍDOS como possíveis fontes do material genético analisado.
+
+INTERPRETAÇÃO:
+=============
+
+Com base na análise dos marcadores genéticos, é possível afirmar com grau de certeza científica superior a 99,99% que o fio de cabelo encontrado na sala do cofre pertence a JOANA DUARTE.
+
+Esta evidência coloca fisicamente a suspeita no local exato onde ocorreu o crime.
+
+OBSERVAÇÕES:
+===========
+- Qualidade da amostra: Excelente (raiz preservada)
+- Degradação: Mínima  
+- Contaminação: Não detectada
+- Mistura de perfis: Não observada
+
+---
+
+ASSINATURA DIGITAL:
+Dra. Patricia Oliveira
+CRB: 54321 - Geneticista Forense
+Instituto de Criminalística
+Data: 06/02/2024 - 16:30h
+
+LAUDOS ANEXOS:
+- Eletroferogramas originais
+- Planilhas de análise
+- Protocolos de controle de qualidade
+- Certificado de calibração dos equipamentos
