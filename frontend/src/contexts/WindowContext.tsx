@@ -10,6 +10,8 @@ interface WindowContextType {
   bringToFront: (id: string) => void
   updateWindowPosition: (id: string, position: { x: number; y: number }) => void
   updateWindowSize: (id: string, size: { width: number; height: number }) => void
+  maximizeWindow: (id: string) => void
+  minimizeWindow: (id: string) => void
   isWindowOpen: (id: string) => boolean
   getWindow: (id: string) => WindowData | undefined
 }
@@ -43,7 +45,8 @@ export const WindowProvider: React.FC<WindowProviderProps> = ({ children }) => {
         y: Math.random() * 200 + 100 
       },
       size: { width: 600, height: 400 },
-      zIndex: highestZIndex + 1
+      zIndex: highestZIndex + 1,
+      isMaximized: false
     }
 
     setWindows(prev => [...prev, newWindow])
@@ -80,6 +83,56 @@ export const WindowProvider: React.FC<WindowProviderProps> = ({ children }) => {
     )
   }
 
+  const maximizeWindow = (id: string) => {
+    setWindows(prev => 
+      prev.map(w => {
+        if (w.id === id) {
+          if (w.isMaximized) {
+            // Restore to original size and position
+            return { 
+              ...w, 
+              isMaximized: false,
+              position: w.originalPosition || w.position,
+              size: w.originalSize || w.size,
+              originalPosition: undefined,
+              originalSize: undefined
+            }
+          } else {
+            // Maximize to fullscreen
+            return { 
+              ...w, 
+              isMaximized: true,
+              originalPosition: w.position,
+              originalSize: w.size,
+              position: { x: 0, y: 0 },
+              size: { width: globalThis.innerWidth, height: globalThis.innerHeight - 80 }
+            }
+          }
+        }
+        return w
+      })
+    )
+  }
+
+  const minimizeWindow = (id: string) => {
+    setWindows(prev => 
+      prev.map(w => {
+        if (w.id === id && w.isMaximized) {
+          // Restore from fullscreen to original size
+          return { 
+            ...w, 
+            isMaximized: false,
+            position: w.originalPosition || { x: 100, y: 100 },
+            size: w.originalSize || { width: 600, height: 400 },
+            originalPosition: undefined,
+            originalSize: undefined
+          }
+        }
+        return w
+      })
+    )
+  }
+
   const isWindowOpen = (id: string): boolean => {
     return windows.some(w => w.id === id)
   }
@@ -96,6 +149,8 @@ export const WindowProvider: React.FC<WindowProviderProps> = ({ children }) => {
     bringToFront,
     updateWindowPosition,
     updateWindowSize,
+    maximizeWindow,
+    minimizeWindow,
     isWindowOpen,
     getWindow
   }

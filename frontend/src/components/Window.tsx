@@ -9,10 +9,13 @@ export interface WindowData {
   position: { x: number; y: number }
   size: { width: number; height: number }
   zIndex: number
+  isMaximized: boolean
+  originalPosition?: { x: number; y: number }
+  originalSize?: { width: number; height: number }
 }
 
-const WindowContainer = styled.div<{ $x: number; $y: number; $width: number; $height: number; $zIndex: number }>`
-  position: absolute;
+const WindowContainer = styled.div<{ $x: number; $y: number; $width: number; $height: number; $zIndex: number; $isMaximized: boolean }>`
+  position: ${props => props.$isMaximized ? 'fixed' : 'absolute'};
   left: ${props => props.$x}px;
   top: ${props => props.$y}px;
   width: ${props => props.$width}px;
@@ -21,15 +24,15 @@ const WindowContainer = styled.div<{ $x: number; $y: number; $width: number; $he
   background: rgba(30, 30, 45, 0.95);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  border-radius: ${props => props.$isMaximized ? '0' : '12px'};
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-width: 300px;
-  min-height: 200px;
-  max-width: calc(100vw - 40px);
-  max-height: calc(100vh - 120px);
+  min-width: ${props => props.$isMaximized ? 'unset' : '300px'};
+  min-height: ${props => props.$isMaximized ? 'unset' : '200px'};
+  max-width: ${props => props.$isMaximized ? 'unset' : 'calc(100vw - 40px)'};
+  max-height: ${props => props.$isMaximized ? 'unset' : 'calc(100vh - 120px)'};
 `
 
 const WindowHeader = styled.div`
@@ -130,6 +133,8 @@ interface WindowProps {
   onFocus: () => void
   onPositionChange: (position: { x: number; y: number }) => void
   onSizeChange: (size: { width: number; height: number }) => void
+  onMaximize: () => void
+  onMinimize: () => void
 }
 
 const Window: React.FC<WindowProps> = ({
@@ -137,7 +142,9 @@ const Window: React.FC<WindowProps> = ({
   onClose,
   onFocus,
   onPositionChange,
-  onSizeChange
+  onSizeChange,
+  onMaximize,
+  onMinimize
 }) => {
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
@@ -151,7 +158,7 @@ const Window: React.FC<WindowProps> = ({
   }
 
   const handleHeaderMouseDown = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget || (e.target as HTMLElement).tagName === 'H3') {
+    if (!window.isMaximized && (e.target === e.currentTarget || (e.target as HTMLElement).tagName === 'H3')) {
       setIsDragging(true)
       setDragOffset({
         x: e.clientX - window.position.x,
@@ -161,14 +168,16 @@ const Window: React.FC<WindowProps> = ({
   }
 
   const handleResizeMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setIsResizing(true)
-    setResizeStart({
-      x: e.clientX,
-      y: e.clientY,
-      width: window.size.width,
-      height: window.size.height
-    })
+    if (!window.isMaximized) {
+      e.stopPropagation()
+      setIsResizing(true)
+      setResizeStart({
+        x: e.clientX,
+        y: e.clientY,
+        width: window.size.width,
+        height: window.size.height
+      })
+    }
   }
 
   useEffect(() => {
@@ -211,20 +220,23 @@ const Window: React.FC<WindowProps> = ({
       $width={window.size.width}
       $height={window.size.height}
       $zIndex={window.zIndex}
+      $isMaximized={window.isMaximized}
       onMouseDown={handleMouseDown}
     >
       <WindowHeader onMouseDown={handleHeaderMouseDown}>
         <WindowTitle>{window.title}</WindowTitle>
         <WindowControls>
-          <WindowControl className="minimize">−</WindowControl>
-          <WindowControl className="maximize">□</WindowControl>
+          <WindowControl className="minimize" onClick={onMinimize}>−</WindowControl>
+          <WindowControl className="maximize" onClick={onMaximize}>
+            {window.isMaximized ? '⧉' : '□'}
+          </WindowControl>
           <WindowControl className="close" onClick={onClose}>×</WindowControl>
         </WindowControls>
       </WindowHeader>
       <WindowContent $isResizing={isResizing}>
         <Component />
       </WindowContent>
-      <ResizeHandle onMouseDown={handleResizeMouseDown} />
+      {!window.isMaximized && <ResizeHandle onMouseDown={handleResizeMouseDown} />}
     </WindowContainer>
   )
 }

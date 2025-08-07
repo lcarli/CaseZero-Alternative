@@ -122,7 +122,9 @@ const Desktop: React.FC = () => {
     closeWindow,
     bringToFront,
     updateWindowPosition,
-    updateWindowSize
+    updateWindowSize,
+    maximizeWindow,
+    minimizeWindow
   } = useWindowContext()
 
   const { currentCase } = useCase()
@@ -158,6 +160,8 @@ const Desktop: React.FC = () => {
             onFocus={() => bringToFront(window.id)}
             onPositionChange={(position) => updateWindowPosition(window.id, position)}
             onSizeChange={(size) => updateWindowSize(window.id, size)}
+            onMaximize={() => maximizeWindow(window.id)}
+            onMinimize={() => minimizeWindow(window.id)}
           />
         ))}
       </DesktopArea>
