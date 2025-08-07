@@ -172,7 +172,7 @@ const FileViewer: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<string | null>('case001.txt')
   const { currentCase } = useCase()
 
-  // Updated data structure with notes about TestAssets integration
+  // Updated data structure with case-specific content
   const getCaseData = (caseId: string): CaseData => {
     const caseFiles: { [key: string]: CaseData } = {
       'CASE-2024-001': {
@@ -378,13 +378,203 @@ Date: January 16, 2024
             }
           ]
         }
+      },
+      'CASE-2024-002': {
+        'case-files': {
+          name: 'Arquivos do Caso',
+          icon: '📁',
+          files: [
+            { 
+              name: 'relatorio_inicial_clinica.pdf', 
+              icon: '📄', 
+              type: 'pdf',
+              size: '3.1 KB',
+              modified: '2024-02-05 08:30',
+              content: `RELATÓRIO INICIAL DA PERÍCIA
+========================
+
+CASO ID: CASE-2024-002
+DATA: 05 de Fevereiro de 2024
+HORÁRIO: 08:30 AM
+LOCAL: Clínica Médica São Lucas, Bairro Jardins
+PERITO RESPONSÁVEL: Detetive Carlos Mendes
+STATUS: Investigação Iniciada
+
+RESUMO DO INCIDENTE:
+Roubo ocorrido na madrugada de segunda-feira em clínica particular. Cofre arrombado, documentos confidenciais desapareceram. Porta trancada sem sinais de arrombamento.
+
+DETALHES:
+- Cofre localizado no consultório principal foi arrombado
+- Documentos médicos confidenciais foram furtados
+- Porta principal sem sinais de arrombamento
+- Sistema de alarme desativado às 22:30 (horário suspeito)
+- Apenas funcionários com acesso interno poderiam entrar na área restrita
+
+EVIDÊNCIAS COLETADAS:
+- Fio de cabelo loiro encontrado próximo ao cofre
+- Imagem da câmera de segurança da entrada
+- Carta manuscrita encontrada na gaveta da mesa
+- Impressões digitais parciais no cofre
+
+TESTEMUNHAS:
+- Enfermeira Chefe: Joana Duarte
+- Médico Assistente: Dr. Roberto Silva
+- Administradora: Carmen Rodriguez
+
+PRÓXIMOS PASSOS:
+- Processar evidências forenses (DNA, análise digital)
+- Entrevistar testemunhas/suspeitos
+- Verificar álibi de todos os funcionários
+- Analisar gravações de segurança
+
+ATRIBUÍDO A: Unidade de Investigação 3
+PRIORIDADE: Alta
+
+[Arquivo Caso: /cases/CASE-2024-002/evidence/relatorio_inicial_clinica.pdf]` 
+            },
+            { 
+              name: 'fio_cabelo_loiro.jpg', 
+              icon: '🖼️', 
+              type: 'image',
+              size: '890 KB',
+              modified: '2024-02-05 09:15',
+              content: 'Evidência física: Fio de cabelo loiro encontrado no chão do consultório onde fica o cofre. Comprimento aproximado: 15cm. Coloração loira natural. Encaminhado para análise de DNA para identificação do proprietário.\n\n[Arquivo Caso: /cases/CASE-2024-002/evidence/fio_cabelo_loiro.jpg]',
+              imageType: 'evidence-photo'
+            },
+            { 
+              name: 'camera_seguranca.jpg', 
+              icon: '🖼️', 
+              type: 'image',
+              size: '1.5 MB',
+              modified: '2024-02-05 03:45',
+              content: 'Imagem da câmera de segurança mostrando a entrada da clínica. Timestamp: 03:45:12 AM. Mulher de cabelo loiro saindo pela porta dos fundos. Altura aproximada: 1,65m. Vestindo jaleco médico branco. Parece conhecer o código da porta de emergência.\n\n[Arquivo Caso: /cases/CASE-2024-002/evidence/camera_seguranca.jpg]',
+              imageType: 'security-camera'
+            }
+          ]
+        },
+        'forensics': {
+          name: 'Perícia',
+          icon: '🔬',
+          files: [
+            { 
+              name: 'dna_cabelo_resultado.pdf', 
+              icon: '🧬', 
+              type: 'pdf',
+              size: '2.8 KB',
+              modified: '2024-02-07 14:20',
+              content: `RESULTADO DA ANÁLISE DE DNA
+==========================
+
+ID do Laboratório: LAB-2024-002-DNA
+Caso ID: CASE-2024-002
+Data Processada: 07 de Fevereiro de 2024
+Técnico: Dr. Patricia Santos, PhD
+Laboratório: Laboratório Forense Metropolitano
+
+INFORMAÇÕES DA AMOSTRA:
+ID da Amostra: EVD-002
+Origem: Fio de cabelo loiro encontrado na cena
+Data da Coleta: 05 de Fevereiro de 2024
+Oficial Coletor: Equipe CSI Lead Ana Silva
+
+RESULTADOS DA ANÁLISE:
+Perfil de DNA: Perfil STR de 13 loci completo obtido
+Qualidade: Amostra de alta qualidade
+Quantidade: 1.8 ng/μL
+
+COMPARAÇÃO COM BANCO DE DADOS:
+Busca CODIS: Realizada em 07 de Fevereiro de 2024
+Resultado: Correspondência positiva encontrada
+Nível de Confiança: 99.7%
+Perfis Correspondentes: 1
+
+DETALHES DA CORRESPONDÊNCIA:
+Suspeita: Joana Duarte
+DOB: 15/04/1995
+Último Endereço Conhecido: Rua das Flores, 123 - Jardins
+Histórico: Funcionária da clínica (Enfermeira Chefe)
+Status: Suspeita Principal
+
+CONCLUSÕES:
+O perfil de DNA da amostra EVD-002 corresponde definitivamente a Joana Duarte com 99.7% de confiança. Esta é uma correspondência estatisticamente significativa para identificação positiva.
+
+RECOMENDAÇÕES:
+1. Interrogar Joana Duarte imediatamente
+2. Verificar álibi detalhadamente
+3. Buscar mandado de busca se necessário
+
+Relatório Certificado por: Dr. Patricia Santos
+Data: 07 de Fevereiro de 2024
+
+[Arquivo Caso: /cases/CASE-2024-002/forensics/dna_cabelo_resultado.pdf]` 
+            }
+          ]
+        }
+      },
+      'CASE-2024-003': {
+        'case-files': {
+          name: 'Arquivos de Demonstração',
+          icon: '📁',
+          files: [
+            { 
+              name: 'caso_demo.txt', 
+              icon: '📄', 
+              type: 'text',
+              size: '1.2 KB',
+              modified: '2024-03-01 08:00',
+              content: `CASO DE DEMONSTRAÇÃO
+===================
+
+CASO ID: CASE-2024-003
+DATA: 01 de Março de 2024
+TIPO: Demonstração de Sistema
+
+OBJETIVO:
+Este é um caso de teste criado para demonstrar o carregamento dinâmico de casos no sistema CaseZero.
+
+FUNCIONALIDADES DEMONSTRADAS:
+- Carregamento automático de novos casos
+- Interface de seleção de casos no dashboard
+- Navegação entre diferentes casos
+- Componentes independentes e agnósticos ao caso
+
+INSTRUÇÕES:
+1. Este caso aparece automaticamente no dashboard
+2. Pode ser selecionado como qualquer outro caso
+3. Demonstra que o sistema é modular e expansível
+4. Cada componente (arquivos, email, perícia) mostra conteúdo específico do caso
+
+STATUS: Demonstração Ativa
+DURAÇÃO ESTIMADA: 10 minutos
+
+Este caso serve apenas para validar que o sistema está funcionando corretamente.
+
+[Arquivo Caso: /cases/CASE-2024-003/case-files/caso_demo.txt]` 
+            }
+          ]
+        }
       }
     }
     
-    return caseFiles[caseId] || caseFiles['CASE-2024-001']
+    return caseFiles[caseId] || {
+      'no-case': {
+        name: 'Nenhum Caso Selecionado',
+        icon: '❌',
+        files: [
+          {
+            name: 'selecione_caso.txt',
+            icon: '📄',
+            type: 'text',
+            size: '0.5 KB',
+            modified: new Date().toISOString().split('T')[0],
+            content: 'Nenhum caso foi selecionado. Por favor, selecione um caso no dashboard para visualizar os arquivos correspondentes.'
+          }
+        ]
+      }
+    }
   }
 
-  const fileStructure = getCaseData(currentCase || 'CASE-2024-001')
+  const fileStructure = getCaseData(currentCase || '')
 
   const toggleFolder = (folderId: string) => {
     const newOpenFolders = new Set(openFolders)

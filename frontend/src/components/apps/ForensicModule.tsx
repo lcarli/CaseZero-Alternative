@@ -241,15 +241,34 @@ const ForensicModule: React.FC = () => {
   const [selectedAnalysisType, setSelectedAnalysisType] = useState('')
   const { currentCase } = useCase()
 
-  // Sample evidence items from the current case
-  const availableEvidence = [
-    'evidence.jpg - Security Camera Footage',
-    'witness_statement.pdf - Witness Statement', 
-    'dna_sample.txt - DNA Sample from Window',
-    'fingerprints.jpg - Fingerprints from Door',
-    'security_footage.mp4 - Mall Security Video',
-    'unknown_substance.txt - Unknown White Powder'
-  ]
+  // Case-specific evidence items
+  const getCaseEvidence = (caseId: string): string[] => {
+    const caseEvidence: { [key: string]: string[] } = {
+      'CASE-2024-001': [
+        'evidence.jpg - Security Camera Footage',
+        'witness_statement.pdf - Witness Statement', 
+        'dna_sample.txt - DNA Sample from Window',
+        'fingerprints.jpg - Fingerprints from Door',
+        'case001.txt - Initial Case Report'
+      ],
+      'CASE-2024-002': [
+        'fio_cabelo_loiro.jpg - Fio de Cabelo Loiro',
+        'camera_seguranca.jpg - Imagem da Câmera de Segurança',
+        'carta_manuscrita.pdf - Carta Manuscrita',
+        'impressoes_digitais.jpg - Impressões Digitais do Cofre',
+        'relatorio_inicial_clinica.pdf - Relatório Inicial'
+      ],
+      'CASE-2024-003': [
+        'caso_demo.txt - Arquivo de Demonstração'
+      ]
+    }
+    
+    return caseEvidence[caseId] || [
+      'Nenhuma evidência disponível - Selecione um caso'
+    ]
+  }
+
+  const availableEvidence = getCaseEvidence(currentCase || '')
 
   // Update progress for processing analyses
   useEffect(() => {
