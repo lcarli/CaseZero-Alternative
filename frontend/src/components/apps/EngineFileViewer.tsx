@@ -213,6 +213,7 @@ const EvidenceImageViewer: React.FC<{ file: FileItem; caseId: string }> = ({ fil
         const blob = await caseObjectApi.getCaseFile(caseId, `evidence/${file.name}`)
         const url = URL.createObjectURL(blob)
         setImageUrl(url)
+        setImageLoaded(true) // Set loaded to true after successful fetch
       } catch (error) {
         console.error('Failed to load image:', error)
         setImageError(true)
