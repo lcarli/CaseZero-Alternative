@@ -90,7 +90,8 @@ VITE_ENV=development
 
 - Backend: http://localhost:5000
 - Frontend: http://localhost:5173
-- Usuário padrão: `detective@police.gov` / `Password123!`
+- Usuário de teste: `john.doe@fic-police.gov` / `Password123!`
+- **Novo sistema de registro**: Apenas nome, sobrenome e email pessoal necessários
 
 ---
 
@@ -268,6 +269,18 @@ sudo apt install -y nodejs
     "Audience": "CaseZeroFrontend",
     "ExpiryDays": 1
   },
+  "EmailSettings": {
+    "SmtpServer": "${SMTP_SERVER}",
+    "SmtpPort": 587,
+    "FromEmail": "${FROM_EMAIL}",
+    "FromName": "Sistema CaseZero",
+    "SmtpUsername": "${SMTP_USERNAME}",
+    "SmtpPassword": "${SMTP_PASSWORD}",
+    "EnableSsl": true
+  },
+  "Frontend": {
+    "BaseUrl": "https://casezero.com"
+  },
   "Logging": {
     "LogLevel": {
       "Default": "Warning",
@@ -400,6 +413,74 @@ add_header X-Content-Type-Options "nosniff" always;
 add_header Referrer-Policy "no-referrer-when-downgrade" always;
 add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+```
+
+---
+
+## Configuração do Serviço de Email
+
+### 1. Configuração de Email para Produção
+
+O CaseZero utiliza um sistema de verificação por email. Para configurar o envio de emails:
+
+**Variáveis de Ambiente Necessárias:**
+```bash
+# Email Service Configuration
+export SMTP_SERVER="smtp.gmail.com"          # Servidor SMTP
+export SMTP_USERNAME="your-email@gmail.com"   # Usuário SMTP
+export SMTP_PASSWORD="your-app-password"      # Senha do app (Gmail)
+export FROM_EMAIL="noreply@your-domain.com"   # Email remetente
+```
+
+**Para Gmail:**
+1. Ativar autenticação de 2 fatores
+2. Gerar senha de app específica
+3. Usar `smtp.gmail.com:587` com SSL
+
+**Para SendGrid:**
+```bash
+export SMTP_SERVER="smtp.sendgrid.net"
+export SMTP_USERNAME="apikey"
+export SMTP_PASSWORD="your-sendgrid-api-key"
+export FROM_EMAIL="noreply@your-domain.com"
+```
+
+**Para AWS SES:**
+```bash
+export SMTP_SERVER="email-smtp.us-east-1.amazonaws.com"
+export SMTP_USERNAME="your-aws-access-key-id"
+export SMTP_PASSWORD="your-aws-secret-access-key"
+export FROM_EMAIL="noreply@your-verified-domain.com"
+```
+
+### 2. Testando Email Service
+
+**Verificar configuração em desenvolvimento:**
+```bash
+# Logs para verificar se emails estão sendo processados
+docker logs casezero-api | grep -i email
+
+# Testar registro sem email real
+curl -X POST "http://localhost:5000/api/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "Test", 
+    "lastName": "User",
+    "personalEmail": "test@example.com",
+    "password": "TestPassword123!"
+  }'
+```
+
+### 3. Fallback sem Email
+
+Se não configurar o serviço de email:
+- Sistema funciona normalmente em desenvolvimento
+- Logs mostram tentativas de envio
+- Contas podem ser verificadas manualmente via banco de dados:
+
+```sql
+-- Verificar conta manualmente (desenvolvimento)
+UPDATE Users SET EmailVerified = 1 WHERE Email = 'user@fic-police.gov';
 ```
 
 ---

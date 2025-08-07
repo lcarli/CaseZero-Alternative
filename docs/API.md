@@ -23,27 +23,58 @@ Authorization: Bearer <token>
 ## Endpoints de Autenticação
 
 ### POST /api/auth/register
-**Descrição:** Registra um novo usuário no sistema (requer aprovação admin)
+**Descrição:** Registra um novo usuário no sistema com verificação por email
 
 **Body:**
 ```json
 {
-  "email": "detective@police.gov",
-  "password": "Password123!",
-  "firstName": "John",
-  "lastName": "Doe",
-  "phoneNumber": "+1234567890",
-  "department": "Homicide",
-  "position": "Detective",
-  "badgeNumber": "12345"
+  "firstName": "João",
+  "lastName": "Silva",
+  "personalEmail": "joao.silva@gmail.com",
+  "password": "Password123!"
 }
 ```
 
-**Response (201):**
+**Response (200):**
 ```json
 {
-  "message": "User registered successfully. Awaiting admin approval.",
-  "userId": "guid-here"
+  "message": "Registro realizado com sucesso! Verifique seu email pessoal para ativar a conta.",
+  "policeEmail": "joao.silva@fic-police.gov",
+  "personalEmail": "joao.silva@gmail.com"
+}
+```
+
+### POST /api/auth/verify-email
+**Descrição:** Verifica o email do usuário através do token enviado
+
+**Body:**
+```json
+{
+  "token": "verification-token-here"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Email verificado com sucesso! Sua conta está ativa."
+}
+```
+
+### POST /api/auth/resend-verification
+**Descrição:** Reenvia email de verificação
+
+**Body:**
+```json
+{
+  "email": "joao.silva@fic-police.gov"
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Novo email de verificação enviado."
 }
 ```
 
@@ -53,7 +84,7 @@ Authorization: Bearer <token>
 **Body:**
 ```json
 {
-  "email": "detective@police.gov",
+  "email": "joao.silva@fic-police.gov",
   "password": "Password123!"
 }
 ```
@@ -64,13 +95,14 @@ Authorization: Bearer <token>
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "id": "guid-here",
-    "email": "detective@police.gov",
-    "firstName": "John",
-    "lastName": "Doe",
-    "department": "Homicide",
-    "position": "Detective",
-    "badgeNumber": "12345",
-    "rank": "Detective"
+    "email": "joao.silva@fic-police.gov",
+    "personalEmail": "joao.silva@gmail.com",
+    "firstName": "João",
+    "lastName": "Silva",
+    "department": "ColdCase",
+    "position": "rook",
+    "badgeNumber": "1234",
+    "emailVerified": true
   },
   "expiresAt": "2024-01-15T10:30:00Z"
 }
