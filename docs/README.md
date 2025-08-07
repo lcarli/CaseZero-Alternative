@@ -17,6 +17,9 @@ Esta pasta contém toda a documentação técnica detalhada do projeto CaseZero-
 - **[API.md](API.md)** - Documentação completa da REST API
 - **[OBJETO_CASO.md](OBJETO_CASO.md)** - Sistema de casos modulares
 
+### 🚀 Planejamento e Evolução
+- **[FUTURE_FEATURES.md](FUTURE_FEATURES.md)** - Futuras funcionalidades e melhorias planejadas
+
 ### 🚀 Deploy e Operações
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Guia de deployment para diferentes ambientes
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Soluções para problemas comuns
@@ -92,6 +95,7 @@ Procurando informações sobre:
 - **Problema no sistema?** → [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - **Endpoints da API?** → [API.md](API.md)
 - **Como criar um novo caso?** → [OBJETO_CASO.md](OBJETO_CASO.md)
+- **Futuras funcionalidades?** → [FUTURE_FEATURES.md](FUTURE_FEATURES.md)
 - **Estrutura do banco?** → [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)
 - **Como contribuir?** → [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)
 - **Arquitetura React?** → [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md)
