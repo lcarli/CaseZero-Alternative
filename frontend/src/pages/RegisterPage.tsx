@@ -12,18 +12,41 @@ const PageContainer = styled.div`
   align-items: center;
   justify-content: center;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  padding: 2rem;
+  padding: 1rem;
+  box-sizing: border-box;
+  
+  @media (max-height: 800px) {
+    align-items: flex-start;
+    padding-top: 2rem;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 0.5rem;
+  }
 `
 
 const RegisterCard = styled.div`
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(52, 152, 219, 0.3);
   border-radius: 1rem;
-  padding: 3rem;
+  padding: 2rem;
   backdrop-filter: blur(15px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   width: 100%;
   max-width: 500px;
+  margin: 1rem 0;
+  
+  @media (max-width: 600px) {
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    max-width: 100%;
+    margin: 0.5rem 0;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 1rem;
+    margin: 0;
+  }
 `
 
 const Header = styled.div`
@@ -32,15 +55,24 @@ const Header = styled.div`
 `
 
 const Logo = styled.div`
-  font-size: 3rem;
+  font-size: 2.5rem;
   margin-bottom: 1rem;
+  
+  @media (max-width: 480px) {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+  }
 `
 
 const Title = styled.h1`
   color: white;
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   margin: 0 0 0.5rem 0;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  
+  @media (max-width: 480px) {
+    font-size: 1.3rem;
+  }
 `
 
 const Subtitle = styled.p`
@@ -52,7 +84,11 @@ const Subtitle = styled.p`
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.2rem;
+  
+  @media (max-width: 480px) {
+    gap: 1rem;
+  }
 `
 
 const FormRow = styled.div`
@@ -62,6 +98,7 @@ const FormRow = styled.div`
   
   @media (max-width: 600px) {
     grid-template-columns: 1fr;
+    gap: 0.8rem;
   }
 `
 
@@ -87,6 +124,8 @@ const Input = styled.input`
   font-family: inherit;
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
   
   &::placeholder {
     color: rgba(255, 255, 255, 0.5);
@@ -97,6 +136,11 @@ const Input = styled.input`
     border-color: rgba(52, 152, 219, 0.6);
     background: rgba(255, 255, 255, 0.15);
     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  }
+  
+  @media (max-width: 480px) {
+    padding: 0.6rem;
+    font-size: 0.9rem;
   }
 `
 
@@ -174,6 +218,12 @@ const InfoBox = styled.div`
   strong {
     color: rgba(52, 152, 219, 0.9);
   }
+  
+  @media (max-width: 480px) {
+    padding: 0.8rem;
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+  }
 `
 
 const EmailPreview = styled.div`
@@ -193,9 +243,21 @@ const EmailPreview = styled.div`
   .email {
     color: rgba(46, 204, 113, 1);
     font-weight: 600;
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-family: monospace;
     word-break: break-all;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 0.8rem;
+    
+    .label {
+      font-size: 0.8rem;
+    }
+    
+    .email {
+      font-size: 0.9rem;
+    }
   }
 `
 
@@ -293,7 +355,7 @@ const RegisterPage = () => {
         password: formData.password
       })
       
-      setSuccess(`${response.message} Seu email institucional será: ${response.policeEmail}`)
+      setSuccess(`${response.message} ${t('institutionalEmailInfo')} ${response.policeEmail}`)
       
       // Navigate to login after successful registration
       setTimeout(() => {
@@ -328,7 +390,7 @@ const RegisterPage = () => {
         </Header>
 
         <InfoBox>
-          <strong>{t('importantNote')}</strong> Para o registro você precisa apenas de nome, sobrenome e email pessoal. Seu email institucional, departamento, posição e número de distintivo serão gerados automaticamente.
+          <strong>{t('importantNote')}</strong> {t('useInstitutionalLogin')}
         </InfoBox>
 
         <Form onSubmit={handleSubmit}>
@@ -365,13 +427,13 @@ const RegisterPage = () => {
 
           {generatedPoliceEmail && (
             <EmailPreview>
-              <div className="label">🎯 Seu email institucional será:</div>
+              <div className="label">{t('institutionalEmailPreview')}</div>
               <div className="email">{generatedPoliceEmail}</div>
             </EmailPreview>
           )}
 
           <FormGroup>
-            <Label htmlFor="personalEmail">Email Pessoal</Label>
+            <Label htmlFor="personalEmail">{t('personalEmail')}</Label>
             <Input
               type="email"
               id="personalEmail"
@@ -413,7 +475,7 @@ const RegisterPage = () => {
           </FormRow>
 
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? 'Enviando...' : 'Solicitar Registro'}
+            {isLoading ? t('submitting') : t('requestRegistrationBtn2')}
           </Button>
         </Form>
 

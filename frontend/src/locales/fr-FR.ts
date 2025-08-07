@@ -208,4 +208,13 @@ export const frFR: Translations = {
   ctaDescription: 'Rejoignez le système d\'investigation du Département de Police Métropolitaine et commencez votre carrière en tant que détective. Accès restreint au personnel autorisé uniquement.',
   accessSystem: 'Accéder au Système',
   requestAccess: 'Demander l\'Accès',
+  
+  // New registration form translations
+  newRegistrationInfo: 'Pour l\'inscription, vous n\'avez besoin que de votre prénom, nom de famille et email personnel. Votre email institutionnel, département, poste et numéro de badge seront générés automatiquement.',
+  institutionalEmailPreview: '🎯 Votre email institutionnel sera:',
+  personalEmail: 'Email Personnel',
+  submitting: 'Envoi en cours...',
+  requestRegistrationBtn2: 'Demander l\'Inscription',
+  institutionalEmailInfo: 'Votre email institutionnel sera:',
+  useInstitutionalLogin: 'Pour vous connecter, vous devez utiliser votre email institutionnel au lieu de votre email personnel.',
 };

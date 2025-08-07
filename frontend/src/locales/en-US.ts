@@ -208,4 +208,13 @@ export const enUS: Translations = {
   ctaDescription: 'Join the Metropolitan Police Department\'s investigation system and start your career as a detective. Access restricted to authorized personnel only.',
   accessSystem: 'Access System',
   requestAccess: 'Request Access',
+  
+  // New registration form translations
+  newRegistrationInfo: 'For registration, you only need your first name, last name, and personal email. Your institutional email, department, position, and badge number will be automatically generated.',
+  institutionalEmailPreview: '🎯 Your institutional email will be:',
+  personalEmail: 'Personal Email',
+  submitting: 'Submitting...',
+  requestRegistrationBtn2: 'Request Registration',
+  institutionalEmailInfo: 'Your institutional email will be:',
+  useInstitutionalLogin: 'To login, you must use your institutional email instead of your personal email.',
 };
