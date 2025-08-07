@@ -158,4 +158,28 @@ namespace CaseZeroApi.DTOs
         public DateTime Date { get; set; }
         public string? CaseId { get; set; }
     }
+
+    public class CaseSessionDto
+    {
+        public int Id { get; set; }
+        public string UserId { get; set; } = string.Empty;
+        public string CaseId { get; set; } = string.Empty;
+        public DateTime SessionStart { get; set; }
+        public DateTime? SessionEnd { get; set; }
+        public int SessionDurationMinutes { get; set; }
+        public string? GameTimeAtStart { get; set; }
+        public string? GameTimeAtEnd { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class StartCaseSessionRequest
+    {
+        public required string CaseId { get; set; }
+        public string? GameTimeAtStart { get; set; }
+    }
+
+    public class EndCaseSessionRequest
+    {
+        public string? GameTimeAtEnd { get; set; }
+    }
 }

@@ -1,9 +1,13 @@
 import React, { useEffect } from 'react'
 import styled from 'styled-components'
+import { useNavigate } from 'react-router-dom'
 import Dock from './Dock'
 import Window from './Window'
 import { useWindowContext } from '../hooks/useWindowContext'
 import { useCase } from '../hooks/useCaseContext'
+import { useAuth } from '../hooks/useAuthContext'
+import { useTimeContext } from '../hooks/useTimeContext'
+import { caseSessionApi } from '../services/api'
 
 const DesktopContainer = styled.div`
   width: 100vw;
@@ -50,6 +54,8 @@ const DesktopContainer = styled.div`
     z-index: 2;
   }
 `
+
+
 
 const PoliceBadge = styled.div`
   position: absolute;
@@ -116,6 +122,9 @@ const DesktopArea = styled.div`
 `
 
 const Desktop: React.FC = () => {
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const { gameTime } = useTimeContext()
   const {
     windows,
     openWindow,
@@ -137,6 +146,27 @@ const Desktop: React.FC = () => {
     }
   }, [])
 
+  const handleLogout = async () => {
+    try {
+      // Save current session time if we have a case and game time
+      if (currentCase && gameTime) {
+        await caseSessionApi.endSession(currentCase, {
+          gameTimeAtEnd: gameTime.toISOString()
+        })
+        console.log('Session saved successfully for case:', currentCase)
+      }
+      
+      // Logout and navigate to dashboard
+      logout()
+      navigate('/dashboard')
+    } catch (error) {
+      console.error('Error during logout:', error)
+      // Still logout even if session save fails
+      logout()
+      navigate('/dashboard')
+    }
+  }
+
   return (
     <DesktopContainer>
       <PoliceBadge>
@@ -144,9 +174,9 @@ const Desktop: React.FC = () => {
       </PoliceBadge>
       
       <SystemInfo>
-        <div><span className="label">User:</span> Detective John Doe</div>
-        <div><span className="label">Unit:</span> Investigation Division</div>
-        <div><span className="label">Badge:</span> #4729</div>
+        <div><span className="label">User:</span> {user?.firstName} {user?.lastName}</div>
+        <div><span className="label">Unit:</span> {user?.department || 'Investigation Division'}</div>
+        <div><span className="label">Badge:</span> #{user?.badgeNumber || '4729'}</div>
         <div><span className="label">Case:</span> {currentCase || 'No Case'}</div>
         <div><span className="label">Status:</span> Active</div>
       </SystemInfo>
@@ -165,7 +195,7 @@ const Desktop: React.FC = () => {
           />
         ))}
       </DesktopArea>
-      <Dock onOpenWindow={openWindow} />
+      <Dock onOpenWindow={openWindow} onLogout={handleLogout} />
     </DesktopContainer>
   )
 }

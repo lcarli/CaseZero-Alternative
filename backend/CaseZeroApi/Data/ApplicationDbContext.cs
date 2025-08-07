@@ -19,6 +19,7 @@ namespace CaseZeroApi.Data
         public DbSet<CaseSubmission> CaseSubmissions { get; set; }
         public DbSet<Suspect> Suspects { get; set; }
         public DbSet<Email> Emails { get; set; }
+        public DbSet<CaseSession> CaseSessions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -117,6 +118,12 @@ namespace CaseZeroApi.Data
                 .WithMany()
                 .HasForeignKey(e => e.CaseId)
                 .IsRequired(false);
+
+            // Configure CaseSession
+            builder.Entity<CaseSession>()
+                .HasOne(cs => cs.User)
+                .WithMany()
+                .HasForeignKey(cs => cs.UserId);
 
             // Seed some initial cases with GDD enhancements
             builder.Entity<Case>().HasData(

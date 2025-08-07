@@ -96,6 +96,17 @@ const DockIcon = styled.button`
   }
 `
 
+const LogoutIcon = styled(DockIcon)`
+  border-color: rgba(231, 76, 60, 0.4);
+  margin-left: 1rem;
+
+  &:hover {
+    background: rgba(231, 76, 60, 0.3);
+    border-color: rgba(231, 76, 60, 0.8);
+    box-shadow: 0 8px 25px rgba(231, 76, 60, 0.3);
+  }
+`
+
 const ResponsiveDockContainer = styled(DockContainer)`
   @media (max-width: 768px) {
     height: 70px;
@@ -125,9 +136,10 @@ const ResponsiveDockContainer = styled(DockContainer)`
 
 interface DockProps {
   onOpenWindow: (id: string, title: string, component: React.ComponentType) => void
+  onLogout: () => void
 }
 
-const Dock: React.FC<DockProps> = ({ onOpenWindow }) => {
+const Dock: React.FC<DockProps> = ({ onOpenWindow, onLogout }) => {
   const dockItems = [
     {
       id: 'file-viewer',
@@ -182,6 +194,13 @@ const Dock: React.FC<DockProps> = ({ onOpenWindow }) => {
       </DockCenter>
       <DockRight>
         <Clock />
+        <LogoutIcon
+          data-title="Sair do Sistema"
+          onClick={onLogout}
+          title="Sair do Sistema"
+        >
+          🚪
+        </LogoutIcon>
       </DockRight>
     </ResponsiveDockContainer>
   )
