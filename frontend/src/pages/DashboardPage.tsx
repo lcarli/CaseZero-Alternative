@@ -361,7 +361,7 @@ const DashboardPage = () => {
           <Avatar>{user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}</Avatar>
           <UserDetails>
             <h2>{user?.firstName} {user?.lastName}</h2>
-            <p>{user?.department} • Badge #{user?.badgeNumber}</p>
+            <p>{user?.department} • Badge #{user?.badgeNumber} • Rank: Detective</p>
           </UserDetails>
         </UserInfo>
         <LogoutButton onClick={handleLogout}>

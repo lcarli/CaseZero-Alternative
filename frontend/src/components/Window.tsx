@@ -29,8 +29,8 @@ const WindowContainer = styled.div<{ $x: number; $y: number; $width: number; $he
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-width: ${props => props.$isMaximized ? 'unset' : '300px'};
-  min-height: ${props => props.$isMaximized ? 'unset' : '200px'};
+  min-width: ${props => props.$isMaximized ? 'unset' : '500px'};
+  min-height: ${props => props.$isMaximized ? 'unset' : '400px'};
   max-width: ${props => props.$isMaximized ? 'unset' : 'calc(100vw - 40px)'};
   max-height: ${props => props.$isMaximized ? 'unset' : 'calc(100vh - 120px)'};
 `
@@ -189,8 +189,8 @@ const Window: React.FC<WindowProps> = ({
       } else if (isResizing) {
         const deltaX = e.clientX - resizeStart.x
         const deltaY = e.clientY - resizeStart.y
-        const newWidth = Math.max(300, Math.min(resizeStart.width + deltaX, globalThis.innerWidth - window.position.x - 20))
-        const newHeight = Math.max(200, Math.min(resizeStart.height + deltaY, globalThis.innerHeight - window.position.y - 100))
+        const newWidth = Math.max(500, Math.min(resizeStart.width + deltaX, globalThis.innerWidth - window.position.x - 20))
+        const newHeight = Math.max(400, Math.min(resizeStart.height + deltaY, globalThis.innerHeight - window.position.y - 100))
         onSizeChange({ width: newWidth, height: newHeight })
       }
     }
