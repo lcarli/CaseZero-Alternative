@@ -196,6 +196,109 @@ namespace CaseZeroApi.Controllers
             return Ok(caseDto);
         }
 
+        [HttpGet("{id}/data")]
+        public async Task<IActionResult> GetCaseData(string id)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            // Verify user has access to this case
+            var userCase = await _context.UserCases
+                .Where(uc => uc.UserId == userId && uc.CaseId == id)
+                .FirstOrDefaultAsync();
+
+            if (userCase == null)
+            {
+                return NotFound("Case not found or user does not have access");
+            }
+
+            try
+            {
+                // Load case data from filesystem using CaseObjectService
+                var caseObject = await _caseObjectService.LoadCaseObjectAsync(id);
+                if (caseObject == null)
+                {
+                    return NotFound($"Case data not found for case {id}");
+                }
+
+                // Return sanitized case data without exposing solution details
+                var sanitizedCaseData = new
+                {
+                    caseId = caseObject.CaseId,
+                    metadata = caseObject.Metadata,
+                    evidences = caseObject.Evidences?.Select(e => new
+                    {
+                        id = e.Id,
+                        name = e.Name,
+                        type = e.Type,
+                        fileName = e.FileName,
+                        category = e.Category,
+                        priority = e.Priority,
+                        description = e.Description,
+                        location = e.Location,
+                        isUnlocked = e.IsUnlocked,
+                        requiresAnalysis = e.RequiresAnalysis,
+                        dependsOn = e.DependsOn,
+                        linkedSuspects = e.LinkedSuspects,
+                        analysisRequired = e.AnalysisRequired,
+                        unlockConditions = e.UnlockConditions
+                    }).ToList(),
+                    suspects = caseObject.Suspects?.Select(s => new
+                    {
+                        id = s.Id,
+                        name = s.Name,
+                        alias = s.Alias,
+                        age = s.Age,
+                        occupation = s.Occupation,
+                        description = s.Description,
+                        relationship = s.Relationship,
+                        motive = s.Motive,
+                        alibi = s.Alibi,
+                        alibiVerified = s.AlibiVerified,
+                        behavior = s.Behavior,
+                        backgroundInfo = s.BackgroundInfo,
+                        linkedEvidence = s.LinkedEvidence,
+                        comments = s.Comments,
+                        status = s.Status,
+                        unlockConditions = s.UnlockConditions
+                        // Note: isActualCulprit is intentionally excluded to prevent spoilers
+                    }).ToList(),
+                    forensicAnalyses = caseObject.ForensicAnalyses?.Select(fa => new
+                    {
+                        id = fa.Id,
+                        evidenceId = fa.EvidenceId,
+                        analysisType = fa.AnalysisType,
+                        responseTime = fa.ResponseTime,
+                        resultFile = fa.ResultFile,
+                        description = fa.Description
+                    }).ToList(),
+                    temporalEvents = caseObject.TemporalEvents?.Select(te => new
+                    {
+                        id = te.Id,
+                        triggerTime = te.TriggerTime,
+                        type = te.Type,
+                        title = te.Title,
+                        content = te.Content,
+                        fileName = te.FileName
+                    }).ToList(),
+                    timeline = caseObject.Timeline,
+                    unlockLogic = caseObject.UnlockLogic,
+                    gameMetadata = caseObject.GameMetadata
+                    // Note: solution is intentionally excluded to prevent spoilers
+                };
+
+                return Ok(sanitizedCaseData);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading case data for case {CaseId}", id);
+                return StatusCode(500, "Internal server error while loading case data");
+            }
+        }
+
         [HttpGet("dashboard")]
         public async Task<IActionResult> GetDashboard()
         {

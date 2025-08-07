@@ -1,14 +1,15 @@
 import type { CaseData } from '../types/case'
+import { casesApi } from './api'
 
 /**
- * Service to load case data from JSON files
- * This allows dynamic loading of cases without code changes
+ * Service to load case data from the backend API
+ * This provides secure access to case data without exposing sensitive information in the DOM
  */
 export class CaseDataService {
   private static caseCache = new Map<string, CaseData>()
 
   /**
-   * Load case data from the JSON file
+   * Load case data from the backend API
    */
   static async loadCase(caseId: string): Promise<CaseData> {
     // Check cache first
@@ -17,15 +18,8 @@ export class CaseDataService {
     }
 
     try {
-      // In development, we'll load from the public folder
-      // In production, this could be an API call
-      const response = await fetch(`/cases/${caseId}/case.json`)
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load case ${caseId}: ${response.statusText}`)
-      }
-
-      const caseData: CaseData = await response.json()
+      // Call the secure backend API endpoint using the existing API service
+      const caseData: CaseData = await casesApi.getCaseData(caseId)
       
       // Cache the loaded case
       this.caseCache.set(caseId, caseData)
@@ -38,12 +32,12 @@ export class CaseDataService {
   }
 
   /**
-   * Get list of available cases (for development)
-   * In production, this would come from the backend API
+   * Get list of available cases 
+   * In the future, this could query the backend API
    */
   static async getAvailableCases(): Promise<string[]> {
     // For now, return known case IDs
-    // In the future, this could scan a directory or call an API
+    // In the future, this could call: GET /api/cases to get available cases for the user
     return [
       'CASE-2024-001',
       'CASE-2024-002', 
