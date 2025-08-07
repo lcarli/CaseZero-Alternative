@@ -6,10 +6,13 @@ namespace CaseZeroApi.Services
     public interface ICaseObjectService
     {
         Task<CaseObject?> LoadCaseObjectAsync(string caseId);
+        Task<CaseObject?> LoadCaseObjectAsync(string caseId, string locale);
         Task<List<string>> GetAvailableCasesAsync();
         Task<bool> ValidateCaseStructureAsync(string caseId);
+        Task<bool> ValidateCaseStructureAsync(string caseId, string locale);
         string GetCaseFilePath(string caseId, string fileName);
         Task<Stream?> GetCaseFileAsync(string caseId, string fileName);
+        Task<Stream?> GetCaseFileAsync(string caseId, string fileName, string locale);
     }
 
     public class CaseObjectService : ICaseObjectService
@@ -63,6 +66,40 @@ namespace CaseZeroApi.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading case object for {CaseId}", caseId);
+                return null;
+            }
+        }
+
+        public async Task<CaseObject?> LoadCaseObjectAsync(string caseId, string locale)
+        {
+            try
+            {
+                // TODO: When the new structure is implemented, use: /cases/CASE-ID/locale/case.json
+                // For now, fallback to the existing structure since all cases are in Portuguese
+                
+                // Try to load language-specific case (future structure)
+                var languageSpecificPath = Path.Combine(_casesBasePath, caseId, locale);
+                var languageSpecificJsonPath = Path.Combine(languageSpecificPath, "case.json");
+                
+                if (File.Exists(languageSpecificJsonPath))
+                {
+                    var jsonContent = await File.ReadAllTextAsync(languageSpecificJsonPath);
+                    var caseObject = JsonSerializer.Deserialize<CaseObject>(jsonContent, _jsonOptions);
+                    
+                    if (caseObject != null)
+                    {
+                        _logger.LogInformation("Successfully loaded case object for {CaseId} with locale {Locale}", caseId, locale);
+                        return caseObject;
+                    }
+                }
+                
+                // Fallback to default case (current structure) - all existing cases are in Portuguese
+                _logger.LogInformation("Language-specific case not found for {CaseId} with locale {Locale}, falling back to default", caseId, locale);
+                return await LoadCaseObjectAsync(caseId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading case object for {CaseId} with locale {Locale}", caseId, locale);
                 return null;
             }
         }
@@ -163,6 +200,41 @@ namespace CaseZeroApi.Services
             }
         }
 
+        public async Task<bool> ValidateCaseStructureAsync(string caseId, string locale)
+        {
+            try
+            {
+                var caseObject = await LoadCaseObjectAsync(caseId, locale);
+                if (caseObject == null) return false;
+
+                // TODO: When the new structure is implemented, validate language-specific paths
+                // For now, fallback to the existing structure validation
+                
+                // Try language-specific path first
+                var languageSpecificPath = Path.Combine(_casesBasePath, caseId, locale);
+                if (Directory.Exists(languageSpecificPath))
+                {
+                    // Validate language-specific structure (future implementation)
+                    // For now, just check if case.json exists
+                    var caseJsonPath = Path.Combine(languageSpecificPath, "case.json");
+                    if (File.Exists(caseJsonPath))
+                    {
+                        _logger.LogInformation("Language-specific case structure validation passed for {CaseId} with locale {Locale}", caseId, locale);
+                        return true;
+                    }
+                }
+                
+                // Fallback to default validation
+                _logger.LogInformation("Language-specific structure not found for {CaseId} with locale {Locale}, falling back to default validation", caseId, locale);
+                return await ValidateCaseStructureAsync(caseId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating case structure for {CaseId} with locale {Locale}", caseId, locale);
+                return false;
+            }
+        }
+
         public string GetCaseFilePath(string caseId, string fileName)
         {
             return Path.Combine(_casesBasePath, caseId, fileName);
@@ -196,6 +268,46 @@ namespace CaseZeroApi.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving case file {FileName} for case {CaseId}", fileName, caseId);
+                return Task.FromResult<Stream?>(null);
+            }
+        }
+
+        public Task<Stream?> GetCaseFileAsync(string caseId, string fileName, string locale)
+        {
+            try
+            {
+                // TODO: When the new structure is implemented, use: /cases/CASE-ID/locale/fileName
+                // For now, fallback to the existing structure since all cases are in Portuguese
+                
+                // Try language-specific file first (future structure)
+                var languageSpecificPath = Path.Combine(_casesBasePath, caseId, locale, fileName);
+                
+                if (File.Exists(languageSpecificPath))
+                {
+                    // Security check: ensure the file is within the case/locale directory
+                    var languageCasePath = Path.Combine(_casesBasePath, caseId, locale);
+                    var fullPath = Path.GetFullPath(languageSpecificPath);
+                    var fullLanguageCasePath = Path.GetFullPath(languageCasePath);
+
+                    if (fullPath.StartsWith(fullLanguageCasePath))
+                    {
+                        _logger.LogInformation("Loading language-specific file {FileName} for case {CaseId} with locale {Locale}", fileName, caseId, locale);
+                        return Task.FromResult<Stream?>(File.OpenRead(languageSpecificPath));
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Security violation: attempted to access file outside case/locale directory: {FilePath}", languageSpecificPath);
+                        return Task.FromResult<Stream?>(null);
+                    }
+                }
+                
+                // Fallback to default file (current structure)
+                _logger.LogInformation("Language-specific file not found for {CaseId} with locale {Locale}, falling back to default", caseId, locale);
+                return GetCaseFileAsync(caseId, fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving case file {FileName} for case {CaseId} with locale {Locale}", fileName, caseId, locale);
                 return Task.FromResult<Stream?>(null);
             }
         }

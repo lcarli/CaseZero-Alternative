@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
+import { useLanguage } from '../hooks/useLanguageContext'
 import Navigation from '../components/Navigation'
 
 const PageContainer = styled.div`
@@ -139,6 +140,7 @@ const Button = styled.button`
 
 const HomePage = () => {
   const navigate = useNavigate()
+  const { t } = useLanguage()
 
   return (
     <PageContainer>
@@ -149,25 +151,23 @@ const HomePage = () => {
           <LogoIcon>🕵️‍♂️</LogoIcon>
           <div>
             <Title>CaseZero</Title>
-            <Subtitle>Detective Investigation System</Subtitle>
+            <Subtitle>{t('heroSubtitle')}</Subtitle>
           </div>
         </LogoContainer>
 
         <Description>
-          Bem-vindo ao CaseZero, um jogo imersivo de investigação detetivesca onde você assume o papel 
-          de um detetive experiente resolvendo casos complexos. Use suas habilidades analíticas, 
-          examine evidências, entreviste suspeitos e desvende mistérios intrigantes.
+          {t('heroDescription')}
         </Description>
 
         <GameInfo>
-          <GameInfoTitle>🎮 Características do Jogo</GameInfoTitle>
+          <GameInfoTitle>🎮 {t('featuresTitle')}</GameInfoTitle>
           <FeatureList>
-            <li>Casos investigativos realistas e envolventes</li>
-            <li>Sistema de evidências detalhado</li>
-            <li>Interface de computador policial autêntica</li>
-            <li>Múltiplos casos para resolver</li>
-            <li>Progressão do detetive baseada em performance</li>
-            <li>Análise forense e coleta de pistas</li>
+            <li>{t('realisticInvestigationDesc')}</li>
+            <li>{t('evidenceAnalysisDesc')}</li>
+            <li>{t('authenticPoliceInterface')}</li>
+            <li>{t('multipleCases')}</li>
+            <li>{t('detectiveProgression')}</li>
+            <li>{t('forensicAnalysis')}</li>
           </FeatureList>
         </GameInfo>
 
@@ -176,13 +176,13 @@ const HomePage = () => {
             className="primary" 
             onClick={() => navigate('/login')}
           >
-            Entrar no Sistema
+            {t('login')}
           </Button>
           <Button 
             className="secondary" 
             onClick={() => navigate('/register')}
           >
-            Registrar-se
+            {t('register')}
           </Button>
         </ButtonContainer>
       </MainContent>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import styled from 'styled-components'
+import { useLanguage } from '../hooks/useLanguageContext'
 
 const NavContainer = styled.nav`
   position: fixed;
@@ -84,6 +85,8 @@ interface NavigationProps {
 }
 
 const Navigation: React.FC<NavigationProps> = ({ showAuth = true }) => {
+  const { t } = useLanguage()
+  
   return (
     <NavContainer>
       <NavContent>
@@ -95,10 +98,10 @@ const Navigation: React.FC<NavigationProps> = ({ showAuth = true }) => {
         {showAuth && (
           <NavMenu>
             <NavButton to="/login" className="secondary">
-              Entrar
+              {t('login')}
             </NavButton>
             <NavButton to="/register" className="primary">
-              Registrar
+              {t('register')}
             </NavButton>
           </NavMenu>
         )}
