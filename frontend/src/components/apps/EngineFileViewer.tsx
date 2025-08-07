@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import styled from 'styled-components'
 import { useCase } from '../../hooks/useCaseContext'
 import type { FileItem } from '../../types/case'
+import { caseObjectApi } from '../../services/api'
 
 const FileViewerContainer = styled.div`
   height: 100%;
@@ -106,10 +107,26 @@ const ImagePreview = styled.div`
   gap: 1rem;
 `
 
-const ImagePlaceholder = styled.div`
+const EvidenceImageContainer = styled.div`
   width: 100%;
-  max-width: 300px;
-  height: 200px;
+  max-width: 600px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+`
+
+const EvidenceImage = styled.img`
+  width: 100%;
+  height: auto;
+  max-height: 500px;
+  object-fit: contain;
+  display: block;
+`
+
+const ImageLoadingPlaceholder = styled.div`
+  width: 100%;
+  height: 300px;
   background: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%);
   border: 2px dashed rgba(255, 255, 255, 0.2);
   border-radius: 8px;
@@ -119,6 +136,20 @@ const ImagePlaceholder = styled.div`
   justify-content: center;
   gap: 0.5rem;
   color: rgba(255, 255, 255, 0.6);
+`
+
+const ImageErrorPlaceholder = styled.div`
+  width: 100%;
+  height: 200px;
+  background: rgba(231, 76, 60, 0.1);
+  border: 2px dashed rgba(231, 76, 60, 0.4);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: rgba(231, 76, 60, 0.8);
 `
 
 const PDFPreview = styled.div`
@@ -165,6 +196,76 @@ const ErrorMessage = styled.div`
   color: rgba(231, 76, 60, 0.9);
   font-size: 16px;
 `
+
+// Component to load and display evidence images
+const EvidenceImageViewer: React.FC<{ file: FileItem; caseId: string }> = ({ file, caseId }) => {
+  const [imageLoaded, setImageLoaded] = useState(false)
+  const [imageError, setImageError] = useState(false)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
+
+  React.useEffect(() => {
+    const loadImage = async () => {
+      try {
+        setImageError(false)
+        setImageLoaded(false)
+        
+        // Get the file from the backend
+        const blob = await caseObjectApi.getCaseFile(caseId, `evidence/${file.name}`)
+        const url = URL.createObjectURL(blob)
+        setImageUrl(url)
+      } catch (error) {
+        console.error('Failed to load image:', error)
+        setImageError(true)
+      }
+    }
+
+    if (file.type === 'image') {
+      loadImage()
+    }
+
+    // Cleanup URL when component unmounts
+    return () => {
+      if (imageUrl) {
+        URL.revokeObjectURL(imageUrl)
+      }
+    }
+  }, [file.name, caseId])
+
+  if (imageError) {
+    return (
+      <ImageErrorPlaceholder>
+        <div style={{ fontSize: '48px' }}>❌</div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>Failed to load image</div>
+          <div style={{ fontSize: '11px' }}>File: {file.name}</div>
+        </div>
+      </ImageErrorPlaceholder>
+    )
+  }
+
+  if (!imageLoaded || !imageUrl) {
+    return (
+      <ImageLoadingPlaceholder>
+        <div style={{ fontSize: '48px' }}>⏳</div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>Loading Evidence Image...</div>
+          <div style={{ fontSize: '11px' }}>File: {file.name}</div>
+        </div>
+      </ImageLoadingPlaceholder>
+    )
+  }
+
+  return (
+    <EvidenceImageContainer>
+      <EvidenceImage
+        src={imageUrl}
+        alt={file.name}
+        onLoad={() => setImageLoaded(true)}
+        onError={() => setImageError(true)}
+      />
+    </EvidenceImageContainer>
+  )
+}
 
 const EngineFileViewer: React.FC = () => {
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set(['evidence']))
@@ -227,15 +328,9 @@ const EngineFileViewer: React.FC = () => {
       case 'image':
         return (
           <ImagePreview>
-            <ImagePlaceholder>
-              <div style={{ fontSize: '48px' }}>🖼️</div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>Evidence Image</div>
-                <div style={{ fontSize: '11px' }}>Resolution: 1920x1080</div>
-                <div style={{ fontSize: '11px' }}>Format: JPEG</div>
-              </div>
-            </ImagePlaceholder>
+            <EvidenceImageViewer file={file} caseId={currentCase || ''} />
             <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.4' }}>
+              <strong>Evidence Description:</strong><br />
               {file.content}
             </div>
           </ImagePreview>
