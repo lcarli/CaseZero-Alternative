@@ -55,38 +55,7 @@ const DesktopContainer = styled.div`
   }
 `
 
-const LogoutButton = styled.button`
-  position: absolute;
-  top: 20px;
-  right: 120px;
-  background: rgba(231, 76, 60, 0.1);
-  border: 2px solid rgba(231, 76, 60, 0.7);
-  border-radius: 50%;
-  width: 60px;
-  height: 60px;
-  color: rgba(231, 76, 60, 0.9);
-  cursor: pointer;
-  font-size: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(15px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-  z-index: 2;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    background: rgba(231, 76, 60, 0.2);
-    border-color: rgba(231, 76, 60, 0.9);
-    transform: scale(1.05);
-  }
-  
-  &::before {
-    content: '🚪';
-    font-size: 28px;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
-  }
-`
+
 
 const PoliceBadge = styled.div`
   position: absolute;
@@ -200,8 +169,6 @@ const Desktop: React.FC = () => {
 
   return (
     <DesktopContainer>
-      <LogoutButton onClick={handleLogout} title="Sair do Sistema" />
-      
       <PoliceBadge>
         Metropolitan Police Dept
       </PoliceBadge>
@@ -228,7 +195,7 @@ const Desktop: React.FC = () => {
           />
         ))}
       </DesktopArea>
-      <Dock onOpenWindow={openWindow} />
+      <Dock onOpenWindow={openWindow} onLogout={handleLogout} />
     </DesktopContainer>
   )
 }
