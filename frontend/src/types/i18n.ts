@@ -147,6 +147,12 @@ export interface Translations {
   evidenceAnalysisDesc: string;
   caseManagement: string;
   caseManagementDesc: string;
+  
+  // Feature list items
+  authenticPoliceInterface: string;
+  multipleCases: string;
+  detectiveProgression: string;
+  forensicAnalysis: string;
 }
 
 export const SUPPORTED_LANGUAGES: Language[] = [

@@ -143,4 +143,10 @@ export const enUS: Translations = {
   evidenceAnalysisDesc: 'Complete forensic analysis system',
   caseManagement: 'Case Management',
   caseManagementDesc: 'Organize and manage multiple cases simultaneously',
+  
+  // Feature list items
+  authenticPoliceInterface: 'Authentic police computer interface',
+  multipleCases: 'Multiple cases to solve',
+  detectiveProgression: 'Detective progression based on performance',
+  forensicAnalysis: 'Forensic analysis and clue collection',
 };

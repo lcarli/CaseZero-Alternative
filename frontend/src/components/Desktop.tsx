@@ -7,6 +7,7 @@ import { useWindowContext } from '../hooks/useWindowContext'
 import { useCase } from '../hooks/useCaseContext'
 import { useAuth } from '../hooks/useAuthContext'
 import { useTimeContext } from '../hooks/useTimeContext'
+import { useLanguage } from '../hooks/useLanguageContext'
 import { caseSessionApi } from '../services/api'
 
 const DesktopContainer = styled.div`
@@ -125,6 +126,7 @@ const Desktop: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { gameTime } = useTimeContext()
+  const { t, language } = useLanguage()
   const {
     windows,
     openWindow,
@@ -175,7 +177,8 @@ const Desktop: React.FC = () => {
         <div><span className="label">User:</span> {user?.firstName} {user?.lastName}</div>
         <div><span className="label">Unit:</span> {user?.department || 'Investigation Division'}</div>
         <div><span className="label">Badge:</span> #{user?.badgeNumber || '4729'}</div>
-        <div><span className="label">Case:</span> {currentCase || 'No Case'}</div>
+        <div><span className="label">{t('currentCase')}:</span> {currentCase || 'No Case'}</div>
+        <div><span className="label">{t('currentLanguage')}:</span> {language.flag} {language.code}</div>
         <div><span className="label">Status:</span> Active</div>
       </SystemInfo>
       

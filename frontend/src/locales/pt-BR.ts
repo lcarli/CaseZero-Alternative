@@ -143,4 +143,10 @@ export const ptBR: Translations = {
   evidenceAnalysisDesc: 'Sistema completo de análise forense',
   caseManagement: 'Gestão de Casos',
   caseManagementDesc: 'Organize e gerencie múltiplos casos simultaneamente',
+  
+  // Feature list items
+  authenticPoliceInterface: 'Interface de computador policial autêntica',
+  multipleCases: 'Múltiplos casos para resolver',
+  detectiveProgression: 'Progressão do detetive baseada em performance',
+  forensicAnalysis: 'Análise forense e coleta de pistas',
 };

@@ -31,127 +31,23 @@ Este documento apresenta uma análise detalhada das futuras funcionalidades que 
 
 ---
 
-## 🌍 Sistema Multilíngue Completo
-
-### 4. Internacionalização (i18n)
-- [ ] **Sistema de Tradução Completo**: Suporte para 4 idiomas (Português, Inglês, Francês, Espanhol)
-- [ ] **Interface Localizada**: Todos os elementos da UI traduzidos
-- [ ] **Casos Multilíngues**: Estrutura de casos replicada para cada idioma
-- [ ] **Documentos Culturalmente Adaptados**: Evidências e documentos adaptados para cada país/cultura
-- [ ] **Sistema Legal Diferenciado**: Procedimentos legais específicos para cada jurisdição
-
-### 5. Estrutura de Casos por Idioma
-```
-cases/
-├── pt-BR/                          # Português do Brasil
-│   ├── CASO-2024-001-HOMICIDIO/   # Homicídio no Edifício Corporativo
-│   │   ├── case.json
-│   │   ├── evidence/
-│   │   │   ├── contrato_trabalho.pdf
-│   │   │   ├── foto_escritorio.jpg
-│   │   │   └── video_seguranca.mp4
-│   │   ├── suspects/
-│   │   │   ├── carlos_silva.txt
-│   │   │   ├── maria_santos.txt
-│   │   │   └── joao_oliveira.txt
-│   │   ├── forensics/
-│   │   │   ├── relatorio_dna.pdf
-│   │   │   └── analise_digitais.pdf
-│   │   └── memos/
-│   │       └── memo_delegado.txt
-│   └── CASO-2024-002-ROUBO/
-├── en-US/                          # English (United States)
-│   ├── CASE-2024-001-HOMICIDE/    # Corporate Building Murder
-│   │   ├── case.json
-│   │   ├── evidence/
-│   │   │   ├── employment_contract.pdf
-│   │   │   ├── office_photo.jpg
-│   │   │   └── security_footage.mp4
-│   │   ├── suspects/
-│   │   │   ├── charles_smith.txt
-│   │   │   ├── mary_johnson.txt
-│   │   │   └── john_williams.txt
-│   │   ├── forensics/
-│   │   │   ├── dna_report.pdf
-│   │   │   └── fingerprint_analysis.pdf
-│   │   └── memos/
-│   │       └── chief_memo.txt
-│   └── CASE-2024-002-ROBBERY/
-├── fr-FR/                          # Français (France)
-│   ├── AFFAIRE-2024-001-HOMICIDE/ # Meurtre dans l'Immeuble de Bureaux
-│   │   ├── case.json
-│   │   ├── evidence/
-│   │   │   ├── contrat_travail.pdf
-│   │   │   ├── photo_bureau.jpg
-│   │   │   └── video_securite.mp4
-│   │   ├── suspects/
-│   │   │   ├── charles_dupont.txt
-│   │   │   ├── marie_martin.txt
-│   │   │   └── jean_bernard.txt
-│   │   ├── forensics/
-│   │   │   ├── rapport_adn.pdf
-│   │   │   └── analyse_empreintes.pdf
-│   │   └── memos/
-│   │       └── memo_commissaire.txt
-│   └── AFFAIRE-2024-002-VOL/
-└── es-ES/                          # Español (España)
-    ├── CASO-2024-001-HOMICIDIO/   # Homicidio en el Edificio Corporativo
-    │   ├── case.json
-    │   ├── evidence/
-    │   │   ├── contrato_laboral.pdf
-    │   │   ├── foto_oficina.jpg
-    │   │   └── video_seguridad.mp4
-    │   ├── suspects/
-    │   │   ├── carlos_garcia.txt
-    │   │   ├── maria_lopez.txt
-    │   │   └── juan_rodriguez.txt
-    │   ├── forensics/
-    │   │   ├── informe_adn.pdf
-    │   │   └── analisis_huellas.pdf
-    │   └── memos/
-    │       └── memo_comisario.txt
-    └── CASO-2024-002-ROBO/
-```
-
-**Exemplo de API Endpoints Multilíngues:**
-```javascript
-// Listar casos por idioma
-GET /api/caseobject/{locale}                    // pt-BR, en-US, fr-FR, es-ES
-GET /api/caseobject/pt-BR                       // Lista casos em português
-GET /api/caseobject/en-US                       // Lista casos em inglês
-
-// Carregar caso específico
-GET /api/caseobject/{locale}/{caseId}
-GET /api/caseobject/pt-BR/CASO-2024-001-HOMICIDIO
-GET /api/caseobject/en-US/CASE-2024-001-HOMICIDE
-
-// Validar estrutura do caso
-POST /api/caseobject/{locale}/{caseId}/validate
-```
-
-- [ ] **Template de Localização**: Sistema para facilitar criação de casos em múltiplos idiomas
-- [ ] **Validação Cultural**: Verificação de adequação cultural dos casos
-- [ ] **Nomes Localizados**: Suspeitos, vítimas e locais com nomes apropriados para cada cultura
-
----
-
 ## 🚀 Features de Gameplay Avançado
 
-### 6. Sistema de Progressão de Carreira
+### 4. Sistema de Progressão de Carreira
 - [ ] **Ranking de Detetive**: Sistema de pontuação baseado em casos resolvidos
 - [ ] **Especializações**: Áreas de especialização (homicídios, crimes financeiros, cibercrime)
 - [ ] **Treinamentos**: Cursos que desbloqueiam novas habilidades e técnicas
 - [ ] **Certificações**: Sistema de certificações profissionais que afetam o gameplay
 - [ ] **Avaliações de Performance**: Reviews periódicas que afetam progressão
 
-### 7. Modo Multiplayer Cooperativo
+### 5. Modo Multiplayer Cooperativo
 - [ ] **Investigação em Equipe**: Múltiplos detetives trabalhando no mesmo caso
 - [ ] **Especialização de Papéis**: Cada jogador com expertise diferente
 - [ ] **Comunicação Realista**: Sistema de rádio, telefone e reuniões
 - [ ] **Divisão de Tarefas**: Sistema para distribuir responsabilidades
 - [ ] **Competição Saudável**: Rankings entre delegacias/departamentos
 
-### 8. Inteligência Artificial Avançada
+### 6. Inteligência Artificial Avançada
 - [ ] **NPCs Inteligentes**: Comportamento mais realista de suspeitos e testemunhas
 - [ ] **Geração Procedural de Casos**: Sistema para criar casos aleatórios
 - [ ] **Análise de Padrões**: IA que ajuda a identificar conexões entre casos
@@ -162,14 +58,14 @@ POST /api/caseobject/{locale}/{caseId}/validate
 
 ## 💼 Features de Administração e Gestão
 
-### 9. Sistema de Administração Avançado
+### 7. Sistema de Administração Avançado
 - [ ] **Dashboard Analytics**: Métricas detalhadas de uso e performance
 - [ ] **Gestão de Usuários**: Sistema granular de permissões e grupos
 - [ ] **Auditoria**: Log detalhado de todas as ações dos usuários
 - [ ] **Backup Automático**: Sistema de backup automático dos dados
 - [ ] **Monitoramento**: Alertas para problemas de performance
 
-### 10. Editor de Casos Visual
+### 8. Editor de Casos Visual
 - [ ] **Interface Drag & Drop**: Criação visual de casos sem necessidade de código
 - [ ] **Timeline Visual**: Editor gráfico para criação de timelines
 - [ ] **Validação Automática**: Verificação automática da consistência dos casos
@@ -180,21 +76,21 @@ POST /api/caseobject/{locale}/{caseId}/validate
 
 ## 🔒 Melhorias de Segurança
 
-### 11. Autenticação e Autorização
+### 9. Autenticação e Autorização
 - [ ] **Multi-Factor Authentication (MFA)**: Autenticação em duas etapas
 - [ ] **Single Sign-On (SSO)**: Integração com provedores corporativos
 - [ ] **Gestão de Sessões**: Controle rigoroso de sessões ativas
 - [ ] **Rate Limiting**: Proteção contra ataques de força bruta
 - [ ] **Audit Logs**: Log detalhado de todas as operações sensíveis
 
-### 12. Proteção de Dados
+### 10. Proteção de Dados
 - [ ] **Criptografia End-to-End**: Criptografia de dados sensíveis
 - [ ] **GDPR Compliance**: Conformidade com regulamentações de privacidade
 - [ ] **Data Loss Prevention**: Prevenção de vazamento de dados
 - [ ] **Backup Criptografado**: Backups com criptografia forte
 - [ ] **Anonização de Dados**: Sistema para anonimizar dados de teste
 
-### 13. Segurança de Infraestrutura
+### 11. Segurança de Infraestrutura
 - [ ] **Container Security**: Scanning de vulnerabilidades em containers
 - [ ] **Dependency Scanning**: Verificação de vulnerabilidades em dependências
 - [ ] **HTTPS Everywhere**: Força uso de HTTPS em toda comunicação
@@ -205,14 +101,14 @@ POST /api/caseobject/{locale}/{caseId}/validate
 
 ## 📱 Features de Interface e Experiência
 
-### 14. Interface Moderna
+### 12. Interface Moderna
 - [ ] **Progressive Web App (PWA)**: Funcionalidade offline e instalação
 - [ ] **Dark Mode**: Tema escuro para reduzir cansaço visual
 - [ ] **Acessibilidade**: Conformidade com WCAG 2.1
 - [ ] **Interface Responsiva**: Otimização para tablets e dispositivos móveis
 - [ ] **Customização**: Temas personalizáveis e layouts adaptativos
 
-### 15. Realidade Virtual/Aumentada
+### 13. Realidade Virtual/Aumentada
 - [ ] **Cena do Crime VR**: Investigação imersiva de cenas de crime
 - [ ] **Laboratório VR**: Análise forense em ambiente virtual
 - [ ] **Reconstrução 3D**: Reconstrução tridimensional de eventos
@@ -223,14 +119,14 @@ POST /api/caseobject/{locale}/{caseId}/validate
 
 ## 🔧 Features Técnicas e de Performance
 
-### 16. Otimização e Escalabilidade
+### 14. Otimização e Escalabilidade
 - [ ] **Microserviços**: Arquitetura de microserviços para melhor escalabilidade
 - [ ] **Cache Inteligente**: Sistema de cache para melhorar performance
 - [ ] **CDN Integration**: Distribuição de conteúdo via CDN
 - [ ] **Load Balancing**: Balanceamento de carga automático
 - [ ] **Auto-scaling**: Escalonamento automático baseado em demanda
 
-### 17. Integração e API
+### 15. Integração e API
 - [ ] **API GraphQL**: API mais flexível para consultas específicas
 - [ ] **Webhooks**: Sistema de notificações em tempo real
 - [ ] **Third-party Integrations**: Integração com sistemas externos
@@ -241,14 +137,14 @@ POST /api/caseobject/{locale}/{caseId}/validate
 
 ## 🎮 Features de Gamificação
 
-### 18. Elementos de Jogo
+### 16. Elementos de Jogo
 - [ ] **Achievements**: Sistema de conquistas e medalhas
 - [ ] **Leaderboards**: Rankings globais e locais
 - [ ] **Seasonal Events**: Eventos especiais temporários
 - [ ] **Daily Challenges**: Desafios diários para engajamento
 - [ ] **Narrative Choices**: Consequências de decisões ao longo do tempo
 
-### 19. Sistema Social
+### 17. Sistema Social
 - [ ] **Profiles**: Perfis públicos de detetives
 - [ ] **Friends**: Sistema de amizades e conexões
 - [ ] **Case Sharing**: Compartilhamento de casos interessantes
