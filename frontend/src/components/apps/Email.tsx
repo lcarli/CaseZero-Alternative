@@ -208,7 +208,7 @@ Evidence files have been uploaded to the system for your review.
 Chief Johnson
 Metropolitan Police Department
 
-[Email Source: /cases/TestAssets/CASE-2024-001/emails/case001_email1.json]`,
+[Email Source: /cases/CASE-2024-001/emails/case001_email1.json]`,
           time: '2 hours ago',
           isUnread: true,
           priority: 'high',
@@ -242,7 +242,7 @@ Full detailed report is attached for your review.
 Dr. Emily Chen, PhD
 Metropolitan Forensics Laboratory
 
-[Email Source: /cases/TestAssets/CASE-2024-001/emails/case001_email2.json]`,
+[Email Source: /cases/CASE-2024-001/emails/case001_email2.json]`,
           time: '1 day ago',
           isUnread: false,
           priority: 'medium',
@@ -270,76 +270,12 @@ The complete witness statement PDF is attached and also available in the case fi
 Detective Sarah Johnson
 Investigating Officer
 
-[Email Source: /cases/TestAssets/CASE-2024-001/emails/case001_email3.json]`,
+[Email Source: /cases/CASE-2024-001/emails/case001_email3.json]`,
           time: '2 days ago',
           isUnread: false,
           priority: 'medium',
           attachments: [
             { name: 'witness_statement.pdf', size: '156 KB', type: 'pdf' }
-          ]
-        }
-      ],
-      'CASE-2024-002': [
-        {
-          id: 'case002_email1',
-          sender: 'Detective Mike Rodriguez',
-          subject: 'NEW: Mall Pickpocketing Investigation',
-          preview: 'Multiple theft incidents reported at Metro Shopping Mall during lunch rush...',
-          content: `Officer,
-
-We have a new case requiring immediate attention. Multiple pickpocketing incidents have been reported at the Metro Shopping Mall food court area.
-
-Case Details:
-- Date: February 10, 2024, approximately 15:45 PM
-- Location: Metro Shopping Mall, Food Court Area
-- At least 5 confirmed victims
-- Suspect: Male, mid-30s, wearing baseball cap
-- Pattern suggests organized theft operation
-
-Security footage has been collected and is available for review in the attached files.
-
-Please prioritize this investigation as we suspect this may be part of a larger organized theft ring.
-
-Detective Mike Rodriguez
-Theft Investigation Unit
-
-[Email Source: /cases/TestAssets/CASE-2024-002/emails/case002_email1.json]`,
-          time: '3 hours ago',
-          isUnread: true,
-          priority: 'high',
-          attachments: [
-            { name: 'case002.txt', size: '1.8 KB', type: 'text' },
-            { name: 'security_footage.jpg', size: '2.1 MB', type: 'image' }
-          ]
-        },
-        {
-          id: 'case002_email2',
-          sender: 'CSI Jennifer Walsh',
-          subject: 'Fingerprint Analysis Update',
-          preview: 'Partial fingerprints recovered from discarded wallet found in mall restroom...',
-          content: `Fingerprint Analysis Report - Case #002
-
-We have recovered partial fingerprints from the discarded wallet found in the mall restroom.
-
-Analysis Status:
-- 7 partial fingerprints identified
-- 3 prints of sufficient quality for comparison
-- Database search currently in progress
-- No immediate matches found yet
-
-The analysis is ongoing, and we expect to have more conclusive results within the next 24-48 hours.
-
-Will update you as soon as we have any database matches.
-
-CSI Jennifer Walsh
-Fingerprint Analysis Unit
-
-[Email Source: /cases/TestAssets/CASE-2024-002/emails/case002_email2.json]`,
-          time: '1 day ago',
-          isUnread: false,
-          priority: 'medium',
-          attachments: [
-            { name: 'fingerprint_analysis.txt', size: '2.1 KB', type: 'text' }
           ]
         }
       ]
