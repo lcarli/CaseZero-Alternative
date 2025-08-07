@@ -77,6 +77,12 @@ export interface Translations {
   cybercrime: string;
   narcotics: string;
   
+  // Case priorities
+  priorityLow: string;
+  priorityMedium: string;
+  priorityHigh: string;
+  priorityCritical: string;
+  
   // Desktop
   evidence: string;
   suspects: string;
@@ -95,6 +101,18 @@ export interface Translations {
   // About
   aboutTitle: string;
   aboutDescription: string;
+  
+  // Dashboard specific
+  performanceStats: string;
+  casesResolved: string;
+  casesActive: string;
+  successRate: string;
+  averageRating: string;
+  openWorkspace: string;
+  weeklyGoals: string;
+  recentHistory: string;
+  lastSession: string;
+  priority: string;
   
   // Footer
   currentLanguage: string;

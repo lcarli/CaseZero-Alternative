@@ -2,7 +2,9 @@ import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import styled from 'styled-components'
 import { useAuth } from '../hooks/useAuthContext'
+import { useLanguage } from '../hooks/useLanguageContext'
 import { casesApi } from '../services/api'
+import LanguageSelector from '../components/LanguageSelector'
 import type { Dashboard } from '../services/api'
 
 const PageContainer = styled.div`
@@ -271,6 +273,7 @@ const Button = styled.button`
 const DashboardPage = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const { t } = useLanguage()
   const [dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -281,7 +284,7 @@ const DashboardPage = () => {
         const data = await casesApi.getDashboard()
         setDashboard(data)
       } catch (err) {
-        setError('Erro ao carregar dashboard')
+        setError(t('error'))
         console.error('Dashboard error:', err)
       } finally {
         setIsLoading(false)
@@ -302,10 +305,10 @@ const DashboardPage = () => {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'Open': return 'Aberto'
-      case 'InProgress': return 'Em Andamento'
-      case 'Resolved': return 'Resolvido'
-      case 'Closed': return 'Fechado'
+      case 'Open': return t('statusOpen')
+      case 'InProgress': return t('statusInProgress')
+      case 'Resolved': return t('statusClosed')
+      case 'Closed': return t('statusClosed')
       default: return status
     }
   }
@@ -322,10 +325,10 @@ const DashboardPage = () => {
 
   const getPriorityText = (priority: string) => {
     switch (priority) {
-      case 'Low': return 'Baixa'
-      case 'Medium': return 'Média'
-      case 'High': return 'Alta'
-      case 'Critical': return 'Crítica'
+      case 'Low': return t('priorityLow')
+      case 'Medium': return t('priorityMedium')
+      case 'High': return t('priorityHigh')
+      case 'Critical': return t('priorityCritical')
       default: return priority
     }
   }
@@ -334,7 +337,7 @@ const DashboardPage = () => {
     return (
       <PageContainer>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-          <div style={{ color: 'white', fontSize: '1.2rem' }}>Carregando...</div>
+          <div style={{ color: 'white', fontSize: '1.2rem' }}>{t('loading')}</div>
         </div>
       </PageContainer>
     )
@@ -365,7 +368,7 @@ const DashboardPage = () => {
           </UserDetails>
         </UserInfo>
         <LogoutButton onClick={handleLogout}>
-          Sair do Sistema
+          {t('logout')}
         </LogoutButton>
       </Header>
 
@@ -373,33 +376,33 @@ const DashboardPage = () => {
         <MainContent>
           <Card>
             <CardHeader>
-              <h3>📊 Estatísticas de Performance</h3>
+              <h3>📊 {t('performanceStats')}</h3>
             </CardHeader>
             <StatsGrid>
               <StatCard>
                 <div className="stat-value">{dashboard.stats.casesResolved}</div>
-                <div className="stat-label">Casos Resolvidos</div>
+                <div className="stat-label">{t('casesResolved')}</div>
               </StatCard>
               <StatCard>
                 <div className="stat-value">{dashboard.stats.casesActive}</div>
-                <div className="stat-label">Casos Ativos</div>
+                <div className="stat-label">{t('casesActive')}</div>
               </StatCard>
               <StatCard>
                 <div className="stat-value">{dashboard.stats.successRate}%</div>
-                <div className="stat-label">Taxa de Sucesso</div>
+                <div className="stat-label">{t('successRate')}</div>
               </StatCard>
               <StatCard>
                 <div className="stat-value">{dashboard.stats.averageRating}</div>
-                <div className="stat-label">Avaliação Média</div>
+                <div className="stat-label">{t('averageRating')}</div>
               </StatCard>
             </StatsGrid>
           </Card>
 
           <Card>
             <CardHeader>
-              <h3>📁 Casos Disponíveis</h3>
+              <h3>📁 {t('availableCases')}</h3>
               <Button onClick={() => navigate('/desktop')}>
-                Abrir Ambiente de Trabalho
+                {t('openWorkspace')}
               </Button>
             </CardHeader>
             <CaseList>
@@ -415,14 +418,14 @@ const DashboardPage = () => {
                     </span>
                   </div>
                   <div className="case-title">{case_.title}</div>
-                  <div className="case-priority">Prioridade: {getPriorityText(case_.priority)}</div>
+                  <div className="case-priority">{t('priority')}: {getPriorityText(case_.priority)}</div>
                   {case_.userProgress?.lastActivity && (
                     <div className="case-last-session" style={{ 
                       fontSize: '0.75rem', 
                       color: 'rgba(52, 152, 219, 0.8)', 
                       marginTop: '0.25rem' 
                     }}>
-                      Última sessão: {new Date(case_.userProgress.lastActivity).toLocaleString('pt-BR')}
+                      {t('lastSession')}: {new Date(case_.userProgress.lastActivity).toLocaleString('pt-BR')}
                     </div>
                   )}
                 </CaseItem>
@@ -434,7 +437,14 @@ const DashboardPage = () => {
         <Sidebar>
           <Card>
             <CardHeader>
-              <h3>🎯 Objetivos Semanais</h3>
+              <h3>⚙️ {t('settings')}</h3>
+            </CardHeader>
+            <LanguageSelector />
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <h3>🎯 {t('weeklyGoals')}</h3>
             </CardHeader>
             <div>
               <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '1rem' }}>
@@ -461,7 +471,7 @@ const DashboardPage = () => {
 
           <Card>
             <CardHeader>
-              <h3>📈 Histórico Recente</h3>
+              <h3>📈 {t('recentHistory')}</h3>
             </CardHeader>
             <div>
               <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem' }}>

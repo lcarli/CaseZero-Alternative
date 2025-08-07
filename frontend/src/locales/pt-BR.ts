@@ -73,6 +73,24 @@ export const ptBR: Translations = {
   cybercrime: 'Crime cibernético',
   narcotics: 'Narcóticos',
   
+  // Case priorities
+  priorityLow: 'Baixa',
+  priorityMedium: 'Média',
+  priorityHigh: 'Alta',
+  priorityCritical: 'Crítica',
+  
+  // Dashboard specific
+  performanceStats: 'Estatísticas de Performance',
+  casesResolved: 'Casos Resolvidos',
+  casesActive: 'Casos Ativos',
+  successRate: 'Taxa de Sucesso',
+  averageRating: 'Avaliação Média',
+  openWorkspace: 'Abrir Ambiente de Trabalho',
+  weeklyGoals: 'Objetivos Semanais',
+  recentHistory: 'Histórico Recente',
+  lastSession: 'Última sessão',
+  priority: 'Prioridade',
+  
   // Desktop
   evidence: 'Evidências',
   suspects: 'Suspeitos',

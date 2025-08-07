@@ -73,6 +73,24 @@ export const esES: Translations = {
   cybercrime: 'Cibercrimen',
   narcotics: 'Narcóticos',
   
+  // Case priorities
+  priorityLow: 'Baja',
+  priorityMedium: 'Media',
+  priorityHigh: 'Alta',
+  priorityCritical: 'Crítica',
+  
+  // Dashboard specific
+  performanceStats: 'Estadísticas de Rendimiento',
+  casesResolved: 'Casos Resueltos',
+  casesActive: 'Casos Activos',
+  successRate: 'Tasa de Éxito',
+  averageRating: 'Calificación Promedio',
+  openWorkspace: 'Abrir Espacio de Trabajo',
+  weeklyGoals: 'Objetivos Semanales',
+  recentHistory: 'Historial Reciente',
+  lastSession: 'Última sesión',
+  priority: 'Prioridad',
+  
   // Desktop
   evidence: 'Evidencias',
   suspects: 'Sospechosos',
