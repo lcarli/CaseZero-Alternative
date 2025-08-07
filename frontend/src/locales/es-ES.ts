@@ -185,4 +185,27 @@ export const esES: Translations = {
   passwordsDontMatch: '¡Las contraseñas no coinciden!',
   registrationSent: '¡Solicitud de registro enviada exitosamente! Espere la aprobación del administrador.',
   unexpectedError: 'Error inesperado. Inténtelo de nuevo.',
+  
+  // New landing page content
+  digitalInterface: 'Interfaz Digital',
+  careerProgression: 'Progresión de Carrera',
+  justiceSystem: 'Sistema de Justicia',
+  justiceSystemDesc: 'Experimenta el proceso completo de investigación hasta condena',
+  
+  // Game mechanics
+  howItWorks: 'Cómo Funciona',
+  howItWorksDesc: 'Experimenta procedimientos auténticos de investigación policial a través de jugabilidad inmersiva',
+  investigation: 'Investigación',
+  investigationDesc: 'Entrevista testigos, analiza escenas del crimen',
+  forensicsDesc: 'Procesa evidencias en el laboratorio',
+  documentation: 'Documentación',
+  documentationDesc: 'Mantén archivos detallados de casos',
+  realTime: 'Tiempo Real',
+  realTimeDesc: 'Los casos evolucionan con el tiempo',
+  
+  // Call to action
+  readyToSolve: '¿Listo para Resolver Tu Primer Caso?',
+  ctaDescription: 'Únete al sistema de investigación del Departamento de Policía Metropolitana y comienza tu carrera como detective. Acceso restringido solo a personal autorizado.',
+  accessSystem: 'Acceder al Sistema',
+  requestAccess: 'Solicitar Acceso',
 };

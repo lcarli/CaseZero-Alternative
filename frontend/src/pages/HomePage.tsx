@@ -315,7 +315,7 @@ const HomePage = () => {
     },
     {
       icon: '🖥️',
-      title: 'Digital Interface',
+      title: t('digitalInterface'),
       description: t('authenticPoliceInterface')
     },
     {
@@ -325,21 +325,21 @@ const HomePage = () => {
     },
     {
       icon: '🏅',
-      title: 'Career Progression',
+      title: t('careerProgression'),
       description: t('detectiveProgression')
     },
     {
       icon: '⚖️',
-      title: 'Justice System',
-      description: 'Experience the complete investigation to conviction process'
+      title: t('justiceSystem'),
+      description: t('justiceSystemDesc')
     }
   ]
 
   const mechanics = [
-    { emoji: '🕵️‍♂️', title: 'Investigation', text: 'Interview witnesses, analyze crime scenes' },
-    { emoji: '🔬', title: 'Forensics', text: 'Process evidence in the lab' },
-    { emoji: '📝', title: 'Documentation', text: 'Maintain detailed case files' },
-    { emoji: '⚡', title: 'Real-time', text: 'Cases evolve over time' }
+    { emoji: '🕵️‍♂️', title: t('investigation'), text: t('investigationDesc') },
+    { emoji: '🔬', title: t('forensics'), text: t('forensicsDesc') },
+    { emoji: '📝', title: t('documentation'), text: t('documentationDesc') },
+    { emoji: '⚡', title: t('realTime'), text: t('realTimeDesc') }
   ]
 
   return (
@@ -394,9 +394,9 @@ const HomePage = () => {
         {/* Game Mechanics Section */}
         <GameMechanicsSection>
           <MechanicsContainer>
-            <SectionTitle>How It Works</SectionTitle>
+            <SectionTitle>{t('howItWorks')}</SectionTitle>
             <Description>
-              Experience authentic police investigation procedures through immersive gameplay
+              {t('howItWorksDesc')}
             </Description>
             <MechanicsList>
               {mechanics.map((mechanic, index) => (
@@ -411,23 +411,22 @@ const HomePage = () => {
 
         {/* Call to Action Section */}
         <CTASection>
-          <CTATitle>Ready to Solve Your First Case?</CTATitle>
+          <CTATitle>{t('readyToSolve')}</CTATitle>
           <CTADescription>
-            Join the Metropolitan Police Department's investigation system and start your career as a detective. 
-            Access restricted to authorized personnel only.
+            {t('ctaDescription')}
           </CTADescription>
           <CTAButtons>
             <Button 
               className="primary" 
               onClick={() => navigate('/login')}
             >
-              Access System
+              {t('accessSystem')}
             </Button>
             <Button 
               className="secondary" 
               onClick={() => navigate('/register')}
             >
-              Request Access
+              {t('requestAccess')}
             </Button>
           </CTAButtons>
         </CTASection>
