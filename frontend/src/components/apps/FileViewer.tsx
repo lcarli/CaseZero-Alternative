@@ -238,7 +238,7 @@ individual files rather than hardcoded data structures.`
               type: 'image',
               size: '1.2 MB',
               modified: '2024-01-15 02:35',
-              content: 'Security camera footage showing masked suspect entering through main entrance. Clear view of suspect\'s build and clothing. Timestamp: 02:15:33 AM. Image quality: High definition. Additional details visible: dark clothing, approximately 5\'10" height, carrying small backpack.\n\n[TestAssets: /cases/TestAssets/CASE-2024-001/case-files/evidence.jpg]',
+              content: 'Security camera footage showing masked suspect entering through main entrance. Clear view of suspect\'s build and clothing. Timestamp: 02:15:33 AM. Image quality: High definition. Additional details visible: dark clothing, approximately 5\'10" height, carrying small backpack.\n\n[Case File: /cases/CASE-2024-001/evidence/security_footage.jpg]',
               imageType: 'security-camera'
             },
             { 
@@ -273,7 +273,7 @@ Signature: J. Matthews
 Date: 01/15/2024
 Witnessed by: Detective S. Johnson
 
-[TestAssets Location: /cases/TestAssets/CASE-2024-001/case-files/witness_statement.pdf]`
+[Case File: /cases/CASE-2024-001/witnesses/witness_statement.pdf]`
             }
           ]
         },
@@ -331,7 +331,7 @@ RECOMMENDATIONS:
 Report Certified by: Dr. Emily Chen
 Date: January 18, 2024
 
-[TestAssets Location: /cases/TestAssets/CASE-2024-001/forensics/dna_results.txt]` 
+[Case File: /cases/CASE-2024-001/forensics/dna_results.txt]` 
             },
             { 
               name: 'ballistics.pdf', 
@@ -374,94 +374,7 @@ Certified by: Lt. Robert Hayes
 Ballistics Unit, Metro Police Department
 Date: January 16, 2024
 
-[TestAssets Location: /cases/TestAssets/CASE-2024-001/forensics/ballistics.pdf]`
-            }
-          ]
-        }
-      },
-      'CASE-2024-002': {
-        'case-files': {
-          name: 'Case Files',
-          icon: '📁',
-          files: [
-            { 
-              name: 'case002.txt', 
-              icon: '📄', 
-              type: 'text',
-              size: '1.8 KB',
-              modified: '2024-02-10 10:15',
-              content: `INCIDENT REPORT #002
-====================
-
-CASE ID: CASE-2024-002
-DATE: February 10, 2024
-TIME: 15:45 PM
-LOCATION: Metro Shopping Mall, Food Court Area
-REPORTING OFFICER: Detective Mike Rodriguez
-STATUS: Active Investigation
-
-INCIDENT SUMMARY:
-Theft reported at the Metro Shopping Mall. Multiple victims reported missing wallets and personal items from the food court area.
-
-DETAILS:
-- Pickpocketing incidents during lunch rush
-- At least 5 confirmed victims
-- Suspect described as male, mid-30s, wearing baseball cap
-- Security footage available from multiple angles
-- Pattern suggests organized theft operation
-
-EVIDENCE COLLECTED:
-- Security camera footage
-- Witness statements from victims
-- Fingerprints from discarded wallet
-
-PRIORITY: Medium
-
-[TestAssets Location: /cases/TestAssets/CASE-2024-002/case-files/case002.txt]` 
-            },
-            { 
-              name: 'security_footage.jpg', 
-              icon: '🖼️', 
-              type: 'image',
-              size: '2.1 MB',
-              modified: '2024-02-10 16:00',
-              content: 'Mall security footage showing suspect in blue jacket and baseball cap moving through food court area. Multiple angles captured showing pickpocketing technique. Timestamp: 15:30-15:50 PM.\n\n[TestAssets Location: /cases/TestAssets/CASE-2024-002/case-files/security_footage.jpg]',
-              imageType: 'security-camera'
-            }
-          ]
-        },
-        'forensics': {
-          name: 'Forensics',
-          icon: '🔬',
-          files: [
-            { 
-              name: 'fingerprint_analysis.txt', 
-              icon: '🔍', 
-              type: 'text',
-              size: '2.1 KB',
-              modified: '2024-02-12 14:00',
-              content: `FINGERPRINT ANALYSIS REPORT
-===========================
-
-Case ID: CASE-2024-002
-Lab ID: FP-2024-028
-Date: February 12, 2024
-Analyst: CSI Jennifer Walsh
-
-SAMPLE INFORMATION:
-Source: Discarded wallet found in mall restroom
-Quality: Partial prints recovered
-Location: Leather surface, interior pocket
-
-ANALYSIS RESULTS:
-- 7 partial fingerprints identified
-- 3 prints of sufficient quality for comparison
-- Database search in progress
-- No immediate matches found
-
-STATUS: Pending further analysis
-
-[TestAssets Location: /cases/TestAssets/CASE-2024-002/forensics/fingerprint_analysis.txt]`
+[Case File: /cases/CASE-2024-001/forensics/ballistics.pdf]`
             }
           ]
         }
