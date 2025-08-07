@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
 import { useAuth } from '../hooks/useAuthContext'
+import { useLanguage } from '../hooks/useLanguageContext'
 import { ApiError } from '../services/api'
+import LanguageSelector from '../components/LanguageSelector'
 
 const PageContainer = styled.div`
   min-height: 100vh;
@@ -215,10 +217,25 @@ const TestCredentialsText = styled.p`
   line-height: 1.3;
 `
 
+const LanguageSelectorWrapper = styled.div`
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  min-width: 150px;
+  z-index: 10;
+  
+  @media (max-width: 480px) {
+    top: 0.5rem;
+    right: 0.5rem;
+    min-width: 130px;
+  }
+`
+
 const LoginPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { login } = useAuth()
+  const { t } = useLanguage()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -260,22 +277,26 @@ const LoginPage = () => {
 
   return (
     <PageContainer>
+      <LanguageSelectorWrapper>
+        <LanguageSelector />
+      </LanguageSelectorWrapper>
+      
       <LoginCard>
         <BackLink to="/">
-          ← Voltar ao início
+          ← {t('backToHome')}
         </BackLink>
         
         <Header>
           <Logo>🏛️</Logo>
-          <Title>Acesso ao Sistema</Title>
-          <Subtitle>Metropolitan Police Department</Subtitle>
+          <Title>{t('systemAccess')}</Title>
+          <Subtitle>{t('metropolitanPoliceDept')}</Subtitle>
         </Header>
 
         <Form onSubmit={handleSubmit}>
           {error && <ErrorMessage>{error}</ErrorMessage>}
           
           <FormGroup>
-            <Label htmlFor="email">Email ou Número de Identificação</Label>
+            <Label htmlFor="email">{t('emailOrId')}</Label>
             <Input
               type="email"
               id="email"
@@ -288,12 +309,12 @@ const LoginPage = () => {
           </FormGroup>
 
           <FormGroup>
-            <Label htmlFor="password">Senha</Label>
+            <Label htmlFor="password">{t('password')}</Label>
             <Input
               type="password"
               id="password"
               name="password"
-              placeholder="Digite sua senha"
+              placeholder={t('enterPassword')}
               value={formData.password}
               onChange={handleInputChange}
               required
@@ -301,16 +322,16 @@ const LoginPage = () => {
           </FormGroup>
 
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? 'Autenticando...' : 'Entrar no Sistema'}
+            {isLoading ? t('authenticating') : t('enterSystem')}
           </Button>
         </Form>
 
         <Footer>
-          <FooterText>Não possui acesso ao sistema?</FooterText>
-          <FooterLink to="/register">Solicitar Registro</FooterLink>
+          <FooterText>{t('noAccess')}</FooterText>
+          <FooterLink to="/register">{t('requestRegistration')}</FooterLink>
           
           <TestCredentials>
-            <TestCredentialsTitle>Credenciais de Teste:</TestCredentialsTitle>
+            <TestCredentialsTitle>{t('testCredentials')}</TestCredentialsTitle>
             <TestCredentialsText>detective@police.gov / Password123!</TestCredentialsText>
             <TestCredentialsText>inspector@police.gov / Inspector456!</TestCredentialsText>
           </TestCredentials>

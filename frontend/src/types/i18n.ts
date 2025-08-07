@@ -153,6 +153,43 @@ export interface Translations {
   multipleCases: string;
   detectiveProgression: string;
   forensicAnalysis: string;
+  
+  // Login page specific
+  systemAccess: string;
+  metropolitanPoliceDept: string;
+  emailOrId: string;
+  enterPassword: string;
+  enterSystem: string;
+  authenticating: string;
+  noAccess: string;
+  requestRegistration: string;
+  testCredentials: string;
+  backToHome: string;
+  
+  // Register page specific
+  registrationRequest: string;
+  importantNote: string;
+  systemRestricted: string;
+  institutionalEmail: string;
+  phoneNumber: string;
+  badgeNumberField: string;
+  selectOption: string;
+  investigationDivision: string;
+  criminalForensics: string;
+  cybercrimes: string;
+  homicides: string;
+  frauds: string;
+  narcoticsDept: string;
+  position: string;
+  minimumChars: string;
+  confirmYourPassword: string;
+  sendingRequest: string;
+  requestRegistrationBtn: string;
+  alreadyHaveAccess: string;
+  doLogin: string;
+  passwordsDontMatch: string;
+  registrationSent: string;
+  unexpectedError: string;
 }
 
 export const SUPPORTED_LANGUAGES: Language[] = [

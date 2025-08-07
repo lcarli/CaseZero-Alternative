@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import styled from 'styled-components'
+import { useLanguage } from '../hooks/useLanguageContext'
 import { authApi, ApiError } from '../services/api'
+import LanguageSelector from '../components/LanguageSelector'
 
 const PageContainer = styled.div`
   min-height: 100vh;
@@ -220,8 +222,23 @@ const SuccessMessage = styled.div`
   text-align: center;
 `
 
+const LanguageSelectorWrapper = styled.div`
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  min-width: 150px;
+  z-index: 10;
+  
+  @media (max-width: 480px) {
+    top: 0.5rem;
+    right: 0.5rem;
+    min-width: 130px;
+  }
+`
+
 const RegisterPage = () => {
   const navigate = useNavigate()
+  const { t } = useLanguage()
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -251,7 +268,7 @@ const RegisterPage = () => {
     e.preventDefault()
     
     if (formData.password !== formData.confirmPassword) {
-      setError('As senhas não coincidem!')
+      setError(t('passwordsDontMatch'))
       return
     }
     
@@ -270,7 +287,7 @@ const RegisterPage = () => {
         password: formData.password
       })
       
-      setSuccess('Solicitação de registro enviada com sucesso! Aguarde aprovação do administrador.')
+      setSuccess(t('registrationSent'))
       
       // Navigate to login after successful registration
       setTimeout(() => {
@@ -280,7 +297,7 @@ const RegisterPage = () => {
       if (err instanceof ApiError) {
         setError(err.message)
       } else {
-        setError('Erro inesperado. Tente novamente.')
+        setError(t('unexpectedError'))
       }
     } finally {
       setIsLoading(false)
@@ -289,20 +306,23 @@ const RegisterPage = () => {
 
   return (
     <PageContainer>
+      <LanguageSelectorWrapper>
+        <LanguageSelector />
+      </LanguageSelectorWrapper>
+      
       <RegisterCard>
         <BackLink to="/">
-          ← Voltar ao início
+          ← {t('backToHome')}
         </BackLink>
         
         <Header>
           <Logo>🏛️</Logo>
-          <Title>Solicitação de Registro</Title>
-          <Subtitle>Metropolitan Police Department</Subtitle>
+          <Title>{t('registrationRequest')}</Title>
+          <Subtitle>{t('metropolitanPoliceDept')}</Subtitle>
         </Header>
 
         <InfoBox>
-          <strong>Importante:</strong> Este sistema é restrito a funcionários autorizados do departamento de polícia. 
-          Todas as solicitações passam por verificação antes da aprovação.
+          <strong>{t('importantNote')}</strong> {t('systemRestricted')}
         </InfoBox>
 
         <Form onSubmit={handleSubmit}>
@@ -311,7 +331,7 @@ const RegisterPage = () => {
           
           <FormRow>
             <FormGroup>
-              <Label htmlFor="firstName">Nome</Label>
+              <Label htmlFor="firstName">{t('firstName')}</Label>
               <Input
                 type="text"
                 id="firstName"
@@ -324,7 +344,7 @@ const RegisterPage = () => {
             </FormGroup>
 
             <FormGroup>
-              <Label htmlFor="lastName">Sobrenome</Label>
+              <Label htmlFor="lastName">{t('lastName')}</Label>
               <Input
                 type="text"
                 id="lastName"
@@ -338,7 +358,7 @@ const RegisterPage = () => {
           </FormRow>
 
           <FormGroup>
-            <Label htmlFor="email">Email Institucional</Label>
+            <Label htmlFor="email">{t('institutionalEmail')}</Label>
             <Input
               type="email"
               id="email"
@@ -352,7 +372,7 @@ const RegisterPage = () => {
 
           <FormRow>
             <FormGroup>
-              <Label htmlFor="phone">Telefone</Label>
+              <Label htmlFor="phone">{t('phoneNumber')}</Label>
               <Input
                 type="tel"
                 id="phone"
@@ -365,7 +385,7 @@ const RegisterPage = () => {
             </FormGroup>
 
             <FormGroup>
-              <Label htmlFor="badgeNumber">Número do Distintivo</Label>
+              <Label htmlFor="badgeNumber">{t('badgeNumberField')}</Label>
               <Input
                 type="text"
                 id="badgeNumber"
@@ -380,7 +400,7 @@ const RegisterPage = () => {
 
           <FormRow>
             <FormGroup>
-              <Label htmlFor="department">Departamento</Label>
+              <Label htmlFor="department">{t('department')}</Label>
               <Select
                 id="department"
                 name="department"
@@ -388,18 +408,18 @@ const RegisterPage = () => {
                 onChange={handleInputChange}
                 required
               >
-                <option value="">Selecione...</option>
-                <option value="investigation">Divisão de Investigação</option>
-                <option value="forensics">Perícia Criminal</option>
-                <option value="cybercrime">Crimes Cibernéticos</option>
-                <option value="homicide">Homicídios</option>
-                <option value="fraud">Fraudes</option>
-                <option value="narcotics">Narcóticos</option>
+                <option value="">{t('selectOption')}</option>
+                <option value="investigation">{t('investigationDivision')}</option>
+                <option value="forensics">{t('criminalForensics')}</option>
+                <option value="cybercrime">{t('cybercrimes')}</option>
+                <option value="homicide">{t('homicides')}</option>
+                <option value="fraud">{t('frauds')}</option>
+                <option value="narcotics">{t('narcoticsDept')}</option>
               </Select>
             </FormGroup>
 
             <FormGroup>
-              <Label htmlFor="position">Cargo</Label>
+              <Label htmlFor="position">{t('position')}</Label>
               <Select
                 id="position"
                 name="position"
@@ -407,24 +427,24 @@ const RegisterPage = () => {
                 onChange={handleInputChange}
                 required
               >
-                <option value="">Selecione...</option>
-                <option value="detective">Detetive</option>
-                <option value="inspector">Inspetor</option>
-                <option value="sergeant">Sargento</option>
-                <option value="specialist">Especialista</option>
-                <option value="analyst">Analista</option>
+                <option value="">{t('selectOption')}</option>
+                <option value="detective">{t('detective')}</option>
+                <option value="inspector">{t('inspector')}</option>
+                <option value="sergeant">{t('sergeant')}</option>
+                <option value="specialist">{t('specialist')}</option>
+                <option value="analyst">{t('analyst')}</option>
               </Select>
             </FormGroup>
           </FormRow>
 
           <FormRow>
             <FormGroup>
-              <Label htmlFor="password">Senha</Label>
+              <Label htmlFor="password">{t('password')}</Label>
               <Input
                 type="password"
                 id="password"
                 name="password"
-                placeholder="Mínimo 8 caracteres"
+                placeholder={t('minimumChars')}
                 value={formData.password}
                 onChange={handleInputChange}
                 required
@@ -433,12 +453,12 @@ const RegisterPage = () => {
             </FormGroup>
 
             <FormGroup>
-              <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+              <Label htmlFor="confirmPassword">{t('confirmPassword')}</Label>
               <Input
                 type="password"
                 id="confirmPassword"
                 name="confirmPassword"
-                placeholder="Confirme sua senha"
+                placeholder={t('confirmYourPassword')}
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
                 required
@@ -447,13 +467,13 @@ const RegisterPage = () => {
           </FormRow>
 
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? 'Enviando solicitação...' : 'Solicitar Registro'}
+            {isLoading ? t('sendingRequest') : t('requestRegistrationBtn')}
           </Button>
         </Form>
 
         <Footer>
-          <FooterText>Já possui acesso ao sistema?</FooterText>
-          <FooterLink to="/login">Fazer Login</FooterLink>
+          <FooterText>{t('alreadyHaveAccess')}</FooterText>
+          <FooterLink to="/login">{t('doLogin')}</FooterLink>
         </Footer>
       </RegisterCard>
     </PageContainer>
