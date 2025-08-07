@@ -189,6 +189,10 @@ export const casesApi = {
   
   getCase: async (id: string): Promise<Case> => {
     return apiFetch(`/cases/${id}`)
+  },
+  
+  getCaseData: async (id: string): Promise<any> => {
+    return apiFetch(`/cases/${id}/data`)
   }
 }
 
