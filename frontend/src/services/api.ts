@@ -221,4 +221,31 @@ export const caseSessionApi = {
   }
 }
 
+// CaseObject API - for accessing case files
+export const caseObjectApi = {
+  getCaseFile: async (caseId: string, fileName: string): Promise<Blob> => {
+    const url = `${API_BASE_URL}/caseobject/${caseId}/files/${fileName}`
+    const token = tokenStorage.get()
+    
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    })
+    
+    if (!response.ok) {
+      throw new ApiError(response.status, `Failed to load file: ${fileName}`)
+    }
+    
+    return response.blob()
+  },
+
+  getCaseFileUrl: (caseId: string, fileName: string): string => {
+    const token = tokenStorage.get()
+    const url = `${API_BASE_URL}/caseobject/${caseId}/files/${fileName}`
+    // For images, we can return the URL directly since the browser will handle authentication
+    return token ? `${url}?token=${token}` : url
+  }
+}
+
 export { ApiError }
