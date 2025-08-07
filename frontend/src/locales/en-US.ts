@@ -185,4 +185,27 @@ export const enUS: Translations = {
   passwordsDontMatch: 'Passwords don\'t match!',
   registrationSent: 'Registration request sent successfully! Please wait for administrator approval.',
   unexpectedError: 'Unexpected error. Please try again.',
+  
+  // New landing page content
+  digitalInterface: 'Digital Interface',
+  careerProgression: 'Career Progression',
+  justiceSystem: 'Justice System',
+  justiceSystemDesc: 'Experience the complete investigation to conviction process',
+  
+  // Game mechanics
+  howItWorks: 'How It Works',
+  howItWorksDesc: 'Experience authentic police investigation procedures through immersive gameplay',
+  investigation: 'Investigation',
+  investigationDesc: 'Interview witnesses, analyze crime scenes',
+  forensicsDesc: 'Process evidence in the lab',
+  documentation: 'Documentation',
+  documentationDesc: 'Maintain detailed case files',
+  realTime: 'Real-time',
+  realTimeDesc: 'Cases evolve over time',
+  
+  // Call to action
+  readyToSolve: 'Ready to Solve Your First Case?',
+  ctaDescription: 'Join the Metropolitan Police Department\'s investigation system and start your career as a detective. Access restricted to authorized personnel only.',
+  accessSystem: 'Access System',
+  requestAccess: 'Request Access',
 };

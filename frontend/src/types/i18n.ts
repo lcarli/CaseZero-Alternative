@@ -189,6 +189,29 @@ export interface Translations {
   passwordsDontMatch: string;
   registrationSent: string;
   unexpectedError: string;
+  
+  // New landing page content
+  digitalInterface: string;
+  careerProgression: string;
+  justiceSystem: string;
+  justiceSystemDesc: string;
+  
+  // Game mechanics
+  howItWorks: string;
+  howItWorksDesc: string;
+  investigation: string;
+  investigationDesc: string;
+  forensicsDesc: string;
+  documentation: string;
+  documentationDesc: string;
+  realTime: string;
+  realTimeDesc: string;
+  
+  // Call to action
+  readyToSolve: string;
+  ctaDescription: string;
+  accessSystem: string;
+  requestAccess: string;
 }
 
 export const SUPPORTED_LANGUAGES: Language[] = [

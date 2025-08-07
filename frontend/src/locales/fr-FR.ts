@@ -185,4 +185,27 @@ export const frFR: Translations = {
   passwordsDontMatch: 'Les mots de passe ne correspondent pas!',
   registrationSent: 'Demande d\'inscription envoyée avec succès! Veuillez attendre l\'approbation de l\'administrateur.',
   unexpectedError: 'Erreur inattendue. Veuillez réessayer.',
+  
+  // New landing page content
+  digitalInterface: 'Interface Numérique',
+  careerProgression: 'Progression de Carrière',
+  justiceSystem: 'Système de Justice',
+  justiceSystemDesc: 'Expérimentez le processus complet d\'investigation jusqu\'à la condamnation',
+  
+  // Game mechanics
+  howItWorks: 'Comment Ça Marche',
+  howItWorksDesc: 'Expérimentez des procédures d\'investigation policière authentiques grâce à un gameplay immersif',
+  investigation: 'Investigation',
+  investigationDesc: 'Interrogez les témoins, analysez les scènes de crime',
+  forensicsDesc: 'Traitez les preuves dans le laboratoire',
+  documentation: 'Documentation',
+  documentationDesc: 'Maintenez des dossiers d\'affaires détaillés',
+  realTime: 'Temps Réel',
+  realTimeDesc: 'Les affaires évoluent au fil du temps',
+  
+  // Call to action
+  readyToSolve: 'Prêt à Résoudre Votre Première Affaire?',
+  ctaDescription: 'Rejoignez le système d\'investigation du Département de Police Métropolitaine et commencez votre carrière en tant que détective. Accès restreint au personnel autorisé uniquement.',
+  accessSystem: 'Accéder au Système',
+  requestAccess: 'Demander l\'Accès',
 };
