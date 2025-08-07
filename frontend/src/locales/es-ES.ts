@@ -175,7 +175,6 @@ export const esES: Translations = {
   cybercrimes: 'Cibercrímenes',
   homicides: 'Homicidios',
   frauds: 'Fraudes',
-  narcoticsDept: 'Narcóticos',
   position: 'Cargo',
   minimumChars: 'Mínimo 8 caracteres',
   confirmYourPassword: 'Confirme su contraseña',
