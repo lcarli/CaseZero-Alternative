@@ -414,7 +414,7 @@ const RegisterPage = () => {
                 <option value="cybercrime">{t('cybercrimes')}</option>
                 <option value="homicide">{t('homicides')}</option>
                 <option value="fraud">{t('frauds')}</option>
-                <option value="narcotics">{t('narcotics')}</option>
+                <option value="narcotics">{t('narcoticsDept')}</option>
               </Select>
             </FormGroup>
 

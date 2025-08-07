@@ -179,7 +179,7 @@ export interface Translations {
   cybercrimes: string;
   homicides: string;
   frauds: string;
-  narcotics: string;
+  narcoticsDept: string;
   position: string;
   minimumChars: string;
   confirmYourPassword: string;

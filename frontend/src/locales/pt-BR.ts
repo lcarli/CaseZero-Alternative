@@ -175,7 +175,7 @@ export const ptBR: Translations = {
   cybercrimes: 'Crimes Cibernéticos',
   homicides: 'Homicídios',
   frauds: 'Fraudes',
-  narcotics: 'Narcóticos',
+  narcoticsDept: 'Narcóticos',
   position: 'Cargo',
   minimumChars: 'Mínimo 8 caracteres',
   confirmYourPassword: 'Confirme sua senha',

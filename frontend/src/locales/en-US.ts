@@ -175,7 +175,7 @@ export const enUS: Translations = {
   cybercrimes: 'Cybercrimes',
   homicides: 'Homicides',
   frauds: 'Fraud',
-  narcotics: 'Narcotics',
+  narcoticsDept: 'Narcotics',
   position: 'Position',
   minimumChars: 'Minimum 8 characters',
   confirmYourPassword: 'Confirm your password',
