@@ -96,7 +96,7 @@ const DockIcon = styled.button`
   }
 `
 
-const LogoutIcon = styled(DockIcon)`
+const CaseDisconnectIcon = styled(DockIcon)`
   border-color: rgba(231, 76, 60, 0.4);
   margin-left: 1rem;
 
@@ -136,10 +136,10 @@ const ResponsiveDockContainer = styled(DockContainer)`
 
 interface DockProps {
   onOpenWindow: (id: string, title: string, component: React.ComponentType) => void
-  onLogout: () => void
+  onCaseDisconnect: () => void
 }
 
-const Dock: React.FC<DockProps> = ({ onOpenWindow, onLogout }) => {
+const Dock: React.FC<DockProps> = ({ onOpenWindow, onCaseDisconnect }) => {
   const dockItems = [
     {
       id: 'file-viewer',
@@ -194,13 +194,13 @@ const Dock: React.FC<DockProps> = ({ onOpenWindow, onLogout }) => {
       </DockCenter>
       <DockRight>
         <Clock />
-        <LogoutIcon
-          data-title="Sair do Sistema"
-          onClick={onLogout}
-          title="Sair do Sistema"
+        <CaseDisconnectIcon
+          data-title="Sair do Caso"
+          onClick={onCaseDisconnect}
+          title="Sair do Caso"
         >
           🚪
-        </LogoutIcon>
+        </CaseDisconnectIcon>
       </DockRight>
     </ResponsiveDockContainer>
   )

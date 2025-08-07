@@ -278,13 +278,175 @@ Investigating Officer
             { name: 'witness_statement.pdf', size: '156 KB', type: 'pdf' }
           ]
         }
+      ],
+      'CASE-2024-002': [
+        {
+          id: 'case002_email1',
+          sender: 'Chefe de Polícia',
+          subject: 'URGENTE: Roubo na Clínica - Caso #002',
+          preview: 'Novo caso de alta prioridade: roubo em clínica médica com evidências forenses...',
+          content: `Detetive,
+
+Um novo caso de alta prioridade foi atribuído à sua unidade. Caso #002 envolve um roubo na Clínica Médica São Lucas no Bairro Jardins.
+
+Detalhes Principais:
+- Incidente ocorreu na madrugada de 05 de Fevereiro de 2024
+- Cofre arrombado com documentos confidenciais furtados
+- Sem sinais de arrombamento na entrada principal
+- Evidências sugerem envolvimento de funcionário interno
+
+A cena foi preservada e evidências foram coletadas:
+- Fio de cabelo loiro
+- Imagens de câmera de segurança
+- Impressões digitais parciais
+
+Três funcionários estão sendo investigados como pessoas de interesse.
+
+Por favor, inicie a investigação imediatamente e mantenha-me informado sobre o progresso.
+
+Chefe de Polícia Maria Santos
+Departamento de Polícia Metropolitana
+
+[Email Fonte: /cases/CASE-2024-002/emails/case002_email1.json]`,
+          time: '3 horas atrás',
+          isUnread: true,
+          priority: 'high',
+          attachments: [
+            { name: 'relatorio_inicial_clinica.pdf', size: '3.1 KB', type: 'pdf' },
+            { name: 'fio_cabelo_loiro.jpg', size: '890 KB', type: 'image' }
+          ]
+        },
+        {
+          id: 'case002_email2',
+          sender: 'Laboratório Forense',
+          subject: 'Resultados de DNA - Caso #002',
+          preview: 'Análise de DNA concluída para cabelo encontrado na clínica. Correspondência positiva...',
+          content: `Relatório de Laboratório - Caso #002
+
+A análise de DNA foi concluída para a evidência submetida do roubo na clínica.
+
+Resumo dos Resultados:
+- Amostra do fio de cabelo: Correspondência positiva encontrada (99.7% confiança)
+- Suspeita: Joana Duarte, DOB: 15/04/1995
+- Status: Funcionária da clínica (Enfermeira Chefe)
+- Histórico: Acesso total às instalações
+
+Esta é uma correspondência estatisticamente significativa para identificação positiva.
+
+Recomendações Urgentes:
+1. Interrogar Joana Duarte imediatamente
+2. Verificar álibi detalhadamente
+3. Obter mandado de busca se necessário
+
+O relatório detalhado está anexado para sua revisão.
+
+Dr. Patricia Santos, PhD
+Laboratório Forense Metropolitano
+
+[Email Fonte: /cases/CASE-2024-002/emails/case002_email2.json]`,
+          time: '1 dia atrás',
+          isUnread: false,
+          priority: 'high',
+          attachments: [
+            { name: 'dna_cabelo_resultado.pdf', size: '2.8 KB', type: 'pdf' }
+          ]
+        },
+        {
+          id: 'case002_email3',
+          sender: 'Segurança da Clínica',
+          subject: 'Depoimento sobre Avistamento Suspeito',
+          preview: 'Segurança noturno relatou ter visto mulher loira saindo pela porta dos fundos...',
+          content: `Atualização do Caso - Depoimento de Testemunha
+
+O depoimento do segurança noturno da clínica foi processado e está disponível nos arquivos do caso.
+
+Pontos-chave do depoimento:
+- Mulher loira vista saindo pela porta dos fundos às 03:45
+- Suspeita parecia conhecer o código da porta de emergência
+- Estava vestindo jaleco médico branco
+- Comportamento suspeito - tentando evitar câmeras
+
+O segurança trabalha na clínica há 2 anos e nunca havia presenciado algo similar.
+
+Este depoimento corrobora com as evidências de câmera de segurança coletadas.
+
+Oficial de Segurança João Martinez
+Clínica Médica São Lucas
+
+[Email Fonte: /cases/CASE-2024-002/emails/case002_email3.json]`,
+          time: '2 dias atrás',
+          isUnread: false,
+          priority: 'medium',
+          attachments: [
+            { name: 'depoimento_seguranca.pdf', size: '145 KB', type: 'pdf' }
+          ]
+        }
+      ],
+      'CASE-2024-003': [
+        {
+          id: 'case003_email1',
+          sender: 'Sistema CaseZero',
+          subject: 'Caso de Demonstração Ativo',
+          preview: 'Este é um email de demonstração para mostrar a funcionalidade do sistema...',
+          content: `Email de Demonstração - Sistema CaseZero
+
+Este é um email automático gerado para demonstrar a funcionalidade do sistema de casos.
+
+Funcionalidades Demonstradas:
+- Emails específicos por caso
+- Sistema de prioridades
+- Anexos por email
+- Interface responsiva
+
+Este caso (CASE-2024-003) serve para:
+1. Validar o carregamento automático de casos
+2. Testar a interface de seleção
+3. Demonstrar componentes independentes
+4. Verificar navegação entre casos
+
+O sistema está funcionando corretamente se você consegue ver este email apenas quando o CASE-2024-003 está selecionado.
+
+Sistema CaseZero v1.0
+Departamento de Desenvolvimento
+
+[Email Fonte: /cases/CASE-2024-003/emails/case003_email1.json]`,
+          time: '1 hora atrás',
+          isUnread: true,
+          priority: 'low',
+          attachments: [
+            { name: 'caso_demo.txt', size: '1.2 KB', type: 'text' }
+          ]
+        }
       ]
     }
     
-    return caseEmails[caseId] || caseEmails['CASE-2024-001']
+    return caseEmails[caseId] || [
+      {
+        id: 'no_case_email',
+        sender: 'Sistema',
+        subject: 'Nenhum caso selecionado',
+        preview: 'Selecione um caso no dashboard para visualizar emails específicos...',
+        content: `Nenhum Caso Ativo
+
+Atualmente não há nenhum caso selecionado. 
+
+Para visualizar emails específicos de um caso:
+1. Volte ao dashboard
+2. Selecione um caso disponível
+3. Retorne ao sistema de email
+
+Os emails são específicos para cada caso e mostram comunicações relevantes para a investigação em andamento.
+
+Sistema CaseZero`,
+        time: 'Agora',
+        isUnread: false,
+        priority: 'low',
+        attachments: []
+      }
+    ]
   }
 
-  const emails = getCaseEmails(currentCase || 'CASE-2024-001')
+  const emails = getCaseEmails(currentCase || '')
 
   const handleEmailClick = (emailId: string) => {
     setSelectedEmail(emailId)

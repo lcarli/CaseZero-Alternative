@@ -123,7 +123,7 @@ const DesktopArea = styled.div`
 
 const Desktop: React.FC = () => {
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const { gameTime } = useTimeContext()
   const {
     windows,
@@ -146,7 +146,7 @@ const Desktop: React.FC = () => {
     }
   }, [])
 
-  const handleLogout = async () => {
+  const handleCaseDisconnect = async () => {
     try {
       // Save current session time if we have a case and game time
       if (currentCase && gameTime) {
@@ -156,13 +156,11 @@ const Desktop: React.FC = () => {
         console.log('Session saved successfully for case:', currentCase)
       }
       
-      // Logout and navigate to dashboard
-      logout()
+      // Navigate to dashboard without logging out (keep user authenticated)
       navigate('/dashboard')
     } catch (error) {
-      console.error('Error during logout:', error)
-      // Still logout even if session save fails
-      logout()
+      console.error('Error during case disconnect:', error)
+      // Still navigate to dashboard even if session save fails
       navigate('/dashboard')
     }
   }
@@ -195,7 +193,7 @@ const Desktop: React.FC = () => {
           />
         ))}
       </DesktopArea>
-      <Dock onOpenWindow={openWindow} onLogout={handleLogout} />
+      <Dock onOpenWindow={openWindow} onCaseDisconnect={handleCaseDisconnect} />
     </DesktopContainer>
   )
 }
