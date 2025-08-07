@@ -6,15 +6,18 @@ namespace CaseZeroApi.Models
     {
         public required string FirstName { get; set; }
         public required string LastName { get; set; }
+        public required string PersonalEmail { get; set; }
         public string? Department { get; set; }
         public string? Position { get; set; }
         public string? BadgeNumber { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? LastLoginAt { get; set; }
-        public bool IsApproved { get; set; } = false;
+        public bool EmailVerified { get; set; } = false;
+        public string? EmailVerificationToken { get; set; }
+        public DateTime? EmailVerificationSentAt { get; set; }
         
         // GDD Career Progression Enhancements
-        public DetectiveRank Rank { get; set; } = DetectiveRank.Detective;
+        public DetectiveRank Rank { get; set; } = DetectiveRank.Rook;
         public int ExperiencePoints { get; set; } = 0;
         public int CasesResolved { get; set; } = 0;
         public int CasesFailed { get; set; } = 0;
@@ -34,6 +37,7 @@ namespace CaseZeroApi.Models
 
     public enum DetectiveRank
     {
+        Rook = 0,           // Entry level (new requirement)
         Detective = 1,      // Entry level
         Detective2 = 2,     // Senior Detective
         Sergeant = 3,       // Sergeant

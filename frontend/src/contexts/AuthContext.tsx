@@ -29,13 +29,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!isAuth && import.meta.env.DEV) {
         const mockUser: User = {
           id: 'dev-user',
-          email: 'detective@police.gov',
+          email: 'john.doe@fic-police.gov',
+          personalEmail: 'john.doe@example.com',
           firstName: 'John',
           lastName: 'Doe',
-          department: 'Investigation Division',
-          position: 'Detective',
+          department: 'ColdCase',
+          position: 'rook',
           badgeNumber: '4729',
-          isApproved: true
+          emailVerified: true
         }
         setUser(mockUser)
       } else if (!isAuth) {

@@ -100,30 +100,6 @@ const Input = styled.input`
   }
 `
 
-const Select = styled.select`
-  padding: 0.8rem;
-  border: 1px solid rgba(52, 152, 219, 0.3);
-  border-radius: 0.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
-  font-size: 1rem;
-  font-family: inherit;
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-  
-  option {
-    background: #1a2140;
-    color: white;
-  }
-  
-  &:focus {
-    outline: none;
-    border-color: rgba(52, 152, 219, 0.6);
-    background: rgba(255, 255, 255, 0.15);
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-  }
-`
-
 const Button = styled.button`
   padding: 1rem;
   font-size: 1rem;
@@ -200,6 +176,29 @@ const InfoBox = styled.div`
   }
 `
 
+const EmailPreview = styled.div`
+  background: rgba(46, 204, 113, 0.1);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin: 1rem 0;
+  text-align: center;
+  
+  .label {
+    color: rgba(46, 204, 113, 0.8);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .email {
+    color: rgba(46, 204, 113, 1);
+    font-weight: 600;
+    font-size: 1.1rem;
+    font-family: monospace;
+    word-break: break-all;
+  }
+`
+
 const ErrorMessage = styled.div`
   background: rgba(231, 76, 60, 0.1);
   border: 1px solid rgba(231, 76, 60, 0.3);
@@ -242,17 +241,14 @@ const RegisterPage = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: '',
-    phone: '',
-    department: '',
-    position: '',
-    badgeNumber: '',
+    personalEmail: '',
     password: '',
     confirmPassword: ''
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [generatedPoliceEmail, setGeneratedPoliceEmail] = useState('')
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -260,6 +256,20 @@ const RegisterPage = () => {
       ...prev,
       [name]: value
     }))
+    
+    // Generate police email when first or last name changes
+    if (name === 'firstName' || name === 'lastName') {
+      const firstName = name === 'firstName' ? value : formData.firstName
+      const lastName = name === 'lastName' ? value : formData.lastName
+      
+      if (firstName && lastName) {
+        const policeEmail = authApi.generatePoliceEmail(firstName, lastName)
+        setGeneratedPoliceEmail(policeEmail)
+      } else {
+        setGeneratedPoliceEmail('')
+      }
+    }
+    
     // Clear error when user starts typing
     if (error) setError('')
   }
@@ -276,23 +286,19 @@ const RegisterPage = () => {
     setError('')
     
     try {
-      await authApi.register({
+      const response = await authApi.register({
         firstName: formData.firstName,
         lastName: formData.lastName,
-        email: formData.email,
-        phoneNumber: formData.phone,
-        department: formData.department,
-        position: formData.position,
-        badgeNumber: formData.badgeNumber,
+        personalEmail: formData.personalEmail,
         password: formData.password
       })
       
-      setSuccess(t('registrationSent'))
+      setSuccess(`${response.message} Seu email institucional será: ${response.policeEmail}`)
       
       // Navigate to login after successful registration
       setTimeout(() => {
         navigate('/login')
-      }, 2000)
+      }, 3000)
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message)
@@ -322,7 +328,7 @@ const RegisterPage = () => {
         </Header>
 
         <InfoBox>
-          <strong>{t('importantNote')}</strong> {t('systemRestricted')}
+          <strong>{t('importantNote')}</strong> Para o registro você precisa apenas de nome, sobrenome e email pessoal. Seu email institucional, departamento, posição e número de distintivo serão gerados automaticamente.
         </InfoBox>
 
         <Form onSubmit={handleSubmit}>
@@ -357,85 +363,25 @@ const RegisterPage = () => {
             </FormGroup>
           </FormRow>
 
+          {generatedPoliceEmail && (
+            <EmailPreview>
+              <div className="label">🎯 Seu email institucional será:</div>
+              <div className="email">{generatedPoliceEmail}</div>
+            </EmailPreview>
+          )}
+
           <FormGroup>
-            <Label htmlFor="email">{t('institutionalEmail')}</Label>
+            <Label htmlFor="personalEmail">Email Pessoal</Label>
             <Input
               type="email"
-              id="email"
-              name="email"
-              placeholder="joao.silva@police.gov"
-              value={formData.email}
+              id="personalEmail"
+              name="personalEmail"
+              placeholder="joao.silva@gmail.com"
+              value={formData.personalEmail}
               onChange={handleInputChange}
               required
             />
           </FormGroup>
-
-          <FormRow>
-            <FormGroup>
-              <Label htmlFor="phone">{t('phoneNumber')}</Label>
-              <Input
-                type="tel"
-                id="phone"
-                name="phone"
-                placeholder="(11) 99999-9999"
-                value={formData.phone}
-                onChange={handleInputChange}
-                required
-              />
-            </FormGroup>
-
-            <FormGroup>
-              <Label htmlFor="badgeNumber">{t('badgeNumberField')}</Label>
-              <Input
-                type="text"
-                id="badgeNumber"
-                name="badgeNumber"
-                placeholder="4729"
-                value={formData.badgeNumber}
-                onChange={handleInputChange}
-                required
-              />
-            </FormGroup>
-          </FormRow>
-
-          <FormRow>
-            <FormGroup>
-              <Label htmlFor="department">{t('department')}</Label>
-              <Select
-                id="department"
-                name="department"
-                value={formData.department}
-                onChange={handleInputChange}
-                required
-              >
-                <option value="">{t('selectOption')}</option>
-                <option value="investigation">{t('investigationDivision')}</option>
-                <option value="forensics">{t('criminalForensics')}</option>
-                <option value="cybercrime">{t('cybercrimes')}</option>
-                <option value="homicide">{t('homicides')}</option>
-                <option value="fraud">{t('frauds')}</option>
-                <option value="narcotics">{t('narcoticsDept')}</option>
-              </Select>
-            </FormGroup>
-
-            <FormGroup>
-              <Label htmlFor="position">{t('position')}</Label>
-              <Select
-                id="position"
-                name="position"
-                value={formData.position}
-                onChange={handleInputChange}
-                required
-              >
-                <option value="">{t('selectOption')}</option>
-                <option value="detective">{t('detective')}</option>
-                <option value="inspector">{t('inspector')}</option>
-                <option value="sergeant">{t('sergeant')}</option>
-                <option value="specialist">{t('specialist')}</option>
-                <option value="analyst">{t('analyst')}</option>
-              </Select>
-            </FormGroup>
-          </FormRow>
 
           <FormRow>
             <FormGroup>
@@ -467,7 +413,7 @@ const RegisterPage = () => {
           </FormRow>
 
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? t('sendingRequest') : t('requestRegistrationBtn')}
+            {isLoading ? 'Enviando...' : 'Solicitar Registro'}
           </Button>
         </Form>
 

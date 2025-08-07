@@ -56,10 +56,11 @@ namespace CaseZeroApi.Controllers
                         FirstName = uc2.User.FirstName,
                         LastName = uc2.User.LastName,
                         Email = uc2.User.Email!,
+                        PersonalEmail = uc2.User.PersonalEmail,
                         Department = uc2.User.Department,
                         Position = uc2.User.Position,
                         BadgeNumber = uc2.User.BadgeNumber,
-                        IsApproved = uc2.User.IsApproved
+                        EmailVerified = uc2.User.EmailVerified
                     }).ToList(),
                     UserProgress = uc.Case.CaseProgresses.FirstOrDefault() != null ? new CaseProgressDto
                     {
@@ -129,10 +130,11 @@ namespace CaseZeroApi.Controllers
                     FirstName = uc.User.FirstName,
                     LastName = uc.User.LastName,
                     Email = uc.User.Email!,
+                    PersonalEmail = uc.User.PersonalEmail,
                     Department = uc.User.Department,
                     Position = uc.User.Position,
                     BadgeNumber = uc.User.BadgeNumber,
-                    IsApproved = uc.User.IsApproved
+                    EmailVerified = uc.User.EmailVerified
                 }).ToList(),
                 Evidences = userCase.Case.Evidences
                     .Where(e => e.IsUnlocked) // Only show unlocked evidence
