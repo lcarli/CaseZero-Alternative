@@ -1,0 +1,163 @@
+DETAILED PHOTO DESCRIPTIONS FOR EVIDENCE DOCUMENTATION
+CASE-2023-001: Sarah Mitchell Disappearance
+
+====================================================================
+
+EVD002: APARTMENT_CRIME_SCENE_PHOTOS.JPG
+[Photo Description - Actual photos to be created based on these specifications]
+
+PHOTO 1: Living Room Overview
+- Wide angle shot from entrance doorway
+- Small coffee table with single mug, half-full, coffee appears fresh
+- Textbooks stacked on coffee table: "Cognitive Behavioral Therapy" and "Research Methods"
+- Laptop computer closed on couch armrest
+- TV remote on coffee table
+- No signs of struggle or disturbance
+- Normal lighting, late afternoon sun through window
+- Couch cushions undisturbed, throw blanket folded neatly
+
+PHOTO 2: Kitchen Area
+- Dinner dishes in sink - one plate, one fork, one glass
+- Evidence of simple meal preparation (pasta box on counter)
+- Coffee maker with small amount remaining
+- No signs of interrupted activity
+- Refrigerator magnets undisturbed with class schedule visible
+- Kitchen island clear except for car keys and mail
+
+PHOTO 3: Bedroom
+- Bed unmade but not disheveled
+- Clothes laid out on chair - outfit for next day (jeans, sweater)
+- Backpack missing from usual spot near desk (confirmed by roommate)
+- Desk organized with study materials for psychology classes
+- Dresser top has jewelry box, perfume bottles undisturbed
+- Closet partially open, no clothes missing except daily wear items
+
+PHOTO 4: Bathroom
+- Toothbrush and toothpaste in usual positions
+- Makeup bag present and organized
+- Shower shows no recent use (dry surfaces)
+- Medications in cabinet untouched (daily vitamins)
+- Towels hung normally
+- No signs of quick departure or distress
+
+====================================================================
+
+EVD003: SARAH_BACKPACK_FOUND.JPG  
+[Photo Description - Actual photos to be created]
+
+PHOTO 1: Discovery Site Overview
+- Remote hiking trail, approximately 50 feet from main path
+- Dense wooded area with fallen logs and heavy leaf cover
+- Backpack partially concealed under fallen branches and leaves
+- Natural camouflage appearance - not easily visible from trail
+- Evidence markers placed by forensics team (numbers 1-4)
+- Scale ruler showing backpack dimensions and distance from path
+
+PHOTO 2: Backpack Close-up (In Situ)
+- Blue North Face backpack, weathered from exposure
+- Fabric faded but intact, zippers functional
+- Partial burial under 6-8 inches of accumulated leaves
+- Shoulder straps visible, showing signs of handling wear
+- Natural debris (twigs, leaves) embedded in fabric fibers
+- Clear evidence of deliberate placement rather than random disposal
+
+PHOTO 3: Backpack Contents (Organized)
+- Personal diary with weathered leather cover
+- Student ID card on university lanyard
+- Water bottle (Nalgene brand) with university stickers
+- Lip balm, pen, small pack of tissues
+- Empty granola bar wrapper
+- Bus schedule folded in side pocket
+- All items showing consistent weather exposure
+
+PHOTO 4: Environmental Context
+- Surrounding terrain showing foot traffic patterns
+- Disturbed earth areas indicating digging/burial activity
+- Broken branches suggesting someone moving through dense brush
+- Approximate distance markers to nearest road access (0.8 miles)
+- Trail map overlay showing location relative to victim's known routes
+
+====================================================================
+
+EVD007: SOIL_SAMPLES_ANALYSIS.JPG
+[Photo Description - Environmental Evidence Documentation]
+
+PHOTO 1: Soil Collection Grid
+- 3x3 meter grid marked around discovery site
+- Collection points labeled A1 through C3
+- Control samples taken 50 meters from site
+- Different soil layers visible in collection profiles
+- Tools: sterile collection containers, measurement devices
+- GPS coordinates marked on evidence flags
+
+PHOTO 2: Soil Comparison Samples
+- Labeled containers showing soil from discovery site
+- Comparison samples from various trail locations
+- Color variations indicating different mineral content
+- Texture differences visible between samples
+- Foreign material embedded in discovery site soil
+- Microscopic debris collected for analysis
+
+PHOTO 3: Trace Evidence Collection
+- Fabric fibers found embedded in soil
+- Hair samples recovered from surrounding vegetation
+- Foreign objects: small plastic fragments, synthetic fibers
+- Botanical evidence: crushed vegetation patterns
+- Tool marks in soil suggesting digging implements
+- Evidence of recent disturbance versus natural settling
+
+====================================================================
+
+EVD004: UNIVERSITY_SECURITY_FOOTAGE.MP4
+[Video Description - Actual footage to be created/simulated]
+
+TIMESTAMP: March 15, 2023 - 7:28 PM
+CAMERA: Library Main Entrance (Camera #12)
+
+SCENE DESCRIPTION:
+- Sarah Mitchell visible exiting library main doors
+- Wearing blue denim jacket, black jeans, white sneakers
+- Carrying blue backpack (later discovered by hikers)
+- Walking normally, no signs of distress
+- Checks phone while walking, appears to read message
+- Makes brief phone call lasting approximately 30 seconds
+- Walks toward campus parking area, out of camera range
+- No other individuals visible following or approaching her
+- Weather conditions: clear evening, good visibility
+- Total footage duration: 3 minutes 47 seconds
+
+ADDITIONAL FOOTAGE NOTES:
+- Camera angle provides clear facial identification
+- Timestamp verified against system logs
+- No technical anomalies or tampering detected
+- Quality sufficient for enhancement and analysis
+- Cross-referenced with other campus cameras showing earlier movement
+
+====================================================================
+
+PHOTO CREATION SPECIFICATIONS:
+
+Technical Requirements:
+- High resolution (minimum 300 DPI for print quality)
+- Proper lighting to show all relevant details
+- Evidence markers and scales visible in all crime scene photos
+- Chain of custody documentation visible where appropriate
+- Multiple angles for complex evidence items
+
+Forensic Standards:
+- Overall, medium, and close-up shots for each item
+- Color reference cards in appropriate photos
+- Measurement scales in all photos requiring size reference
+- Lighting should eliminate shadows over critical evidence
+- Digital metadata preservation for court admissibility
+
+Legal Considerations:
+- All photos must meet evidence photography standards
+- Documentation of photographer credentials required
+- Chain of custody maintained for all digital files
+- Backup copies stored on secure forensic servers
+- Original files preserved in unedited format
+
+====================================================================
+
+These descriptions provide the basis for creating realistic crime scene and evidence photographs. Each photo should capture the specific details mentioned to support the investigation narrative and forensic analysis findings.
