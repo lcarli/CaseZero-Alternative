@@ -1,24 +1,10 @@
-# API Documentation - CaseZero System
+# CaseZero API - Complete Documentation
 
-> **⚠️ DEPRECATED - Esta documentação foi consolidada**
-> 
-> Este arquivo foi substituído pela documentação completa e atualizada. Por favor, consulte:
-> **[API_COMPLETE.md](./API_COMPLETE.md)** - Documentação completa da API com todas as funcionalidades e melhorias
-
-## Redirecionamento
-
-Esta documentação foi movida e consolidada com as melhorias da API. O novo documento inclui:
-
-- Todas as funcionalidades originais documentadas aqui
-- Recursos de segurança aprimorados
-- Controle de acesso baseado em rank
-- Gerenciamento de visibilidade de evidências  
-- Automação de processamento de casos
-- Sistema de tradução completo
-
-## Overview (Histórico)
+## Overview
 
 CaseZero API é uma REST API construída em .NET 8 Core que fornece todos os endpoints necessários para o sistema de investigação detetivesca. A API utiliza autenticação JWT e oferece funcionalidades completas para gerenciamento de usuários, casos, evidências e análises forenses.
+
+Esta documentação consolida todas as funcionalidades da API, incluindo as melhorias de segurança, controle de acesso baseado em rank, gerenciamento de visibilidade de evidências e automação de processamento de casos.
 
 ## Base URL
 
@@ -33,6 +19,56 @@ A API utiliza JWT (JSON Web Tokens) para autenticação. Todos os endpoints prot
 ```
 Authorization: Bearer <token>
 ```
+
+---
+
+## Recursos de Segurança
+
+### Rate Limiting
+
+A API implementa rate limiting abrangente para proteger contra abuso e ataques:
+
+- **API Geral**: 60 requisições por minuto
+- **Endpoints de autenticação**: 5 tentativas por 15 minutos  
+- **Endpoint de login**: 3 tentativas por 5 minutos
+
+Configuração pode ser modificada em `appsettings.json`:
+
+```json
+{
+  "IpRateLimitOptions": {
+    "GeneralRules": [
+      {
+        "Endpoint": "*",
+        "Period": "1m",
+        "Limit": 60
+      },
+      {
+        "Endpoint": "*/api/auth/*",
+        "Period": "15m", 
+        "Limit": 5
+      }
+    ]
+  }
+}
+```
+
+### Headers de Segurança
+
+Os seguintes headers de segurança são automaticamente adicionados a todas as respostas:
+
+- `X-Frame-Options: DENY` - Previne ataques de clickjacking
+- `X-Content-Type-Options: nosniff` - Previne sniffing de tipo MIME
+- `Referrer-Policy: strict-origin-when-cross-origin` - Controla informações de referrer
+- `X-XSS-Protection: 1; mode=block` - Ativa proteção XSS
+- `Content-Security-Policy` - Define fontes de conteúdo
+- `Strict-Transport-Security` - Força conexões HTTPS
+
+### Aplicação de HTTPS
+
+- HTTPS é obrigatório em ambientes de produção
+- Requisições HTTP são automaticamente redirecionadas para HTTPS
+- Headers HSTS garantem que conexões futuras usem HTTPS
 
 ---
 
@@ -137,10 +173,40 @@ Authorization: Bearer <token>
 
 ---
 
+## Controle de Acesso Baseado em Rank
+
+### Hierarquia de Ranks
+
+```
+Rook (0) → Detective (1) → Detective2 (2) → Sergeant (3) → Lieutenant (4) → Captain (5) → Commander (6)
+```
+
+O sistema filtra casos disponíveis baseado no rank do usuário. Usuários só podem acessar casos que correspondem ou estão abaixo do seu nível de rank atual.
+
+---
+
 ## Endpoints de Casos (CaseObject System)
 
+### GET /api/cases
+**Descrição:** Lista casos disponíveis para o rank do usuário
+**Headers:** Authorization Bearer Token Required
+
+**Response (200):**
+```json
+[
+  {
+    "id": "CASE-2024-001",
+    "title": "Roubo no Banco Central",
+    "description": "Investigação de roubo milionário no Banco Central",
+    "minimumRankRequired": "Detective2",
+    "difficulty": 7,
+    "priority": "High"
+  }
+]
+```
+
 ### GET /api/caseobject
-**Descrição:** Lista todos os casos disponíveis
+**Descrição:** Lista todos os casos disponíveis (compatibilidade)
 **Headers:** Authorization Bearer Token Required
 
 **Response (200):**
@@ -306,6 +372,59 @@ Authorization: Bearer <token>
 
 ---
 
+## Gerenciamento de Visibilidade de Evidências
+
+### POST /api/evidencevisibility/{caseId}/evidence/{evidenceId}/visibility
+**Descrição:** Atualiza visibilidade de evidência para usuário individual
+**Headers:** Authorization Bearer Token Required
+
+**Body:**
+```json
+{
+  "isVisible": true,
+  "reason": "Evidence unlocked after analysis completion"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "message": "Evidence visibility updated successfully",
+  "caseId": "CASE-2024-001",
+  "evidenceId": "EVD001",
+  "isVisible": true
+}
+```
+
+### GET /api/evidencevisibility/{caseId}/visible-evidences
+**Descrição:** Lista evidências visíveis para o usuário
+**Headers:** Authorization Bearer Token Required
+
+**Response (200):**
+```json
+{
+  "caseId": "CASE-2024-001",
+  "evidences": [
+    {
+      "id": "EVD001",
+      "name": "Crime Scene Photos",
+      "type": "image",
+      "category": "Digital",
+      "priority": "Critical",
+      "isUnlocked": true
+    }
+  ],
+  "totalCount": 5
+}
+```
+
+### POST /api/evidencevisibility/{caseId}/start
+**Descrição:** Cria instância específica do caso para o usuário
+**Headers:** Authorization Bearer Token Required
+
+---
+
 ## Endpoints de Evidências
 
 ### GET /api/evidence/{sessionId}/{evidenceId}
@@ -329,7 +448,65 @@ Authorization: Bearer <token>
 
 ---
 
-## Endpoints de Análises Forenses
+## Análises Forenses Aprimoradas
+
+### GET /api/forensic/case/{caseId}/visible-evidences
+**Descrição:** Lista evidências visíveis para análise forense
+**Headers:** Authorization Bearer Token Required
+
+**Response (200):**
+```json
+{
+  "caseId": "CASE-2024-001",
+  "evidences": [
+    {
+      "id": "EVD003",
+      "name": "Weapon Evidence",
+      "type": "physical",
+      "category": "Physical",
+      "canAnalyze": true,
+      "supportedAnalyses": ["DNA", "Fingerprint", "Trace"]
+    }
+  ],
+  "analysableCount": 3
+}
+```
+
+### POST /api/forensic/case/{caseId}/evidence/{evidenceId}/analyze
+**Descrição:** Solicita análise forense com verificação de compatibilidade
+**Headers:** Authorization Bearer Token Required
+
+**Body:**
+```json
+{
+  "analysisType": "DNA",
+  "notes": "Priority analysis requested"
+}
+```
+
+**Resposta de Análise Bem-sucedida:**
+```json
+{
+  "success": true,
+  "hasResult": true,
+  "message": "Análise solicitada com sucesso. Resultado será entregue em breve.",
+  "analysisType": "DNA",
+  "estimatedDelivery": "2024-01-15T14:30:00Z",
+  "responseTimeMinutes": 120,
+  "resultFile": "forensics/dna_resultado.pdf"
+}
+```
+
+**Resposta Sem Análise Disponível:**
+```json
+{
+  "success": true,
+  "hasResult": false,
+  "message": "Análise solicitada, mas não foram encontrados resultados relevantes para esta evidência.",
+  "estimatedTime": "24 horas",
+  "willReceiveEmail": true
+}
+```
 
 ### GET /api/forensic/{sessionId}
 **Descrição:** Lista todas as análises forenses da sessão
@@ -355,6 +532,67 @@ Authorization: Bearer <token>
 **Headers:** Authorization Bearer Token Required
 
 **Response (200):** Retorna o arquivo de resultado da análise
+
+### Tipos de Análise Suportados
+
+O sistema determina automaticamente tipos de análise compatíveis baseado na categoria da evidência:
+
+| Tipo de Evidência | Análises Suportadas |
+|-------------------|-------------------|
+| `physical` | DNA, Fingerprint, Trace |
+| `document` | HandwritingAnalysis, DocumentAuthentication |
+| `digital` | DigitalForensics, MetadataAnalysis |
+| `audio` | VoiceAnalysis, AudioEnhancement |
+| `video` | VideoAnalysis, FacialRecognition |
+| `image` | ImageAnalysis, PhotoAuthentication |
+
+---
+
+## Automação de Processamento de Casos
+
+### POST /api/caseprocessing/process-all
+**Descrição:** Aciona processamento manual de todos os novos casos
+**Headers:** Authorization Bearer Token Required
+
+### POST /api/caseprocessing/process/{caseId}
+**Descrição:** Processa um caso específico por ID
+**Headers:** Authorization Bearer Token Required
+
+### GET /api/caseprocessing/status/{caseId}
+**Descrição:** Verifica status de processamento de um caso
+**Headers:** Authorization Bearer Token Required
+
+**Response (200):**
+```json
+{
+  "caseId": "CASE-2024-001",
+  "isProcessed": true,
+  "status": "Processed",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+### Configuração
+
+```json
+{
+  "CaseProcessing": {
+    "Enabled": true,
+    "ScanIntervalMinutes": 30,
+    "UseBlobStorage": false,
+    "BlobStorageUrl": ""
+  }
+}
+```
+
+### Serviço em Background
+
+O sistema inclui um serviço em background que:
+
+- Examina novos casos a cada 30 minutos (configurável)
+- Previne inserção duplicada de casos
+- Registra status de processamento e erros
+- Suporta pasta local e armazenamento blob (futuro)
 
 ---
 
@@ -449,6 +687,33 @@ Authorization: Bearer <token>
 
 ---
 
+## Sistema de Tradução
+
+### Idiomas Suportados
+
+- **Português (Brasil)** - `pt-BR` 🇧🇷 (Padrão)
+- **Inglês (Estados Unidos)** - `en-US` 🇺🇸  
+- **Francês (França)** - `fr-FR` 🇫🇷
+- **Espanhol (Espanha)** - `es-ES` 🇪🇸
+
+### Uso
+
+O sistema de tradução usa React Context e pode ser acessado via hook `useLanguage`:
+
+```typescript
+import { useLanguage } from '../contexts/LanguageContext';
+
+const MyComponent = () => {
+  const { t } = useLanguage();
+  
+  return (
+    <button>{t('requestAnalysis')}</button>
+  );
+};
+```
+
+---
+
 ## Códigos de Status HTTP
 
 | Código | Descrição |
@@ -458,10 +723,28 @@ Authorization: Bearer <token>
 | 202 | Accepted - Requisição aceita para processamento |
 | 400 | Bad Request - Dados de entrada inválidos |
 | 401 | Unauthorized - Token de autenticação inválido ou ausente |
-| 403 | Forbidden - Usuário não tem permissão |
+| 403 | Forbidden - Usuário não tem permissão/rank suficiente |
 | 404 | Not Found - Recurso não encontrado |
 | 409 | Conflict - Conflito de dados (ex: email já existe) |
+| 429 | Too Many Requests - Limite de taxa excedido |
 | 500 | Internal Server Error - Erro interno do servidor |
+
+---
+
+## Tratamento de Erros
+
+### Respostas de Erro Padrão
+
+Todos os endpoints da API seguem um formato consistente de resposta de erro:
+
+```json
+{
+  "success": false,
+  "message": "Error description",
+  "error": "Detailed error information",
+  "statusCode": 400
+}
+```
 
 ---
 
@@ -515,24 +798,6 @@ Authorization: Bearer <token>
 
 ---
 
-## Rate Limiting
-
-A API implementa rate limiting para prevenir abuso:
-
-- **Autenticação:** 5 tentativas por minuto por IP
-- **Endpoints gerais:** 100 requisições por minuto por usuário
-- **Upload de arquivos:** 10 uploads por minuto por usuário
-
----
-
-## Versionamento
-
-A API utiliza versionamento via URL path:
-- Versão atual: `/api/v1/`
-- Versão de desenvolvimento: `/api/v2/` (quando aplicável)
-
----
-
 ## WebSockets (Eventos em Tempo Real)
 
 Para atualizações em tempo real durante investigações:
@@ -557,3 +822,39 @@ Para atualizações em tempo real durante investigações:
   "timestamp": "2024-01-15T10:30:00Z"
 }
 ```
+
+---
+
+## Versionamento
+
+A API utiliza versionamento via URL path:
+- Versão atual: `/api/v1/`
+- Versão de desenvolvimento: `/api/v2/` (quando aplicável)
+
+---
+
+## Melhorias Futuras
+
+### Migração de Banco de Dados
+
+A implementação atual prepara para migração para um banco de dados de documentos (CosmosDB) através de:
+
+- Criação de abstrações de serviço para acesso a casos
+- Implementação do conceito de instâncias específicas de caso por usuário
+- Preparação do gerenciamento de estado de visibilidade de evidências
+- Suporte para configurações de armazenamento local e blob
+
+### Recursos Planejados
+
+- Migração completa para CosmosDB para armazenamento não-relacional
+- Atualizações de visibilidade de evidências em tempo real via SignalR
+- Fluxos de trabalho avançados de análise forense
+- Notificações por email para conclusão de análises
+- Recursos de colaboração em casos
+- Registro avançado de auditoria de segurança
+
+---
+
+## Conclusão
+
+Esta documentação consolidada fornece uma visão abrangente de todas as funcionalidades da API CaseZero, incluindo os recursos básicos originais e todas as melhorias implementadas. O sistema oferece segurança robusta, controle de acesso baseado em rank, gerenciamento flexível de evidências e suporte completo para investigações interativas.

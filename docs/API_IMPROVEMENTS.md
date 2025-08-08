@@ -1,6 +1,21 @@
 # API Improvements Documentation
 
-## Overview
+> **⚠️ DEPRECATED - Esta documentação foi consolidada**
+> 
+> Este arquivo foi substituído pela documentação completa e atualizada. Por favor, consulte:
+> **[API_COMPLETE.md](./API_COMPLETE.md)** - Documentação completa da API com todas as funcionalidades e melhorias
+
+## Redirecionamento
+
+Esta documentação de melhorias foi integrada à documentação principal da API. O novo documento consolida:
+
+- Todas as melhorias de segurança
+- Sistema de controle de acesso baseado em rank
+- Gerenciamento de visibilidade de evidências
+- Processamento automatizado de casos
+- Sistema de tradução em 4 idiomas
+
+## Overview (Histórico)
 
 This document describes the API improvements implemented for the CaseZero Alternative system, including security enhancements, rank-based access control, evidence visibility management, and case processing automation.
 
