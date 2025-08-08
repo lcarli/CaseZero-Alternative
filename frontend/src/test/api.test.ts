@@ -5,9 +5,22 @@ import { authApi } from '../services/api'
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
+// Mock localStorage
+const localStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+}
+global.localStorage = localStorageMock
+
 describe('API Service', () => {
   beforeEach(() => {
     mockFetch.mockClear()
+    localStorageMock.getItem.mockClear()
+    localStorageMock.setItem.mockClear()
+    localStorageMock.removeItem.mockClear()
+    localStorageMock.clear.mockClear()
   })
 
   describe('authApi.login', () => {
@@ -21,6 +34,8 @@ describe('API Service', () => {
         ok: true,
         json: async () => mockResponse
       })
+
+      localStorageMock.getItem.mockReturnValue(null) // No existing token
 
       const loginData = {
         email: 'test@fic-police.gov',
@@ -48,6 +63,8 @@ describe('API Service', () => {
         status: 401
       })
 
+      localStorageMock.getItem.mockReturnValue(null) // No existing token
+
       const loginData = {
         email: 'test@fic-police.gov',
         password: 'wrongpassword'
@@ -70,6 +87,9 @@ describe('API Service', () => {
         json: async () => mockResponse
       })
 
+      // Mock existing token in localStorage
+      localStorageMock.getItem.mockReturnValue('test-token')
+
       const registerData = {
         firstName: 'John',
         lastName: 'Doe',
@@ -83,9 +103,10 @@ describe('API Service', () => {
         'http://localhost:5000/api/auth/register',
         expect.objectContaining({
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-token'
+          }),
           body: JSON.stringify(registerData)
         })
       )
