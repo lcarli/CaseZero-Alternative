@@ -249,14 +249,15 @@ const EmailPreview = styled.div`
   }
   
   @media (max-width: 480px) {
-    padding: 0.8rem;
+    padding: 1rem;
+    margin: 1.2rem 0;
     
     .label {
-      font-size: 0.8rem;
+      font-size: 0.9rem;
     }
     
     .email {
-      font-size: 0.9rem;
+      font-size: 1rem;
     }
   }
 `
