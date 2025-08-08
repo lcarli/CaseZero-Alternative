@@ -217,4 +217,50 @@ export const ptBR: Translations = {
   requestRegistrationBtn2: 'Solicitar Registro',
   institutionalEmailInfo: 'Seu email institucional será:',
   useInstitutionalLogin: 'Para fazer login, você deverá usar seu email institucional ao invés do email pessoal.',
+  
+  // Evidence visibility and forensics
+  evidenceVisibility: 'Visibilidade da Evidência',
+  visibleEvidences: 'Evidências Visíveis',
+  hiddenEvidences: 'Evidências Ocultas',
+  makeVisible: 'Tornar Visível',
+  makeHidden: 'Ocultar',
+  visibilityUpdated: 'Visibilidade atualizada com sucesso',
+  forensicAnalysisTitle: 'Análise Forense',
+  requestAnalysis: 'Solicitar Análise',
+  analysisType: 'Tipo de Análise',
+  analysisInProgress: 'Análise em Andamento',
+  analysisCompleted: 'Análise Concluída',
+  analysisResults: 'Resultados da Análise',
+  noAnalysisAvailable: 'Nenhuma análise disponível para esta evidência',
+  timeBasedAnalysis: 'Análise baseada em tempo',
+  estimatedCompletion: 'Conclusão estimada',
+  analysisTypeNotSupported: 'Tipo de análise não suportado para esta evidência',
+  selectAnalysisType: 'Selecione o tipo de análise',
+  supportedAnalyses: 'Análises suportadas',
+  
+  // Analysis types
+  dnaAnalysis: 'Análise de DNA',
+  fingerprintAnalysis: 'Análise de Impressões Digitais',
+  digitalForensics: 'Perícia Digital',
+  ballisticsAnalysis: 'Análise Balística',
+  toxicologyAnalysis: 'Análise Toxicológica',
+  handwritingAnalysis: 'Análise Grafotécnica',
+  voiceAnalysis: 'Análise de Voz',
+  traceAnalysis: 'Análise de Vestígios',
+  generalAnalysis: 'Análise Geral',
+  
+  // Case processing
+  caseProcessing: 'Processamento de Casos',
+  processingAllCases: 'Processando todos os casos',
+  processingCase: 'Processando caso',
+  caseProcessed: 'Caso processado com sucesso',
+  caseAlreadyProcessed: 'Caso já foi processado',
+  processingStatus: 'Status do processamento',
+  
+  // Rank-based access
+  accessDenied: 'Acesso negado',
+  insufficientRank: 'Rank insuficiente',
+  rankRequired: 'Rank necessário',
+  yourRank: 'Seu rank',
+  availableForYourRank: 'Disponível para seu rank',
 };

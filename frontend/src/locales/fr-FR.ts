@@ -217,4 +217,50 @@ export const frFR: Translations = {
   requestRegistrationBtn2: 'Demander l\'Inscription',
   institutionalEmailInfo: 'Votre email institutionnel sera:',
   useInstitutionalLogin: 'Pour vous connecter, vous devez utiliser votre email institutionnel au lieu de votre email personnel.',
+  
+  // Evidence visibility and forensics
+  evidenceVisibility: 'Visibilité des Preuves',
+  visibleEvidences: 'Preuves Visibles',
+  hiddenEvidences: 'Preuves Cachées',
+  makeVisible: 'Rendre Visible',
+  makeHidden: 'Masquer',
+  visibilityUpdated: 'Visibilité mise à jour avec succès',
+  forensicAnalysisTitle: 'Analyse Légale',
+  requestAnalysis: 'Demander une Analyse',
+  analysisType: 'Type d\'Analyse',
+  analysisInProgress: 'Analyse en Cours',
+  analysisCompleted: 'Analyse Terminée',
+  analysisResults: 'Résultats d\'Analyse',
+  noAnalysisAvailable: 'Aucune analyse disponible pour cette preuve',
+  timeBasedAnalysis: 'Analyse basée sur le temps',
+  estimatedCompletion: 'Achèvement estimé',
+  analysisTypeNotSupported: 'Type d\'analyse non pris en charge pour cette preuve',
+  selectAnalysisType: 'Sélectionner le type d\'analyse',
+  supportedAnalyses: 'Analyses prises en charge',
+  
+  // Analysis types
+  dnaAnalysis: 'Analyse ADN',
+  fingerprintAnalysis: 'Analyse d\'Empreintes Digitales',
+  digitalForensics: 'Informatique Légale',
+  ballisticsAnalysis: 'Analyse Balistique',
+  toxicologyAnalysis: 'Analyse Toxicologique',
+  handwritingAnalysis: 'Analyse d\'Écriture',
+  voiceAnalysis: 'Analyse Vocale',
+  traceAnalysis: 'Analyse de Traces',
+  generalAnalysis: 'Analyse Générale',
+  
+  // Case processing
+  caseProcessing: 'Traitement des Affaires',
+  processingAllCases: 'Traitement de toutes les affaires',
+  processingCase: 'Traitement de l\'affaire',
+  caseProcessed: 'Affaire traitée avec succès',
+  caseAlreadyProcessed: 'L\'affaire a déjà été traitée',
+  processingStatus: 'Statut du traitement',
+  
+  // Rank-based access
+  accessDenied: 'Accès refusé',
+  insufficientRank: 'Rang insuffisant',
+  rankRequired: 'Rang requis',
+  yourRank: 'Votre rang',
+  availableForYourRank: 'Disponible pour votre rang',
 };

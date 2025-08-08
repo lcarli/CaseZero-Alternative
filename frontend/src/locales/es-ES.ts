@@ -217,4 +217,50 @@ export const esES: Translations = {
   requestRegistrationBtn2: 'Solicitar Registro',
   institutionalEmailInfo: 'Tu email institucional será:',
   useInstitutionalLogin: 'Para iniciar sesión, debes usar tu email institucional en lugar de tu email personal.',
+  
+  // Evidence visibility and forensics
+  evidenceVisibility: 'Visibilidad de Evidencia',
+  visibleEvidences: 'Evidencias Visibles',
+  hiddenEvidences: 'Evidencias Ocultas',
+  makeVisible: 'Hacer Visible',
+  makeHidden: 'Ocultar',
+  visibilityUpdated: 'Visibilidad actualizada con éxito',
+  forensicAnalysisTitle: 'Análisis Forense',
+  requestAnalysis: 'Solicitar Análisis',
+  analysisType: 'Tipo de Análisis',
+  analysisInProgress: 'Análisis en Progreso',
+  analysisCompleted: 'Análisis Completado',
+  analysisResults: 'Resultados del Análisis',
+  noAnalysisAvailable: 'No hay análisis disponible para esta evidencia',
+  timeBasedAnalysis: 'Análisis basado en tiempo',
+  estimatedCompletion: 'Finalización estimada',
+  analysisTypeNotSupported: 'Tipo de análisis no soportado para esta evidencia',
+  selectAnalysisType: 'Seleccionar tipo de análisis',
+  supportedAnalyses: 'Análisis soportados',
+  
+  // Analysis types
+  dnaAnalysis: 'Análisis de ADN',
+  fingerprintAnalysis: 'Análisis de Huellas Dactilares',
+  digitalForensics: 'Forense Digital',
+  ballisticsAnalysis: 'Análisis Balístico',
+  toxicologyAnalysis: 'Análisis Toxicológico',
+  handwritingAnalysis: 'Análisis de Escritura',
+  voiceAnalysis: 'Análisis de Voz',
+  traceAnalysis: 'Análisis de Rastros',
+  generalAnalysis: 'Análisis General',
+  
+  // Case processing
+  caseProcessing: 'Procesamiento de Casos',
+  processingAllCases: 'Procesando todos los casos',
+  processingCase: 'Procesando caso',
+  caseProcessed: 'Caso procesado exitosamente',
+  caseAlreadyProcessed: 'El caso ya ha sido procesado',
+  processingStatus: 'Estado del procesamiento',
+  
+  // Rank-based access
+  accessDenied: 'Acceso denegado',
+  insufficientRank: 'Rango insuficiente',
+  rankRequired: 'Rango requerido',
+  yourRank: 'Tu rango',
+  availableForYourRank: 'Disponible para tu rango',
 };
