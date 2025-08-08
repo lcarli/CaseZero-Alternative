@@ -212,6 +212,15 @@ export interface Translations {
   ctaDescription: string;
   accessSystem: string;
   requestAccess: string;
+  
+  // New registration form translations
+  newRegistrationInfo: string;
+  institutionalEmailPreview: string;
+  personalEmail: string;
+  submitting: string;
+  requestRegistrationBtn2: string;
+  institutionalEmailInfo: string;
+  useInstitutionalLogin: string;
 }
 
 export const SUPPORTED_LANGUAGES: Language[] = [

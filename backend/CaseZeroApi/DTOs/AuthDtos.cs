@@ -22,20 +22,7 @@ namespace CaseZeroApi.DTOs
 
         [Required]
         [EmailAddress]
-        public required string Email { get; set; }
-
-        [Required]
-        [Phone]
-        public required string PhoneNumber { get; set; }
-
-        [Required]
-        public required string Department { get; set; }
-
-        [Required]
-        public required string Position { get; set; }
-
-        [Required]
-        public required string BadgeNumber { get; set; }
+        public required string PersonalEmail { get; set; }
 
         [Required]
         [MinLength(8)]
@@ -54,9 +41,23 @@ namespace CaseZeroApi.DTOs
         public required string FirstName { get; set; }
         public required string LastName { get; set; }
         public required string Email { get; set; }
+        public required string PersonalEmail { get; set; }
         public string? Department { get; set; }
         public string? Position { get; set; }
         public string? BadgeNumber { get; set; }
-        public bool IsApproved { get; set; }
+        public bool EmailVerified { get; set; }
+    }
+
+    public class VerifyEmailRequestDto
+    {
+        [Required]
+        public required string Token { get; set; }
+    }
+
+    public class ResendVerificationRequestDto
+    {
+        [Required]
+        [EmailAddress]
+        public required string Email { get; set; }
     }
 }

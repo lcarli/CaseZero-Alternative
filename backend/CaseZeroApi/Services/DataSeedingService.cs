@@ -272,13 +272,14 @@ namespace CaseZeroApi.Services
                 systemUser = new User
                 {
                     UserName = "system",
-                    Email = "system@police.gov",
+                    Email = "system@fic-police.gov",
                     FirstName = "System",
                     LastName = "Admin",
+                    PersonalEmail = "system@example.com",
                     Department = "System",
                     Position = "System",
                     BadgeNumber = "0000",
-                    IsApproved = true,
+                    EmailVerified = true,
                     Rank = DetectiveRank.Commander
                 };
                 _context.Users.Add(systemUser);

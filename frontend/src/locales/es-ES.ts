@@ -208,4 +208,13 @@ export const esES: Translations = {
   ctaDescription: 'Únete al sistema de investigación del Departamento de Policía Metropolitana y comienza tu carrera como detective. Acceso restringido solo a personal autorizado.',
   accessSystem: 'Acceder al Sistema',
   requestAccess: 'Solicitar Acceso',
+  
+  // New registration form translations
+  newRegistrationInfo: 'Para el registro solo necesitas tu nombre, apellido y email personal. Tu email institucional, departamento, posición y número de placa serán generados automáticamente.',
+  institutionalEmailPreview: '🎯 Tu email institucional será:',
+  personalEmail: 'Email Personal',
+  submitting: 'Enviando...',
+  requestRegistrationBtn2: 'Solicitar Registro',
+  institutionalEmailInfo: 'Tu email institucional será:',
+  useInstitutionalLogin: 'Para iniciar sesión, debes usar tu email institucional en lugar de tu email personal.',
 };

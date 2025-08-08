@@ -81,12 +81,25 @@ npm run dev
 
 O frontend estará disponível em: `http://localhost:5173`
 
-## 🔐 Usuário de Teste
+## 🔐 Sistema de Usuários
 
-O sistema vem com um usuário pré-configurado para testes:
+O sistema implementa um fluxo moderno de autenticação com verificação por email:
 
-- **Email:** `detective@police.gov`
-- **Senha:** `Password123!`
+### Registro Simplificado
+- **Apenas 3 campos necessários**: Nome, Sobrenome e Email Pessoal
+- **Email Institucional Automático**: Gerado no formato `{nome}.{sobrenome}@fic-police.gov`
+- **Dados Automáticos**: Badge, departamento (ColdCase) e posição (rook) gerados automaticamente
+
+### Verificação por Email
+- Email de verificação enviado para o email pessoal
+- Design HTML responsivo seguindo identidade visual do jogo
+- Token de verificação válido por 24 horas
+- Email de boas-vindas após verificação
+
+### Níveis de Acesso
+- **Rook**: Nível inicial para novos usuários
+- **Detective**: Nível intermediário
+- **Sergeant, Lieutenant, Captain, Commander**: Níveis avançados
 
 ## 🧪 Testando o Sistema Objeto Caso
 
@@ -97,10 +110,10 @@ O sistema vem com um usuário pré-configurado para testes:
 
 ### Via API:
 ```bash
-# 1. Obter token de autenticação
+# 1. Obter token de autenticação (substitua pelas suas credenciais)
 TOKEN=$(curl -X POST "http://localhost:5000/api/auth/login" \
   -H "Content-Type: application/json" \
-  -d '{"email": "detective@police.gov", "password": "Password123!"}' | \
+  -d '{"email": "john.doe@fic-police.gov", "password": "Password123!"}' | \
   jq -r '.token')
 
 # 2. Listar casos disponíveis
@@ -136,11 +149,12 @@ curl -H "Authorization: Bearer $TOKEN" \
 ## 📋 Fluxo do Usuário
 
 1. **Home Page** - Apresentação do jogo detetivesco
-2. **Registro** - Solicitar acesso ao sistema (requer aprovação)
-3. **Login** - Autenticação com email/senha
-4. **Dashboard** - Visão geral de estatísticas e casos
-5. **Desktop** - Ambiente de trabalho para investigação de casos
-6. **Casos** - Sistema modular de casos investigativos
+2. **Registro** - Registro simplificado com verificação por email
+3. **Verificação de Email** - Ativação da conta via email pessoal
+4. **Login** - Autenticação com email institucional/senha
+5. **Dashboard** - Visão geral de estatísticas e casos
+6. **Desktop** - Ambiente de trabalho para investigação de casos
+7. **Casos** - Sistema modular de casos investigativos
 
 ## 🗂️ Estrutura do Projeto
 

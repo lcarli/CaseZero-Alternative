@@ -71,6 +71,10 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<DataSeedingService>();
 builder.Services.AddScoped<ICaseObjectService, CaseObjectService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+// Configure Email Settings
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -104,40 +108,36 @@ using (var scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
     if (!userManager.Users.Any())
     {
-        // Primary test user
+        // Primary test user following new pattern
         var testUser1 = new User
         {
-            UserName = "detective@police.gov",
-            Email = "detective@police.gov",
+            UserName = "john.doe@fic-police.gov",
+            Email = "john.doe@fic-police.gov",
             FirstName = "John",
             LastName = "Doe",
-            Department = "Investigation Division",
-            Position = "Detective",
+            PersonalEmail = "john.doe.personal@example.com",
+            Department = "ColdCase",
+            Position = "rook",
             BadgeNumber = "4729",
-            IsApproved = true,
-            Rank = DetectiveRank.Detective2,
-            CasesResolved = 1,
-            SuccessRate = 33.3,
-            AverageScore = 4.8
+            EmailVerified = true,
+            Rank = DetectiveRank.Rook
         };
         
         await userManager.CreateAsync(testUser1, "Password123!");
         
-        // Secondary test user
+        // Secondary test user following new pattern
         var testUser2 = new User
         {
-            UserName = "inspector@police.gov",
-            Email = "inspector@police.gov",
+            UserName = "sarah.connor@fic-police.gov",
+            Email = "sarah.connor@fic-police.gov", 
             FirstName = "Sarah",
             LastName = "Connor",
-            Department = "Homicide Division",
-            Position = "Inspector",
+            PersonalEmail = "sarah.connor.personal@example.com",
+            Department = "ColdCase",
+            Position = "detective",
             BadgeNumber = "1984",
-            IsApproved = true,
-            Rank = DetectiveRank.Sergeant,
-            CasesResolved = 8,
-            SuccessRate = 88.9,
-            AverageScore = 4.2
+            EmailVerified = true,
+            Rank = DetectiveRank.Detective
         };
         
         await userManager.CreateAsync(testUser2, "Inspector456!");

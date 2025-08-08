@@ -190,33 +190,6 @@ const BackLink = styled(Link)`
   }
 `
 
-const TestCredentials = styled.div`
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(52, 152, 219, 0.1);
-  text-align: left;
-  
-  @media (max-width: 480px) {
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
-  }
-`
-
-const TestCredentialsTitle = styled.p`
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.75rem;
-  margin: 0 0 0.5rem 0;
-  font-weight: 500;
-`
-
-const TestCredentialsText = styled.p`
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 0.7rem;
-  margin: 0.25rem 0;
-  font-family: monospace;
-  line-height: 1.3;
-`
-
 const LanguageSelectorWrapper = styled.div`
   position: absolute;
   top: 1rem;
@@ -301,7 +274,7 @@ const LoginPage = () => {
               type="email"
               id="email"
               name="email"
-              placeholder="detective@police.gov"
+              placeholder="joao.silva@fic-police.gov"
               value={formData.email}
               onChange={handleInputChange}
               required
@@ -329,12 +302,6 @@ const LoginPage = () => {
         <Footer>
           <FooterText>{t('noAccess')}</FooterText>
           <FooterLink to="/register">{t('requestRegistration')}</FooterLink>
-          
-          <TestCredentials>
-            <TestCredentialsTitle>{t('testCredentials')}</TestCredentialsTitle>
-            <TestCredentialsText>detective@police.gov / Password123!</TestCredentialsText>
-            <TestCredentialsText>inspector@police.gov / Inspector456!</TestCredentialsText>
-          </TestCredentials>
         </Footer>
       </LoginCard>
     </PageContainer>

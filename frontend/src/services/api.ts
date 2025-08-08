@@ -9,11 +9,7 @@ export interface LoginRequest {
 export interface RegisterRequest {
   firstName: string
   lastName: string
-  email: string
-  phoneNumber: string
-  department: string
-  position: string
-  badgeNumber: string
+  personalEmail: string
   password: string
 }
 
@@ -27,10 +23,11 @@ export interface User {
   firstName: string
   lastName: string
   email: string
+  personalEmail: string
   department?: string
   position?: string
   badgeNumber?: string
-  isApproved: boolean
+  emailVerified: boolean
 }
 
 export interface Case {
@@ -93,6 +90,23 @@ export interface StartCaseSessionRequest {
 
 export interface EndCaseSessionRequest {
   gameTimeAtEnd?: string
+}
+
+export interface VerifyEmailRequest {
+  token: string
+}
+
+export interface ResendVerificationRequest {
+  email: string
+}
+
+export interface GeneratePoliceEmailRequest {
+  firstName: string
+  lastName: string
+}
+
+export interface GeneratePoliceEmailResponse {
+  policeEmail: string
 }
 
 class ApiError extends Error {
@@ -161,11 +175,35 @@ export const authApi = {
     return response
   },
   
-  register: async (userData: RegisterRequest): Promise<{ message: string }> => {
+  register: async (userData: RegisterRequest): Promise<{ message: string, policeEmail: string, personalEmail: string }> => {
     return apiFetch('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData)
     })
+  },
+
+  verifyEmail: async (request: VerifyEmailRequest): Promise<{ message: string }> => {
+    return apiFetch('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
+  },
+
+  resendVerification: async (request: ResendVerificationRequest): Promise<{ message: string }> => {
+    return apiFetch('/auth/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
+  },
+
+  generatePoliceEmail: (firstName: string, lastName: string): string => {
+    // Client-side generation to match server logic
+    const cleanFirstName = firstName.trim().split(' ')[0].toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove accents
+    const cleanLastName = lastName.trim().split(' ').pop()?.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') || '' // Remove accents
+    
+    return `${cleanFirstName}.${cleanLastName}@fic-police.gov`
   },
   
   logout: () => {

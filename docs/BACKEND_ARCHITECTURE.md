@@ -40,14 +40,47 @@ backend/CaseZeroApi/
 ```csharp
 public class User : IdentityUser
 {
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
-    public string Department { get; set; } = string.Empty;
-    public string Position { get; set; } = string.Empty;
-    public string BadgeNumber { get; set; } = string.Empty;
-    public string Rank { get; set; } = "Rookie";
-    public bool IsApproved { get; set; } = false;
+    public required string FirstName { get; set; }
+    public required string LastName { get; set; }
+    public required string PersonalEmail { get; set; }
+    public string? Department { get; set; }
+    public string? Position { get; set; }
+    public string? BadgeNumber { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastLoginAt { get; set; }
+    public bool EmailVerified { get; set; } = false;
+    public string? EmailVerificationToken { get; set; }
+    public DateTime? EmailVerificationSentAt { get; set; }
+    
+    // GDD Career Progression
+    public DetectiveRank Rank { get; set; } = DetectiveRank.Rook;
+    public int ExperiencePoints { get; set; } = 0;
+    public int CasesResolved { get; set; } = 0;
+    public int CasesFailed { get; set; } = 0;
+    public double SuccessRate { get; set; } = 0.0;
+    // ... navigation properties
+}
+
+public enum DetectiveRank
+{
+    Rook = 0,           // Nível inicial
+    Detective = 1,      // Detetive
+    Detective2 = 2,     // Detetive Sênior
+    Sergeant = 3,       // Sargento
+    Lieutenant = 4,     // Tenente
+    Captain = 5,        // Capitão
+    Commander = 6       // Comandante
+}
+```
+
+**Características Principais:**
+- **PersonalEmail**: Email pessoal do usuário (usado para verificação)
+- **Email**: Email institucional auto-gerado (`{nome}.{sobrenome}@fic-police.gov`)
+- **EmailVerified**: Flag de verificação de email
+- **EmailVerificationToken**: Token para verificação de email
+- **Rank**: Sistema de progressão começando em "Rook"
+- **Department**: Automaticamente definido como "ColdCase"
+- **Position**: Automaticamente definida como "rook" para novos usuários
     public DateTime? LastLoginAt { get; set; }
     
     // Relacionamentos
@@ -165,35 +198,51 @@ public class LoginRequestDto
 {
     [Required]
     [EmailAddress]
-    public string Email { get; set; } = string.Empty;
+    public required string Email { get; set; }
     
     [Required]
-    [MinLength(8)]
-    public string Password { get; set; } = string.Empty;
+    public required string Password { get; set; }
 }
 
-// Register Request
+// Register Request - Simplificado
 public class RegisterRequestDto
 {
     [Required]
+    public required string FirstName { get; set; }
+    
+    [Required]
+    public required string LastName { get; set; }
+    
+    [Required]
     [EmailAddress]
-    public string Email { get; set; } = string.Empty;
+    public required string PersonalEmail { get; set; }
     
     [Required]
     [MinLength(8)]
-    public string Password { get; set; } = string.Empty;
-    
-    [Required]
-    public string FirstName { get; set; } = string.Empty;
-    
-    [Required]
-    public string LastName { get; set; } = string.Empty;
-    
-    public string PhoneNumber { get; set; } = string.Empty;
-    public string Department { get; set; } = string.Empty;
-    public string Position { get; set; } = string.Empty;
-    public string BadgeNumber { get; set; } = string.Empty;
+    public required string Password { get; set; }
 }
+
+// Email Verification
+public class VerifyEmailRequestDto
+{
+    [Required]
+    public required string Token { get; set; }
+}
+
+// User Response DTO
+public class UserDto
+{
+    public required string Id { get; set; }
+    public required string FirstName { get; set; }
+    public required string LastName { get; set; }
+    public required string Email { get; set; }
+    public required string PersonalEmail { get; set; }
+    public string? Department { get; set; }
+    public string? Position { get; set; }
+    public string? BadgeNumber { get; set; }
+    public bool EmailVerified { get; set; }
+}
+```
 
 // Auth Response
 public class AuthResponseDto
@@ -587,17 +636,18 @@ public class ApplicationDbContext : IdentityDbContext<User>
         var adminUser = new User
         {
             Id = Guid.NewGuid().ToString(),
-            UserName = "detective@police.gov",
-            NormalizedUserName = "DETECTIVE@POLICE.GOV",
-            Email = "detective@police.gov",
-            NormalizedEmail = "DETECTIVE@POLICE.GOV",
+            UserName = "john.doe@fic-police.gov",
+            NormalizedUserName = "JOHN.DOE@FIC-POLICE.GOV",
+            Email = "john.doe@fic-police.gov",
+            NormalizedEmail = "JOHN.DOE@FIC-POLICE.GOV",
+            PersonalEmail = "john.doe.personal@example.com",
             FirstName = "John",
-            LastName = "Detective",
-            Department = "Homicide",
-            Position = "Senior Detective",
-            BadgeNumber = "DET001",
-            Rank = "Detective First Class",
-            IsApproved = true,
+            LastName = "Doe",
+            Department = "ColdCase",
+            Position = "rook",
+            BadgeNumber = "4729",
+            Rank = DetectiveRank.Rook,
+            EmailVerified = true,
             EmailConfirmed = true,
             SecurityStamp = Guid.NewGuid().ToString()
         };
