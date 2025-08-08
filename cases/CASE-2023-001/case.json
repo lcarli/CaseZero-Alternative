@@ -1,0 +1,453 @@
+{
+  "caseId": "CASE-2023-001",
+  "metadata": {
+    "title": "Disappearance of Sarah Mitchell - Cold Case Reopened",
+    "description": "Missing person case from March 2023 reopened after new evidence surfaced. 22-year-old graduate student Sarah Mitchell vanished from her apartment complex. Originally classified as potential voluntary disappearance, now suspected homicide after discovery of personal belongings in remote location.",
+    "startDateTime": "2024-01-15T08:00:00Z",
+    "originalIncidentDate": "2023-03-15T19:30:00Z",
+    "location": "Riverside Apartments Complex, Unit 4B",
+    "lastSeenLocation": "University Campus Library",
+    "victimInfo": {
+      "name": "Sarah Mitchell",
+      "age": 22,
+      "occupation": "Graduate Student - Psychology",
+      "description": "5'6\", blonde hair, blue eyes, last seen wearing blue denim jacket and black jeans"
+    },
+    "caseType": "Cold Case - Missing Person/Suspected Homicide",
+    "briefing": "Case reopened after hikers discovered victim's backpack and personal items 8 months after disappearance. Original investigation inconclusive. New forensic evidence suggests foul play. Focus on re-examining all suspects and evidence with fresh perspective.",
+    "difficulty": 8,
+    "estimatedDuration": "6-8 hours",
+    "minRankRequired": "Detective2",
+    "coldCaseReopened": true,
+    "originalCaseDate": "2023-03-15",
+    "reopenedDate": "2024-01-15",
+    "tags": ["cold case", "missing person", "suspected homicide", "reopened investigation"]
+  },
+  "evidences": [
+    {
+      "id": "EVD001",
+      "name": "Original Police Report",
+      "type": "document",
+      "fileName": "original_police_report.pdf",
+      "category": "Document",
+      "priority": "High",
+      "description": "Complete original police report from March 2023 missing person investigation",
+      "location": "evidence/",
+      "isUnlocked": true,
+      "requiresAnalysis": false,
+      "dependsOn": [],
+      "linkedSuspects": ["all"],
+      "dateCollected": "2023-03-16",
+      "collectedBy": "Det. Rodriguez",
+      "unlockConditions": {
+        "immediate": true
+      }
+    },
+    {
+      "id": "EVD002",
+      "name": "Victim's Apartment Photos",
+      "type": "image",
+      "fileName": "apartment_crime_scene_photos.jpg",
+      "category": "Digital",
+      "priority": "Critical",
+      "description": "Photographs of Sarah's apartment taken during initial investigation - no signs of struggle",
+      "location": "evidence/",
+      "isUnlocked": true,
+      "requiresAnalysis": false,
+      "dependsOn": [],
+      "linkedSuspects": ["SUS001", "SUS002"],
+      "dateCollected": "2023-03-16",
+      "collectedBy": "CSI Team Alpha",
+      "unlockConditions": {
+        "immediate": true
+      }
+    },
+    {
+      "id": "EVD003",
+      "name": "Discovered Backpack",
+      "type": "physical",
+      "fileName": "sarah_backpack_found.jpg",
+      "category": "Physical",
+      "priority": "Critical",
+      "description": "Sarah's backpack found by hikers 8 months later, 15 miles from last known location",
+      "location": "evidence/",
+      "isUnlocked": true,
+      "requiresAnalysis": true,
+      "dependsOn": [],
+      "linkedSuspects": ["all"],
+      "analysisRequired": ["DNA", "Fingerprint", "Trace"],
+      "dateCollected": "2024-01-10",
+      "collectedBy": "Det. Thompson",
+      "unlockConditions": {
+        "immediate": true
+      }
+    },
+    {
+      "id": "EVD004",
+      "name": "University Security Footage",
+      "type": "video",
+      "fileName": "university_security_footage.mp4",
+      "category": "Digital",
+      "priority": "High",
+      "description": "Last known footage of Sarah leaving the university library on the night of disappearance",
+      "location": "evidence/",
+      "isUnlocked": false,
+      "requiresAnalysis": true,
+      "dependsOn": ["EVD001"],
+      "linkedSuspects": ["SUS001", "SUS003"],
+      "analysisRequired": ["VideoAnalysis"],
+      "dateCollected": "2023-03-16",
+      "collectedBy": "University Security",
+      "unlockConditions": {
+        "timeDelay": 45,
+        "triggerEvent": "evidenceExamined",
+        "requiredEvidence": ["EVD001"]
+      }
+    },
+    {
+      "id": "EVD005",
+      "name": "Cell Phone Records",
+      "type": "document",
+      "fileName": "cell_phone_records.pdf",
+      "category": "Digital",
+      "priority": "Critical",
+      "description": "Complete cell phone records and GPS data from March 15-16, 2023",
+      "location": "evidence/",
+      "isUnlocked": false,
+      "requiresAnalysis": false,
+      "dependsOn": ["EVD003"],
+      "linkedSuspects": ["SUS002", "SUS003"],
+      "dateCollected": "2023-03-18",
+      "collectedBy": "Digital Forensics Unit",
+      "unlockConditions": {
+        "timeDelay": 60,
+        "triggerEvent": "evidenceExamined",
+        "requiredEvidence": ["EVD003"]
+      }
+    },
+    {
+      "id": "EVD006",
+      "name": "Personal Diary",
+      "type": "document",
+      "fileName": "sarah_diary_entries.pdf",
+      "category": "Document",
+      "priority": "High",
+      "description": "Sarah's personal diary found in backpack - entries reveal concerning patterns",
+      "location": "evidence/",
+      "isUnlocked": false,
+      "requiresAnalysis": false,
+      "dependsOn": ["EVD005"],
+      "linkedSuspects": ["SUS001", "SUS002"],
+      "dateCollected": "2024-01-10",
+      "collectedBy": "Det. Thompson",
+      "unlockConditions": {
+        "timeDelay": 30,
+        "triggerEvent": "evidenceExamined",
+        "requiredEvidence": ["EVD005"]
+      }
+    },
+    {
+      "id": "EVD007",
+      "name": "Soil Samples from Discovery Site",
+      "type": "physical",
+      "fileName": "soil_samples_analysis.jpg",
+      "category": "Physical",
+      "priority": "Medium",
+      "description": "Soil and environmental samples from location where backpack was discovered",
+      "location": "evidence/",
+      "isUnlocked": false,
+      "requiresAnalysis": true,
+      "dependsOn": ["EVD006"],
+      "linkedSuspects": ["SUS003"],
+      "analysisRequired": ["Trace", "Environmental"],
+      "dateCollected": "2024-01-10",
+      "collectedBy": "Forensics Team",
+      "unlockConditions": {
+        "timeDelay": 90,
+        "triggerEvent": "analysisComplete",
+        "requiredAnalysis": ["EVD003-DNA"]
+      }
+    }
+  ],
+  "suspects": [
+    {
+      "id": "SUS001",
+      "name": "Marcus Chen",
+      "alias": null,
+      "age": 24,
+      "occupation": "Graduate Student - Computer Science",
+      "description": "Sarah's ex-boyfriend and fellow graduate student. Relationship ended acrimoniously 2 months before disappearance.",
+      "relationship": "Ex-boyfriend",
+      "motive": "Jealousy and anger over breakup, Sarah was dating someone new",
+      "alibi": "Claims he was studying at home alone that evening",
+      "alibiVerified": false,
+      "behavior": "Defensive during original interviews, changed story multiple times",
+      "backgroundInfo": "History of anger management issues, previous restraining order from ex-girlfriend in undergrad",
+      "linkedEvidence": ["EVD001", "EVD002", "EVD004", "EVD006"],
+      "comments": "Had key to Sarah's apartment, knew her schedule intimately",
+      "isActualCulprit": false,
+      "status": "PersonOfInterest",
+      "originalInterviewDate": "2023-03-17",
+      "reinterviewRequired": true,
+      "newEvidenceRelevance": "High - diary mentions fear of Marcus",
+      "unlockConditions": {
+        "immediate": true
+      }
+    },
+    {
+      "id": "SUS002",
+      "name": "Dr. James Morrison",
+      "alias": null,
+      "age": 45,
+      "occupation": "Psychology Professor",
+      "description": "Sarah's thesis advisor with whom she had increasingly tense meetings about her research direction.",
+      "relationship": "Thesis advisor and professor",
+      "motive": "Sarah threatened to report inappropriate conduct to university administration",
+      "alibi": "Working late in his office, claims several students can verify",
+      "alibiVerified": "partial",
+      "behavior": "Professional but evasive when questioned about relationship with Sarah",
+      "backgroundInfo": "Under review by university ethics committee for alleged inappropriate relationships with students",
+      "linkedEvidence": ["EVD001", "EVD002", "EVD005", "EVD006"],
+      "comments": "Had access to university resources and knowledge of Sarah's schedule",
+      "isActualCulprit": false,
+      "status": "PersonOfInterest",
+      "originalInterviewDate": "2023-03-18",
+      "reinterviewRequired": true,
+      "newEvidenceRelevance": "Medium - diary mentions uncomfortable meetings",
+      "unlockConditions": {
+        "timeDelay": 15,
+        "triggerEvent": "evidenceExamined",
+        "requiredEvidence": ["EVD002"]
+      }
+    },
+    {
+      "id": "SUS003",
+      "name": "Thomas \"Tommy\" Brennan",
+      "alias": "Tommy",
+      "age": 29,
+      "occupation": "Maintenance Worker",
+      "description": "Apartment complex maintenance worker who had frequent contact with Sarah and showed unusual interest in her activities.",
+      "relationship": "Apartment maintenance worker",
+      "motive": "Obsessive interest in Sarah, potential stalking behavior",
+      "alibi": "Claims he left work at 6 PM and went home to family",
+      "alibiVerified": false,
+      "behavior": "Nervous and overly helpful during original investigation",
+      "backgroundInfo": "Previous arrest for trespassing and harassment of another female tenant in 2021",
+      "linkedEvidence": ["EVD003", "EVD004", "EVD005", "EVD007"],
+      "comments": "Had master keys to all apartments, knowledge of hiking trails where backpack was found",
+      "isActualCulprit": true,
+      "status": "PersonOfInterest",
+      "originalInterviewDate": "2023-03-17",
+      "reinterviewRequired": true,
+      "newEvidenceRelevance": "Critical - forensics link him to discovery site",
+      "unlockConditions": {
+        "timeDelay": 30,
+        "triggerEvent": "evidenceExamined",
+        "requiredEvidence": ["EVD003"]
+      }
+    }
+  ],
+  "forensicAnalyses": [
+    {
+      "id": "DNA-EVD003",
+      "evidenceId": "EVD003",
+      "analysisType": "DNA",
+      "responseTime": 180,
+      "resultFile": "forensics/backpack_dna_analysis.pdf",
+      "description": "DNA analysis of biological material found on backpack straps and contents"
+    },
+    {
+      "id": "PRINT-EVD003",
+      "evidenceId": "EVD003",
+      "analysisType": "Fingerprint",
+      "responseTime": 120,
+      "resultFile": "forensics/backpack_fingerprint_analysis.pdf",
+      "description": "Fingerprint analysis of backpack zippers, buckles, and contents"
+    },
+    {
+      "id": "TRACE-EVD003",
+      "evidenceId": "EVD003",
+      "analysisType": "Trace",
+      "responseTime": 240,
+      "resultFile": "forensics/backpack_trace_evidence.pdf",
+      "description": "Trace evidence analysis including fibers, hair, and environmental particles"
+    },
+    {
+      "id": "VIDEO-EVD004",
+      "evidenceId": "EVD004",
+      "analysisType": "VideoAnalysis",
+      "responseTime": 150,
+      "resultFile": "forensics/security_footage_enhancement.mp4",
+      "description": "Enhanced security footage analysis and facial recognition"
+    },
+    {
+      "id": "TRACE-EVD007",
+      "evidenceId": "EVD007",
+      "analysisType": "Trace",
+      "responseTime": 300,
+      "resultFile": "forensics/soil_environmental_analysis.pdf",
+      "description": "Environmental analysis of soil samples and botanical evidence"
+    },
+    {
+      "id": "ENV-EVD007",
+      "evidenceId": "EVD007",
+      "analysisType": "Environmental",
+      "responseTime": 360,
+      "resultFile": "forensics/environmental_reconstruction.pdf",
+      "description": "Environmental reconstruction of discovery site timeline"
+    }
+  ],
+  "temporalEvents": [
+    {
+      "id": "EMAIL001",
+      "triggerTime": 0,
+      "type": "email",
+      "title": "Cold Case Briefing Email",
+      "content": "Detective, you've been assigned to reopen CASE-2023-001. New evidence has emerged in the Sarah Mitchell disappearance. Review all original materials with fresh eyes.",
+      "fileName": "memos/briefing_email.pdf"
+    },
+    {
+      "id": "MEMO001",
+      "triggerTime": 90,
+      "type": "memo",
+      "title": "Forensics Lab Update",
+      "content": "Lab reports on backpack are showing promising results. DNA analysis nearly complete. Requesting priority status for remaining tests.",
+      "fileName": "memos/lab_update_90min.txt"
+    },
+    {
+      "id": "WITNESS001",
+      "triggerTime": 120,
+      "type": "witness",
+      "title": "New Witness Statement",
+      "content": "Hiker who found the backpack provides additional details about the discovery site and suspicious activity in the area.",
+      "fileName": "witnesses/hiker_statement.pdf"
+    },
+    {
+      "id": "MEMO002",
+      "triggerTime": 180,
+      "type": "memo",
+      "title": "Media Interest Warning",
+      "content": "Local news has picked up the story about the cold case being reopened. Exercise caution when discussing case details.",
+      "fileName": "memos/media_warning_180min.txt"
+    },
+    {
+      "id": "WITNESS002",
+      "triggerTime": 240,
+      "type": "witness",
+      "title": "University Security Guard",
+      "content": "Security guard from 2023 comes forward with additional observations about the night Sarah disappeared.",
+      "fileName": "witnesses/security_guard_statement.pdf"
+    }
+  ],
+  "timeline": [
+    {
+      "time": "2023-03-15T16:30:00Z",
+      "event": "Sarah seen entering university library for study session",
+      "source": "Security footage and witness statements",
+      "verified": true
+    },
+    {
+      "time": "2023-03-15T19:30:00Z",
+      "event": "Last confirmed sighting - Sarah leaving library",
+      "source": "Security footage",
+      "verified": true
+    },
+    {
+      "time": "2023-03-15T20:15:00Z",
+      "event": "Last cell phone activity - text message sent",
+      "source": "Phone records",
+      "verified": true
+    },
+    {
+      "time": "2023-03-15T22:00:00Z",
+      "event": "Roommate reports Sarah hasn't returned home",
+      "source": "Roommate statement",
+      "verified": true
+    },
+    {
+      "time": "2023-03-16T08:00:00Z",
+      "event": "Missing person report filed",
+      "source": "Police records",
+      "verified": true
+    },
+    {
+      "time": "2024-01-10T14:30:00Z",
+      "event": "Backpack discovered by hikers",
+      "source": "Discovery report",
+      "verified": true
+    }
+  ],
+  "solution": {
+    "culprit": "Thomas Brennan",
+    "keyEvidence": "EVD003",
+    "secondaryEvidence": ["DNA-EVD003", "TRACE-EVD007", "ENV-EVD007"],
+    "explanation": "Thomas Brennan, the apartment maintenance worker, is responsible for Sarah's disappearance and presumed murder. Forensic evidence from the backpack contains his DNA and fingerprints. Trace evidence from the discovery site matches fibers from his work clothes. His knowledge of both Sarah's schedule and remote hiking areas, combined with his history of harassment, establishes means, motive, and opportunity. Environmental analysis places him at the disposal site.",
+    "requiredEvidence": ["EVD003", "DNA-EVD003", "TRACE-EVD003", "TRACE-EVD007"],
+    "minimumScore": 80,
+    "reconstructedEvents": "Tommy stalked Sarah, confronted her after she left the library, likely at or near her apartment. After a struggle, he disposed of her body in a remote location and scattered some personal items to mislead investigation."
+  },
+  "unlockLogic": {
+    "progressionRules": [
+      {
+        "condition": "evidenceExamined",
+        "target": "EVD001",
+        "unlocks": ["EVD004"],
+        "delay": 45
+      },
+      {
+        "condition": "evidenceExamined",
+        "target": "EVD003",
+        "unlocks": ["EVD005", "SUS003"],
+        "delay": 60
+      },
+      {
+        "condition": "evidenceExamined",
+        "target": "EVD005",
+        "unlocks": ["EVD006"],
+        "delay": 30
+      },
+      {
+        "condition": "analysisComplete",
+        "target": "EVD003-DNA",
+        "unlocks": ["EVD007"],
+        "delay": 90
+      },
+      {
+        "condition": "evidenceExamined",
+        "target": "EVD002",
+        "unlocks": ["SUS002"],
+        "delay": 15
+      }
+    ],
+    "analysisRules": [
+      {
+        "evidenceId": "EVD003",
+        "analysisType": "DNA",
+        "unlocks": ["solution.keyEvidence"],
+        "critical": true
+      },
+      {
+        "evidenceId": "EVD003",
+        "analysisType": "Trace",
+        "unlocks": ["solution.confirmation"],
+        "critical": true
+      },
+      {
+        "evidenceId": "EVD007",
+        "analysisType": "Environmental",
+        "unlocks": ["solution.final"],
+        "critical": true
+      }
+    ]
+  },
+  "gameMetadata": {
+    "version": "1.0",
+    "createdBy": "CaseZero Cold Case Unit",
+    "createdAt": "2024-01-15T08:00:00Z",
+    "tags": ["cold case", "missing person", "homicide", "forensic evidence", "reopened"],
+    "difficulty": "advanced",
+    "estimatedPlayTime": "360-480 minutes",
+    "caseStatus": "Cold Case - Reopened",
+    "specialNotes": "This case requires careful review of original investigation materials and integration of new evidence"
+  }
+}
