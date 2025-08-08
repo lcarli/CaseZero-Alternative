@@ -1,0 +1,1 @@
+- Always translate all texts to the 4 languages in the application
