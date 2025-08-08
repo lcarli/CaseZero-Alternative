@@ -3,7 +3,10 @@ import { authApi } from '../services/api'
 
 // Mock fetch
 const mockFetch = vi.fn()
-global.fetch = mockFetch
+Object.defineProperty(globalThis, 'fetch', {
+  value: mockFetch,
+  writable: true
+})
 
 // Mock localStorage
 const localStorageMock = {
@@ -12,7 +15,10 @@ const localStorageMock = {
   removeItem: vi.fn(),
   clear: vi.fn(),
 }
-global.localStorage = localStorageMock
+Object.defineProperty(globalThis, 'localStorage', {
+  value: localStorageMock,
+  writable: true
+})
 
 describe('API Service', () => {
   beforeEach(() => {

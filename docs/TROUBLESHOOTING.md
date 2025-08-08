@@ -47,6 +47,38 @@ Este guia fornece soluções para problemas comuns que podem ocorrer durante des
    # Matar processo ou alterar porta em launchSettings.json
    ```
 
+### Testes do Backend falham
+
+**Sintoma:** Erros durante `dotnet test` no projeto CaseZeroApi.Tests
+
+**Possíveis Causas e Soluções:**
+
+1. **Erro Entity Framework async em testes**
+   ```bash
+   # Sintoma: "The provider for the source 'IQueryable' doesn't implement 'IAsyncQueryProvider'"
+   # Solução: Verificar se testes unitários estão usando InMemory database corretamente
+   
+   # No test setup, garantir configuração correta:
+   services.AddDbContext<ApiContext>(options =>
+       options.UseInMemoryDatabase(databaseName: "TestDatabase"));
+   ```
+
+2. **Mock incorreto do UserManager**
+   ```bash
+   # Sintoma: Testes de autenticação falhando
+   # Solução: Verificar mocks do Identity no AuthControllerTests
+   ```
+
+3. **Estado de teste não limpo**
+   ```bash
+   # Limpar antes de executar testes
+   cd backend/CaseZeroApi.Tests
+   dotnet clean
+   dotnet test
+   ```
+
+**Nota:** Se alguns testes estão falhando no desenvolvimento, isso é normal durante refatoração. Os testes devem ser corrigidos para refletir as mudanças no código.
+
 ### Frontend (React) não compila
 
 **Sintoma:** Erro durante `npm run dev` ou `npm run build`
@@ -70,7 +102,36 @@ Este guia fornece soluções para problemas comuns que podem ocorrer durante des
    npm install
    ```
 
-3. **Erro de TypeScript**
+3. **Erro de TypeScript em testes**
+   ```bash
+   # Se houver erro "Cannot find name 'global'" nos testes
+   # Verificar se vitest.config.ts existe separado do vite.config.ts
+   ls frontend/vitest.config.ts
+   
+   # Usar globalThis ao invés de global nos testes
+   Object.defineProperty(globalThis, 'fetch', { value: mockFetch })
+   ```
+
+4. **Erro de configuração Vite/Vitest**
+   ```bash
+   # Verificar se existe vitest.config.ts separado para testes
+   # vite.config.ts deve ser usado apenas para build
+   # vitest.config.ts deve incluir configurações de teste
+   ```
+
+5. **Vulnerabilidades npm**
+   ```bash
+   # Verificar vulnerabilidades (comum ter algumas moderadas)
+   npm audit
+   
+   # Corrigir apenas quebras críticas automaticamente
+   npm audit fix
+   
+   # Para vulnerabilidades moderadas, avaliar se vale a pena
+   # atualizar dependências que podem quebrar funcionalidades
+   ```
+
+6. **Erro de TypeScript**
    ```bash
    # Verificar erros de tipos
    npx tsc --noEmit
@@ -79,7 +140,7 @@ Este guia fornece soluções para problemas comuns que podem ocorrer durante des
    npm install @types/nome-do-pacote
    ```
 
-4. **Erro de linting**
+7. **Erro de linting**
    ```bash
    # Verificar e corrigir automaticamente
    npm run lint
