@@ -1,0 +1,342 @@
+name: 🚀 Deploy to PRODUCTION Environment
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      confirm_production:
+        description: 'Type "CONFIRM" to deploy to production'
+        required: true
+        default: ''
+
+env:
+  AZURE_WEBAPP_NAME: casezero-prod
+  DOTNET_VERSION: '8.0.x'
+  NODE_VERSION: '18'
+
+jobs:
+  validate-inputs:
+    name: ✅ Validate Production Deployment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: 🔍 Validate confirmation input
+        run: |
+          if [ "${{ github.event.inputs.confirm_production }}" != "CONFIRM" ]; then
+            echo "❌ Production deployment requires typing 'CONFIRM' in the confirmation field"
+            exit 1
+          fi
+          echo "✅ Production deployment confirmed"
+
+  security-scan:
+    name: 🛡️ Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Run CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: 'csharp,javascript'
+
+      - name: 🔧 Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 🔨 Build for analysis
+        run: |
+          dotnet restore ./backend/CaseZeroApi
+          dotnet build ./backend/CaseZeroApi --no-restore
+
+      - name: 🔍 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+      - name: 🔍 Run dependency audit (Frontend)
+        run: npm audit --audit-level high
+        working-directory: ./frontend
+
+      - name: 🔍 Check .NET vulnerabilities
+        run: dotnet list package --vulnerable --include-transitive
+        working-directory: ./backend/CaseZeroApi
+
+  build-and-test:
+    name: 🔨 Build & Test
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ./frontend/package-lock.json
+
+      - name: 📦 Install frontend dependencies
+        run: npm ci
+        working-directory: ./frontend
+
+      - name: 🔍 Lint frontend code
+        run: npm run lint
+        working-directory: ./frontend
+
+      - name: 🔨 Build frontend
+        run: npm run build
+        working-directory: ./frontend
+
+      - name: 📦 Restore backend dependencies
+        run: dotnet restore
+        working-directory: ./backend/CaseZeroApi
+
+      - name: 🔨 Build backend
+        run: dotnet build --no-restore --configuration Release
+        working-directory: ./backend/CaseZeroApi
+
+      - name: 🧪 Run unit tests
+        run: dotnet test --no-build --configuration Release --verbosity normal --logger trx
+        working-directory: ./backend/CaseZeroApi.Tests
+
+      - name: 🧪 Run integration tests
+        run: dotnet test --configuration Release --verbosity normal --logger trx
+        working-directory: ./backend/CaseZeroApi.IntegrationTests
+
+      - name: 🧪 Run frontend tests
+        run: npm run test:run
+        working-directory: ./frontend
+
+      - name: ✅ Validate cases
+        run: |
+          chmod +x ./validate_case.sh
+          ./validate_case.sh Case001
+
+      - name: 📊 Publish test results
+        uses: dorny/test-reporter@v1
+        if: success() || failure()
+        with:
+          name: 🧪 Production Test Results
+          path: '**/TestResults/*.trx'
+          reporter: dotnet-trx
+
+      - name: 📦 Publish backend
+        run: dotnet publish -c Release -o ./publish
+        working-directory: ./backend/CaseZeroApi
+
+      - name: 📤 Upload backend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-production
+          path: ./backend/CaseZeroApi/publish
+
+      - name: 📤 Upload frontend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-production
+          path: ./frontend/dist
+
+  await-approval:
+    name: 🔒 Manual Approval Required
+    runs-on: ubuntu-latest
+    needs: [build-and-test]
+    environment: production
+    
+    steps:
+      - name: 🔒 Manual Approval
+        run: |
+          echo "🔒 This deployment requires manual approval"
+          echo "✅ Approved for production deployment"
+
+  deploy-to-prod:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-test, await-approval]
+    environment: production
+    
+    steps:
+      - name: 📥 Download backend artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-production
+          path: ./backend
+
+      - name: 📥 Download frontend artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-production
+          path: ./frontend
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
+
+      - name: 🚀 Deploy Backend to Azure Web App (Staging Slot)
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          slot-name: 'staging'
+          package: ./backend
+
+      - name: 🏥 Health Check (Staging)
+        run: |
+          echo "Performing health check on staging slot..."
+          sleep 30
+          
+          STAGING_URL="https://${{ env.AZURE_WEBAPP_NAME }}-staging.azurewebsites.net"
+          echo "Checking staging health at: $STAGING_URL/api/health"
+          
+          for i in {1..10}; do
+            if curl -f "$STAGING_URL/api/health" > /dev/null 2>&1; then
+              echo "✅ Staging backend is healthy!"
+              break
+            else
+              echo "⏳ Attempt $i: Staging not ready yet, waiting..."
+              sleep 15
+            fi
+            
+            if [ $i -eq 10 ]; then
+              echo "❌ Staging health check failed"
+              exit 1
+            fi
+          done
+
+      - name: 🔄 Swap to Production
+        run: |
+          echo "Swapping staging slot to production..."
+          az webapp deployment slot swap \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_PROD }} \
+            --slot staging \
+            --target-slot production
+
+      - name: 🌐 Deploy Frontend to Azure Static Web Apps
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PROD }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "./frontend"
+          api_location: ""
+          output_location: "dist"
+
+      - name: 🏥 Production Health Check
+        run: |
+          echo "Performing production health check..."
+          sleep 30
+          
+          PROD_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+          echo "Checking production health at: $PROD_URL/api/health"
+          
+          for i in {1..10}; do
+            if curl -f "$PROD_URL/api/health" > /dev/null 2>&1; then
+              echo "✅ Production is healthy!"
+              break
+            else
+              echo "⏳ Attempt $i: Production not ready yet, waiting..."
+              sleep 15
+            fi
+            
+            if [ $i -eq 10 ]; then
+              echo "❌ Production health check failed"
+              # Rollback
+              echo "🔄 Rolling back due to health check failure..."
+              az webapp deployment slot swap \
+                --name ${{ env.AZURE_WEBAPP_NAME }} \
+                --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_PROD }} \
+                --slot production \
+                --target-slot staging
+              exit 1
+            fi
+          done
+
+      - name: 📊 Post Production Tests
+        run: |
+          echo "Running post-production smoke tests..."
+          
+          PROD_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+          
+          # Test critical endpoints
+          echo "Testing critical API endpoints..."
+          curl -f "$PROD_URL/api/cases" -H "Accept: application/json" || echo "⚠️ Cases endpoint might require authentication"
+          
+          echo "✅ Production deployment successful!"
+
+  notify-teams:
+    name: 📢 Notify Teams
+    runs-on: ubuntu-latest
+    needs: [build-and-test, deploy-to-prod]
+    if: always()
+    
+    steps:
+      - name: 📢 Send Teams Notification
+        if: always()
+        uses: aliencube/microsoft-teams-actions@v0.8.0
+        with:
+          webhook_uri: ${{ secrets.TEAMS_WEBHOOK_URL }}
+          title: "🚀 CaseZero PRODUCTION Deployment"
+          summary: "Production deployment completed"
+          text: |
+            **Status:** ${{ needs.deploy-to-prod.result == 'success' && '✅ Success' || '❌ Failed' }}
+            **Environment:** Production
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Triggered by:** ${{ github.actor }}
+            
+            **Application URLs:**
+            - Backend: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net
+            - Frontend: https://casezero.azurestaticapps.net
+            
+            ${{ needs.deploy-to-prod.result == 'success' && '🎉 Production is live!' || '⚠️ Please check the deployment logs for issues.' }}
+          theme_color: ${{ needs.deploy-to-prod.result == 'success' && '00FF00' || 'FF0000' }}
+
+  create-release:
+    name: 📦 Create Release
+    runs-on: ubuntu-latest
+    needs: [deploy-to-prod]
+    if: success() && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🏷️ Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          body: |
+            ## 🚀 Production Release v${{ github.run_number }}
+            
+            **Deployed on:** ${{ github.event.head_commit.timestamp }}
+            **Commit:** ${{ github.sha }}
+            **Author:** ${{ github.event.head_commit.author.name }}
+            
+            ### 📋 Changes
+            ${{ github.event.head_commit.message }}
+            
+            ### 🔗 Application Links
+            - **Frontend:** https://casezero.azurestaticapps.net
+            - **Backend API:** https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net
+            
+            ### ✅ Deployment Summary
+            - ✅ Security scans passed
+            - ✅ All tests passed
+            - ✅ Manual approval obtained
+            - ✅ Health checks passed
+            - ✅ Production deployment successful
+          draft: false
+          prerelease: false

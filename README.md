@@ -1,5 +1,10 @@
 # CaseZero - Detective Investigation System
 
+[![CI](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/ci.yml/badge.svg)](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/ci.yml)
+[![Deploy to DEV](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/cd-dev.yml/badge.svg)](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/cd-dev.yml)
+[![Deploy to PROD](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/cd-prod.yml/badge.svg)](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/cd-prod.yml)
+[![Infrastructure](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/infrastructure.yml/badge.svg)](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/infrastructure.yml)
+
 Um sistema imersivo de investigação detetivesca onde você assume o papel de um detetive experiente resolvendo casos complexos.
 
 ## 🎮 Características do Sistema
@@ -37,6 +42,8 @@ Um sistema imersivo de investigação detetivesca onde você assume o papel de u
 - 🛠️ Script de validação: `./validate_case.sh Case001`
 
 ## 🚀 Como Executar
+
+> **🔧 CI/CD Disponível**: Este projeto inclui pipelines completos de CI/CD com GitHub Actions. Veja a [documentação de CI/CD](docs/cicd/README.md) para implantação automatizada em Azure.
 
 ### Pré-requisitos
 
@@ -262,3 +269,20 @@ O sistema foi desenvolvido com design responsivo, funcionando em:
 ## 📄 Licença
 
 Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+
+## 🚀 CI/CD e DevOps
+
+Este projeto utiliza práticas modernas de DevOps com:
+
+- **CI/CD Automatizado**: GitHub Actions com pipelines para desenvolvimento e produção
+- **Infraestrutura como Código**: Templates BICEP para Azure
+- **Testes Automatizados**: Testes unitários e de integração
+- **Segurança**: Verificações de segurança e análise de vulnerabilidades
+- **Monitoramento**: Application Insights e alertas de saúde
+
+### 🔗 Links Úteis
+
+- [📖 Documentação de CI/CD](docs/cicd/README.md)
+- [🏗️ Guia de Configuração Azure](docs/cicd/azure-setup.md)
+- [🔐 Variáveis e Secrets](docs/cicd/variables-and-secrets.md)
+- [📊 Sistema Objeto Caso](docs/OBJETO_CASO.md)
