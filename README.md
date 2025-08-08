@@ -82,11 +82,17 @@ cd frontend
 # Instalar dependências
 npm install
 
+# Nota: É normal aparecer algumas vulnerabilidades moderadas de dependências
+# Execute 'npm audit' para ver detalhes, mas evite 'npm audit fix --force'
+# pois pode quebrar compatibilidade
+
 # Executar servidor de desenvolvimento
 npm run dev
 ```
 
 O frontend estará disponível em: `http://localhost:5173`
+
+> **⚠️ Nota sobre Testes**: Durante desenvolvimento ativo, alguns testes podem falhar temporariamente. Para verificar se a aplicação está funcionando, teste manualmente a interface e as funcionalidades principais. Veja [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) para soluções de problemas comuns.
 
 ## 🔐 Sistema de Usuários
 
@@ -202,12 +208,16 @@ curl -H "Authorization: Bearer $TOKEN" \
 npm run dev      # Servidor de desenvolvimento
 npm run build    # Build para produção
 npm run lint     # Verificar código
+npm run test     # Executar testes (vitest)
+npm run test:run # Executar testes uma vez
+npm audit        # Verificar vulnerabilidades (normal ter algumas moderadas)
 ```
 
 **Backend:**
 ```bash
 dotnet run              # Executar servidor
 dotnet build           # Compilar projeto
+dotnet test            # Executar testes (alguns podem falhar durante desenvolvimento)
 dotnet ef migrations   # Gerenciar migrações
 ```
 
