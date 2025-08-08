@@ -17,7 +17,7 @@
     "briefing": "Case reopened after hikers discovered victim's backpack and personal items 8 months after disappearance. Original investigation inconclusive. New forensic evidence suggests foul play. Focus on re-examining all suspects and evidence with fresh perspective.",
     "difficulty": 8,
     "estimatedDuration": "6-8 hours",
-    "minRankRequired": "Detective2",
+    "minRankRequired": "Rookie",
     "coldCaseReopened": true,
     "originalCaseDate": "2023-03-15",
     "reopenedDate": "2024-01-15",
