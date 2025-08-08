@@ -217,4 +217,50 @@ export const enUS: Translations = {
   requestRegistrationBtn2: 'Request Registration',
   institutionalEmailInfo: 'Your institutional email will be:',
   useInstitutionalLogin: 'To login, you must use your institutional email instead of your personal email.',
+  
+  // Evidence visibility and forensics
+  evidenceVisibility: 'Evidence Visibility',
+  visibleEvidences: 'Visible Evidence',
+  hiddenEvidences: 'Hidden Evidence',
+  makeVisible: 'Make Visible',
+  makeHidden: 'Hide',
+  visibilityUpdated: 'Visibility updated successfully',
+  forensicAnalysisTitle: 'Forensic Analysis',
+  requestAnalysis: 'Request Analysis',
+  analysisType: 'Analysis Type',
+  analysisInProgress: 'Analysis in Progress',
+  analysisCompleted: 'Analysis Completed',
+  analysisResults: 'Analysis Results',
+  noAnalysisAvailable: 'No analysis available for this evidence',
+  timeBasedAnalysis: 'Time-based analysis',
+  estimatedCompletion: 'Estimated completion',
+  analysisTypeNotSupported: 'Analysis type not supported for this evidence',
+  selectAnalysisType: 'Select analysis type',
+  supportedAnalyses: 'Supported analyses',
+  
+  // Analysis types
+  dnaAnalysis: 'DNA Analysis',
+  fingerprintAnalysis: 'Fingerprint Analysis',
+  digitalForensics: 'Digital Forensics',
+  ballisticsAnalysis: 'Ballistics Analysis',
+  toxicologyAnalysis: 'Toxicology Analysis',
+  handwritingAnalysis: 'Handwriting Analysis',
+  voiceAnalysis: 'Voice Analysis',
+  traceAnalysis: 'Trace Analysis',
+  generalAnalysis: 'General Analysis',
+  
+  // Case processing
+  caseProcessing: 'Case Processing',
+  processingAllCases: 'Processing all cases',
+  processingCase: 'Processing case',
+  caseProcessed: 'Case processed successfully',
+  caseAlreadyProcessed: 'Case has already been processed',
+  processingStatus: 'Processing status',
+  
+  // Rank-based access
+  accessDenied: 'Access denied',
+  insufficientRank: 'Insufficient rank',
+  rankRequired: 'Required rank',
+  yourRank: 'Your rank',
+  availableForYourRank: 'Available for your rank',
 };

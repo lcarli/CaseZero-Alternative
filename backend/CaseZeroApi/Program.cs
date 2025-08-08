@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using AspNetCoreRateLimit;
 using CaseZeroApi.Data;
 using CaseZeroApi.Models;
 using CaseZeroApi.Services;
@@ -67,11 +68,56 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Configure Rate Limiting
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(options =>
+{
+    options.EnableEndpointRateLimiting = true;
+    options.StackBlockedRequests = false;
+    options.HttpStatusCode = 429;
+    options.RealIpHeader = "X-Real-IP";
+    options.ClientIdHeader = "X-ClientId";
+    options.GeneralRules = new List<RateLimitRule>
+    {
+        new RateLimitRule
+        {
+            Endpoint = "*",
+            Period = "1m",
+            Limit = 60, // 60 requests per minute
+        },
+        new RateLimitRule
+        {
+            Endpoint = "*/api/auth/*",
+            Period = "15m", 
+            Limit = 5, // 5 authentication attempts per 15 minutes
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:*/api/auth/login",
+            Period = "5m",
+            Limit = 3, // 3 login attempts per 5 minutes
+        }
+    };
+});
+
+builder.Services.Configure<IpRateLimitPolicies>(options =>
+{
+    options.IpRules = new List<IpRateLimitPolicy>();
+});
+
+builder.Services.AddInMemoryRateLimiting();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<DataSeedingService>();
 builder.Services.AddScoped<ICaseObjectService, CaseObjectService>();
+builder.Services.AddScoped<ICaseAccessService, CaseAccessService>();
+builder.Services.AddScoped<ICaseProcessingService, CaseProcessingService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+
+// Register background services
+builder.Services.AddHostedService<CaseProcessingBackgroundService>();
 
 // Configure Email Settings
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
@@ -89,7 +135,34 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Security Headers Middleware
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+    context.Response.Headers["Content-Security-Policy"] = 
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'";
+    
+    if (context.Request.IsHttps || app.Environment.IsDevelopment())
+    {
+        context.Response.Headers["Strict-Transport-Security"] = 
+            "max-age=31536000; includeSubDomains";
+    }
+    
+    await next();
+});
+
+// Force HTTPS in production
+if (app.Environment.IsProduction())
+{
+    app.UseHttpsRedirection();
+    app.UseHsts();
+}
+
+// Rate limiting middleware
+app.UseIpRateLimiting();
 
 app.UseCors("AllowFrontend");
 

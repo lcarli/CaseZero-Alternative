@@ -6,6 +6,34 @@ Este documento apresenta uma análise detalhada das futuras funcionalidades que 
 
 ---
 
+## ✅ Features Recentemente Implementadas
+
+### Sistema de Controle de Acesso por Rank
+- [x] **Filtragem de Casos por Rank**: API lista apenas casos acessíveis ao rank do jogador - **IMPLEMENTADO**
+- [x] **Verificação de Acesso**: Sistema de controle de acesso baseado em rank do detetive - **IMPLEMENTADO**
+
+### Gerenciamento de Evidências
+- [x] **API de Visibilidade de Evidências**: Endpoint para alteração de status de visibilidade - **IMPLEMENTADO**
+- [x] **Instâncias de Caso por Usuário**: Preparação para cópias personalizadas de casos - **IMPLEMENTADO**
+- [x] **Evidências Visíveis para Análise Forense**: Sistema que lista apenas evidências visíveis - **IMPLEMENTADO**
+
+### Processamento Automático de Casos
+- [x] **Serviço de Processamento de Casos**: Monitora pasta de casos e processa automaticamente - **IMPLEMENTADO**
+- [x] **Prevenção de Duplicatas**: Sistema garante que casos não sejam inseridos mais de uma vez - **IMPLEMENTADO**
+- [x] **Configuração Blob/Local**: Variável de ambiente para escolher entre pasta local ou blob storage - **IMPLEMENTADO**
+
+### Melhorias de Segurança
+- [x] **Rate Limiting**: Proteção contra ataques de força bruta configurável - **IMPLEMENTADO**
+- [x] **HTTPS Obrigatório**: Forçar HTTPS em produção - **IMPLEMENTADO**
+- [x] **Security Headers**: Headers de segurança (CSP, HSTS, X-Frame-Options, etc.) - **IMPLEMENTADO**
+
+### Sistema de Análise Forense Aprimorado
+- [x] **Análise Forense Baseada em Tempo**: Sistema de entrega de resultados com tempo configurável - **IMPLEMENTADO**
+- [x] **Análises por Tipo de Evidência**: Diferentes análises suportadas por categoria - **IMPLEMENTADO**
+- [x] **Sistema de Email para Análises**: Preparação para notificações de resultados - **IMPLEMENTADO**
+
+---
+
 ## 🎯 Features de Realismo e Imersão
 
 ### 1. Sistema de Investigação Avançado
@@ -80,7 +108,7 @@ Este documento apresenta uma análise detalhada das futuras funcionalidades que 
 - [ ] **Multi-Factor Authentication (MFA)**: Autenticação em duas etapas
 - [ ] **Single Sign-On (SSO)**: Integração com provedores corporativos
 - [ ] **Gestão de Sessões**: Controle rigoroso de sessões ativas
-- [ ] **Rate Limiting**: Proteção contra ataques de força bruta
+- [x] **Rate Limiting**: Proteção contra ataques de força bruta - **IMPLEMENTADO**
 - [ ] **Audit Logs**: Log detalhado de todas as operações sensíveis
 
 ### 10. Proteção de Dados
@@ -93,8 +121,8 @@ Este documento apresenta uma análise detalhada das futuras funcionalidades que 
 ### 11. Segurança de Infraestrutura
 - [ ] **Container Security**: Scanning de vulnerabilidades em containers
 - [ ] **Dependency Scanning**: Verificação de vulnerabilidades em dependências
-- [ ] **HTTPS Everywhere**: Força uso de HTTPS em toda comunicação
-- [ ] **Security Headers**: Implementação de headers de segurança adequados
+- [x] **HTTPS Everywhere**: Força uso de HTTPS em toda comunicação - **IMPLEMENTADO**
+- [x] **Security Headers**: Implementação de headers de segurança adequados - **IMPLEMENTADO**
 - [ ] **OWASP Compliance**: Conformidade com OWASP Top 10
 
 ---

@@ -221,6 +221,52 @@ export interface Translations {
   requestRegistrationBtn2: string;
   institutionalEmailInfo: string;
   useInstitutionalLogin: string;
+  
+  // Evidence visibility and forensics
+  evidenceVisibility: string;
+  visibleEvidences: string;
+  hiddenEvidences: string;
+  makeVisible: string;
+  makeHidden: string;
+  visibilityUpdated: string;
+  forensicAnalysisTitle: string;
+  requestAnalysis: string;
+  analysisType: string;
+  analysisInProgress: string;
+  analysisCompleted: string;
+  analysisResults: string;
+  noAnalysisAvailable: string;
+  timeBasedAnalysis: string;
+  estimatedCompletion: string;
+  analysisTypeNotSupported: string;
+  selectAnalysisType: string;
+  supportedAnalyses: string;
+  
+  // Analysis types
+  dnaAnalysis: string;
+  fingerprintAnalysis: string;
+  digitalForensics: string;
+  ballisticsAnalysis: string;
+  toxicologyAnalysis: string;
+  handwritingAnalysis: string;
+  voiceAnalysis: string;
+  traceAnalysis: string;
+  generalAnalysis: string;
+  
+  // Case processing
+  caseProcessing: string;
+  processingAllCases: string;
+  processingCase: string;
+  caseProcessed: string;
+  caseAlreadyProcessed: string;
+  processingStatus: string;
+  
+  // Rank-based access
+  accessDenied: string;
+  insufficientRank: string;
+  rankRequired: string;
+  yourRank: string;
+  availableForYourRank: string;
 }
 
 export const SUPPORTED_LANGUAGES: Language[] = [

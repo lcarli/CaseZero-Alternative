@@ -16,12 +16,18 @@ namespace CaseZeroApi.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ICaseObjectService _caseObjectService;
+        private readonly ICaseAccessService _caseAccessService;
         private readonly ILogger<CasesController> _logger;
 
-        public CasesController(ApplicationDbContext context, ICaseObjectService caseObjectService, ILogger<CasesController> logger)
+        public CasesController(
+            ApplicationDbContext context, 
+            ICaseObjectService caseObjectService,
+            ICaseAccessService caseAccessService,
+            ILogger<CasesController> logger)
         {
             _context = context;
             _caseObjectService = caseObjectService;
+            _caseAccessService = caseAccessService;
             _logger = logger;
         }
 
@@ -34,48 +40,64 @@ namespace CaseZeroApi.Controllers
                 return Unauthorized();
             }
 
-            var userCases = await _context.UserCases
-                .Where(uc => uc.UserId == userId)
-                .Include(uc => uc.Case)
-                .ThenInclude(c => c.UserCases)
-                .ThenInclude(uc => uc.User)
-                .Include(uc => uc.Case)
-                .ThenInclude(c => c.CaseProgresses.Where(cp => cp.UserId == userId))
-                .Select(uc => new CaseDto
-                {
-                    Id = uc.Case.Id,
-                    Title = uc.Case.Title,
-                    Description = uc.Case.Description,
-                    Status = uc.Case.Status,
-                    Priority = uc.Case.Priority,
-                    CreatedAt = uc.Case.CreatedAt,
-                    ClosedAt = uc.Case.ClosedAt,
-                    AssignedUsers = uc.Case.UserCases.Select(uc2 => new UserDto
-                    {
-                        Id = uc2.User.Id,
-                        FirstName = uc2.User.FirstName,
-                        LastName = uc2.User.LastName,
-                        Email = uc2.User.Email!,
-                        PersonalEmail = uc2.User.PersonalEmail,
-                        Department = uc2.User.Department,
-                        Position = uc2.User.Position,
-                        BadgeNumber = uc2.User.BadgeNumber,
-                        EmailVerified = uc2.User.EmailVerified
-                    }).ToList(),
-                    UserProgress = uc.Case.CaseProgresses.FirstOrDefault() != null ? new CaseProgressDto
-                    {
-                        UserId = uc.Case.CaseProgresses.First().UserId,
-                        CaseId = uc.Case.CaseProgresses.First().CaseId,
-                        EvidencesCollected = uc.Case.CaseProgresses.First().EvidencesCollected,
-                        InterviewsCompleted = uc.Case.CaseProgresses.First().InterviewsCompleted,
-                        ReportsSubmitted = uc.Case.CaseProgresses.First().ReportsSubmitted,
-                        LastActivity = uc.Case.CaseProgresses.First().LastActivity,
-                        CompletionPercentage = uc.Case.CaseProgresses.First().CompletionPercentage
-                    } : null
-                })
-                .ToListAsync();
+            // Get cases filtered by user rank using new service
+            var availableCaseIds = await _caseAccessService.GetAvailableCasesForUserAsync(userId);
+            var cases = new List<CaseDto>();
 
-            return Ok(userCases);
+            foreach (var caseId in availableCaseIds)
+            {
+                try
+                {
+                    var caseObject = await _caseObjectService.LoadCaseObjectAsync(caseId);
+                    if (caseObject?.Metadata != null)
+                    {
+                        // Get user case data if exists
+                        var userCase = await _context.UserCases
+                            .Where(uc => uc.UserId == userId && uc.CaseId == caseId)
+                            .Include(uc => uc.Case)
+                            .ThenInclude(c => c.CaseProgresses.Where(cp => cp.UserId == userId))
+                            .FirstOrDefaultAsync();
+
+                        var caseDto = new CaseDto
+                        {
+                            Id = caseId,
+                            Title = caseObject.Metadata.Title,
+                            Description = caseObject.Metadata.Description,
+                            Status = userCase?.Case?.Status ?? CaseStatus.Open,
+                            Priority = GetPriorityFromDifficulty(caseObject.Metadata.Difficulty),
+                            CreatedAt = caseObject.Metadata.StartDateTime,
+                            Location = caseObject.Metadata.Location,
+                            IncidentDate = caseObject.Metadata.IncidentDateTime,
+                            BriefingText = caseObject.Metadata.Briefing,
+                            EstimatedDifficultyLevel = caseObject.Metadata.Difficulty,
+                            MinimumRankRequired = Enum.TryParse<DetectiveRank>(caseObject.Metadata.MinRankRequired, true, out var rank) ? rank : DetectiveRank.Rook,
+                            UserProgress = userCase?.Case?.CaseProgresses.FirstOrDefault() != null ? new CaseProgressDto
+                            {
+                                UserId = userCase.Case.CaseProgresses.First().UserId,
+                                CaseId = userCase.Case.CaseProgresses.First().CaseId,
+                                EvidencesCollected = userCase.Case.CaseProgresses.First().EvidencesCollected,
+                                InterviewsCompleted = userCase.Case.CaseProgresses.First().InterviewsCompleted,
+                                ReportsSubmitted = userCase.Case.CaseProgresses.First().ReportsSubmitted,
+                                LastActivity = userCase.Case.CaseProgresses.First().LastActivity,
+                                CompletionPercentage = userCase.Case.CaseProgresses.First().CompletionPercentage
+                            } : null,
+                            AssignedUsers = new List<UserDto>(),
+                            Evidences = new List<EvidenceDto>(),
+                            Suspects = new List<SuspectDto>()
+                        };
+                        
+                        cases.Add(caseDto);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to load case {CaseId} for user {UserId}", caseId, userId);
+                    // Continue with other cases
+                }
+            }
+
+            _logger.LogInformation("Returned {Count} cases for user {UserId}", cases.Count, userId);
+            return Ok(cases);
         }
 
         [HttpGet("{id}")]
@@ -315,8 +337,8 @@ namespace CaseZeroApi.Controllers
             if (user == null)
                 return Unauthorized();
 
-            // Get available cases from filesystem
-            var availableCaseIds = await _caseObjectService.GetAvailableCasesAsync();
+            // Get available cases from filesystem filtered by user rank
+            var availableCaseIds = await _caseAccessService.GetAvailableCasesForUserAsync(userId);
             var cases = new List<CaseDto>();
 
             foreach (var caseId in availableCaseIds)
