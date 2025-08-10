@@ -9,6 +9,7 @@ import RegisterPage from './pages/RegisterPage'
 import EmailVerificationPage from './pages/EmailVerificationPage'
 import DashboardPage from './pages/DashboardPage'
 import DesktopPage from './pages/DesktopPage'
+import GenerateCasePage from './pages/GenerateCasePage'
 
 function App() {
   return (
@@ -26,6 +27,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <DashboardPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/generate-case" 
+                element={
+                  <ProtectedRoute>
+                    <GenerateCasePage />
                   </ProtectedRoute>
                 } 
               />

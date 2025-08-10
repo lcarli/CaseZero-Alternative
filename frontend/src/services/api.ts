@@ -109,6 +109,26 @@ export interface GeneratePoliceEmailResponse {
   policeEmail: string
 }
 
+export interface GenerateCaseRequest {
+  title: string
+  location: string
+  incidentDateTime: string
+  pitch: string
+  twist: string
+  difficulty?: string
+  targetDurationMinutes?: number
+  constraints?: string
+  timezone?: string
+  generateImages?: boolean
+}
+
+export interface CasePackage {
+  caseJson: string
+  generatedDocs: any[]
+  imagePrompts: any[]
+  evidenceManifest: any
+}
+
 class ApiError extends Error {
   public status: number
   
@@ -283,6 +303,23 @@ export const caseObjectApi = {
     const url = `${API_BASE_URL}/caseobject/${caseId}/files/${fileName}`
     // For images, we can return the URL directly since the browser will handle authentication
     return token ? `${url}?token=${token}` : url
+  }
+}
+
+// Case Generation API
+export const caseGenerationApi = {
+  generateCase: async (request: GenerateCaseRequest): Promise<CasePackage> => {
+    return apiFetch('/casegeneration/generate', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
+  },
+  
+  generateCaseJson: async (request: GenerateCaseRequest): Promise<{ caseJson: string }> => {
+    return apiFetch('/casegeneration/generate-json', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
   }
 }
 

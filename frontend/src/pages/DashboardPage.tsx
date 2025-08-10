@@ -280,6 +280,8 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const loadDashboard = async () => {
+      setIsLoading(true)
+      setError('')
       try {
         const data = await casesApi.getDashboard()
         setDashboard(data)
@@ -292,7 +294,7 @@ const DashboardPage = () => {
     }
 
     loadDashboard()
-  }, [])
+  }, [t]) // Adding t as dependency to refresh when language changes, and will also refresh on mount
 
   const handleLogout = () => {
     logout()
@@ -401,9 +403,14 @@ const DashboardPage = () => {
           <Card>
             <CardHeader>
               <h3>📁 {t('availableCases')}</h3>
-              <Button onClick={() => navigate('/desktop')}>
-                {t('openWorkspace')}
-              </Button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <Button onClick={() => navigate('/generate-case')}>
+                  {t('generateCase')}
+                </Button>
+                <Button onClick={() => navigate('/desktop')}>
+                  {t('openWorkspace')}
+                </Button>
+              </div>
             </CardHeader>
             <CaseList>
               {dashboard.cases.map(case_ => (
