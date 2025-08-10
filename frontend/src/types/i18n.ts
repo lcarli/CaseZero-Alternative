@@ -267,6 +267,31 @@ export interface Translations {
   rankRequired: string;
   yourRank: string;
   availableForYourRank: string;
+  
+  // Generate Case
+  generateCase: string;
+  generateNewCase: string;
+  caseGeneration: string;
+  caseLocation: string;
+  incidentDateTime: string;
+  casePitch: string;
+  caseTwist: string;
+  caseDifficulty: string;
+  targetDuration: string;
+  constraints: string;
+  timezone: string;
+  generateImages: string;
+  generateCaseBtn: string;
+  generatingCase: string;
+  caseGeneratedSuccess: string;
+  caseGenerationError: string;
+  fillRequiredFields: string;
+  easy: string;
+  medium: string;
+  hard: string;
+  caseGenerationForm: string;
+  caseGenerationDesc: string;
+  backToDashboard: string;
 }
 
 export const SUPPORTED_LANGUAGES: Language[] = [
