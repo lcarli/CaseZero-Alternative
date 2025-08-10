@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import styled from 'styled-components'
 import { useLanguage } from '../hooks/useLanguageContext'
 import { caseGenerationApi } from '../services/api'
-import type { GenerateCaseRequest } from '../services/api'
+import type { SimpleCaseRequest } from '../services/api'
 import LanguageSelector from '../components/LanguageSelector'
 
 const PageContainer = styled.div`
@@ -84,132 +84,88 @@ const FormDescription = styled.p`
   margin-bottom: 2rem;
   line-height: 1.6;
   text-align: center;
+  font-size: 1.1rem;
 `
 
-const FormGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
+const FormGroup = styled.div`
   margin-bottom: 2rem;
-  
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
 `
 
 const FormField = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  
-  &.full-width {
-    grid-column: 1 / -1;
-  }
+  gap: 0.8rem;
+  margin-bottom: 1.5rem;
 `
 
 const Label = styled.label`
   color: rgba(52, 152, 219, 0.9);
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 1rem;
 `
 
-const Input = styled.input`
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 0.5rem;
-  color: white;
+const HelpText = styled.p`
+  color: rgba(255, 255, 255, 0.6);
   font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.4;
+`
+
+const DifficultyOption = styled.div`
+  padding: 1rem;
+  margin: 0.5rem 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.75rem;
+  cursor: pointer;
   transition: all 0.3s ease;
   
-  &:focus {
-    outline: none;
-    border-color: rgba(52, 152, 219, 0.7);
+  &:hover {
     background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(52, 152, 219, 0.5);
   }
   
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+  &.selected {
+    background: rgba(52, 152, 219, 0.2);
+    border-color: rgba(52, 152, 219, 0.8);
   }
 `
 
-const TextArea = styled.textarea`
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 0.5rem;
+const DifficultyTitle = styled.h3`
+  margin: 0 0 0.5rem 0;
   color: white;
-  font-size: 0.9rem;
-  min-height: 100px;
-  resize: vertical;
-  font-family: inherit;
-  transition: all 0.3s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgba(52, 152, 219, 0.7);
-    background: rgba(255, 255, 255, 0.15);
-  }
-  
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.5);
-  }
+  font-size: 1.1rem;
 `
 
-const Select = styled.select`
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 0.5rem;
-  color: white;
+const DifficultyDescription = styled.p`
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
   font-size: 0.9rem;
-  transition: all 0.3s ease;
-  
-  &:focus {
-    outline: none;
-    border-color: rgba(52, 152, 219, 0.7);
-    background: rgba(255, 255, 255, 0.15);
-  }
-  
-  option {
-    background: #1a2140;
-    color: white;
-  }
-`
-
-const CheckboxField = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  
-  input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    accent-color: rgba(52, 152, 219, 0.9);
-  }
+  line-height: 1.4;
 `
 
 const Button = styled.button`
-  padding: 0.75rem 2rem;
+  padding: 1rem 2rem;
   background: linear-gradient(135deg, #3498db, #2980b9);
   border: none;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   color: white;
   cursor: pointer;
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: 1.1rem;
+  font-weight: 600;
   transition: all 0.3s ease;
   width: 100%;
+  margin-top: 1rem;
   
   &:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
   }
   
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    transform: none;
   }
 `
 
@@ -239,29 +195,28 @@ const GenerateCasePage = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('Medium')
 
-  const [formData, setFormData] = useState<GenerateCaseRequest>({
-    title: '',
-    location: '',
-    incidentDateTime: '',
-    pitch: '',
-    twist: '',
-    difficulty: 'Medium',
-    targetDurationMinutes: 60,
-    constraints: '',
-    timezone: 'America/Toronto',
-    generateImages: true
-  })
+  const difficultyOptions = [
+    {
+      value: 'Easy',
+      title: t('easy'),
+      description: 'Perfect for beginners. Clear evidence, straightforward investigation. Duration: ~45 minutes.'
+    },
+    {
+      value: 'Medium', 
+      title: t('medium'),
+      description: 'Balanced complexity. Multiple suspects, some red herrings. Duration: ~75 minutes.'
+    },
+    {
+      value: 'Hard',
+      title: t('hard'),
+      description: 'Advanced investigation. Complex motives, scarce evidence. Duration: ~120 minutes.'
+    }
+  ]
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target
-    
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : 
-              name === 'targetDurationMinutes' ? parseInt(value) || 0 : 
-              value
-    }))
+  const handleDifficultySelect = (difficulty: string) => {
+    setSelectedDifficulty(difficulty)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -269,8 +224,7 @@ const GenerateCasePage = () => {
     setError('')
     setSuccessMessage('')
 
-    // Validate required fields
-    if (!formData.title || !formData.location || !formData.incidentDateTime || !formData.pitch || !formData.twist) {
+    if (!selectedDifficulty) {
       setError(t('fillRequiredFields'))
       return
     }
@@ -278,7 +232,11 @@ const GenerateCasePage = () => {
     setIsLoading(true)
 
     try {
-      await caseGenerationApi.generateCase(formData)
+      const request: SimpleCaseRequest = {
+        difficulty: selectedDifficulty
+      }
+      
+      await caseGenerationApi.generateSimpleCase(request)
       setSuccessMessage(t('caseGeneratedSuccess'))
       
       // After successful generation, redirect back to dashboard
@@ -310,130 +268,30 @@ const GenerateCasePage = () => {
 
       <FormContainer>
         <FormDescription>
-          {t('caseGenerationDesc')}
+          {t('caseGenerationSimpleDesc')}
         </FormDescription>
 
         {error && <ErrorMessage>{error}</ErrorMessage>}
         {successMessage && <SuccessMessage>{successMessage}</SuccessMessage>}
 
         <form onSubmit={handleSubmit}>
-          <FormGrid>
+          <FormGroup>
             <FormField>
-              <Label>{t('caseTitle')} *</Label>
-              <Input
-                type="text"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                placeholder={t('caseTitle')}
-                required
-              />
+              <Label>{t('selectDifficulty')}</Label>
+              <HelpText>{t('difficultyHelpText')}</HelpText>
+              
+              {difficultyOptions.map((option) => (
+                <DifficultyOption 
+                  key={option.value}
+                  className={selectedDifficulty === option.value ? 'selected' : ''}
+                  onClick={() => handleDifficultySelect(option.value)}
+                >
+                  <DifficultyTitle>{option.title}</DifficultyTitle>
+                  <DifficultyDescription>{option.description}</DifficultyDescription>
+                </DifficultyOption>
+              ))}
             </FormField>
-
-            <FormField>
-              <Label>{t('caseLocation')} *</Label>
-              <Input
-                type="text"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                placeholder={t('caseLocation')}
-                required
-              />
-            </FormField>
-
-            <FormField>
-              <Label>{t('incidentDateTime')} *</Label>
-              <Input
-                type="datetime-local"
-                name="incidentDateTime"
-                value={formData.incidentDateTime}
-                onChange={handleInputChange}
-                required
-              />
-            </FormField>
-
-            <FormField>
-              <Label>{t('caseDifficulty')}</Label>
-              <Select
-                name="difficulty"
-                value={formData.difficulty}
-                onChange={handleInputChange}
-              >
-                <option value="Easy">{t('easy')}</option>
-                <option value="Medium">{t('medium')}</option>
-                <option value="Hard">{t('hard')}</option>
-              </Select>
-            </FormField>
-
-            <FormField>
-              <Label>{t('targetDuration')}</Label>
-              <Input
-                type="number"
-                name="targetDurationMinutes"
-                value={formData.targetDurationMinutes}
-                onChange={handleInputChange}
-                min="30"
-                max="240"
-                step="15"
-              />
-            </FormField>
-
-            <FormField>
-              <Label>{t('timezone')}</Label>
-              <Input
-                type="text"
-                name="timezone"
-                value={formData.timezone}
-                onChange={handleInputChange}
-                placeholder="America/Toronto"
-              />
-            </FormField>
-
-            <FormField className="full-width">
-              <Label>{t('casePitch')} *</Label>
-              <TextArea
-                name="pitch"
-                value={formData.pitch}
-                onChange={handleInputChange}
-                placeholder={t('casePitch')}
-                required
-              />
-            </FormField>
-
-            <FormField className="full-width">
-              <Label>{t('caseTwist')} *</Label>
-              <TextArea
-                name="twist"
-                value={formData.twist}
-                onChange={handleInputChange}
-                placeholder={t('caseTwist')}
-                required
-              />
-            </FormField>
-
-            <FormField className="full-width">
-              <Label>{t('constraints')}</Label>
-              <TextArea
-                name="constraints"
-                value={formData.constraints}
-                onChange={handleInputChange}
-                placeholder={t('constraints')}
-              />
-            </FormField>
-
-            <FormField className="full-width">
-              <CheckboxField>
-                <input
-                  type="checkbox"
-                  name="generateImages"
-                  checked={formData.generateImages}
-                  onChange={handleInputChange}
-                />
-                <Label>{t('generateImages')}</Label>
-              </CheckboxField>
-            </FormField>
-          </FormGrid>
+          </FormGroup>
 
           <Button type="submit" disabled={isLoading}>
             {isLoading ? t('generatingCase') : t('generateCaseBtn')}

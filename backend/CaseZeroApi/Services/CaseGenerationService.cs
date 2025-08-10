@@ -93,7 +93,6 @@ namespace CaseZeroApi.Services
                 ChatMsg.User(user)
             }, new ChatParams
             {
-                Temperature = 0.6,
                 MaxTokens = 4000,
                 ResponseFormat = ChatResponseFormat.JsonObject // tentamos JSON estrito; o cliente faz fallback se não suportado
             }, ct);
@@ -114,7 +113,6 @@ namespace CaseZeroApi.Services
                 var user = PromptLibrary.UserInterrogatorio(ctx, sid);
                 var content = await _llm.ChatAsync(new[] { ChatMsg.System(sys), ChatMsg.User(user) }, new ChatParams
                 {
-                    Temperature = 0.4,
                     MaxTokens = 8000
                 }, ct);
 
@@ -135,7 +133,6 @@ namespace CaseZeroApi.Services
             var user = PromptLibrary.UserRelatorio(ctx);
             var content = await _llm.ChatAsync(new[] { ChatMsg.System(sys), ChatMsg.User(user) }, new ChatParams
             {
-                Temperature = 0.3,
                 MaxTokens = 6000
             }, ct);
 
@@ -167,7 +164,6 @@ namespace CaseZeroApi.Services
                 var user = PromptLibrary.UserLaudo(ctx, id, tema);
                 var content = await _llm.ChatAsync(new[] { ChatMsg.System(sys), ChatMsg.User(user) }, new ChatParams
                 {
-                    Temperature = 0.2,
                     MaxTokens = 5500
                 }, ct);
 
@@ -189,7 +185,6 @@ namespace CaseZeroApi.Services
             var user = PromptLibrary.UserEvidences(ctx);
             var content = await _llm.ChatAsync(new[] { ChatMsg.System(sys), ChatMsg.User(user) }, new ChatParams
             {
-                Temperature = 0.2,
                 MaxTokens = 4000
             }, ct);
 
@@ -208,7 +203,6 @@ namespace CaseZeroApi.Services
             var user = PromptLibrary.UserImagePrompts(ctx);
             var content = await _llm.ChatAsync(new[] { ChatMsg.System(sys), ChatMsg.User(user) }, new ChatParams
             {
-                Temperature = 0.7,
                 MaxTokens = 4500
             }, ct);
 
