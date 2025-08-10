@@ -286,6 +286,9 @@ export const enUS: Translations = {
   medium: 'Medium',
   hard: 'Hard',
   caseGenerationForm: 'Case Generation Form',
-  caseGenerationDesc: 'Fill in the details below to generate a new investigation case using AI.',
+  caseGenerationDesc: 'Select the difficulty level and we\'ll generate a complete investigation case for you.',
+  caseGenerationSimpleDesc: 'Just choose a difficulty level and we\'ll create an engaging case with all the details.',
   backToDashboard: 'Back to Dashboard',
+  selectDifficulty: 'Select Case Difficulty',
+  difficultyHelpText: 'Choose the complexity level for your investigation case',
 };

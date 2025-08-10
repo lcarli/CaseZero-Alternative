@@ -122,6 +122,10 @@ export interface GenerateCaseRequest {
   generateImages?: boolean
 }
 
+export interface SimpleCaseRequest {
+  difficulty: string
+}
+
 export interface CasePackage {
   caseJson: string
   generatedDocs: any[]
@@ -317,6 +321,20 @@ export const caseGenerationApi = {
   
   generateCaseJson: async (request: GenerateCaseRequest): Promise<{ caseJson: string }> => {
     return apiFetch('/casegeneration/generate-json', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
+  },
+  
+  generateSimpleCase: async (request: SimpleCaseRequest): Promise<CasePackage> => {
+    return apiFetch('/casegeneration/generate-simple', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
+  },
+  
+  generateSimpleCaseJson: async (request: SimpleCaseRequest): Promise<{ caseJson: string }> => {
+    return apiFetch('/casegeneration/generate-simple-json', {
       method: 'POST',
       body: JSON.stringify(request)
     })

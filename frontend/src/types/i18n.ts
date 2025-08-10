@@ -291,7 +291,10 @@ export interface Translations {
   hard: string;
   caseGenerationForm: string;
   caseGenerationDesc: string;
+  caseGenerationSimpleDesc: string;
   backToDashboard: string;
+  selectDifficulty: string;
+  difficultyHelpText: string;
 }
 
 export const SUPPORTED_LANGUAGES: Language[] = [

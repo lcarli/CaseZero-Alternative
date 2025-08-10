@@ -24,13 +24,19 @@ namespace CaseZeroApi.Services
             var payload = new Dictionary<string, object?>
             {
                 ["messages"] = msgs,
-                ["temperature"] = p.Temperature,
-                ["max_tokens"] = p.MaxTokens,
+                ["max_completion_tokens"] = p.MaxTokens,
                 ["top_p"] = p.TopP,
                 ["frequency_penalty"] = p.FrequencyPenalty,
                 ["presence_penalty"] = p.PresencePenalty,
                 ["n"] = 1
             };
+
+            // Only add temperature if it's not the default value (1.0)
+            // Some models only support the default temperature value
+            if (Math.Abs(p.Temperature - 1.0) > 0.001)
+            {
+                payload["temperature"] = 1.0; // Force to default supported value
+            }
 
             if (p.ResponseFormat == ChatResponseFormat.JsonObject)
             {
@@ -89,7 +95,7 @@ namespace CaseZeroApi.Services
 
     public sealed class ChatParams
     {
-        public double Temperature { get; init; } = 0.2;
+        public double Temperature { get; init; } = 1.0; // Use default supported value
         public int MaxTokens { get; init; } = 2048;
         public double TopP { get; init; } = 1.0;
         public double FrequencyPenalty { get; init; } = 0.0;

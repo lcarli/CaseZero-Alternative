@@ -286,6 +286,9 @@ export const esES: Translations = {
   medium: 'Medio',
   hard: 'Difícil',
   caseGenerationForm: 'Formulario de Generación de Casos',
-  caseGenerationDesc: 'Complete los detalles a continuación para generar un nuevo caso de investigación usando IA.',
+  caseGenerationDesc: 'Seleccione el nivel de dificultad y generaremos un caso de investigación completo para usted.',
+  caseGenerationSimpleDesc: 'Solo elija un nivel de dificultad y crearemos un caso atractivo con todos los detalles.',
   backToDashboard: 'Volver al Panel',
+  selectDifficulty: 'Seleccionar Dificultad del Caso',
+  difficultyHelpText: 'Elija el nivel de complejidad para su caso de investigación',
 };

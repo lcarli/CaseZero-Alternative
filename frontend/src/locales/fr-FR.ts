@@ -286,6 +286,9 @@ export const frFR: Translations = {
   medium: 'Moyen',
   hard: 'Difficile',
   caseGenerationForm: 'Formulaire de Génération d\'Affaires',
-  caseGenerationDesc: 'Remplissez les détails ci-dessous pour générer une nouvelle affaire d\'enquête en utilisant l\'IA.',
+  caseGenerationDesc: 'Sélectionnez le niveau de difficulté et nous générerons une affaire d\'enquête complète pour vous.',
+  caseGenerationSimpleDesc: 'Choisissez simplement un niveau de difficulté et nous créerons une affaire captivante avec tous les détails.',
   backToDashboard: 'Retour au Tableau de Bord',
+  selectDifficulty: 'Sélectionner la Difficulté de l\'Affaire',
+  difficultyHelpText: 'Choisissez le niveau de complexité pour votre affaire d\'enquête',
 };
