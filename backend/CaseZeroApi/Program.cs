@@ -116,6 +116,22 @@ builder.Services.AddScoped<ICaseAccessService, CaseAccessService>();
 builder.Services.AddScoped<ICaseProcessingService, CaseProcessingService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 
+// Register AI Case Generation services
+builder.Services.AddHttpClient<LlmClient>();
+builder.Services.AddSingleton(serviceProvider =>
+{
+    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+    return new LlmOptions
+    {
+        Endpoint = configuration["AzureOpenAI:Endpoint"] ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured"),
+        Deployment = configuration["AzureOpenAI:Deployment"] ?? "gpt-4",
+        ApiVersion = configuration["AzureOpenAI:ApiVersion"] ?? "2024-02-15-preview",
+        ApiKey = configuration["AzureOpenAI:ApiKey"] ?? throw new InvalidOperationException("AzureOpenAI:ApiKey not configured"),
+        ApiKeyHeaderName = configuration["AzureOpenAI:ApiKeyHeaderName"] ?? "api-key"
+    };
+});
+builder.Services.AddScoped<ICaseGenerationService, CaseGenerationService>();
+
 // Register background services
 builder.Services.AddHostedService<CaseProcessingBackgroundService>();
 
