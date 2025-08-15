@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import styled from 'styled-components'
 import { useAuth } from '../hooks/useAuthContext'
 import { useLanguage } from '../hooks/useLanguageContext'
+import { useKeyboardShortcuts, useEscapeKey } from '../hooks/useKeyboardNavigation'
+import { useApiError } from '../utils/errorHandling'
+import { LoadingButton } from '../components/ui/LoadingComponents'
 import { ApiError } from '../services/api'
 import LanguageSelector from '../components/LanguageSelector'
 
@@ -117,30 +120,6 @@ const Input = styled.input`
   }
 `
 
-const Button = styled.button`
-  padding: 1rem;
-  font-size: 1rem;
-  font-weight: 600;
-  border: none;
-  border-radius: 0.5rem;
-  background: linear-gradient(135deg, #3498db, #2980b9);
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
-  }
-  
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
-`
-
 const Footer = styled.div`
   text-align: center;
   margin-top: 2rem;
@@ -209,12 +188,34 @@ const LoginPage = () => {
   const location = useLocation()
   const { login } = useAuth()
   const { t } = useLanguage()
+  const { handleError } = useApiError()
+  const formRef = useRef<HTMLFormElement>(null)
+  
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: 'Enter',
+      ctrlKey: true,
+      action: () => {
+        if (formRef.current) {
+          formRef.current.requestSubmit()
+        }
+      },
+      description: 'Submit form'
+    }
+  ])
+
+  // Clear error on escape
+  useEscapeKey(() => {
+    setError('')
+  })
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -241,7 +242,7 @@ const LoginPage = () => {
       if (err instanceof ApiError) {
         setError(err.message)
       } else {
-        setError('An unexpected error occurred. Please try again.')
+        setError(handleError(err))
       }
     } finally {
       setIsLoading(false)
@@ -265,8 +266,8 @@ const LoginPage = () => {
           <Subtitle>{t('metropolitanPoliceDept')}</Subtitle>
         </Header>
 
-        <Form onSubmit={handleSubmit}>
-          {error && <ErrorMessage>{error}</ErrorMessage>}
+        <Form ref={formRef} onSubmit={handleSubmit}>
+          {error && <ErrorMessage role="alert" aria-live="polite">{error}</ErrorMessage>}
           
           <FormGroup>
             <Label htmlFor="email">{t('emailOrId')}</Label>
@@ -278,6 +279,8 @@ const LoginPage = () => {
               value={formData.email}
               onChange={handleInputChange}
               required
+              aria-describedby={error ? "error-message" : undefined}
+              autoComplete="email"
             />
           </FormGroup>
 
@@ -291,12 +294,19 @@ const LoginPage = () => {
               value={formData.password}
               onChange={handleInputChange}
               required
+              aria-describedby={error ? "error-message" : undefined}
+              autoComplete="current-password"
             />
           </FormGroup>
 
-          <Button type="submit" disabled={isLoading}>
+          <LoadingButton 
+            type="submit" 
+            loading={isLoading}
+            disabled={!formData.email || !formData.password}
+            aria-label={isLoading ? t('authenticating') : t('enterSystem')}
+          >
             {isLoading ? t('authenticating') : t('enterSystem')}
-          </Button>
+          </LoadingButton>
         </Form>
 
         <Footer>

@@ -190,6 +190,42 @@ export interface Translations {
   registrationSent: string;
   unexpectedError: string;
   
+  // Error handling
+  networkError: string;
+  serverError: string;
+  notFoundError: string;
+  unauthorizedError: string;
+  forbiddenError: string;
+  validationError: string;
+  timeoutError: string;
+  genericError: string;
+  errorOccurred: string;
+  tryAgain: string;
+  
+  // Loading states
+  loadingData: string;
+  loadingCases: string;
+  loadingProfile: string;
+  processing: string;
+  saving: string;
+  uploading: string;
+  pleaseWait: string;
+  almostDone: string;
+  
+  // Offline support
+  offline: string;
+  online: string;
+  offlineMessage: string;
+  connectionRestored: string;
+  workingOffline: string;
+  
+  // Keyboard navigation
+  keyboardShortcuts: string;
+  pressEscToClose: string;
+  pressEnterToSelect: string;
+  useArrowKeys: string;
+  pressTabToNavigate: string;
+  
   // New landing page content
   digitalInterface: string;
   careerProgression: string;

@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import styled from 'styled-components'
+import { useRef } from 'react'
 import { useLanguage } from '../hooks/useLanguageContext'
+import { useKeyboardShortcuts } from '../hooks/useKeyboardNavigation'
 import LanguageSelector from './LanguageSelector'
 
 const NavContainer = styled.nav`
@@ -36,6 +38,12 @@ const Logo = styled(Link)`
   &:hover {
     color: rgba(52, 152, 219, 0.8);
   }
+  
+  &:focus {
+    outline: 2px solid rgba(52, 152, 219, 0.5);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
 `
 
 const LogoIcon = styled.span`
@@ -66,6 +74,11 @@ const NavButton = styled(Link)`
   display: inline-flex;
   align-items: center;
   
+  &:focus {
+    outline: 2px solid rgba(52, 152, 219, 0.5);
+    outline-offset: 2px;
+  }
+  
   &.primary {
     background: linear-gradient(135deg, #3498db, #2980b9);
     color: white;
@@ -95,24 +108,57 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ showAuth = true }) => {
   const { t } = useLanguage()
+  const navRef = useRef<HTMLElement>(null)
+  
+  // Keyboard shortcuts for navigation
+  useKeyboardShortcuts([
+    {
+      key: 'h',
+      altKey: true,
+      action: () => window.location.href = '/',
+      description: t('home')
+    },
+    {
+      key: 'd',
+      altKey: true,
+      action: () => window.location.href = '/dashboard',
+      description: t('dashboard')
+    },
+    {
+      key: 'l',
+      altKey: true,
+      action: () => window.location.href = '/login',
+      description: t('login')
+    }
+  ])
   
   return (
-    <NavContainer>
+    <NavContainer ref={navRef} role="navigation" aria-label="Main navigation">
       <NavContent>
-        <Logo to="/">
+        <Logo to="/" aria-label={`${t('home')} - CaseZero`}>
           <LogoIcon>🏛️</LogoIcon>
           CaseZero
         </Logo>
         
         {showAuth && (
-          <NavMenu>
+          <NavMenu role="menubar">
             <LanguageSelectorWrapper>
               <LanguageSelector />
             </LanguageSelectorWrapper>
-            <NavButton to="/login" className="secondary">
+            <NavButton 
+              to="/login" 
+              className="secondary"
+              role="menuitem"
+              aria-label={t('login')}
+            >
               {t('login')}
             </NavButton>
-            <NavButton to="/register" className="primary">
+            <NavButton 
+              to="/register" 
+              className="primary"
+              role="menuitem"
+              aria-label={t('register')}
+            >
               {t('register')}
             </NavButton>
           </NavMenu>

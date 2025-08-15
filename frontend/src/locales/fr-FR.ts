@@ -186,6 +186,42 @@ export const frFR: Translations = {
   registrationSent: 'Demande d\'inscription envoyée avec succès! Veuillez attendre l\'approbation de l\'administrateur.',
   unexpectedError: 'Erreur inattendue. Veuillez réessayer.',
   
+  // Error handling
+  networkError: 'Erreur réseau. Vérifiez votre connexion.',
+  serverError: 'Erreur interne du serveur. Réessayez plus tard.',
+  notFoundError: 'Ressource non trouvée.',
+  unauthorizedError: 'Accès refusé. Veuillez vous reconnecter.',
+  forbiddenError: 'Vous n\'avez pas l\'autorisation pour cette action.',
+  validationError: 'Données invalides. Vérifiez les champs.',
+  timeoutError: 'Délai d\'attente expiré. Veuillez réessayer.',
+  genericError: 'Quelque chose s\'est mal passé. Veuillez réessayer.',
+  errorOccurred: 'Une erreur s\'est produite',
+  tryAgain: 'Réessayer',
+  
+  // Loading states
+  loadingData: 'Chargement des données...',
+  loadingCases: 'Chargement des affaires...',
+  loadingProfile: 'Chargement du profil...',
+  processing: 'Traitement...',
+  saving: 'Sauvegarde...',
+  uploading: 'Téléchargement...',
+  pleaseWait: 'Veuillez patienter...',
+  almostDone: 'Presque terminé...',
+  
+  // Offline support
+  offline: 'Hors ligne',
+  online: 'En ligne',
+  offlineMessage: 'Vous êtes hors ligne. Certaines fonctionnalités peuvent être limitées.',
+  connectionRestored: 'Connexion restaurée !',
+  workingOffline: 'Travail hors ligne',
+  
+  // Keyboard navigation
+  keyboardShortcuts: 'Raccourcis clavier',
+  pressEscToClose: 'Appuyez sur Échap pour fermer',
+  pressEnterToSelect: 'Appuyez sur Entrée pour sélectionner',
+  useArrowKeys: 'Utilisez les flèches pour naviguer',
+  pressTabToNavigate: 'Appuyez sur Tab pour naviguer',
+  
   // New landing page content
   digitalInterface: 'Interface Numérique',
   careerProgression: 'Progression de Carrière',
