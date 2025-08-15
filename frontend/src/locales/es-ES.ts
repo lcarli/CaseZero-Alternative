@@ -186,6 +186,42 @@ export const esES: Translations = {
   registrationSent: '¡Solicitud de registro enviada exitosamente! Espere la aprobación del administrador.',
   unexpectedError: 'Error inesperado. Inténtelo de nuevo.',
   
+  // Error handling
+  networkError: 'Error de red. Verifique su conexión.',
+  serverError: 'Error interno del servidor. Inténtelo más tarde.',
+  notFoundError: 'Recurso no encontrado.',
+  unauthorizedError: 'Acceso denegado. Inicie sesión nuevamente.',
+  forbiddenError: 'No tiene permisos para esta acción.',
+  validationError: 'Datos inválidos. Verifique los campos.',
+  timeoutError: 'Tiempo de espera agotado. Inténtelo de nuevo.',
+  genericError: 'Algo salió mal. Inténtelo de nuevo.',
+  errorOccurred: 'Ocurrió un error',
+  tryAgain: 'Intentar de nuevo',
+  
+  // Loading states
+  loadingData: 'Cargando datos...',
+  loadingCases: 'Cargando casos...',
+  loadingProfile: 'Cargando perfil...',
+  processing: 'Procesando...',
+  saving: 'Guardando...',
+  uploading: 'Subiendo...',
+  pleaseWait: 'Por favor espere...',
+  almostDone: 'Casi terminado...',
+  
+  // Offline support
+  offline: 'Sin conexión',
+  online: 'Conectado',
+  offlineMessage: 'Está sin conexión. Algunas funciones pueden estar limitadas.',
+  connectionRestored: '¡Conexión restaurada!',
+  workingOffline: 'Trabajando sin conexión',
+  
+  // Keyboard navigation
+  keyboardShortcuts: 'Atajos de teclado',
+  pressEscToClose: 'Presione Esc para cerrar',
+  pressEnterToSelect: 'Presione Enter para seleccionar',
+  useArrowKeys: 'Use las flechas para navegar',
+  pressTabToNavigate: 'Presione Tab para navegar',
+  
   // New landing page content
   digitalInterface: 'Interfaz Digital',
   careerProgression: 'Progresión de Carrera',

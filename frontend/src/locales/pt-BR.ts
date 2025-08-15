@@ -186,6 +186,42 @@ export const ptBR: Translations = {
   registrationSent: 'Solicitação de registro enviada com sucesso! Aguarde aprovação do administrador.',
   unexpectedError: 'Erro inesperado. Tente novamente.',
   
+  // Error handling
+  networkError: 'Erro de conexão. Verifique sua internet.',
+  serverError: 'Erro interno do servidor. Tente novamente mais tarde.',
+  notFoundError: 'Recurso não encontrado.',
+  unauthorizedError: 'Acesso negado. Faça login novamente.',
+  forbiddenError: 'Você não tem permissão para esta ação.',
+  validationError: 'Dados inválidos. Verifique os campos.',
+  timeoutError: 'Tempo limite excedido. Tente novamente.',
+  genericError: 'Algo deu errado. Tente novamente.',
+  errorOccurred: 'Ocorreu um erro',
+  tryAgain: 'Tentar novamente',
+  
+  // Loading states
+  loadingData: 'Carregando dados...',
+  loadingCases: 'Carregando casos...',
+  loadingProfile: 'Carregando perfil...',
+  processing: 'Processando...',
+  saving: 'Salvando...',
+  uploading: 'Enviando...',
+  pleaseWait: 'Por favor, aguarde...',
+  almostDone: 'Quase pronto...',
+  
+  // Offline support
+  offline: 'Offline',
+  online: 'Online',
+  offlineMessage: 'Você está offline. Algumas funcionalidades podem estar limitadas.',
+  connectionRestored: 'Conexão restaurada!',
+  workingOffline: 'Trabalhando offline',
+  
+  // Keyboard navigation
+  keyboardShortcuts: 'Atalhos de teclado',
+  pressEscToClose: 'Pressione Esc para fechar',
+  pressEnterToSelect: 'Pressione Enter para selecionar',
+  useArrowKeys: 'Use as setas para navegar',
+  pressTabToNavigate: 'Pressione Tab para navegar',
+  
   // New landing page content
   digitalInterface: 'Interface Digital',
   careerProgression: 'Progressão na Carreira',

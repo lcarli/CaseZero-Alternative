@@ -186,6 +186,42 @@ export const enUS: Translations = {
   registrationSent: 'Registration request sent successfully! Please wait for administrator approval.',
   unexpectedError: 'Unexpected error. Please try again.',
   
+  // Error handling
+  networkError: 'Network error. Check your connection.',
+  serverError: 'Internal server error. Please try again later.',
+  notFoundError: 'Resource not found.',
+  unauthorizedError: 'Access denied. Please login again.',
+  forbiddenError: 'You do not have permission for this action.',
+  validationError: 'Invalid data. Please check the fields.',
+  timeoutError: 'Request timed out. Please try again.',
+  genericError: 'Something went wrong. Please try again.',
+  errorOccurred: 'An error occurred',
+  tryAgain: 'Try again',
+  
+  // Loading states
+  loadingData: 'Loading data...',
+  loadingCases: 'Loading cases...',
+  loadingProfile: 'Loading profile...',
+  processing: 'Processing...',
+  saving: 'Saving...',
+  uploading: 'Uploading...',
+  pleaseWait: 'Please wait...',
+  almostDone: 'Almost done...',
+  
+  // Offline support
+  offline: 'Offline',
+  online: 'Online',
+  offlineMessage: 'You are offline. Some features may be limited.',
+  connectionRestored: 'Connection restored!',
+  workingOffline: 'Working offline',
+  
+  // Keyboard navigation
+  keyboardShortcuts: 'Keyboard shortcuts',
+  pressEscToClose: 'Press Esc to close',
+  pressEnterToSelect: 'Press Enter to select',
+  useArrowKeys: 'Use arrow keys to navigate',
+  pressTabToNavigate: 'Press Tab to navigate',
+  
   // New landing page content
   digitalInterface: 'Digital Interface',
   careerProgression: 'Career Progression',
