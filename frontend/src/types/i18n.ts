@@ -331,6 +331,32 @@ export interface Translations {
   backToDashboard: string;
   selectDifficulty: string;
   difficultyHelpText: string;
+  
+  // Pinboard
+  pinboard: string;
+  detectivePinboard: string;
+  pinboardTitle: string;
+  addEvidence: string;
+  addNote: string;
+  addPhoto: string;
+  evidenceItem: string;
+  noteItem: string;
+  photoItem: string;
+  dragToOrganize: string;
+  connectEvidence: string;
+  clearBoard: string;
+  saveBoard: string;
+  loadBoard: string;
+  evidenceConnected: string;
+  evidenceDisconnected: string;
+  boardCleared: string;
+  boardSaved: string;
+  boardLoaded: string;
+  deleteItem: string;
+  editItem: string;
+  itemDeleted: string;
+  noItemsOnBoard: string;
+  dropHereToAdd: string;
 }
 
 export const SUPPORTED_LANGUAGES: Language[] = [

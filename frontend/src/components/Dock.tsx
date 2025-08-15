@@ -6,6 +6,7 @@ import Notebook from './apps/Notebook'
 import SubmitCase from './apps/SubmitCase'
 import Logs from './apps/Logs'
 import ForensicModule from './apps/ForensicModule'
+import Pinboard from './apps/Pinboard'
 import Clock from './Clock'
 
 const DockContainer = styled.div`
@@ -170,6 +171,12 @@ const Dock: React.FC<DockProps> = ({ onOpenWindow, onCaseDisconnect }) => {
       title: 'Notebook',
       icon: '📝',
       component: Notebook
+    },
+    {
+      id: 'pinboard',
+      title: 'Pinboard',
+      icon: '📌',
+      component: Pinboard
     },
     {
       id: 'submit-case',
