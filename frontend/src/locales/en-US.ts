@@ -303,6 +303,7 @@ export const enUS: Translations = {
   // Generate Case
   generateCase: 'Generate Case',
   generateNewCase: 'Generate New Case',
+  caseGeneratorAI: 'CASE GENERATOR AI',
   caseGeneration: 'Case Generation',
   caseLocation: 'Case Location',
   incidentDateTime: 'Incident Date & Time',
@@ -327,6 +328,27 @@ export const enUS: Translations = {
   backToDashboard: 'Back to Dashboard',
   selectDifficulty: 'Select Case Difficulty',
   difficultyHelpText: 'Choose the complexity level for your investigation case',
+  // Case Generator AI
+  caseGeneratorTitle: 'AI Case Generator',
+  caseGeneratorDescription: 'Generate realistic investigation cases using artificial intelligence. Watch the progress in real-time as the AI creates documents, evidence, and scenarios.',
+  startGeneration: 'Start Generation',
+  generationProgress: 'Generation Progress',
+  currentStep: 'Current Step',
+  estimatedTime: 'Estimated Time',
+  completed: 'Completed',
+  failed: 'Failed',
+  running: 'Running',
+  // Generation Steps
+  stepPlan: 'Planning case structure',
+  stepExpand: 'Expanding case details',
+  stepDesign: 'Designing investigation flow',
+  stepGenDocs: 'Generating documents',
+  stepGenMedia: 'Creating media assets',
+  stepNormalize: 'Normalizing content',
+  stepIndex: 'Indexing case data',
+  stepRuleValidate: 'Validating rules',
+  stepRedTeam: 'Quality assurance',
+  stepPackage: 'Packaging final case',
   
   // Pinboard
   pinboard: 'Pinboard',

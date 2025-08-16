@@ -307,6 +307,7 @@ export interface Translations {
   // Generate Case
   generateCase: string;
   generateNewCase: string;
+  caseGeneratorAI: string;
   caseGeneration: string;
   caseLocation: string;
   incidentDateTime: string;
@@ -331,6 +332,27 @@ export interface Translations {
   backToDashboard: string;
   selectDifficulty: string;
   difficultyHelpText: string;
+  // Case Generator AI
+  caseGeneratorTitle: string;
+  caseGeneratorDescription: string;
+  startGeneration: string;
+  generationProgress: string;
+  currentStep: string;
+  estimatedTime: string;
+  completed: string;
+  failed: string;
+  running: string;
+  // Generation Steps
+  stepPlan: string;
+  stepExpand: string;
+  stepDesign: string;
+  stepGenDocs: string;
+  stepGenMedia: string;
+  stepNormalize: string;
+  stepIndex: string;
+  stepRuleValidate: string;
+  stepRedTeam: string;
+  stepPackage: string;
   
   // Pinboard
   pinboard: string;

@@ -303,6 +303,7 @@ export const ptBR: Translations = {
   // Generate Case
   generateCase: 'Gerar Caso',
   generateNewCase: 'Gerar Novo Caso',
+  caseGeneratorAI: 'GERADOR DE CASOS IA',
   caseGeneration: 'Geração de Casos',
   caseLocation: 'Local do Caso',
   incidentDateTime: 'Data e Hora do Incidente',
@@ -327,6 +328,27 @@ export const ptBR: Translations = {
   backToDashboard: 'Voltar ao Painel',
   selectDifficulty: 'Selecionar Dificuldade do Caso',
   difficultyHelpText: 'Escolha o nível de complexidade para seu caso de investigação',
+  // Case Generator AI
+  caseGeneratorTitle: 'Gerador de Casos IA',
+  caseGeneratorDescription: 'Gere casos de investigação realistas usando inteligência artificial. Acompanhe o progresso em tempo real enquanto a IA cria documentos, evidências e cenários.',
+  startGeneration: 'Iniciar Geração',
+  generationProgress: 'Progresso da Geração',
+  currentStep: 'Etapa Atual',
+  estimatedTime: 'Tempo Estimado',
+  completed: 'Concluído',
+  failed: 'Falhou',
+  running: 'Executando',
+  // Generation Steps
+  stepPlan: 'Planejando estrutura do caso',
+  stepExpand: 'Expandindo detalhes do caso',
+  stepDesign: 'Projetando fluxo de investigação',
+  stepGenDocs: 'Gerando documentos',
+  stepGenMedia: 'Criando recursos de mídia',
+  stepNormalize: 'Normalizando conteúdo',
+  stepIndex: 'Indexando dados do caso',
+  stepRuleValidate: 'Validando regras',
+  stepRedTeam: 'Controle de qualidade',
+  stepPackage: 'Empacotando caso final',
   
   // Pinboard
   pinboard: 'Quadro de Investigação',

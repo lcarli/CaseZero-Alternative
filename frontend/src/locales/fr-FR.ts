@@ -303,6 +303,7 @@ export const frFR: Translations = {
   // Generate Case
   generateCase: 'Générer une Affaire',
   generateNewCase: 'Générer une Nouvelle Affaire',
+  caseGeneratorAI: 'GÉNÉRATEUR D\'AFFAIRES IA',
   caseGeneration: 'Génération d\'Affaires',
   caseLocation: 'Lieu de l\'Affaire',
   incidentDateTime: 'Date et Heure de l\'Incident',
@@ -327,6 +328,27 @@ export const frFR: Translations = {
   backToDashboard: 'Retour au Tableau de Bord',
   selectDifficulty: 'Sélectionner la Difficulté de l\'Affaire',
   difficultyHelpText: 'Choisissez le niveau de complexité pour votre affaire d\'enquête',
+  // Case Generator AI
+  caseGeneratorTitle: 'Générateur d\'Affaires IA',
+  caseGeneratorDescription: 'Générez des affaires d\'enquête réalistes en utilisant l\'intelligence artificielle. Suivez le progrès en temps réel pendant que l\'IA crée des documents, des preuves et des scénarios.',
+  startGeneration: 'Démarrer la Génération',
+  generationProgress: 'Progrès de Génération',
+  currentStep: 'Étape Actuelle',
+  estimatedTime: 'Temps Estimé',
+  completed: 'Terminé',
+  failed: 'Échoué',
+  running: 'En Cours',
+  // Generation Steps
+  stepPlan: 'Planification de la structure de l\'affaire',
+  stepExpand: 'Expansion des détails de l\'affaire',
+  stepDesign: 'Conception du flux d\'enquête',
+  stepGenDocs: 'Génération de documents',
+  stepGenMedia: 'Création de ressources médias',
+  stepNormalize: 'Normalisation du contenu',
+  stepIndex: 'Indexation des données de l\'affaire',
+  stepRuleValidate: 'Validation des règles',
+  stepRedTeam: 'Contrôle qualité',
+  stepPackage: 'Empaquetage de l\'affaire finale',
   
   // Pinboard
   pinboard: 'Tableau d\'Enquête',
