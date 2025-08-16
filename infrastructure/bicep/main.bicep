@@ -31,6 +31,9 @@ param enableApplicationInsights bool = true
 @description('Enable backup for production')
 param enableBackup bool = environment == 'prod'
 
+@description('Enable Case Generator Functions')
+param enableCaseGenerator bool = true
+
 var resourceNameSuffix = '-${environment}'
 var tags = {
   Environment: environment
@@ -298,6 +301,201 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   }
 }
 
+// Key Vault for secrets management
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = if (enableCaseGenerator) {
+  name: '${namePrefix}-kv${resourceNameSuffix}-${uniqueString(resourceGroup().id)}'
+  location: location
+  tags: tags
+  properties: {
+    sku: {
+      family: 'A'
+      name: 'standard'
+    }
+    tenantId: subscription().tenantId
+    enabledForDeployment: false
+    enabledForDiskEncryption: false
+    enabledForTemplateDeployment: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: environment == 'prod' ? 90 : 7
+    enableRbacAuthorization: true
+    publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      bypass: 'AzureServices'
+      defaultAction: 'Allow'
+    }
+  }
+}
+
+// Storage Account for Case Generator (enhanced)
+resource caseGeneratorStorage 'Microsoft.Storage/storageAccounts@2023-01-01' = if (enableCaseGenerator) {
+  name: '${namePrefix}genstr${environment}${uniqueString(resourceGroup().id)}'
+  location: location
+  tags: union(tags, { Purpose: 'CaseGenerator' })
+  sku: {
+    name: environment == 'prod' ? 'Standard_GRS' : 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    dnsEndpointType: 'Standard'
+    defaultToOAuthAuthentication: true
+    publicNetworkAccess: 'Enabled'
+    allowCrossTenantReplication: false
+    minimumTlsVersion: 'TLS1_2'
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: true
+    networkAcls: {
+      bypass: 'AzureServices'
+      virtualNetworkRules: []
+      ipRules: []
+      defaultAction: 'Allow'
+    }
+    supportsHttpsTrafficOnly: true
+    encryption: {
+      requireInfrastructureEncryption: false
+      services: {
+        file: {
+          keyType: 'Account'
+          enabled: true
+        }
+        blob: {
+          keyType: 'Account'
+          enabled: true
+        }
+        queue: {
+          keyType: 'Account'
+          enabled: true
+        }
+        table: {
+          keyType: 'Account'
+          enabled: true
+        }
+      }
+      keySource: 'Microsoft.Storage'
+    }
+    accessTier: 'Hot'
+  }
+}
+
+// Blob containers for Case Generator
+resource caseGeneratorBlobService 'Microsoft.Storage/storageAccounts/blobServices@2023-01-01' = if (enableCaseGenerator) {
+  parent: caseGeneratorStorage
+  name: 'default'
+  properties: {
+    deleteRetentionPolicy: {
+      enabled: true
+      days: environment == 'prod' ? 30 : 7
+    }
+    containerDeleteRetentionPolicy: {
+      enabled: true
+      days: environment == 'prod' ? 30 : 7
+    }
+  }
+}
+
+resource casesContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = if (enableCaseGenerator) {
+  parent: caseGeneratorBlobService
+  name: 'cases'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+resource bundlesContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = if (enableCaseGenerator) {
+  parent: caseGeneratorBlobService
+  name: 'bundles'
+  properties: {
+    publicAccess: 'None'
+  }
+}
+
+// Function App for Case Generator
+resource functionAppServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = if (enableCaseGenerator) {
+  name: '${namePrefix}-func-asp${resourceNameSuffix}'
+  location: location
+  tags: union(tags, { Purpose: 'CaseGenerator' })
+  sku: {
+    name: environment == 'prod' ? 'EP1' : 'Y1'  // Premium for prod, Consumption for dev
+    tier: environment == 'prod' ? 'ElasticPremium' : 'Dynamic'
+  }
+  properties: {
+    reserved: false // Windows
+    maximumElasticWorkerCount: environment == 'prod' ? 10 : 1
+  }
+  kind: 'functionapp'
+}
+
+resource functionApp 'Microsoft.Web/sites@2023-01-01' = if (enableCaseGenerator) {
+  name: '${namePrefix}-func${resourceNameSuffix}'
+  location: location
+  tags: union(tags, { Purpose: 'CaseGenerator' })
+  kind: 'functionapp'
+  properties: {
+    serverFarmId: functionAppServicePlan.id
+    httpsOnly: true
+    siteConfig: {
+      netFrameworkVersion: 'v8.0'
+      use32BitWorkerProcess: false
+      alwaysOn: environment == 'prod' ? true : false
+      ftpsState: 'Disabled'
+      minTlsVersion: '1.2'
+      scmMinTlsVersion: '1.2'
+      http20Enabled: true
+      functionAppScaleLimit: environment == 'prod' ? 0 : 200
+      minimumElasticInstanceCount: environment == 'prod' ? 1 : 0
+    }
+    clientAffinityEnabled: false
+    publicNetworkAccess: 'Enabled'
+  }
+  identity: {
+    type: 'SystemAssigned'
+  }
+}
+
+// Function App Configuration
+resource functionAppConfig 'Microsoft.Web/sites/config@2023-01-01' = if (enableCaseGenerator) {
+  parent: functionApp
+  name: 'appsettings'
+  properties: {
+    FUNCTIONS_EXTENSION_VERSION: '~4'
+    FUNCTIONS_WORKER_RUNTIME: 'dotnet-isolated'
+    WEBSITE_CONTENTAZUREFILECONNECTIONSTRING: 'DefaultEndpointsProtocol=https;AccountName=${caseGeneratorStorage.name};AccountKey=${caseGeneratorStorage.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
+    WEBSITE_CONTENTSHARE: '${functionApp.name}-content'
+    AzureWebJobsStorage: 'DefaultEndpointsProtocol=https;AccountName=${caseGeneratorStorage.name};AccountKey=${caseGeneratorStorage.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
+    WEBSITE_RUN_FROM_PACKAGE: '1'
+    ASPNETCORE_ENVIRONMENT: environment == 'prod' ? 'Production' : 'Development'
+    APPINSIGHTS_INSTRUMENTATIONKEY: enableApplicationInsights ? applicationInsights.properties.InstrumentationKey : ''
+    APPLICATIONINSIGHTS_CONNECTION_STRING: enableApplicationInsights ? applicationInsights.properties.ConnectionString : ''
+    // Case Generator specific settings
+    CaseGeneratorStorage__ConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${caseGeneratorStorage.name};AccountKey=${caseGeneratorStorage.listKeys().keys[0].value};EndpointSuffix=core.windows.net'
+    CaseGeneratorStorage__CasesContainer: 'cases'
+    CaseGeneratorStorage__BundlesContainer: 'bundles'
+    KeyVault__VaultUri: enableCaseGenerator ? keyVault.properties.vaultUri : ''
+    TaskHub: 'CaseGeneratorHub'
+  }
+}
+
+// RBAC: Grant Function App access to Key Vault
+resource keyVaultAccessPolicy 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableCaseGenerator) {
+  name: guid(keyVault.id, functionApp.id, 'Key Vault Secrets User')
+  scope: keyVault
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6') // Key Vault Secrets User
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// RBAC: Grant Function App access to Storage Account
+resource storageAccessPolicy 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableCaseGenerator) {
+  name: guid(caseGeneratorStorage.id, functionApp.id, 'Storage Blob Data Contributor')
+  scope: caseGeneratorStorage
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe') // Storage Blob Data Contributor
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // Static Web App for Frontend
 resource staticWebApp 'Microsoft.Web/staticSites@2023-01-01' = {
   name: '${namePrefix}-frontend${resourceNameSuffix}'
@@ -351,3 +549,9 @@ output sqlDatabaseName string = sqlDatabase.name
 output storageAccountName string = storageAccount.name
 output applicationInsightsInstrumentationKey string = enableApplicationInsights ? applicationInsights.properties.InstrumentationKey : ''
 output resourceGroupName string = resourceGroup().name
+// Case Generator outputs
+output functionAppName string = enableCaseGenerator ? functionApp.name : ''
+output functionAppUrl string = enableCaseGenerator ? 'https://${functionApp.properties.defaultHostName}' : ''
+output caseGeneratorStorageName string = enableCaseGenerator ? caseGeneratorStorage.name : ''
+output keyVaultName string = enableCaseGenerator ? keyVault.name : ''
+output keyVaultUri string = enableCaseGenerator ? keyVault.properties.vaultUri : ''

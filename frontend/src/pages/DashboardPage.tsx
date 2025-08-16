@@ -404,6 +404,9 @@ const DashboardPage = () => {
             <CardHeader>
               <h3>📁 {t('availableCases')}</h3>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <Button onClick={() => navigate('/case-generator-ai')}>
+                  🤖 {t('caseGeneratorAI')}
+                </Button>
                 <Button onClick={() => navigate('/generate-case')}>
                   {t('generateCase')}
                 </Button>
