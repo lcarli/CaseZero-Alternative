@@ -1,4 +1,4 @@
-# Database Schema - CaseZero System
+# Schema do Banco de Dados - Sistema CaseZero
 
 ## Overview
 

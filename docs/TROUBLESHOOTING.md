@@ -1,4 +1,4 @@
-# Troubleshooting Guide - CaseZero System
+# Guia de Solução de Problemas - Sistema CaseZero
 
 ## Overview
 
