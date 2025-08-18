@@ -1,26 +1,26 @@
-# 🏗️ Azure Resource Setup Guide
+# 🏗️ Guia de Configuração de Recursos Azure
 
-This guide provides step-by-step instructions for setting up Azure resources for the CaseZero application with cost optimization in mind.
+Este guia fornece instruções passo a passo para configurar recursos Azure para a aplicação CaseZero com otimização de custos em mente.
 
-## Prerequisites
+## Pré-requisitos
 
-- Azure subscription with appropriate permissions
-- Azure CLI installed and configured
-- PowerShell or Bash terminal
-- GitHub repository with Actions enabled
+- Assinatura Azure com permissões apropriadas
+- Azure CLI instalado e configurado
+- Terminal PowerShell ou Bash
+- Repositório GitHub com Actions habilitadas
 
-## Cost-Optimized Architecture
+## Arquitetura Otimizada para Custos
 
 ```mermaid
 graph TB
-    subgraph "Development Environment"
+    subgraph "Ambiente de Desenvolvimento"
         D1[App Service Plan B1]
         D2[SQL Database Basic]
         D3[Storage LRS]
         D4[Static Web App Free]
     end
     
-    subgraph "Production Environment"
+    subgraph "Ambiente de Produção"
         P1[App Service Plan S1]
         P2[SQL Database S1]
         P3[Storage GRS]
@@ -28,22 +28,22 @@ graph TB
         P5[Staging Slot]
     end
     
-    subgraph "Shared Resources"
+    subgraph "Recursos Compartilhados"
         S1[Key Vault]
         S2[Log Analytics]
         S3[Application Insights]
     end
 ```
 
-## Step 1: Azure Subscription Setup
+## Passo 1: Configuração da Assinatura Azure
 
-### 1.1 Verify Subscription Limits
+### 1.1 Verificar Limites da Assinatura
 
 ```bash
-# Check resource provider registrations
+# Verificar registros de provedores de recursos
 az provider list --query "[?registrationState=='Registered'].namespace" -o table
 
-# Register required providers if needed
+# Registrar provedores necessários se preciso
 az provider register --namespace Microsoft.Web
 az provider register --namespace Microsoft.Sql
 az provider register --namespace Microsoft.Storage

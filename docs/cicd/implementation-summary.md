@@ -1,53 +1,53 @@
-# 🎯 CI/CD Implementation Summary
+# 🎯 Resumo da Implementação CI/CD
 
-## Project Overview
+## Visão Geral do Projeto
 
-The CaseZero Detective Investigation System now includes a comprehensive CI/CD pipeline implementation with modern DevOps practices, security best practices, and cost optimization strategies.
+O Sistema de Investigação Detetivesca CaseZero agora inclui uma implementação abrangente de pipeline CI/CD com práticas modernas de DevOps, melhores práticas de segurança e estratégias de otimização de custos.
 
-## 🚀 What Was Implemented
+## 🚀 O Que Foi Implementado
 
-### 1. GitHub Actions Workflows
-- **✅ Continuous Integration (`ci.yml`)**
-  - Multi-job pipeline (Backend, Frontend, Integration Tests, Security, Dependencies, Case Validation)
-  - Automated testing and validation
-  - Security scanning with CodeQL
-  - Artifact management
+### 1. Workflows GitHub Actions
+- **✅ Integração Contínua (`ci.yml`)**
+  - Pipeline multi-job (Backend, Frontend, Testes de Integração, Segurança, Dependências, Validação de Casos)
+  - Testes e validação automatizados
+  - Scanning de segurança com CodeQL
+  - Gerenciamento de artifacts
 
-- **✅ Development Deployment (`cd-dev.yml`)**
-  - Automatic deployment on `develop` branch
-  - Health checks and smoke tests
-  - Teams notifications
-  - Build artifact management
+- **✅ Implantação de Desenvolvimento (`cd-dev.yml`)**
+  - Implantação automática na branch `develop`
+  - Health checks e smoke tests
+  - Notificações do Teams
+  - Gerenciamento de artifacts de build
 
-- **✅ Production Deployment (`cd-prod.yml`)**
-  - Manual approval workflow
-  - Blue/green deployment strategy
-  - Staging slot validation
-  - Automatic rollback on failure
-  - Release creation with changelog
+- **✅ Implantação de Produção (`cd-prod.yml`)**
+  - Workflow de aprovação manual
+  - Estratégia de implantação blue/green
+  - Validação de slot de staging
+  - Rollback automático em falha
+  - Criação de release com changelog
 
-- **✅ Infrastructure Deployment (`infrastructure.yml`)**
-  - BICEP template deployment
-  - What-if analysis
-  - Environment-specific configurations
-  - Resource validation and verification
+- **✅ Implantação de Infraestrutura (`infrastructure.yml`)**
+  - Implantação de template BICEP
+  - Análise what-if
+  - Configurações específicas por ambiente
+  - Validação e verificação de recursos
 
-### 2. Test Infrastructure
-- **✅ Backend Unit Tests**
-  - xUnit framework with Moq
-  - Controller testing
-  - Service layer testing
-  - Authentication testing
+### 2. Infraestrutura de Testes
+- **✅ Testes Unitários Backend**
+  - Framework xUnit com Moq
+  - Testes de controller
+  - Testes de camada de serviço
+  - Testes de autenticação
 
-- **✅ Frontend Unit Tests**
-  - Vitest framework
-  - Component testing
-  - API service testing
-  - Build verification
+- **✅ Testes Unitários Frontend**
+  - Framework Vitest
+  - Testes de componentes
+  - Testes de serviços API
+  - Verificação de build
 
-- **✅ Integration Tests**
-  - End-to-end API testing
-  - In-memory database testing
+- **✅ Testes de Integração**
+  - Testes API end-to-end
+  - Testes com banco de dados em memória
   - HTTP client testing
   - Custom test factory
 
