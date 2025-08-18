@@ -1,4 +1,4 @@
-# Backend Architecture - CaseZero System
+# Arquitetura Backend - Sistema CaseZero
 
 ## Overview
 

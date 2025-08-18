@@ -1,42 +1,42 @@
-# 🔐 Variables and Secrets Reference
+# 🔐 Referência de Variáveis e Segredos
 
-This document provides a comprehensive reference for all variables, secrets, and configuration required for the CaseZero CI/CD pipeline.
+Este documento fornece uma referência abrangente para todas as variáveis, segredos e configuração necessária para o pipeline CI/CD do CaseZero.
 
-## Table of Contents
+## Índice
 
-1. [GitHub Repository Secrets](#github-repository-secrets)
-2. [GitHub Environment Secrets](#github-environment-secrets)
-3. [Environment Variables](#environment-variables)
-4. [Azure Configuration](#azure-configuration)
-5. [Application Settings](#application-settings)
-6. [Security Best Practices](#security-best-practices)
+1. [Segredos do Repositório GitHub](#segredos-do-repositório-github)
+2. [Segredos de Ambiente GitHub](#segredos-de-ambiente-github)
+3. [Variáveis de Ambiente](#variáveis-de-ambiente)
+4. [Configuração Azure](#configuração-azure)
+5. [Configurações da Aplicação](#configurações-da-aplicação)
+6. [Melhores Práticas de Segurança](#melhores-práticas-de-segurança)
 
-## GitHub Repository Secrets
+## Segredos do Repositório GitHub
 
-These secrets are accessible across all workflows and environments.
+Esses segredos são acessíveis em todos os workflows e ambientes.
 
-### Azure Authentication
+### Autenticação Azure
 
-| Secret Name | Description | Required | Example Value |
-|-------------|-------------|----------|---------------|
-| `AZURE_CREDENTIALS_DEV` | Service principal JSON for development | ✅ | See [Service Principal JSON](#service-principal-json) |
-| `AZURE_CREDENTIALS_PROD` | Service principal JSON for production | ✅ | See [Service Principal JSON](#service-principal-json) |
+| Nome do Segredo | Descrição | Obrigatório | Valor de Exemplo |
+|-----------------|-----------|-------------|------------------|
+| `AZURE_CREDENTIALS_DEV` | JSON do service principal para desenvolvimento | ✅ | Ver [JSON Service Principal](#json-service-principal) |
+| `AZURE_CREDENTIALS_PROD` | JSON do service principal para produção | ✅ | Ver [JSON Service Principal](#json-service-principal) |
 
 ### Azure Static Web Apps
 
-| Secret Name | Description | Required | How to Get |
-|-------------|-------------|----------|------------|
-| `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV` | Deployment token for dev frontend | ✅ | Azure Portal > Static Web App > Overview |
-| `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD` | Deployment token for prod frontend | ✅ | Azure Portal > Static Web App > Overview |
+| Nome do Segredo | Descrição | Obrigatório | Como Obter |
+|-----------------|-----------|-------------|------------|
+| `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV` | Token de implantação para frontend dev | ✅ | Portal Azure > Static Web App > Overview |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD` | Token de implantação para frontend prod | ✅ | Portal Azure > Static Web App > Overview |
 
-### Resource Groups
+### Grupos de Recursos
 
-| Secret Name | Description | Required | Example Value |
-|-------------|-------------|----------|---------------|
-| `AZURE_RESOURCE_GROUP_DEV` | Development resource group name | ✅ | `casezero-dev-rg` |
-| `AZURE_RESOURCE_GROUP_PROD` | Production resource group name | ✅ | `casezero-prod-rg` |
+| Nome do Segredo | Descrição | Obrigatório | Valor de Exemplo |
+|-----------------|-----------|-------------|------------------|
+| `AZURE_RESOURCE_GROUP_DEV` | Nome do grupo de recursos de desenvolvimento | ✅ | `casezero-dev-rg` |
+| `AZURE_RESOURCE_GROUP_PROD` | Nome do grupo de recursos de produção | ✅ | `casezero-prod-rg` |
 
-### Notifications
+### Notificações
 
 | Secret Name | Description | Required | Example Value |
 |-------------|-------------|----------|---------------|

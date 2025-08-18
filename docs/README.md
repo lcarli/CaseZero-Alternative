@@ -14,7 +14,7 @@ Esta pasta contém toda a documentação técnica detalhada do projeto CaseZero-
 - **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** - Schema e estrutura do banco de dados
 
 ### 🔧 APIs e Integrações
-- **[API.md](API.md)** - Documentação completa da REST API
+- **[API_COMPLETE.md](API_COMPLETE.md)** - Documentação completa da REST API
 - **[OBJETO_CASO.md](OBJETO_CASO.md)** - Sistema de casos modulares
 
 ### 🚀 Planejamento e Evolução
@@ -32,13 +32,13 @@ Esta pasta contém toda a documentação técnica detalhada do projeto CaseZero-
 Se você vai contribuir com código ou entender o sistema:
 1. Comece com [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)
 2. Leia [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md) ou [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md) dependendo da sua área
-3. Consulte [API.md](API.md) para integração entre sistemas
+3. Consulte [API_COMPLETE.md](API_COMPLETE.md) para integração entre sistemas
 
 ### 🔧 DevOps/SysAdmins
 Se você vai fazer deploy ou manter o sistema:
 1. Leia [DEPLOYMENT.md](DEPLOYMENT.md)
 2. Consulte [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) para entender o banco
-3. Use [API.md](API.md) para health checks e monitoramento
+3. Use [API_COMPLETE.md](API_COMPLETE.md) para health checks e monitoramento
 4. Tenha [TROUBLESHOOTING.md](TROUBLESHOOTING.md) como referência para problemas
 
 ### 🎮 Game Designers
@@ -50,7 +50,7 @@ Se você vai criar novos casos investigativos:
 Se você quer entender o sistema tecnicamente:
 1. Comece com [README Principal](../README.md)
 2. Leia [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md) e [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md) para visão geral
-3. Consulte [API.md](API.md) para funcionalidades disponíveis
+3. Consulte [API_COMPLETE.md](API_COMPLETE.md) para funcionalidades disponíveis
 
 ---
 
@@ -61,7 +61,7 @@ Se você quer entender o sistema tecnicamente:
 | **Frontend** | React + TypeScript | 19.x | [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md) |
 | **Backend** | .NET Core API | 8.0 | [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md) |
 | **Banco** | SQLite + EF Core | 8.0 | [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) |
-| **API** | REST + JWT | - | [API.md](API.md) |
+| **API** | REST + JWT | - | [API_COMPLETE.md](API_COMPLETE.md) |
 | **Deploy** | Docker + Nginx | - | [DEPLOYMENT.md](DEPLOYMENT.md) |
 
 ---
@@ -93,7 +93,7 @@ Procurando informações sobre:
 - **Como rodar o projeto?** → [README Principal](../README.md) seção "Como Executar"
 - **Como fazer deploy?** → [DEPLOYMENT.md](DEPLOYMENT.md)
 - **Problema no sistema?** → [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-- **Endpoints da API?** → [API.md](API.md)
+- **Endpoints da API?** → [API_COMPLETE.md](API_COMPLETE.md)
 - **Como criar um novo caso?** → [OBJETO_CASO.md](OBJETO_CASO.md)
 - **Futuras funcionalidades?** → [FUTURE_FEATURES.md](FUTURE_FEATURES.md)
 - **Estrutura do banco?** → [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)

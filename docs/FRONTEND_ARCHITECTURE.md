@@ -1,4 +1,4 @@
-# Frontend Architecture - CaseZero System
+# Arquitetura Frontend - Sistema CaseZero
 
 ## Overview
 

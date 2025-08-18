@@ -1,4 +1,4 @@
-# Deployment Guide - CaseZero System
+# Guia de Deploy - Sistema CaseZero
 
 ## Overview
 
