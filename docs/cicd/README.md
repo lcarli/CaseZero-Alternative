@@ -1,153 +1,153 @@
-# 🚀 CaseZero CI/CD Documentation
+# 🚀 Documentação CI/CD CaseZero
 
-## Overview
+## Visão Geral
 
-This document provides comprehensive documentation for the CaseZero Detective Investigation System's CI/CD pipeline implementation using GitHub Actions, BICEP infrastructure as code, and Azure cloud services.
+Este documento fornece documentação abrangente para a implementação do pipeline CI/CD do Sistema de Investigação Detetivesca CaseZero usando GitHub Actions, infraestrutura como código BICEP e serviços Azure cloud.
 
-## Table of Contents
+## Índice
 
-1. [Pipeline Overview](#pipeline-overview)
-2. [Environment Strategy](#environment-strategy)
-3. [Security & Compliance](#security--compliance)
-4. [Cost Optimization](#cost-optimization)
-5. [Getting Started](#getting-started)
-6. [Troubleshooting](#troubleshooting)
+1. [Visão Geral do Pipeline](#visão-geral-do-pipeline)
+2. [Estratégia de Ambientes](#estratégia-de-ambientes)
+3. [Segurança e Conformidade](#segurança-e-conformidade)
+4. [Otimização de Custos](#otimização-de-custos)
+5. [Primeiros Passos](#primeiros-passos)
+6. [Solução de Problemas](#solução-de-problemas)
 
-## Pipeline Overview
+## Visão Geral do Pipeline
 
-### 🔄 Continuous Integration (CI)
+### 🔄 Integração Contínua (CI)
 
-The CI pipeline (`ci.yml`) runs on every push and pull request to main/develop branches:
+O pipeline CI (`ci.yml`) executa em cada push e pull request para branches main/develop:
 
 ```mermaid
 graph LR
     A[Code Push] --> B[Backend CI]
     A --> C[Frontend CI]
-    B --> D[Integration Tests]
+    B --> D[Testes de Integração]
     C --> D
-    D --> E[Security Scan]
-    D --> F[Case Validation]
-    E --> G[Dependency Check]
+    D --> E[Scan de Segurança]
+    D --> F[Validação de Casos]
+    E --> G[Verificação de Dependências]
     F --> G
 ```
 
-#### CI Jobs:
-- **🔴 Backend CI**: .NET 8 build, restore, unit tests
-- **🔵 Frontend CI**: Node.js build, linting, unit tests, artifacts upload  
-- **🔗 Integration Tests**: End-to-end API testing with in-memory database
-- **🛡️ Security Scan**: CodeQL analysis for C# and JavaScript
-- **📋 Dependency Check**: NPM audit and .NET vulnerability scanning
-- **📁 Case Validation**: Automated validation of investigation case structure
+#### Jobs CI:
+- **🔴 Backend CI**: Build .NET 8, restore, testes unitários
+- **🔵 Frontend CI**: Build Node.js, linting, testes unitários, upload de artifacts  
+- **🔗 Testes de Integração**: Testes API end-to-end com banco de dados em memória
+- **🛡️ Scan de Segurança**: Análise CodeQL para C# e JavaScript
+- **📋 Verificação de Dependências**: NPM audit e scanning de vulnerabilidades .NET
+- **📁 Validação de Casos**: Validação automatizada da estrutura de casos de investigação
 
-### 🚀 Continuous Deployment (CD)
+### 🚀 Implantação Contínua (CD)
 
-#### DEV Environment (`cd-dev.yml`)
-- **Trigger**: Push to `develop` branch
-- **Approval**: Automatic deployment
-- **Features**: 
-  - Automated testing before deployment
-  - Health checks post-deployment
-  - Teams notifications
+#### Ambiente DEV (`cd-dev.yml`)
+- **Trigger**: Push para branch `develop`
+- **Aprovação**: Implantação automática
+- **Funcionalidades**: 
+  - Testes automatizados antes da implantação
+  - Health checks pós-implantação
+  - Notificações do Teams
 
-#### PROD Environment (`cd-prod.yml`)
-- **Trigger**: Push to `main` branch or manual dispatch
-- **Approval**: **Manual approval required** 
-- **Features**:
-  - Enhanced security scanning
-  - Blue/green deployment with staging slots
-  - Automatic rollback on health check failure
-  - Release creation with changelog
+#### Ambiente PROD (`cd-prod.yml`)
+- **Trigger**: Push para branch `main` ou dispatch manual
+- **Aprovação**: **Aprovação manual obrigatória** 
+- **Funcionalidades**:
+  - Scanning de segurança aprimorado
+  - Implantação blue/green com slots de staging
+  - Rollback automático em falha de health check
+  - Criação de release com changelog
 
 ```mermaid
 graph TD
-    A[Main Branch Push] --> B[Security Scan]
+    A[Push Branch Main] --> B[Scan de Segurança]
     B --> C[Build & Test]
-    C --> D[🔒 Manual Approval]
-    D --> E[Deploy to Staging]
+    C --> D[🔒 Aprovação Manual]
+    D --> E[Deploy para Staging]
     E --> F[Health Check]
     F --> G{Health OK?}
-    G -->|Yes| H[Swap to Production]
-    G -->|No| I[🔄 Rollback]
-    H --> J[Production Health Check]
-    J --> K[Create Release]
+    G -->|Sim| H[Swap para Produção]
+    G -->|Não| I[🔄 Rollback]
+    H --> J[Health Check Produção]
+    J --> K[Criar Release]
 ```
 
-### 🏗️ Infrastructure Deployment (`infrastructure.yml`)
+### 🏗️ Implantação de Infraestrutura (`infrastructure.yml`)
 
-Infrastructure as Code using BICEP templates with Azure verified modules:
+Infraestrutura como Código usando templates BICEP com módulos verificados Azure:
 
-- **Manual Trigger**: Workflow dispatch with environment selection
-- **Actions**: Deploy, Validate, or Destroy
-- **Safety**: Destroy requires "CONFIRM" input
-- **What-If Analysis**: Preview changes before deployment
+- **Trigger Manual**: Workflow dispatch com seleção de ambiente
+- **Ações**: Deploy, Validate ou Destroy
+- **Segurança**: Destroy requer entrada "CONFIRM"
+- **Análise What-If**: Prévia de mudanças antes da implantação
 
-## Environment Strategy
+## Estratégia de Ambientes
 
-### 🧪 Development Environment
+### 🧪 Ambiente de Desenvolvimento
 - **Branch**: `develop`
-- **Resource Group**: `casezero-dev-rg`
-- **SKU**: Basic (B1) - Cost optimized
-- **Features**:
-  - Auto-deployment on push
-  - Shared resources
-  - 30-day log retention
-  - No backups
+- **Grupo de Recursos**: `casezero-dev-rg`
+- **SKU**: Basic (B1) - Otimizado para custo
+- **Funcionalidades**:
+  - Auto-implantação no push
+  - Recursos compartilhados
+  - Retenção de logs de 30 dias
+  - Sem backups
 
-### 🏭 Production Environment  
+### 🏭 Ambiente de Produção  
 - **Branch**: `main`
-- **Resource Group**: `casezero-prod-rg`
-- **SKU**: Standard (S1) - Performance optimized
-- **Features**:
-  - Manual approval required
-  - Blue/green deployment
-  - 90-day log retention
-  - Automated backups
-  - Zone redundancy
-  - Staging slots
+- **Grupo de Recursos**: `casezero-prod-rg`
+- **SKU**: Standard (S1) - Otimizado para performance
+- **Funcionalidades**:
+  - Aprovação manual obrigatória
+  - Implantação blue/green
+  - Retenção de logs de 90 dias
+  - Backups automatizados
+  - Redundância de zona
+  - Slots de staging
 
-## Security & Compliance
+## Segurança e Conformidade
 
-### 🔐 Security Features
+### 🔐 Funcionalidades de Segurança
 
-1. **Environment Protection Rules**
-   - Production requires manual approval
-   - Environment-specific secrets
-   - Restricted branch policies
+1. **Regras de Proteção de Ambiente**
+   - Produção requer aprovação manual
+   - Segredos específicos por ambiente
+   - Políticas de branch restritivas
 
-2. **Code Security**
-   - CodeQL static analysis
-   - Dependency vulnerability scanning
-   - Automated security updates
+2. **Segurança de Código**
+   - Análise estática CodeQL
+   - Scanning de vulnerabilidades de dependências
+   - Atualizações automáticas de segurança
 
-3. **Infrastructure Security**
-   - HTTPS enforcement
-   - SQL firewall rules
-   - Managed identities
-   - Key Vault integration
+3. **Segurança de Infraestrutura**
+   - Imposição de HTTPS
+   - Regras de firewall SQL
+   - Identidades gerenciadas
+   - Integração Key Vault
 
-4. **Deployment Security**
-   - Staging slot validation
-   - Health check gates
-   - Automatic rollback
-   - Audit logging
+4. **Segurança de Implantação**
+   - Validação de slot de staging
+   - Gates de health check
+   - Rollback automático
+   - Logging de auditoria
 
-### 🛡️ Required Secrets
+### 🛡️ Segredos Obrigatórios
 
-#### Repository Secrets
+#### Segredos do Repositório
 ```yaml
-# Azure Credentials
-AZURE_CREDENTIALS_DEV       # Dev environment service principal
-AZURE_CREDENTIALS_PROD      # Prod environment service principal
+# Credenciais Azure
+AZURE_CREDENTIALS_DEV       # Service principal ambiente dev
+AZURE_CREDENTIALS_PROD      # Service principal ambiente prod
 
 # Static Web Apps
-AZURE_STATIC_WEB_APPS_API_TOKEN_DEV   # Dev SWA deployment token
-AZURE_STATIC_WEB_APPS_API_TOKEN_PROD  # Prod SWA deployment token
+AZURE_STATIC_WEB_APPS_API_TOKEN_DEV   # Token implantação SWA dev
+AZURE_STATIC_WEB_APPS_API_TOKEN_PROD  # Token implantação SWA prod
 
-# Resource Groups
-AZURE_RESOURCE_GROUP_DEV    # Dev resource group name
-AZURE_RESOURCE_GROUP_PROD   # Prod resource group name
+# Grupos de Recursos
+AZURE_RESOURCE_GROUP_DEV    # Nome grupo recursos dev
+AZURE_RESOURCE_GROUP_PROD   # Nome grupo recursos prod
 
-# Notifications
+# Notificações
 TEAMS_WEBHOOK_URL           # Microsoft Teams notifications
 ```
 
