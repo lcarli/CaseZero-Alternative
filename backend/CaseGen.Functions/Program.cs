@@ -15,6 +15,7 @@ var host = new HostBuilder()
         services.AddScoped<ICaseGenerationService, CaseGenerationService>();
         services.AddScoped<IStorageService, StorageService>();
         services.AddScoped<ILLMService, LLMService>();
+        services.AddScoped<IAssessmentPersistence, AssessmentPersistence>();
         
         // Add logging
         services.AddLogging(builder =>
