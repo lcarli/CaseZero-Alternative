@@ -30,8 +30,8 @@ on:
 env:
   AZURE_FUNCTIONAPP_NAME_DEV: casezero-func-dev
   AZURE_FUNCTIONAPP_NAME_PROD: casezero-func-prod
-  AZURE_RESOURCE_GROUP_DEV: casezero-dev-rg
-  AZURE_RESOURCE_GROUP_PROD: casezero-prod-rg
+  AZURE_RESOURCE_GROUP_DEV: casezero-casegen-dev-rg
+  AZURE_RESOURCE_GROUP_PROD: casezero-casegen-prod-rg
   DOTNET_VERSION: '8.0.x'
   WORKING_DIRECTORY: backend/CaseGen.Functions
 
