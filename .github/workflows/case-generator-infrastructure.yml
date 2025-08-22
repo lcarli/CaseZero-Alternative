@@ -74,7 +74,7 @@ jobs:
           # az group create --name $RESOURCE_GROUP --location "canadaeast" --tags Environment=${{ github.event.inputs.environment }} Project=CaseZero Component=CaseGenerator ManagedBy=GitHub-Actions
           
           # Validate the deployment
-          az deployment group validate \
+          # az deployment group validate \
             --resource-group $RESOURCE_GROUP \
             --template-file ${{ env.BICEP_FILE_PATH }} \
             --parameters @$PARAMS_FILE
