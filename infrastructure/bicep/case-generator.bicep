@@ -194,7 +194,7 @@ resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
       scmMinTlsVersion: '1.2'
       http20Enabled: true
       alwaysOn: environment == 'prod' ? true : false
-      functionsRuntimeScaleMonitoringEnabled: true
+      functionsRuntimeScaleMonitoringEnabled: environment == 'prod' ? true : false
     }
   }
   identity: {
