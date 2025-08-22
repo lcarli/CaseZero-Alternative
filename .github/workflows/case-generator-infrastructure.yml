@@ -75,9 +75,9 @@ jobs:
           
           # Validate the deployment
           # az deployment group validate \
-            --resource-group $RESOURCE_GROUP \
-            --template-file ${{ env.BICEP_FILE_PATH }} \
-            --parameters @$PARAMS_FILE
+          #  --resource-group $RESOURCE_GROUP \
+          #  --template-file ${{ env.BICEP_FILE_PATH }} \
+          #  --parameters @$PARAMS_FILE
 
       - name: 📊 Generate What-If Analysis
         if: github.event.inputs.action != 'validate'
