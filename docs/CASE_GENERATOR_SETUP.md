@@ -1,5 +1,13 @@
 # 🤖 CaseZero Case Generator AI
 
+> **📌 INFRAESTRUTURA INDEPENDENTE**: Para implantar APENAS a infraestrutura do Case Generator (sem o resto da aplicação), consulte [../infrastructure/case-generator-infrastructure-README.md](../infrastructure/case-generator-infrastructure-README.md).
+> 
+> **📌 INDEPENDENT INFRASTRUCTURE**: To deploy ONLY the Case Generator infrastructure (without the rest of the application), see [../infrastructure/case-generator-infrastructure-README.md](../infrastructure/case-generator-infrastructure-README.md).
+> 
+> **📌 INFRAESTRUCTURA INDEPENDIENTE**: Para implementar SOLO la infraestructura del Generador de Casos (sin el resto de la aplicación), consulte [../infrastructure/case-generator-infrastructure-README.md](../infrastructure/case-generator-infrastructure-README.md).
+> 
+> **📌 INFRASTRUCTURE INDÉPENDANTE**: Pour déployer UNIQUEMENT l'infrastructure du Générateur de Cas (sans le reste de l'application), consultez [../infrastructure/case-generator-infrastructure-README.md](../infrastructure/case-generator-infrastructure-README.md).
+
 ## Visão Geral
 
 O CaseZero Case Generator AI é um sistema abrangente baseado em Azure Durable Functions que gera automaticamente casos de investigação detetivesca realistas usando inteligência artificial. O sistema fornece rastreamento de progresso em tempo real e produz pacotes de casos completos com documentos, evidências e materiais de investigação.

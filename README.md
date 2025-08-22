@@ -41,6 +41,32 @@ Um sistema imersivo de investigação detetivesca onde você assume o papel de u
 - 📖 [Documentação Completa do Sistema Objeto Caso](docs/OBJETO_CASO.md)
 - 🛠️ Script de validação: `./validate_case.sh Case001`
 
+## 🤖 Case Generator AI
+
+**NOVO!** Sistema de geração automática de casos usando IA:
+
+### Características:
+- **Pipeline AI de 10 Etapas**: Geração completa automatizada de casos
+- **Infraestrutura Independente**: Deploy separado da aplicação principal
+- **Azure Functions**: Orquestração robusta com Durable Functions
+- **Monitoramento Completo**: Application Insights e alertas
+- **Storage Dedicado**: Armazenamento para casos e bundles gerados
+
+### Documentação:
+- 🤖 [Setup Completo do Case Generator](docs/CASE_GENERATOR_SETUP.md)
+- 🏗️ [Infraestrutura Independente](infrastructure/case-generator-infrastructure-README.md)
+- ⚙️ [Configuração e Deploy](infrastructure/case-generator-config.yml)
+
+### Deploy Rápido:
+```bash
+# Via GitHub Actions - Workflow: "🤖 Deploy Case Generator Infrastructure"
+# Ou manualmente:
+az deployment group create \
+  --resource-group casezero-casegen-dev-rg \
+  --template-file infrastructure/bicep/case-generator.bicep \
+  --parameters @infrastructure/bicep/case-generator-parameters.dev.json
+```
+
 ## 🚀 Como Executar
 
 > **🔧 CI/CD Disponível**: Este projeto inclui pipelines completos de CI/CD com GitHub Actions. Veja a [documentação de CI/CD](docs/cicd/README.md) para implantação automatizada em Azure.
