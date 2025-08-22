@@ -30,7 +30,7 @@ infrastructure:
       production: "casezero-casegen-prod-rg"
     
     # Location for all resources
-    location: "East US 2"
+    location: "canadaeast"
     
     # Naming Convention
     naming:
