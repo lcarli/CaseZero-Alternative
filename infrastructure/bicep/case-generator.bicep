@@ -79,7 +79,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
 
 // Storage Account for Case Generator
 resource caseGeneratorStorage 'Microsoft.Storage/storageAccounts@2023-01-01' = {
-  name: '${namePrefix}genstr${environment}${uniqueString(resourceGroup().id)}'
+  name: '$st{namePrefix}gen${environment}}'
   location: location
   tags: union(tags, { Purpose: 'CaseGenerator' })
   sku: {
