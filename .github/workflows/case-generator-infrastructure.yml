@@ -71,7 +71,7 @@ jobs:
           echo "Validating Case Generator deployment to resource group: $RESOURCE_GROUP"
           
           # Create resource group if it doesn't exist
-          az group create --name $RESOURCE_GROUP --location "East US 2" --tags Environment=${{ github.event.inputs.environment }} Project=CaseZero Component=CaseGenerator ManagedBy=GitHub-Actions
+          az group create --name $RESOURCE_GROUP --location "canadaeast" --tags Environment=${{ github.event.inputs.environment }} Project=CaseZero Component=CaseGenerator ManagedBy=GitHub-Actions
           
           # Validate the deployment
           az deployment group validate \
