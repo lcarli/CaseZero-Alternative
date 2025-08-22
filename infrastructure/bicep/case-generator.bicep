@@ -5,7 +5,7 @@ param environment string = 'dev'
 param location string = resourceGroup().location
 
 @description('The name prefix for all resources')
-param namePrefix string = 'casezero'
+param namePrefix string = 'casegen'
 
 @description('Enable Application Insights')
 param enableApplicationInsights bool = true
@@ -21,7 +21,7 @@ var tags = {
 
 // Log Analytics Workspace (required for Application Insights)
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if (enableApplicationInsights) {
-  name: '${namePrefix}-casegen-logs${resourceNameSuffix}'
+  name: '${namePrefix}-logs${resourceNameSuffix}'
   location: location
   tags: tags
   properties: {
@@ -39,7 +39,7 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09
 
 // Application Insights for Case Generator
 resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = if (enableApplicationInsights) {
-  name: '${namePrefix}-casegen-insights${resourceNameSuffix}'
+  name: '${namePrefix}-insights${resourceNameSuffix}'
   location: location
   tags: tags
   kind: 'web'
@@ -54,7 +54,7 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = if (en
 
 // Key Vault for secrets management
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
-  name: '${namePrefix}-casegen-kv${resourceNameSuffix}-${uniqueString(resourceGroup().id)}'
+  name: '${namePrefix}-kv${resourceNameSuffix}'
   location: location
   tags: tags
   properties: {
@@ -79,7 +79,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
 
 // Storage Account for Case Generator
 resource caseGeneratorStorage 'Microsoft.Storage/storageAccounts@2023-01-01' = {
-  name: 'st${namePrefix}gen${environment}'
+  name: 'st${namePrefix}${environment}'
   location: location
   tags: union(tags, { Purpose: 'CaseGenerator' })
   sku: {
@@ -161,7 +161,7 @@ resource bundlesContainer 'Microsoft.Storage/storageAccounts/blobServices/contai
 
 // Function App Service Plan for Case Generator
 resource functionAppServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
-  name: '${namePrefix}-casegen-func-asp${resourceNameSuffix}'
+  name: '${namePrefix}-func-asp${resourceNameSuffix}'
   location: location
   tags: union(tags, { Purpose: 'CaseGenerator' })
   sku: {
@@ -177,7 +177,7 @@ resource functionAppServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
 
 // Function App for Case Generator
 resource functionApp 'Microsoft.Web/sites@2023-01-01' = {
-  name: '${namePrefix}-casegen-func${resourceNameSuffix}'
+  name: '${namePrefix}-func${resourceNameSuffix}'
   location: location
   tags: union(tags, { Purpose: 'CaseGenerator' })
   kind: 'functionapp'
