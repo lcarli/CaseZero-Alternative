@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using Xunit;
@@ -15,27 +14,27 @@ public class CaseGenerationServiceTests
 
     public CaseGenerationServiceTests()
     {
+        // Ensure storage connection is configured via environment for local runs (Azurite)
+        Environment.SetEnvironmentVariable("AzureWebJobsStorage", Environment.GetEnvironmentVariable("AzureWebJobsStorage") ?? "UseDevelopmentStorage=true");
+
         var services = new ServiceCollection();
         
-        // Add configuration
+        // Build configuration from environment only (Functions host also uses env at runtime)
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["CaseGeneratorStorage:ConnectionString"] = "UseDevelopmentStorage=true",
-                ["CaseGeneratorStorage:CasesContainer"] = "cases",
-                ["CaseGeneratorStorage:BundlesContainer"] = "bundles"
-            })
+            .AddEnvironmentVariables()
             .Build();
         
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging(builder => builder.AddConsole());
         services.AddScoped<ICaseGenerationService, CaseGenerationService>();
-        services.AddScoped<IStorageService, StorageService>();
-        services.AddScoped<ILLMService, LLMService>();
+    services.AddScoped<IStorageService, StorageService>();
+    services.AddScoped<ILLMService, LLMService>();
 
         _serviceProvider = services.BuildServiceProvider();
         _caseGenerationService = _serviceProvider.GetRequiredService<ICaseGenerationService>();
     }
+
+    // No fakes; tests will write to Azurite when running locally via UseDevelopmentStorage=true
 
     [Fact]
     public async Task PlanCaseAsync_ShouldReturnValidJson()

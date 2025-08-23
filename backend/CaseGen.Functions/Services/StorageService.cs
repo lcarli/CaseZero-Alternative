@@ -13,9 +13,12 @@ public class StorageService : IStorageService
 
     public StorageService(IConfiguration configuration, ILogger<StorageService> logger)
     {
-        var connectionString = configuration["CaseGeneratorStorage:ConnectionString"] 
-            ?? throw new InvalidOperationException("Storage connection string not configured");
-        
+        // Prefer specific CaseGenerator setting; fall back to AzureWebJobsStorage (local.settings / App Settings)
+        var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
+            ?? configuration["AzureWebJobsStorage"]
+            ?? Environment.GetEnvironmentVariable("AzureWebJobsStorage")
+            ?? throw new InvalidOperationException("Storage connection string not configured. Set CaseGeneratorStorage:ConnectionString or AzureWebJobsStorage.");
+
         _blobServiceClient = new BlobServiceClient(connectionString);
         _logger = logger;
     }
