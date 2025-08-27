@@ -1,0 +1,15 @@
+POST http://localhost:7071/api/StartCaseGeneration
+
+{
+  "title": "Roubo em Empresa de Tecnologia",
+  "location": "São Paulo, SP",
+  "difficulty": "Iniciante",
+  "targetDurationMinutes": 60,
+  "generateImages": true,
+  "constraints": [],
+  "timezone": "America/Sao_Paulo"
+}
+
+###
+
+GET http://localhost:7071/api/status/593a7ea794924f028624a369fe3e1e7d

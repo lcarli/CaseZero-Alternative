@@ -182,3 +182,7 @@ Migrations/
 *.user
 *.userosscache
 *.sln.docstates
+__azurite_*.json
+
+__blobstorage__
+__queuestorage__
