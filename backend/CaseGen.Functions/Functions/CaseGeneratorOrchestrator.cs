@@ -172,8 +172,8 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray() 
             };
             context.SetCustomStatus(status);
-            
-            var normalizeResult = await context.CallActivityAsync<string>("NormalizeActivity", (documentsResult, mediaResult));
+
+            var normalizeResult = await context.CallActivityAsync<string>("NormalizeActivity", (documents: documentsResult, media: mediaResult));
             completedSteps.Add(CaseGenerationSteps.Normalize);
 
             // Step 7: Index
@@ -217,7 +217,7 @@ public class CaseGeneratorOrchestrator
             };
             context.SetCustomStatus(status);
             
-            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", (redTeamResult, caseId));
+            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", (finalJson: redTeamResult, caseId: caseId));
             completedSteps.Add(CaseGenerationSteps.Package);
 
             // Complete
