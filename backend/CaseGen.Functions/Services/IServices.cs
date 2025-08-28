@@ -31,3 +31,9 @@ public interface ILLMService
     Task<string> GenerateAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
     Task<string> GenerateStructuredAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default);
 }
+
+public interface ILLMProvider
+{
+    Task<string> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
+    Task<string> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default);
+}

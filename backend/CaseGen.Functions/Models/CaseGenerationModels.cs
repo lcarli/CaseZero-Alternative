@@ -4,20 +4,20 @@ namespace CaseGen.Functions.Models;
 
 public record PlanActivityModel
 {
-    public CaseGenerationRequest Request { get; init; }
-    public string CaseId { get; init; }
+    public required CaseGenerationRequest Request { get; init; }
+    public required string CaseId { get; init; }
 }
 
 public record NormalizeActivityModel
 {
-    public string[] Documents { get; init; }
-    public string[] Media { get; init; }
+    public required string[] Documents { get; init; }
+    public required string[] Media { get; init; }
 }
 
 public record PackageActivityModel
 {
-    public string FinalJson { get; init; }
-    public string CaseId { get; init; }
+    public required string FinalJson { get; init; }
+    public required string CaseId { get; init; }
 }
 
 public record CaseGenerationRequest

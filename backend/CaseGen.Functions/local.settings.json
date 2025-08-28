@@ -7,6 +7,9 @@
     "CaseGeneratorStorage__CasesContainer": "cases",
     "CaseGeneratorStorage__BundlesContainer": "bundles",
     "KeyVault__VaultUri": "",
-    "TaskHub": "CaseGeneratorHub"
+    "TaskHub": "CaseGeneratorHub",
+    "LLM__UseAzureFoundry": "false",
+    "AzureFoundry__Endpoint": "https://your-foundry-endpoint.ai.azure.com/",
+    "AzureFoundry__ModelName": "gpt-4o"
   }
 }
