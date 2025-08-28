@@ -117,8 +117,8 @@ public class CaseGeneratorOrchestrator
             // Step 1: Plan
             status = status with { CurrentStep = CaseGenerationSteps.Plan, Progress = 0.1 };
             context.SetCustomStatus(status);
-            
-            var planResult = await context.CallActivityAsync<string>("PlanActivity", (request: request, caseId));
+
+            var planResult = await context.CallActivityAsync<string>("PlanActivity", new PlanActivityModel {Request = request, CaseId = caseId});
             completedSteps.Add(CaseGenerationSteps.Plan);
 
             // Step 2: Expand
@@ -173,7 +173,7 @@ public class CaseGeneratorOrchestrator
             };
             context.SetCustomStatus(status);
 
-            var normalizeResult = await context.CallActivityAsync<string>("NormalizeActivity", (documents: documentsResult, media: mediaResult));
+            var normalizeResult = await context.CallActivityAsync<string>("NormalizeActivity", new NormalizeActivityModel { Documents = documentsResult, Media = mediaResult });
             completedSteps.Add(CaseGenerationSteps.Normalize);
 
             // Step 7: Index
@@ -217,7 +217,7 @@ public class CaseGeneratorOrchestrator
             };
             context.SetCustomStatus(status);
             
-            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", (finalJson: redTeamResult, caseId: caseId));
+            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = redTeamResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Package);
 
             // Complete

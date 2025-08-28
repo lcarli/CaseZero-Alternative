@@ -2,26 +2,44 @@ using System.Text.Json.Serialization;
 
 namespace CaseGen.Functions.Models;
 
+public record PlanActivityModel
+{
+    public CaseGenerationRequest Request { get; init; }
+    public string CaseId { get; init; }
+}
+
+public record NormalizeActivityModel
+{
+    public string[] Documents { get; init; }
+    public string[] Media { get; init; }
+}
+
+public record PackageActivityModel
+{
+    public string FinalJson { get; init; }
+    public string CaseId { get; init; }
+}
+
 public record CaseGenerationRequest
 {
     [JsonPropertyName("title")]
     public string Title { get; init; } = "";
-    
+
     [JsonPropertyName("location")]
     public string Location { get; init; } = "";
-    
+
     [JsonPropertyName("difficulty")]
     public string Difficulty { get; init; } = "Iniciante";
-    
+
     [JsonPropertyName("targetDurationMinutes")]
     public int TargetDurationMinutes { get; init; } = 60;
-    
+
     [JsonPropertyName("generateImages")]
     public bool GenerateImages { get; init; } = true;
-    
+
     [JsonPropertyName("constraints")]
     public string[] Constraints { get; init; } = Array.Empty<string>();
-    
+
     [JsonPropertyName("timezone")]
     public string Timezone { get; init; } = "America/Sao_Paulo";
 }

@@ -17,10 +17,10 @@ public class CaseGeneratorActivities
     }
 
     [Function("PlanActivity")]
-    public async Task<string> PlanActivity([ActivityTrigger] (CaseGenerationRequest request, string caseId) input)
+    public async Task<string> PlanActivity([ActivityTrigger] PlanActivityModel model)
     {
-        _logger.LogInformation("Planning case {CaseId}", input.caseId);
-        return await _caseGenerationService.PlanCaseAsync(input.request);
+        _logger.LogInformation("Planning case {CaseTitle}", model.CaseId);
+        return await _caseGenerationService.PlanCaseAsync(model.Request);
     }
 
     [Function("ExpandActivity")]

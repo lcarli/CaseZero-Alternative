@@ -254,7 +254,7 @@ public class CaseGenerationService : ICaseGenerationService
         return mediaPrompts.ToArray();
     }
 
-    public async Task<string> NormalizeCaseAsync(string[] documents, string[] media, CancellationToken cancellationToken = default)
+    public async Task<string> NormalizeCaseAsync(NormalizeActivityModel model, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Normalizing case content");
 
@@ -267,10 +267,10 @@ public class CaseGenerationService : ICaseGenerationService
             Normalize e organize estes elementos do caso:
             
             DOCUMENTOS:
-            {string.Join("\n---\n", documents)}
+            {string.Join("\n---\n", model.Documents)}
             
             PROMPTS DE MÍDIA:
-            {string.Join("\n---\n", media)}
+            {string.Join("\n---\n", model.Media)}
             
             Crie uma estrutura normalizada com formatação consistente, metadata adequada e organização lógica.
             """;
@@ -340,9 +340,9 @@ public class CaseGenerationService : ICaseGenerationService
         return await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
     }
 
-    public async Task<CaseGenerationOutput> PackageCaseAsync(string finalJson, string caseId, CancellationToken cancellationToken = default)
+    public async Task<CaseGenerationOutput> PackageCaseAsync(PackageActivityModel model, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Packaging final case: {CaseId}", caseId);
+        _logger.LogInformation("Packaging final case: {CaseId}", model.CaseId);
 
         try
         {
@@ -352,21 +352,21 @@ public class CaseGenerationService : ICaseGenerationService
             var files = new List<GeneratedFile>();
             
             // Save main case file
-            var caseFileName = $"{caseId}/case.json";
-            await _storageService.SaveFileAsync(casesContainer, caseFileName, finalJson, cancellationToken);
+            var caseFileName = $"{model.CaseId}/case.json";
+            await _storageService.SaveFileAsync(casesContainer, caseFileName, model.FinalJson, cancellationToken);
             files.Add(new GeneratedFile
             {
                 Path = caseFileName,
                 Type = "json",
-                Size = System.Text.Encoding.UTF8.GetByteCount(finalJson),
+                Size = System.Text.Encoding.UTF8.GetByteCount(model.FinalJson),
                 CreatedAt = DateTime.UtcNow
             });
 
             // Save bundle metadata
-            var bundlePath = $"{caseId}";
+            var bundlePath = $"{model.CaseId}";
             var metadata = new CaseMetadata
             {
-                Title = caseId,
+                Title = model.CaseId,
                 Difficulty = "Iniciante", // Extract from finalJson in real implementation
                 EstimatedDuration = 60,
                 Categories = new[] { "Investigation", "Training" },
@@ -375,7 +375,7 @@ public class CaseGenerationService : ICaseGenerationService
             };
 
             var metadataJson = JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true });
-            var metadataFileName = $"{caseId}/metadata.json";
+            var metadataFileName = $"{model.CaseId}/metadata.json";
             await _storageService.SaveFileAsync(bundlesContainer, metadataFileName, metadataJson, cancellationToken);
             files.Add(new GeneratedFile
             {
@@ -388,14 +388,14 @@ public class CaseGenerationService : ICaseGenerationService
             return new CaseGenerationOutput
             {
                 BundlePath = bundlePath,
-                CaseId = caseId,
+                CaseId = model.CaseId,
                 Files = files.ToArray(),
                 Metadata = metadata
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to package case: {CaseId}", caseId);
+            _logger.LogError(ex, "Failed to package case: {CaseId}", model.CaseId);
             throw;
         }
     }
