@@ -52,10 +52,10 @@ public class CaseGeneratorActivities
     }
 
     [Function("NormalizeActivity")]
-    public async Task<string> NormalizeActivity([ActivityTrigger] (string[] documents, string[] media) input)
+    public async Task<string> NormalizeActivity([ActivityTrigger] NormalizeActivityModel model)
     {
         _logger.LogInformation("Normalizing case content");
-        return await _caseGenerationService.NormalizeCaseAsync(input.documents, input.media);
+        return await _caseGenerationService.NormalizeCaseAsync(model.Documents, model.Media);
     }
 
     [Function("IndexActivity")]
@@ -80,9 +80,9 @@ public class CaseGeneratorActivities
     }
 
     [Function("PackageActivity")]
-    public async Task<CaseGenerationOutput> PackageActivity([ActivityTrigger] (string finalJson, string caseId) input)
+    public async Task<CaseGenerationOutput> PackageActivity([ActivityTrigger] PackageActivityModel model)
     {
-        _logger.LogInformation("Packaging case {CaseId}", input.caseId);
-        return await _caseGenerationService.PackageCaseAsync(input.finalJson, input.caseId);
+        _logger.LogInformation("Packaging case {CaseId}", model.CaseId);
+        return await _caseGenerationService.PackageCaseAsync(model.FinalJson, model.CaseId);
     }
 }
