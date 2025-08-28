@@ -94,9 +94,9 @@ public class CaseGeneratorOrchestrator
     public async Task<CaseGenerationStatus> RunOrchestrator(
         [OrchestrationTrigger] TaskOrchestrationContext context)
     {
-        var input = context.GetInput<CaseGenerationRequest>();
-        var caseId = $"CASE-{DateTime.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N[..8]}";
-        var startTime = DateTime.UtcNow;
+        var request = context.GetInput<CaseGenerationRequest>() ?? throw new System.InvalidOperationException("Orchestration requires CaseGenerationRequest input.");
+        var caseId = $"CASE-{context.CurrentUtcDateTime:yyyyMMdd}-{context.NewGuid().ToString("N")[..8]}";
+        var startTime = context.CurrentUtcDateTime;
         
         var status = new CaseGenerationStatus
         {
@@ -118,7 +118,7 @@ public class CaseGeneratorOrchestrator
             status = status with { CurrentStep = CaseGenerationSteps.Plan, Progress = 0.1 };
             context.SetCustomStatus(status);
             
-            var planResult = await context.CallActivityAsync<string>("PlanActivity", (input, caseId));
+            var planResult = await context.CallActivityAsync<string>("PlanActivity", (request: request, caseId));
             completedSteps.Add(CaseGenerationSteps.Plan);
 
             // Step 2: Expand

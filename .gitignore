@@ -186,3 +186,4 @@ __azurite_*.json
 
 __blobstorage__
 __queuestorage__
+AzuriteConfig
