@@ -1,5 +1,7 @@
-using Azure.AI.Inference;
 using Azure.Identity;
+using Azure.AI.OpenAI;
+using Azure.AI.OpenAI.Chat;
+using OpenAI.Chat;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -8,9 +10,8 @@ namespace CaseGen.Functions.Services;
 
 public class AzureFoundryLLMProvider : ILLMProvider
 {
-    private readonly ChatCompletionsClient _client;
+    private readonly ChatClient _chatClient;
     private readonly ILogger<AzureFoundryLLMProvider> _logger;
-    private readonly string _modelName;
 
     public AzureFoundryLLMProvider(IConfiguration configuration, ILogger<AzureFoundryLLMProvider> logger)
     {
@@ -19,17 +20,16 @@ public class AzureFoundryLLMProvider : ILLMProvider
         var endpoint = configuration["AzureFoundry:Endpoint"]
             ?? throw new InvalidOperationException("AzureFoundry:Endpoint not configured");
 
-        _modelName = configuration["AzureFoundry:ModelName"]
+        var deploymentName = configuration["AzureFoundry:ModelName"]
             ?? throw new InvalidOperationException("AzureFoundry:ModelName not configured");
 
-        var credential = new DefaultAzureCredential();
+        var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions{TenantId = configuration["AzureFoundry:TenantId"]});
 
-        _client = new ChatCompletionsClient(
-            new Uri(endpoint), 
-            credential
-        );
+        var azureClient = new AzureOpenAIClient(new Uri(endpoint), credential);
+        _chatClient = azureClient.GetChatClient(deploymentName);
 
-        _logger.LogInformation("Azure Foundry LLM Provider initialized with endpoint: {Endpoint}", endpoint);
+        _logger.LogInformation("Azure Foundry LLM Provider initialized with endpoint: {Endpoint}, model: {Model}", 
+            endpoint, deploymentName);
     }
 
     public async Task<string> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
@@ -39,30 +39,30 @@ public class AzureFoundryLLMProvider : ILLMProvider
             _logger.LogInformation("Azure Foundry generating text response for prompt: {UserPrompt}",
                 userPrompt.Substring(0, Math.Min(100, userPrompt.Length)));
 
-            var requestOptions = new ChatCompletionsOptions()
+            var requestOptions = new ChatCompletionOptions()
             {
-                Messages =
-                {
-                    new ChatRequestSystemMessage(systemPrompt),
-                    new ChatRequestUserMessage(userPrompt)
-                },
-                Model = _modelName,
-                Temperature = 0.7f,
-                MaxTokens = 4000
+                MaxOutputTokenCount = 4000,
+                Temperature = 0.7f
             };
 
-            var response = await _client.CompleteAsync(requestOptions, cancellationToken);
+            // Enable the new max_completion_tokens property
+            #pragma warning disable AOAI001
+            requestOptions.SetNewMaxCompletionTokensPropertyEnabled(true);
+            #pragma warning restore AOAI001
 
-            var chatCompletions = response.Value;
-            if (!string.IsNullOrEmpty(chatCompletions?.Content))
+            var messages = new List<ChatMessage>()
             {
-                var content = chatCompletions.Content;
-                _logger.LogInformation("Azure Foundry generated response with {TokenCount} tokens",
-                    chatCompletions.Usage?.TotalTokens ?? 0);
-                return content ?? "";
-            }
+                new SystemChatMessage(systemPrompt),
+                new UserChatMessage(userPrompt)
+            };
 
-            throw new InvalidOperationException("No response generated from Azure Foundry");
+            var response = await _chatClient.CompleteChatAsync(messages, requestOptions, cancellationToken);
+
+            var content = response.Value.Content[0].Text;
+            _logger.LogInformation("Azure Foundry generated response with {TokenCount} tokens",
+                response.Value.Usage?.TotalTokenCount ?? 0);
+            
+            return content ?? "";
         }
         catch (Exception ex)
         {
@@ -81,50 +81,48 @@ public class AzureFoundryLLMProvider : ILLMProvider
             // Enhance the system prompt to include JSON schema requirements
             var enhancedSystemPrompt = $@"{systemPrompt}
 
-            IMPORTANT: You must respond with valid JSON that conforms to this exact schema:
-            {jsonSchema}
+IMPORTANT: You must respond with valid JSON that conforms to this exact schema:
+{jsonSchema}
 
-            Your response must be only valid JSON, no additional text or formatting.";
+Your response must be only valid JSON, no additional text or formatting.";
 
-            var requestOptions = new ChatCompletionsOptions()
+            var requestOptions = new ChatCompletionOptions()
             {
-                Messages =
-                {
-                    new ChatRequestSystemMessage(enhancedSystemPrompt),
-                    new ChatRequestUserMessage(userPrompt)
-                },
-                Model = _modelName,
-                Temperature = 0.3f, // Lower temperature for more consistent structured output
-                MaxTokens = 4000
+                MaxOutputTokenCount = 10000
             };
 
-            var response = await _client.CompleteAsync(requestOptions, cancellationToken);
+            // Enable the new max_completion_tokens property
+            #pragma warning disable AOAI001
+            requestOptions.SetNewMaxCompletionTokensPropertyEnabled(true);
+            #pragma warning restore AOAI001
 
-            var chatCompletions = response.Value;
-            if (!string.IsNullOrEmpty(chatCompletions?.Content))
+            var messages = new List<ChatMessage>()
             {
-                var content = chatCompletions.Content;
+                new SystemChatMessage(enhancedSystemPrompt),
+                new UserChatMessage(userPrompt)
+            };
 
-                // Validate that the response is valid JSON
-                try
-                {
-                    JsonDocument.Parse(content ?? "{}");
-                    _logger.LogInformation("Azure Foundry generated structured response with {TokenCount} tokens",
-                        chatCompletions.Usage?.TotalTokens ?? 0);
-                    return content ?? "{}";
-                }
-                catch (JsonException jsonEx)
-                {
-                    _logger.LogWarning(jsonEx, "Azure Foundry response was not valid JSON, attempting to fix");
+            var response = await _chatClient.CompleteChatAsync(messages, requestOptions, cancellationToken);
 
-                    // Try to extract JSON from the response
-                    var cleanedContent = ExtractJsonFromResponse(content ?? "");
-                    JsonDocument.Parse(cleanedContent); // Validate the cleaned content
-                    return cleanedContent;
-                }
+            var content = response.Value.Content[0].Text;
+
+            // Validate that the response is valid JSON
+            try
+            {
+                JsonDocument.Parse(content ?? "{}");
+                _logger.LogInformation("Azure Foundry generated structured response with {TokenCount} tokens",
+                    response.Value.Usage?.TotalTokenCount ?? 0);
+                return content ?? "{}";
             }
+            catch (JsonException jsonEx)
+            {
+                _logger.LogWarning(jsonEx, "Azure Foundry response was not valid JSON, attempting to fix");
 
-            throw new InvalidOperationException("No structured response generated from Azure Foundry");
+                // Try to extract JSON from the response
+                var cleanedContent = ExtractJsonFromResponse(content ?? "");
+                JsonDocument.Parse(cleanedContent); // Validate the cleaned content
+                return cleanedContent;
+            }
         }
         catch (Exception ex)
         {
