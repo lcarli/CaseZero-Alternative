@@ -41,8 +41,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
 
             var requestOptions = new ChatCompletionOptions()
             {
-                MaxOutputTokenCount = 4000,
-                Temperature = 0.7f
+                MaxOutputTokenCount = 10000
             };
 
             // Enable the new max_completion_tokens property
@@ -81,10 +80,10 @@ public class AzureFoundryLLMProvider : ILLMProvider
             // Enhance the system prompt to include JSON schema requirements
             var enhancedSystemPrompt = $@"{systemPrompt}
 
-IMPORTANT: You must respond with valid JSON that conforms to this exact schema:
-{jsonSchema}
+            IMPORTANTE: Você deve responder com um JSON válido que esteja em total conformidade com este esquema exato:
+            {jsonSchema}
 
-Your response must be only valid JSON, no additional text or formatting.";
+            Sua resposta deve ser apenas JSON válido, sem texto ou formatação adicional.";
 
             var requestOptions = new ChatCompletionOptions()
             {
