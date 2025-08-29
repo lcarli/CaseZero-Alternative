@@ -9,7 +9,8 @@
     "KeyVault__VaultUri": "",
     "TaskHub": "CaseGeneratorHub",
     "LLM__UseAzureFoundry": "false",
-    "AzureFoundry__Endpoint": "https://your-foundry-endpoint.ai.azure.com/",
-    "AzureFoundry__ModelName": "gpt-4o"
+    "AzureFoundry__Endpoint": "{AI_FOUNDRY_ENDPOINT}",
+    "AzureFoundry__ModelName": "{AI_FOUNDRY_MODEL_NAME}",
+    "AzureFoundry__TenantId": "{AI_FOUNDRY_TENANT_ID}"
   }
 }
