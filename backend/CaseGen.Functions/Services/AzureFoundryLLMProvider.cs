@@ -36,9 +36,6 @@ public class AzureFoundryLLMProvider : ILLMProvider
     {
         try
         {
-            _logger.LogInformation("Azure Foundry generating text response for prompt: {UserPrompt}",
-                userPrompt.Substring(0, Math.Min(100, userPrompt.Length)));
-
             var requestOptions = new ChatCompletionOptions()
             {
                 MaxOutputTokenCount = 10000
@@ -58,14 +55,12 @@ public class AzureFoundryLLMProvider : ILLMProvider
             var response = await _chatClient.CompleteChatAsync(messages, requestOptions, cancellationToken);
 
             var content = response.Value.Content[0].Text;
-            _logger.LogInformation("Azure Foundry generated response with {TokenCount} tokens",
-                response.Value.Usage?.TotalTokenCount ?? 0);
             
             return content ?? "";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate text with Azure Foundry");
+            _logger.LogError(ex, "Azure Foundry LLM request failed");
             throw;
         }
     }
@@ -74,9 +69,6 @@ public class AzureFoundryLLMProvider : ILLMProvider
     {
         try
         {
-            _logger.LogInformation("Azure Foundry generating structured response with schema for prompt: {UserPrompt}",
-                userPrompt.Substring(0, Math.Min(100, userPrompt.Length)));
-
             // Enhance the system prompt to include JSON schema requirements
             var enhancedSystemPrompt = $@"{systemPrompt}
 
@@ -109,14 +101,10 @@ public class AzureFoundryLLMProvider : ILLMProvider
             try
             {
                 JsonDocument.Parse(content ?? "{}");
-                _logger.LogInformation("Azure Foundry generated structured response with {TokenCount} tokens",
-                    response.Value.Usage?.TotalTokenCount ?? 0);
                 return content ?? "{}";
             }
-            catch (JsonException jsonEx)
+            catch (JsonException)
             {
-                _logger.LogWarning(jsonEx, "Azure Foundry response was not valid JSON, attempting to fix");
-
                 // Try to extract JSON from the response
                 var cleanedContent = ExtractJsonFromResponse(content ?? "");
                 JsonDocument.Parse(cleanedContent); // Validate the cleaned content
@@ -125,7 +113,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate structured response with Azure Foundry");
+            _logger.LogError(ex, "Azure Foundry structured LLM request failed");
             throw;
         }
     }

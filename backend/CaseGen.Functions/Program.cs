@@ -16,6 +16,7 @@ builder.Services
     .ConfigureFunctionsApplicationInsights()
     .AddScoped<ICaseGenerationService, CaseGenerationService>()
     .AddScoped<IStorageService, StorageService>()
+    .AddScoped<ICaseLoggingService, CaseLoggingService>()
     .AddScoped<ILLMService, LLMService>()
     // Configure LLM Provider - using Mock for now, Azure Foundry when stable
     .AddScoped<ILLMProvider>(serviceProvider =>

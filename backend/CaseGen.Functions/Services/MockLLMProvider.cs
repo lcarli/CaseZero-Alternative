@@ -14,9 +14,6 @@ public class MockLLMProvider : ILLMProvider
 
     public async Task<string> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Mock LLM generating text response for prompt: {UserPrompt}", 
-            userPrompt.Substring(0, Math.Min(100, userPrompt.Length)));
-        
         // Simulate processing time
         await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
         
@@ -25,9 +22,6 @@ public class MockLLMProvider : ILLMProvider
 
     public async Task<string> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Mock LLM generating structured response with schema for prompt: {UserPrompt}", 
-            userPrompt.Substring(0, Math.Min(100, userPrompt.Length)));
-        
         // Simulate processing time
         await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
         
