@@ -9,17 +9,23 @@ public class CaseGenerationService : ICaseGenerationService
 {
     private readonly ILLMService _llmService;
     private readonly IStorageService _storageService;
+    private readonly ISchemaValidationService _schemaValidationService;
     private readonly IConfiguration _configuration;
+    private readonly IJsonSchemaProvider _schemaProvider;
     private readonly ILogger<CaseGenerationService> _logger;
 
     public CaseGenerationService(
         ILLMService llmService,
         IStorageService storageService,
+        ISchemaValidationService schemaValidationService,
+        IJsonSchemaProvider schemaProvider,
         IConfiguration configuration,
         ILogger<CaseGenerationService> logger)
     {
         _llmService = llmService;
+        _schemaProvider = schemaProvider;
         _storageService = storageService;
+        _schemaValidationService = schemaValidationService;
         _configuration = configuration;
         _logger = logger;
     }
@@ -157,101 +163,187 @@ public class CaseGenerationService : ICaseGenerationService
 
     public async Task<string> DesignCaseAsync(string expandedJson, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Designing case structure");
+        _logger.LogInformation("Designing case structure with structured output");
 
         var systemPrompt = """
-            Você é um designer de experiências educacionais. Transforme os detalhes do caso em uma 
-            estrutura de jogo investigativo bem organizada e pedagogicamente eficaz.
+            Você é um designer de casos investigativos. Sua tarefa é transformar os detalhes expandidos 
+            do caso em especificações estruturadas para geração paralela de documentos e mídias.
+            
+            IMPORTANTE:
+            - Saída APENAS JSON válido no schema DocumentAndMediaSpecs
+            - NÃO adicione explicações, comentários ou texto extra
+            - Use i18nKey para todos os títulos (formato: categoria.identificador)
+            - Marque documentos sensíveis com "gated": true e inclua "gatingRule" como objeto { action, evidenceId?, notes? }
+            - Para documentos gated=true, sempre inclua gatingRule
+            - Para laudos periciais, inclua seção "Cadeia de Custódia"
+            
+            Tipos de documento permitidos:
+            - police_report: Boletim de ocorrência
+            - interview: Entrevista com suspeito/testemunha  
+            - memo_admin: Memorando administrativo
+            - forensics_report: Laudo pericial (sempre incluir "Cadeia de Custódia")
+            - evidence_log: Log de evidências
+            - witness_statement: Depoimento de testemunha
+            
+            Tipos de mídia permitidos:
+            - photo: Fotografia de evidência
+            - audio: Gravação de áudio
+            - video: Gravação de vídeo
+            - document_scan: Digitalização de documento
+            - diagram: Diagrama ou esquema
             """;
 
         var userPrompt = $"""
-            Projete a estrutura final do caso baseado nestes detalhes expandidos:
+            Transforme este caso expandido em especificações estruturadas:
             
             {expandedJson}
             
-            Organize em:
-            - Fluxo de investigação lógico
-            - Pontos de decisão do jogador
-            - Sistema de pistas e revelações
-            - Critérios de avaliação
-            - Solução final
+            Gere especificações para:
+            - 8-14 documentos (adequados ao nível Iniciante)
+            - 2-6 itens de mídia como evidências
+            - 1-2 laudos periciais gated=true com gatingRule
+            - Todos com i18nKey apropriadas
+            - LengthTarget adequado ao nível (documentos curtos: 150-400 palavras)
+            
+            Exemplos de i18nKey:
+            - documents.police_report_001
+            - documents.interview_suspect_main
+            - documents.forensics_ballistics
+            - media.crime_scene_photo_001
+            - media.weapon_evidence_photo
             """;
 
-        return await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+        var jsonSchema = _schemaProvider.GetSchema("DocumentAndMediaSpecs");
+
+        // Generate structured response with retry logic for validation
+        const int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var response = await _llmService.GenerateStructuredAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
+
+                // Validate the response against schema
+                var validationResult = await _schemaValidationService.ParseAndValidateAsync(response);
+                if (validationResult != null)
+                {
+                    _logger.LogInformation("Design validation successful on attempt {Attempt}", attempt);
+                    return response;
+                }
+
+                _logger.LogWarning("Design validation failed on attempt {Attempt}, retrying...", attempt);
+
+                if (attempt == maxRetries)
+                {
+                    throw new InvalidOperationException("Failed to generate valid design specs after maximum retries");
+                }
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                _logger.LogWarning(ex, "Design generation failed on attempt {Attempt}, retrying...", attempt);
+            }
+        }
+
+        throw new InvalidOperationException("Failed to generate valid design specs");
     }
 
     public async Task<string[]> GenerateDocumentsAsync(string designJson, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Generating case documents");
+        _logger.LogInformation("Generating case documents from structured specs");
 
-        var documents = new List<string>();
+        var specs = await _schemaValidationService.ParseAndValidateAsync(designJson);
+        if (specs is null) throw new InvalidOperationException("Invalid design specs");
 
-        // Generate multiple document types
-        var documentTypes = new[]
+        var tasks = specs.DocumentSpecs.Select(async spec =>
         {
-            "Relatório Policial Inicial",
-            "Depoimentos de Testemunhas",
-            "Laudo Pericial",
-            "Relatório de Evidências"
-        };
-
-        foreach (var docType in documentTypes)
-        {
-            var systemPrompt = $"""
-                Você é um especialista em documentação policial. Crie um {docType} realista e detalhado 
-                para o caso investigativo.
-                """;
+            // escolhe prompt base por tipo
+            var systemPrompt = spec.Type switch
+            {
+                DocumentTypes.PoliceReport => """
+                Você é um especialista em documentação policial. 
+                Gere APENAS Markdown estruturado seguindo as seções.
+                """,
+                DocumentTypes.Interview => """
+                Você é um entrevistador forense. 
+                Gere APENAS Markdown, com perguntas/respostas e marcações de tempo quando natural.
+                """,
+                DocumentTypes.MemoAdmin => """
+                Você é um administrador. 
+                Gere APENAS Markdown, tom burocrático conciso.
+                """,
+                DocumentTypes.ForensicsReport => """
+                Você é um perito. 
+                Gere APENAS Markdown, incluindo seção obrigatória 'Cadeia de Custódia'.
+                """,
+                DocumentTypes.EvidenceLog => """
+                Você é responsável pelo registro de evidências. 
+                Gere APENAS Markdown com tabela/lista padronizada.
+                """,
+                DocumentTypes.WitnessStatement => """
+                Você é um escrivão. 
+                Gere APENAS Markdown com declaração coesa da testemunha.
+                """,
+                _ => "Gere APENAS Markdown."
+            };
 
             var userPrompt = $"""
-                Baseado neste design de caso, crie um {docType}:
-                
-                {designJson}
-                
-                O documento deve ser profissional, realista e conter informações relevantes para a investigação.
-                """;
+            Gere um documento do tipo: {spec.Type}
+            Título: {spec.Title} (i18nKey: {spec.I18nKey})
 
-            var document = await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
-            documents.Add(document);
-        }
+            Seções (na ordem):
+            {string.Join("\n", spec.Sections.Select(s => "- " + s))}
 
-        return documents.ToArray();
+            Tamanho alvo (palavras): {spec.LengthTarget[0]}–{spec.LengthTarget[1]}
+
+            Regras:
+            - Não resolva o caso.
+            - Seja realista e consistente com práticas policiais/periciais.
+            - Se for laudo, inclua a seção 'Cadeia de Custódia'.
+            """;
+
+            var markdown = await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+            return markdown;
+        });
+
+        return await Task.WhenAll(tasks);
     }
+
 
     public async Task<string[]> GenerateMediaAsync(string designJson, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Generating media prompts for case");
+        _logger.LogInformation("Generating media prompts from structured specs");
 
-        var mediaPrompts = new List<string>();
+        var specs = await _schemaValidationService.ParseAndValidateAsync(designJson);
+        if (specs is null) throw new InvalidOperationException("Invalid design specs");
 
-        // Generate image prompts for different evidence types
-        var imageTypes = new[]
+        var tasks = specs.MediaSpecs
+            .Where(m => !m.Deferred) // ignore o que não é suportado agora
+            .Select(async m =>
         {
-            "Cena do Crime",
-            "Evidência Física",
-            "Suspeito",
-            "Local do Incidente"
-        };
+            // monte um prompt final combinando prompt + constraints em bullet points
+            var constraints = (m.Constraints is { Count: > 0 })
+                ? "\n\nConstraints:\n" + string.Join("\n", m.Constraints.Select(kv => $"- {kv.Key}: {kv.Value}"))
+                : string.Empty;
 
-        foreach (var imageType in imageTypes)
-        {
-            var systemPrompt = $"""
-                Você é um especialista em criação de prompts para geração de imagens. Crie prompts 
-                detalhados para gerar imagens realistas de {imageType} para casos investigativos.
-                """;
+            var systemPrompt = """
+            Você é um especialista em criação de prompts para geração de imagens realistas (estilo documentação forense).
+            Gere APENAS o texto do prompt final.
+            """;
 
             var userPrompt = $"""
-                Baseado neste design de caso, crie um prompt detalhado para gerar uma imagem de {imageType}:
-                
-                {designJson}
-                
-                O prompt deve ser específico, realista e apropriado para um caso de treinamento.
-                """;
+            Tipo de mídia: {m.Kind}
+            Título: {m.Title} (i18nKey: {m.I18nKey})
 
-            var prompt = await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
-            mediaPrompts.Add(prompt);
-        }
+            Prompt base:
+            {m.Prompt}
+            {constraints}
+            """;
 
-        return mediaPrompts.ToArray();
+            var finalPrompt = await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+            return finalPrompt;
+        });
+
+        return await Task.WhenAll(tasks);
     }
 
     public async Task<string> NormalizeCaseAsync(string[] documents, string[] media, CancellationToken cancellationToken = default)
@@ -350,7 +442,7 @@ public class CaseGenerationService : ICaseGenerationService
             var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
 
             var files = new List<GeneratedFile>();
-            
+
             // Save main case file
             var caseFileName = $"{caseId}/case.json";
             await _storageService.SaveFileAsync(casesContainer, caseFileName, finalJson, cancellationToken);
