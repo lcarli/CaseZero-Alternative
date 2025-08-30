@@ -8,7 +8,7 @@
     "CaseGeneratorStorage__BundlesContainer": "bundles",
     "KeyVault__VaultUri": "",
     "TaskHub": "CaseGeneratorHub",
-    "SCHEMAS_BASE_PATH": "Schemas",
+    "SCHEMAS_BASE_PATH": "Schemas/v1",
     "LLM__UseAzureFoundry": "false",
     "AzureFoundry__Endpoint": "{AI_FOUNDRY_ENDPOINT}",
     "AzureFoundry__ModelName": "{AI_FOUNDRY_MODEL_NAME}",

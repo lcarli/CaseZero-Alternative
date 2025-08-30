@@ -58,23 +58,7 @@ public class CaseGenerationService : ICaseGenerationService
             estrutura básica do caso, e elementos principais a serem desenvolvidos.
             """;
 
-        var jsonSchema = """
-            {
-              "type": "object",
-              "properties": {
-                "caseId": {"type": "string"},
-                "title": {"type": "string"},
-                "location": {"type": "string"},
-                "incidentType": {"type": "string"},
-                "difficulty": {"type": "string"},
-                "estimatedDuration": {"type": "number"},
-                "overview": {"type": "string"},
-                "learningObjectives": {"type": "array", "items": {"type": "string"}},
-                "mainElements": {"type": "array", "items": {"type": "string"}}
-              },
-              "required": ["caseId", "title", "location", "incidentType", "difficulty", "estimatedDuration", "overview"]
-            }
-            """;
+        var jsonSchema = _schemaProvider.GetSchema("Plan");
 
         return await _llmService.GenerateStructuredAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
     }
@@ -101,62 +85,7 @@ public class CaseGenerationService : ICaseGenerationService
             - Localizações específicas
             """;
 
-        var jsonSchema = """
-            {
-              "type": "object",
-              "properties": {
-                "suspects": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "name": {"type": "string"},
-                      "role": {"type": "string"},
-                      "motive": {"type": "string"},
-                      "alibi": {"type": "string"},
-                      "background": {"type": "string"}
-                    }
-                  }
-                },
-                "evidence": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "type": {"type": "string"},
-                      "description": {"type": "string"},
-                      "location": {"type": "string"},
-                      "significance": {"type": "string"}
-                    }
-                  }
-                },
-                "timeline": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "time": {"type": "string"},
-                      "event": {"type": "string"},
-                      "location": {"type": "string"},
-                      "witness": {"type": "string"}
-                    }
-                  }
-                },
-                "witnesses": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "name": {"type": "string"},
-                      "role": {"type": "string"},
-                      "testimony": {"type": "string"},
-                      "reliability": {"type": "string"}
-                    }
-                  }
-                }
-              }
-            }
-            """;
+        var jsonSchema = _schemaProvider.GetSchema("Expand");
 
         return await _llmService.GenerateStructuredAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
     }

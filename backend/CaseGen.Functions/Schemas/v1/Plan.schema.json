@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Plan",
+  "type": "object",
+  "properties": {
+    "caseId": { "type": "string" },
+    "title": { "type": "string" },
+    "location": { "type": "string" },
+    "incidentType": { "type": "string" },
+    "difficulty": { "type": "string" },
+    "estimatedDuration": { "type": "number" },
+    "overview": { "type": "string" },
+    "learningObjectives": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "mainElements": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": [
+    "caseId",
+    "title",
+    "location",
+    "incidentType",
+    "difficulty",
+    "estimatedDuration",
+    "overview"
+  ]
+}
