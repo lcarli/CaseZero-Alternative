@@ -14,6 +14,20 @@ public record NormalizeActivityModel
     public required string[] Media { get; init; }
 }
 
+public record GenerateDocumentItemInput
+{
+    public required string CaseId { get; init; }
+    public required string DesignJson { get; init; }
+    public required DocumentSpec Spec { get; init; }
+}
+
+public record GenerateMediaItemInput
+{
+    public required string CaseId { get; init; }
+    public required string DesignJson { get; init; }
+    public required MediaSpec Spec { get; init; }
+}
+
 public record PackageActivityModel
 {
     public required string FinalJson { get; init; }

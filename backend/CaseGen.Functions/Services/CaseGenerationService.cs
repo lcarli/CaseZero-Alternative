@@ -491,4 +491,68 @@ public class CaseGenerationService : ICaseGenerationService
             throw;
         }
     }
+
+    public async Task<string> GenerateDocumentFromSpecAsync(DocumentSpec spec, string designJson, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Gen Doc[{DocId}] type={Type} title={Title}", spec.DocId, spec.Type, spec.Title);
+
+        var systemPrompt = """
+            Você é um escritor técnico policial. Gere um documento verossímil seguindo o tipo e seções requeridas.
+            Requisitos:
+            - Texto objetivo, com tom documental
+            - Respeite as seções exigidas na ordem
+            - Respeite o alvo de tamanho (min..max palavras)
+            - Se gated=true, inclua a nota de acesso no rodapé
+            - Saída **APENAS** JSON: { docId, type, title, i18nKey, sections: [{title, content}], words }
+            """;
+
+                var userPrompt = $"""
+            CONTEXTO DO DESIGN (resumo estruturado):
+            {designJson}
+
+            ESPECIFICAÇÃO DO DOCUMENTO:
+            docId: {spec.DocId}
+            type: {spec.Type}
+            title: {spec.Title}
+            i18nKey: {spec.I18nKey}
+            sections: {string.Join(", ", spec.Sections)}
+            lengthTarget: [{spec.LengthTarget[0]}, {spec.LengthTarget[1]}]
+            gated: {spec.Gated}
+            gatingRule: {(spec.GatingRule != null ? $"{spec.GatingRule.Action} - {spec.GatingRule.Notes ?? "n/a"}" : "n/a")}
+
+            Gere o JSON final do documento conforme instruções.
+            """;
+
+        return await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+    }
+
+    public async Task<string> GenerateMediaFromSpecAsync(MediaSpec spec, string designJson, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Gen Media[{EvidenceId}] kind={Kind} title={Title}", spec.EvidenceId, spec.Kind, spec.Title);
+
+        var systemPrompt = """
+            Você é um engenheiro de evidências de mídia. Gere uma especificação JSON para criação de mídia.
+            Requisitos:
+            - Saída **APENAS** JSON: { evidenceId, kind, title, i18nKey, genPrompt, constraints }
+            - genPrompt deve ser detalhado e reproduzível (iluminação/ângulo/escala/etiquetas etc.)
+            - NADA de texto fora do JSON
+            """;
+
+                var userPrompt = $"""
+            CONTEXTO DO DESIGN (resumo estruturado):
+            {designJson}
+
+            ESPECIFICAÇÃO DE MÍDIA:
+            evidenceId: {spec.EvidenceId}
+            kind: {spec.Kind}
+            title: {spec.Title}
+            i18nKey: {spec.I18nKey}
+            constraints: {(spec.Constraints != null && spec.Constraints.Any() ? string.Join(", ", spec.Constraints.Select(kv => $"{kv.Key}: {kv.Value}")) : "n/a")}
+
+            Gere o JSON final da mídia conforme instruções (campo genPrompt obrigatório).
+            """;
+
+        return await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+    }
+
 }

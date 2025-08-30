@@ -1,272 +1,311 @@
-# Visão Kanban
+Aqui está o **MD completo** com o TO-DO no topo e os épicos reordenados como você pediu (A e B marcados como feitos). Já inclui as **novas epics C, F, G, H, I** e o **remapeamento** de letras (E→J, F→K e assim por diante).
 
-**Colunas sugeridas:**
-Backlog → Ready → In Progress → Code Review → QA/Playtest → Done
-
-**WIP (limites):**
-In Progress ≤ 3 cartões por dev • Code Review ≤ 5 • QA ≤ 5
-
-**Labels úteis:** `orchestrator`, `activities`, `prompts`, `schemas`, `pdf`, `search`, `i18n`, `validation`, `media`, `observability`
+> Baseado e atualizado a partir do seu TASKS.md anterior.&#x20;
 
 ---
 
-## Épico A — Saída estruturada no **Design** (desbloqueia fan-out)
+# Roadmap & Kanban — CaseGen
 
-**User Story A1** – Como orquestrador, quero que **Design** retorne **JSON** com `documentSpecs[]` e `mediaSpecs[]` para disparar geração paralela.
-**DoD:** `Design` retorna JSON válido; contém `i18nKey`, `gated/gatingRule`, `lengthTarget`; validado por schema.
+## TO-DO (épicos)
+
+| Épico | Título                                                                        | Status | Notas rápidas                              |
+| :---: | ----------------------------------------------------------------------------- | :----: | ------------------------------------------ |
+| **A** | Design estruturado (JSON `documentSpecs`/`mediaSpecs`)                        | ✅ DONE | Entregue e validando por schema            |
+| **B** | Fan-out/Fan-in (docs & mídias)                                                | ✅ DONE | Orchestrator paraleliza por item           |
+| **C** | **Schemas de Plan & Expand em arquivos + versionamento de todos os schemas**  | ⏳ TODO | Novo — igual ao Design (file-based)        |
+| **D** | GenerateDocumentFromSpec (seções, tamanho, “Cadeia de Custódia”)              | ⏳ TODO | Era C, virou D                             |
+| **F** | **Geração REAL de imagens (image API) + Fan-out/Fan-in**                      | ⏳ TODO | Novo — executa prompts de mídia            |
+| **G** | **Enriquecer prompts de documentos (GenerateDocumentsAsync)**                 | ⏳ TODO | Novo — prompts por tipo mais ricos         |
+| **H** | **Padrão de dificuldade (nível→comportamento do prompt e limites)**           | ⏳ TODO | Novo — perfis L1…L5 no prompt e validações |
+| **I** | **Revisão do Normalize (clarificar objetivos, saídas, e onde entra o Index)** | ⏳ TODO | Novo — separar Normalize≠Index             |
+| **J** | GenerateMediaFromSpec (design de prompts e metadados de mídia)                | ⏳ TODO | Era E, virou J                             |
+| **K** | Validation & Rules (timeline, supports, gating, custódia)                     | ⏳ TODO | Era F, virou K                             |
+| **L** | Normalize + Index (Azure AI Search)                                           | ⏳ TODO | Era G, virou L                             |
+| **M** | i18n & Naming Policy                                                          | ⏳ TODO | Era H, virou M                             |
+| **N** | Observability & Logging                                                       | ⏳ TODO | Era I, virou N                             |
+| **O** | PDFs em paralelo (RenderPdfActivity fan-out)                                  | ⏳ TODO | Era J, virou O                             |
+| **P** | Red Team & Tuning (loop leve)                                                 | ⏳ TODO | Era K, virou P                             |
+
+> Observação sobre letras: **E** foi remapeado para **J** e **F** para **K**; por isso a sequência pula o “E”.
+
+---
+
+## Épico C — Schemas de **Plan** e **Expand** como arquivos + versionamento
+
+**User Story** – Como dev, quero `Plan.schema.json` e `Expand.schema.json` **externos** (file-based) e uma **versão** para cada schema, para validar respostas do LLM exatamente como no Design.
+
+**DoD**
+
+* `Schemas/v1/Plan.schema.json` e `Schemas/v1/Expand.schema.json` copiados para `bin` em build.
+* `PlanService` e `ExpandService` usam `IJsonSchemaProvider.GetSchema("v1/Plan")`/`("v1/Expand")`.
+* Respostas inválidas falham com erro claro; logs registram **hash do schema** usado.
+* `SCHEMAS_BASE_PATH` permite apontar para `Schemas/vN` (versionamento por config).
 
 **Tasks**
 
-1. **Criar Schema `DocumentAndMediaSpecs`**
+1. **Estrutura de versão de schema**
 
-   * Criar arquivo `Schemas/DocumentAndMediaSpecs.schema.json`.
-   * Campos obrigatórios: `documentSpecs[].{docId,type,title,i18nKey,sections[],lengthTarget[],gated,gatingRule?}`, `mediaSpecs[].{evidenceId,kind,title,i18nKey,prompt,constraints?}`.
-   * **Aceite:** valida via JSON Schema (lint/validador local).
+   * Criar `Schemas/v1/` e mover `DocumentAndMediaSpecs.schema.json` para `Schemas/v1/…` (ajuste do provider).
+   * `csproj`: `<None Include="Schemas\**\*.json" CopyToOutputDirectory="PreserveNewest" />`.
 
-2. **Endurecer Prompt de Design (JSON-only)**
+2. **Criar `Plan.schema.json`**
 
-   * System: “Saída **APENAS JSON** no schema X; **NÃO** explique; use `i18nKey` e `gated`.”
-   * User: contexto do caso + `levelProfile` + exemplos curtos.
-   * **Aceite:** output sem texto extra; parse sem try/catch “perdoador”.
+   * Campos mínimos: `caseId`, `difficultyLevel(1..5)`, `timeline[] (ISO-8601)`, `requiredEvidences[]`, `goldenTruth.facts[].minSupports`, `docBudget`.
+   * `strict: true` no `response_format.json_schema`.
 
-3. **Service: `DesignCaseAsync` → `GenerateStructuredAsync`**
+3. **Criar `Expand.schema.json`**
 
-   * Trocar chamada LLM para usar `response_format: json_schema`.
-   * **Aceite:** método rejeita respostas fora do schema; retorna `JObject`.
+   * Campos: `persons[] {id,name,role,alibis[] ISO-8601}`, `locations[]`, (opcional) `enrichedTimeline[]`.
+
+4. **Services**
+
+   * `PlanService`/`ExpandService`: trocar schema inline → provider (`IJsonSchemaProvider`).
+   * `CaseGenerationService`: validar Plan/Expand após geração usando `SchemaValidationService`.
+
+5. **CI/Config**
+
+   * App Settings: `SCHEMAS_BASE_PATH= Schemas/v1`.
+   * README: instruções para promover v1→v2 (branch e config).
 
 ---
 
-## Épico B — **Fan-out/Fan-in** na geração (docs/mídias/PDF)
+## Épico D — GenerateDocumentFromSpec (seções, tamanho, custódia)
 
-**User Story B1** – Como orquestrador, quero criar **1 activity por documento** para paralelizar geração.
-**DoD:** Orchestrator faz `fan-out` N docs + M mídias; `fan-in` antes de Normalize/Index.
+**User Story** – Como jogador, quero documentos enxutos e fiéis ao tipo.
+
+**DoD**
+
+* `GenerateDocumentFromSpecAsync` usa prompts por **tipo** (police\_report, interview, memo\_admin, forensics\_report, witness\_statement, evidence\_log).
+* Respeita `sections` e `lengthTarget`; laudos contêm **“Cadeia de Custódia”**.
+* Fan-out já habilitado no Orchestrator (feito no B).
 
 **Tasks**
 
-1. **Activities unitárias**
-
-   * `GenerateDocumentActivity(spec)` → `markdownPath` (ou payload com `docId`, `markdown`).
-   * `GenerateMediaItemActivity(spec)` → salva imagem (quando ativar) e retorna `evidenceId`.
-   * **Aceite:** rodar várias instâncias em paralelo sem colisão de arquivos.
-
-2. **(Opcional) `RenderPdfActivity(docId)`**
-
-   * Recebe `markdown` ou caminho; usa Playwright para PDF.
-   * **Aceite:** um PDF por doc, sem sobrescrever.
-
-3. **Refatorar Orchestrator**
-
-   * Após `Design`, parsear specs e:
-
-     * `var docTasks = specs.Documents.Select(d => CallActivityAsync("GenerateDocumentActivity", d));`
-     * `var mediaTasks = specs.Media.Select(m => CallActivityAsync("GenerateMediaItemActivity", m));`
-     * `await Task.WhenAll(docTasks.Concat(mediaTasks));`
-   * **Aceite:** tempo total reduzido com múltiplos docs (visível no log).
+1. Prompts por tipo (system) + payload com `spec` e contexto.
+2. Activity unitária já criada (B); garantir logs por `docId`.
+3. Render PDF opcional por activity (ligado ao O).
 
 ---
 
-## Épico C — **GenerateDocumentFromSpec** (seções, tamanho, laudo com “Cadeia de Custódia”)
+## Épico F — **Geração REAL de Imagens** (image API) + Fan-out/Fan-in
 
-**User Story C1** – Como jogador, quero documentos coerentes e curtos no nível Iniciante.
-**DoD:** docs seguem `sections` e `lengthTarget`; laudos têm seção “Cadeia de custódia”.
+**User Story** – Como produtor, quero que cada `mediaSpec` gere **arquivo de imagem** real (quando suportado), paralelamente.
+
+**DoD**
+
+* `ImagesService.GenerateAsync(spec)` chamando **image API** (ex.: OpenAI `images/generations`).
+* Suporta `photo`, `document_scan`, `diagram`; demais `kind` aceitos com `deferred=true`.
+* Activity `GenerateMediaItemActivity` grava `/bundles/<caseId>/media/<evidenceId>.jpg|.png`.
+* Orchestrator: fan-out por mídia (já pronto) + fan-in; erros geram `*.error.txt`.
 
 **Tasks**
 
-1. **Prompt por tipo**
+1. **Service**
 
-   * `police_report_system.md`, `interview_system.md`, `memo_admin_system.md`, `forensics_report_system.md`.
-   * Cada prompt: “Saída APENAS Markdown”, “respeite `sections`, `lengthTarget`”.
-   * **Aceite:** doc gerado contém todos os cabeçalhos; tamanho dentro do intervalo.
+   * `ImagesService`: método `GenerateAsync(caseId, spec)` com `size`, `seed`, `safety` (opcional).
+   * Montar `genPrompt` = `spec.Prompt` + `constraints` (bullet points).
 
-2. **Service: `GenerateDocumentFromSpecAsync(spec, ctx)`**
+2. **Activity & Orchestrator**
 
-   * Constrói payload com `spec` + contexto (`skeleton`,`entities`).
-   * **Aceite:** retorna `markdown` puro (sem YAML extra).
+   * `GenerateMediaItemActivity` usa `ImagesService`.
+   * Orchestrator já cria as N tasks; só persista os paths e retorne no fan-in.
 
-3. **Salvar & PDF**
+3. **Config & Logs**
 
-   * Salvar `.md` em `bundles/<caseId>/documents/`.
-   * Converter para PDF via `RealPdfRenderer`.
-   * **Aceite:** `<docId>.md` e `<docId>.pdf` existem.
+   * Settings de modelo e size (`OPENAI_MODEL_IMAGE`, `IMAGE_SIZE`).
+   * Log por `evidenceId`, tempo, bytes salvos.
 
 ---
 
-## Épico D — **GenerateMediaFromSpec** (fotos)
+## Épico G — **Enriquecer prompts** do `GenerateDocumentsAsync`
 
-**User Story D1** – Como produtor, quero **prompts** por evidência com metadados (ângulo, iluminação).
-**DoD:** gera e salva `{evidenceId}.jpg` OU stub `.prompt.txt` se gerador desativado.
+**User Story** – Como designer narrativo, quero prompts mais ricos, controlados por **tipo** e **nível**.
+
+**DoD**
+
+* Switch por tipo troca prompts simples por **blocos detalhados** (tom, estrutura, estilo).
+* Injeção de **constraints** por nível (ver Épico H).
+* Evita “solução do caso” e reforça “cadeia de custódia” em laudos.
 
 **Tasks**
 
-1. **Prompt base de foto**
+1. **Biblioteca de prompts (arquivos `.md`)**
 
-   * System: “foto forense realista; **sem pessoas identificáveis**; output = imagem.”
-   * **Aceite:** prompt final concatena `constraints`.
+   * `Prompts/doc/police_report_system.md`, `…/interview_system.md`, etc.
+   * Cada arquivo traz: objetivo, estilo, seções obrigatórias, anti-padrões.
 
-2. **Service: `GenerateMediaFromSpecAsync(spec)`**
+2. **Template de user payload**
 
-   * Se `generateImages=false` → cria `evidenceId.prompt.txt`.
-   * **Aceite:** arquivo existe com prompt montado.
+   * Sempre inclui: `spec`, `levelProfile`, `caseId`, `contexto do design resumido`.
 
-3. **Activity unitária**
+3. **LLM service**
 
-   * `GenerateMediaItemActivity` chama service acima.
-   * **Aceite:** paraleliza N itens.
+   * Preferir `GenerateAsync` com **seed** fixo por doc (reprodutibilidade).
 
 ---
 
-## Épico E — **Validation & Rules**
+## Épico H — **Padrão de Dificuldade**
 
-**User Story E1** – Como designer, quero validar **timeline**, **golden facts** e **gating**.
-**DoD:** `RuleValidate` produz `{passed, violations[]}`.
+**User Story** – Como orquestrador, quero um **“DifficultyProfile”** que ajuste prompts e validações por nível (L1…L5).
+
+**DoD**
+
+* `DifficultyProfile` (JSON) mapeia: ranges de `lengthTarget`, nº de suspeitos, nº docs, %noise/redHerring, `stepsToThesis`.
+* Services e prompts leem `levelProfile` e adaptam instruções (ex.: L1 = curto, menos jargão; L5 = laudos complexos).
+* Validators usam `supportsPerFact` do perfil.
 
 **Tasks**
 
-1. **Validators**
+1. **Modelo & Config**
 
-   * `CheckTimelineMonotonic`: ISO-8601 ordenado.
-   * `CheckGoldenSupportsThreshold`: `minSupports >= supportsPerFact`.
-   * `CheckGatingConsistency`: `gated=true` exige `gatingRule`.
-   * `CheckCustodyHeaderInPericial`: string obrigatória.
-   * **Aceite:** violações legíveis; 0 erros para happy path.
+   * `DifficultyProfile.cs` + `difficulty.v1.json` (carregado via config/DI).
+2. **Injeção nos prompts**
 
-2. **Activity `RuleValidate`**
+   * Interpolar `levelProfile` nos system prompts (D e G).
+3. **Validação**
 
-   * Lê `case.skeleton.json`, `case.specs.json`, e MDs.
-   * **Aceite:** JSON com status; log detalhado.
+   * `SchemaValidationService` reforça limites por nível (quando aplicável).
 
 ---
 
-## Épico F — **Normalize + Index (Azure AI Search)**
+## Épico I — **Revisão do Normalize** (clarificar etapa)
 
-**User Story F1** – Como engine de busca, quero documentos indexados com embeddings.
-**DoD:** `NormalizeAndIndex` conclui com sucesso; índice presente.
+**User Story** – Como dev, quero separar **Normalize** de **Index** para ficar claro o que cada um faz.
+
+**DoD**
+
+* **Normalize**: limpeza, front-matter opcional (YAML), NER/labels, split em chunks (sem indexar).
+* **Index**: embeddings + upsert no Azure AI Search (fica no Épico L).
+* Saída do Normalize: `/bundles/<caseId>/documents/*.md` normalizados + manifest.
 
 **Tasks**
 
-1. **Normalize**
+1. **NormalizeActivity** (claro e pequeno)
 
-   * (stub) limpeza/NER futura; hoje só garante codificação e front-matter mínimo opcional.
-   * **Aceite:** sem alteração semântica.
+   * “O que fazer”: normalizar e salvar; **não** chamar Search.
+2. **Manifest & Logs**
 
-2. **Index**
+   * `manifest.json` com hashes dos arquivos normalizados.
+3. **Docs**
 
-   * `SearchIndexService.IndexDocumentsAsync(dir, caseId)` (embeddings + upsert).
-   * **Aceite:** POST bem-sucedido; logging de quantos docs.
+   * Atualizar README explicando Normalize≠Index e ordem no Orchestrator.
 
 ---
 
-## Épico G — **i18n & Naming Policy**
+## Épico J — GenerateMediaFromSpec (design de prompts e metadados)
 
-**User Story G1** – Como UX lead, quero títulos com `i18nKey` e sem nomes proibidos.
-**DoD:** nenhum doc usa nome da blacklist; todos têm `i18nKey`.
+**User Story** – Como designer de mídia, quero `mediaSpecs` coesos (prompts e constraints executáveis).
+
+**DoD**
+
+* `constraints` em objeto; `deferred=true` para não suportados.
+* Validação de `i18nKey` e `kind` suportado.
 
 **Tasks**
 
-1. **Blacklist de nomes**
-
-   * Adicionar no **Plan** e **Expand**: “evite \[‘Lucas’, …]”.
-   * **Aceite:** verificação simples pós-geração.
-
-2. **`i18nKey` obrigatório**
-
-   * Validar em `Design` e recusar spec sem chave.
-   * **Aceite:** build falha do card até ajustar prompt.
+1. Prompt base por `kind` (foto/docscan/diagram).
+2. Regras de redaction (PII) para docscan.
+3. Schema & validação (já coberto no Design e validação de mídia).
 
 ---
 
-## Épico H — **Observabilidade & Logging**
+## Épico K — Validation & Rules
 
-**User Story H1** – Como operador, quero saber tempo e custo por etapa.
-**DoD:** logs com início/fim por activity, tokens aproximados e custo estimado.
+**User Story** – Como designer, quero reprovar bundles inconsistentes.
+
+**DoD**
+
+* `RuleValidate` retorna `{passed, violations[]}` cobrindo: timeline ISO-8601 ordenada; supports mínimos; gating consistente; “Cadeia de Custódia” em laudos.
 
 **Tasks**
 
-1. **Timers & métricas simples**
-
-   * Stopwatch por activity, contagem de itens em fan-out.
-   * **Aceite:** logs em nível `Info` agregados no final.
-
-2. **Playtest hook**
-
-   * Logar top-N trechos dos docs para QA.
-   * **Aceite:** arquivo `preview.log` por caso.
+1. Checkers (timeline/supports/gating/custódia).
+2. Activity + logs legíveis.
 
 ---
 
-## Épico I — **Orquestração de PDFs em paralelo (opcional agora)**
+## Épico L — Normalize + Index (Azure AI Search)
 
-**User Story I1** – Como produtor, quero renderizar PDFs fora da geração de texto.
-**DoD:** `RenderPdfActivity` independente; **fan-out** por doc.
+**User Story** – Como engine de busca, quero documentos indexados.
+
+**DoD**
+
+* Embeddings com modelo configurável; upsert no índice; logs de quantos documentos.
 
 **Tasks**
 
-1. **Extrair render**
-
-   * Activity `RenderPdfActivity(docRef)` usa `RealPdfRenderer`.
-   * **Aceite:** PDFs iguais aos atuais.
-
-2. **Fan-in antes de Normalize**
-
-   * Espera todos PDF tasks.
-   * **Aceite:** Normalize só após todos prontos.
+1. `SearchIndexService.IndexDocumentsAsync`.
+2. Ajustar dimensionamento (detecta `embedding.Length`).
 
 ---
 
-## Épico J — **Red Team & Tuning (loop leve)**
+## Épico M — i18n & Naming Policy
 
-**User Story J1** – Como designer, quero detectar casos triviais e endurecer.
-**DoD:** gera `redteam.json` com `{steps,coverage,trivial}` e opcional `tuning.delta.json`.
+**User Story** – Como UX, quero `i18nKey` em todos os títulos e blacklist de nomes sensíveis.
+
+**DoD**
+
+* Falha se faltarem `i18nKey`.
+* Prompts recebem `nameBlacklist`.
 
 **Tasks**
 
-1. **Prompt Red Team (JSON-only)**
-
-   * Saída `{steps,coverage,trivial,notes[]}`.
-   * **Aceite:** parse 100% confiável.
-
-2. **Tune (opcional)**
-
-   * `TuningDelta.actions[]` = `add_noise`, `add_red_herring`, `split_doc`, `gate_doc`.
-   * **Aceite:** arquivo salvo; aplicação automática futura.
+1. Validações de i18nKey (regex) no SchemaValidation.
+2. Injeção de blacklist em Plan/Expand.
 
 ---
 
-# Backlog (ordenado)
+## Épico N — Observability & Logging
 
-1. **A1.1–A1.3** (schema + prompt de Design + service structured)
-2. **B1.1–B1.3** (activities unitárias + orquestrador fan-out/fan-in)
-3. **C1.1–C1.3** (prompts por tipo + service doc + salvar + PDF)
-4. **D1.1–D1.3** (media prompt + service + activity)
-5. **E1.1–E1.2** (validators + activity RuleValidate)
-6. **F1.1–F1.2** (normalize + index)
-7. **G1.1–G1.2** (blacklist + i18nKey obrigatório)
-8. **H1.1–H1.2** (observabilidade)
-9. **I1.1–I1.2** (PDF fan-out dedicado)
-10. **J1.1–J1.2** (redteam + tuning)
+**User Story** – Como operador, quero tempos, custos e previews.
 
-> **Dependências-chave:**
-> A → B (Design estruturado antecede fan-out) • C/D dependem de B (ou rodam com wrapper) • F depende de C • E depende de C (e parte de D) • I depende de C.
+**DoD**
+
+* Stopwatch por activity; custo estimado; preview de N linhas.
+
+**Tasks**
+
+1. Métricas simples (Info).
+2. `preview.log` por caso.
 
 ---
 
-## Critérios de Aceite (globais)
+## Épico O — PDFs em paralelo
 
-* **Nível Iniciante**: 2–3 suspeitos; 8–14 docs; **ISO-8601** em timeline; 1–2 laudos **gated**; `supportsPerFact=2`.
-* **Fan-out/Fan-in**: docs e mídias executam **paralelo**; Orchestrator só segue após **Task.WhenAll**.
-* **i18n**: todas as `documentSpecs[].title` e `mediaSpecs[].title` têm `i18nKey`.
-* **Laudos**: contêm “**Cadeia de custódia**”.
-* **Index**: documentos presentes no índice; busca retorna itens com `caseId` e `docId`.
+**User Story** – Como produtor, quero PDF por doc sem bloquear.
+
+**DoD**
+
+* `RenderPdfActivity` fan-out por doc; fan-in antes de Normalize.
+
+**Tasks**
+
+1. Extract render do fluxo de documento.
+2. Orchestrator: `Task.WhenAll(pdfTasks)`.
 
 ---
 
-## Definition of Done (DOD)
+## Épico P — Red Team & Tuning
 
-* Código revisado (CR aprovado).
-* Pipelines locais rodam sem erro com um **case.request Iniciante**.
-* Bundle gerado em `bundles/<caseId>/` com `.md`, `.pdf`, mídias e `manifest.json`.
-* `RuleValidate.passed = true`.
-* `RedTeam.trivial = false` (ou `true` + `tuning.delta.json` salvo).
-* Documentação/README atualizada.
+**User Story** – Como designer, quero sinalizar casos triviais e endurecer.
+
+**DoD**
+
+* `redteam.json {steps,coverage,trivial,notes[]}`.
+* `tuning.delta.json` opcional com ações (add\_noise, add\_red\_herring, split\_doc, gate\_doc).
+
+**Tasks**
+
+1. Prompt JSON-only para RedTeam.
+2. Tuning (aplicar depois).
+
+---
+
+### Critérios Globais de Aceite
+
+* L1 (Iniciante): 2–3 suspeitos; 8–14 docs; timestamps ISO-8601; 1–2 laudos **gated**; `supportsPerFact=2`.
+* Fan-out/Fan-in: docs e mídias executam em paralelo e convergem antes de Normalize/Index.
+* i18n: todos os títulos com `i18nKey`.
+* Laudos: incluem “**Cadeia de Custódia**”.
 
 ---
