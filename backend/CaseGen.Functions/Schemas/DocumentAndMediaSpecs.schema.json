@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DocumentAndMediaSpecs",
+  "description": "Schema for case design output containing document specifications and media specifications for parallel generation",
+  "type": "object",
+  "properties": {
+    "caseId": { "type": "string" },
+    "version": { "type": "string" },
+    "documentSpecs": {
+      "type": "array",
+      "description": "List of documents to be generated for the case",
+      "items": {
+        "type": "object",
+        "properties": {
+          "docId": { "type": "string", "description": "Unique identifier for the document within the case" },
+          "type": {
+            "type": "string",
+            "enum": ["police_report", "interview", "memo_admin", "forensics_report", "evidence_log", "witness_statement"],
+            "description": "Type of document to generate"
+          },
+          "title": { "type": "string", "description": "Human-readable title for the document" },
+          "i18nKey": {
+            "type": "string",
+            "description": "Internationalization key for the document title",
+            "pattern": "^[a-z0-9_]+\\.[a-z0-9_]+$"
+          },
+          "sections": {
+            "type": "array",
+            "description": "Required sections for the document",
+            "items": { "type": "string" },
+            "minItems": 1
+          },
+          "lengthTarget": {
+            "type": "array",
+            "description": "Target length range [min, max] in words",
+            "items": { "type": "integer", "minimum": 10 },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "gated": { "type": "boolean", "description": "Whether this document requires special access rules" },
+          "gatingRule": {
+            "type": "object",
+            "description": "Access rule when gated is true",
+            "properties": {
+              "action": { "type": "string", "enum": ["submit_evidence", "role_required", "manual_unlock"] },
+              "evidenceId": { "type": "string" },
+              "notes": { "type": "string" }
+            },
+            "required": ["action"]
+          }
+        },
+        "required": ["docId", "type", "title", "i18nKey", "sections", "lengthTarget", "gated"],
+        "allOf": [
+          {
+            "if": { "properties": { "gated": { "const": true } } },
+            "then": { "required": ["gatingRule"] }
+          },
+          {
+            "if": { "properties": { "type": { "const": "forensics_report" } } },
+            "then": {
+              "properties": {
+                "sections": {
+                  "contains": { "type": "string", "pattern": "(?i)cadeia de cust[óo]dia" }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "minItems": 1
+    },
+    "mediaSpecs": {
+      "type": "array",
+      "description": "List of media items to be generated for the case",
+      "items": {
+        "type": "object",
+        "properties": {
+          "evidenceId": { "type": "string", "description": "Unique identifier for the evidence/media item" },
+          "kind": {
+            "type": "string",
+            "enum": ["photo", "audio", "video", "document_scan", "diagram"],
+            "description": "Type of media to generate"
+          },
+          "title": { "type": "string", "description": "Human-readable title for the media item" },
+          "i18nKey": {
+            "type": "string",
+            "description": "Internationalization key for the media title",
+            "pattern": "^[a-z0-9_]+\\.[a-z0-9_]+$"
+          },
+          "prompt": { "type": "string", "description": "Generation prompt for the media item" },
+          "constraints": {
+            "type": "object",
+            "description": "Additional constraints for media generation (lighting, angle, etc.)",
+            "additionalProperties": { "type": ["string", "number", "boolean"] }
+          },
+          "deferred": { "type": "boolean", "description": "Mark true if media type isn't supported yet", "default": false }
+        },
+        "required": ["evidenceId", "kind", "title", "i18nKey", "prompt"]
+      }
+    }
+  },
+  "required": ["documentSpecs", "mediaSpecs"]
+}

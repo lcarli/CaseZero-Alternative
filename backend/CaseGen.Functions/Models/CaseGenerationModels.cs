@@ -14,6 +14,20 @@ public record NormalizeActivityModel
     public required string[] Media { get; init; }
 }
 
+public record GenerateDocumentItemInput
+{
+    public required string CaseId { get; init; }
+    public required string DesignJson { get; init; }
+    public required DocumentSpec Spec { get; init; }
+}
+
+public record GenerateMediaItemInput
+{
+    public required string CaseId { get; init; }
+    public required string DesignJson { get; init; }
+    public required MediaSpec Spec { get; init; }
+}
+
 public record PackageActivityModel
 {
     public required string FinalJson { get; init; }
@@ -146,4 +160,102 @@ public static class CaseGenerationSteps
         Plan, Expand, Design, GenDocs, GenMedia, 
         Normalize, Index, RuleValidate, RedTeam, Package
     };
+}
+
+// Document and Media Specifications for structured case design
+public record DocumentSpec
+{
+    [JsonPropertyName("docId")]
+    public required string DocId { get; init; }
+    
+    [JsonPropertyName("type")]
+    public required string Type { get; init; }
+    
+    [JsonPropertyName("title")]
+    public required string Title { get; init; }
+    
+    [JsonPropertyName("i18nKey")]
+    public required string I18nKey { get; init; }
+    
+    [JsonPropertyName("sections")]
+    public required string[] Sections { get; init; }
+    
+    [JsonPropertyName("lengthTarget")]
+    public required int[] LengthTarget { get; init; }
+    
+    [JsonPropertyName("gated")]
+    public required bool Gated { get; init; }
+    
+    [JsonPropertyName("gatingRule")]
+    public GatingRule? GatingRule { get; init; }
+}
+
+public record MediaSpec
+{
+    [JsonPropertyName("evidenceId")]
+    public required string EvidenceId { get; init; }
+
+    [JsonPropertyName("kind")]
+    public required string Kind { get; init; }
+
+    [JsonPropertyName("title")]
+    public required string Title { get; init; }
+
+    [JsonPropertyName("i18nKey")]
+    public required string I18nKey { get; init; }
+
+    [JsonPropertyName("prompt")]
+    public required string Prompt { get; init; }
+
+    [JsonPropertyName("constraints")]
+    public Dictionary<string, object>? Constraints { get; init; }
+    public bool Deferred { get; init; } = false;
+}
+
+public record DocumentAndMediaSpecs
+{
+    [JsonPropertyName("documentSpecs")]
+    public required DocumentSpec[] DocumentSpecs { get; init; }
+
+    [JsonPropertyName("mediaSpecs")]
+    public required MediaSpec[] MediaSpecs { get; init; }
+    
+    public string? CaseId { get; init; }
+    public string? Version { get; init; }
+}
+
+// Document Types enumeration for validation
+public static class DocumentTypes
+{
+    public const string PoliceReport = "police_report";
+    public const string Interview = "interview";
+    public const string MemoAdmin = "memo_admin";
+    public const string ForensicsReport = "forensics_report";
+    public const string EvidenceLog = "evidence_log";
+    public const string WitnessStatement = "witness_statement";
+    
+    public static readonly string[] AllTypes = {
+        PoliceReport, Interview, MemoAdmin, ForensicsReport, EvidenceLog, WitnessStatement
+    };
+}
+
+// Media Types enumeration for validation
+public static class MediaTypes
+{
+    public const string Photo = "photo";
+    public const string Audio = "audio";
+    public const string Video = "video";
+    public const string DocumentScan = "document_scan";
+    public const string Diagram = "diagram";
+
+    public static readonly string[] AllTypes = {
+        Photo, Audio, Video, DocumentScan, Diagram
+    };
+}
+
+public record GatingRule
+{
+    public required string Action { get; init; } // submit_evidence | role_required | manual_unlock
+    public string? EvidenceId { get; init; }
+    public string? Notes { get; init; }
 }

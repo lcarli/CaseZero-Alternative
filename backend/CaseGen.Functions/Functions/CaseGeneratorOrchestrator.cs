@@ -26,7 +26,7 @@ public class CaseGeneratorOrchestrator
         {
             var requestBody = await req.ReadAsStringAsync();
             var request = JsonSerializer.Deserialize<CaseGenerationRequest>(requestBody ?? "{}");
-            
+
             if (request == null)
             {
                 var errorResponse = req.CreateResponse(System.Net.HttpStatusCode.BadRequest);
@@ -35,7 +35,7 @@ public class CaseGeneratorOrchestrator
             }
 
             var instanceId = await client.ScheduleNewOrchestrationInstanceAsync("CaseGenerationOrchestrator", request);
-            
+
             _logger.LogInformation("Started case generation orchestration {InstanceId} for {Title}", instanceId, request.Title);
 
             var response = req.CreateResponse(System.Net.HttpStatusCode.Accepted);
@@ -60,7 +60,7 @@ public class CaseGeneratorOrchestrator
         try
         {
             var metadata = await client.GetInstanceAsync(instanceId);
-            
+
             if (metadata == null)
             {
                 var notFoundResponse = req.CreateResponse(System.Net.HttpStatusCode.NotFound);
@@ -78,7 +78,7 @@ public class CaseGeneratorOrchestrator
                 customStatus = metadata.SerializedCustomStatus,
                 output = metadata.SerializedOutput
             });
-            
+
             return response;
         }
         catch (Exception ex)
@@ -97,7 +97,7 @@ public class CaseGeneratorOrchestrator
         var request = context.GetInput<CaseGenerationRequest>() ?? throw new System.InvalidOperationException("Orchestration requires CaseGenerationRequest input.");
         var caseId = $"CASE-{context.CurrentUtcDateTime:yyyyMMdd}-{context.NewGuid().ToString("N")[..8]}";
         var startTime = context.CurrentUtcDateTime;
-        
+
         var status = new CaseGenerationStatus
         {
             CaseId = caseId,
@@ -118,58 +118,77 @@ public class CaseGeneratorOrchestrator
             status = status with { CurrentStep = CaseGenerationSteps.Plan, Progress = 0.1 };
             context.SetCustomStatus(status);
 
-            var planResult = await context.CallActivityAsync<string>("PlanActivity", new PlanActivityModel {Request = request, CaseId = caseId});
+            var planResult = await context.CallActivityAsync<string>("PlanActivity", new PlanActivityModel { Request = request, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Plan);
 
             // Step 2: Expand
-            status = status with { 
-                CurrentStep = CaseGenerationSteps.Expand, 
-                Progress = 0.2, 
-                CompletedSteps = completedSteps.ToArray() 
+            status = status with
+            {
+                CurrentStep = CaseGenerationSteps.Expand,
+                Progress = 0.2,
+                CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
-            
+
             var expandResult = await context.CallActivityAsync<string>("ExpandActivity", planResult);
             completedSteps.Add(CaseGenerationSteps.Expand);
 
             // Step 3: Design
-            status = status with { 
-                CurrentStep = CaseGenerationSteps.Design, 
-                Progress = 0.3, 
-                CompletedSteps = completedSteps.ToArray() 
+            status = status with
+            {
+                CurrentStep = CaseGenerationSteps.Design,
+                Progress = 0.3,
+                CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
-            
+
             var designResult = await context.CallActivityAsync<string>("DesignActivity", expandResult);
             completedSteps.Add(CaseGenerationSteps.Design);
 
             // Step 4: Generate Documents
-            status = status with { 
-                CurrentStep = CaseGenerationSteps.GenDocs, 
-                Progress = 0.4, 
-                CompletedSteps = completedSteps.ToArray() 
-            };
-            context.SetCustomStatus(status);
-            
-            var documentsResult = await context.CallActivityAsync<string[]>("GenerateDocumentsActivity", designResult);
-            completedSteps.Add(CaseGenerationSteps.GenDocs);
+            var specs = JsonSerializer.Deserialize<DocumentAndMediaSpecs>(designResult, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? throw new InvalidOperationException("Design result could not be parsed into DocumentAndMediaSpecs");
 
-            // Step 5: Generate Media
-            status = status with { 
-                CurrentStep = CaseGenerationSteps.GenMedia, 
-                Progress = 0.5, 
-                CompletedSteps = completedSteps.ToArray() 
+            // Step 4+5: GenDocs & GenMedia em paralelo com FAN-OUT/FAN-IN
+            status = status with
+            {
+                CurrentStep = $"{CaseGenerationSteps.GenDocs}+{CaseGenerationSteps.GenMedia}",
+                Progress = 0.45,
+                CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
-            
-            var mediaResult = await context.CallActivityAsync<string[]>("GenerateMediaActivity", designResult);
+
+            var docTasks = new List<Task<string>>();
+            foreach (var ds in specs.DocumentSpecs)
+            {
+                var input = new GenerateDocumentItemInput { CaseId = caseId, DesignJson = designResult, Spec = ds };
+                docTasks.Add(context.CallActivityAsync<string>("GenerateDocumentItemActivity", input));
+            }
+            var mediaTasks = new List<Task<string>>();
+            foreach (var ms in specs.MediaSpecs)
+            {
+                var input = new GenerateMediaItemInput { CaseId = caseId, DesignJson = designResult, Spec = ms };
+                mediaTasks.Add(context.CallActivityAsync<string>("GenerateMediaItemActivity", input));
+            }
+
+            var docsWhenAll = Task.WhenAll(docTasks);
+            var mediaWhenAll = Task.WhenAll(mediaTasks);
+            await Task.WhenAll(docsWhenAll, mediaWhenAll);
+
+            var documentsResult = docsWhenAll.Result;
+            var mediaResult = mediaWhenAll.Result;
+
+            completedSteps.Add(CaseGenerationSteps.GenDocs);
             completedSteps.Add(CaseGenerationSteps.GenMedia);
 
             // Step 6: Normalize
-            status = status with { 
-                CurrentStep = CaseGenerationSteps.Normalize, 
-                Progress = 0.6, 
-                CompletedSteps = completedSteps.ToArray() 
+            status = status with
+            {
+                CurrentStep = CaseGenerationSteps.Normalize,
+                Progress = 0.6,
+                CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
 
@@ -177,59 +196,64 @@ public class CaseGeneratorOrchestrator
             completedSteps.Add(CaseGenerationSteps.Normalize);
 
             // Step 7: Index
-            status = status with { 
-                CurrentStep = CaseGenerationSteps.Index, 
-                Progress = 0.7, 
-                CompletedSteps = completedSteps.ToArray() 
+            status = status with
+            {
+                CurrentStep = CaseGenerationSteps.Index,
+                Progress = 0.7,
+                CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
-            
+
             var indexResult = await context.CallActivityAsync<string>("IndexActivity", normalizeResult);
             completedSteps.Add(CaseGenerationSteps.Index);
 
             // Step 8: Rule Validate
-            status = status with { 
-                CurrentStep = CaseGenerationSteps.RuleValidate, 
-                Progress = 0.8, 
-                CompletedSteps = completedSteps.ToArray() 
+            status = status with
+            {
+                CurrentStep = CaseGenerationSteps.RuleValidate,
+                Progress = 0.8,
+                CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
-            
+
             var validateResult = await context.CallActivityAsync<string>("ValidateRulesActivity", indexResult);
             completedSteps.Add(CaseGenerationSteps.RuleValidate);
 
             // Step 9: Red Team
-            status = status with { 
-                CurrentStep = CaseGenerationSteps.RedTeam, 
-                Progress = 0.9, 
-                CompletedSteps = completedSteps.ToArray() 
+            status = status with
+            {
+                CurrentStep = CaseGenerationSteps.RedTeam,
+                Progress = 0.9,
+                CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
-            
+
             var redTeamResult = await context.CallActivityAsync<string>("RedTeamActivity", validateResult);
             completedSteps.Add(CaseGenerationSteps.RedTeam);
 
             // Step 10: Package
-            status = status with { 
-                CurrentStep = CaseGenerationSteps.Package, 
-                Progress = 0.95, 
-                CompletedSteps = completedSteps.ToArray() 
+            status = status with
+            {
+                CurrentStep = CaseGenerationSteps.Package,
+                Progress = 0.95,
+                CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
-            
+
             var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = redTeamResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Package);
 
             // Complete
-            status = status with { 
-                Status = "Completed", 
-                CurrentStep = "Completed", 
-                Progress = 1.0, 
+            status = status with
+            {
+                Status = "Completed",
+                CurrentStep = "Completed",
+                Progress = 1.0,
                 CompletedSteps = completedSteps.ToArray(),
                 Output = packageResult,
-                EstimatedCompletion = DateTime.UtcNow
+                EstimatedCompletion = context.CurrentUtcDateTime
             };
-            
+
             logger.LogInformation("Completed case generation orchestration for case {CaseId}", caseId);
             return status;
         }
@@ -237,11 +261,12 @@ public class CaseGeneratorOrchestrator
         {
             var logger = context.CreateReplaySafeLogger<CaseGeneratorOrchestrator>();
             logger.LogError(ex, "Failed case generation orchestration for case {CaseId}", caseId);
-            
-            return status with { 
-                Status = "Failed", 
+
+            return status with
+            {
+                Status = "Failed",
                 Error = ex.Message,
-                EstimatedCompletion = DateTime.UtcNow
+                EstimatedCompletion = context.CurrentUtcDateTime
             };
         }
     }
