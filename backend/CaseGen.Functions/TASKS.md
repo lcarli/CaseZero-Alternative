@@ -12,7 +12,7 @@ Aqui está o **MD completo** com o TO-DO no topo e os épicos reordenados como v
 | :---: | ----------------------------------------------------------------------------- | :----: | ------------------------------------------ |
 | **A** | Design estruturado (JSON `documentSpecs`/`mediaSpecs`)                        | ✅ DONE | Entregue e validando por schema            |
 | **B** | Fan-out/Fan-in (docs & mídias)                                                | ✅ DONE | Orchestrator paraleliza por item           |
-| **C** | **Schemas de Plan & Expand em arquivos + versionamento de todos os schemas**  | ⏳ TODO | Novo — igual ao Design (file-based)        |
+| **C** | **Schemas de Plan & Expand em arquivos + versionamento de todos os schemas**  | ✅ DONE | Novo — igual ao Design (file-based)        |
 | **D** | GenerateDocumentFromSpec (seções, tamanho, “Cadeia de Custódia”)              | ⏳ TODO | Era C, virou D                             |
 | **F** | **Geração REAL de imagens (image API) + Fan-out/Fan-in**                      | ⏳ TODO | Novo — executa prompts de mídia            |
 | **G** | **Enriquecer prompts de documentos (GenerateDocumentsAsync)**                 | ⏳ TODO | Novo — prompts por tipo mais ricos         |
@@ -27,45 +27,6 @@ Aqui está o **MD completo** com o TO-DO no topo e os épicos reordenados como v
 | **P** | Red Team & Tuning (loop leve)                                                 | ⏳ TODO | Era K, virou P                             |
 
 > Observação sobre letras: **E** foi remapeado para **J** e **F** para **K**; por isso a sequência pula o “E”.
-
----
-
-## Épico C — Schemas de **Plan** e **Expand** como arquivos + versionamento
-
-**User Story** – Como dev, quero `Plan.schema.json` e `Expand.schema.json` **externos** (file-based) e uma **versão** para cada schema, para validar respostas do LLM exatamente como no Design.
-
-**DoD**
-
-* `Schemas/v1/Plan.schema.json` e `Schemas/v1/Expand.schema.json` copiados para `bin` em build.
-* `PlanService` e `ExpandService` usam `IJsonSchemaProvider.GetSchema("v1/Plan")`/`("v1/Expand")`.
-* Respostas inválidas falham com erro claro; logs registram **hash do schema** usado.
-* `SCHEMAS_BASE_PATH` permite apontar para `Schemas/vN` (versionamento por config).
-
-**Tasks**
-
-1. **Estrutura de versão de schema**
-
-   * Criar `Schemas/v1/` e mover `DocumentAndMediaSpecs.schema.json` para `Schemas/v1/…` (ajuste do provider).
-   * `csproj`: `<None Include="Schemas\**\*.json" CopyToOutputDirectory="PreserveNewest" />`.
-
-2. **Criar `Plan.schema.json`**
-
-   * Campos mínimos: `caseId`, `difficultyLevel(1..5)`, `timeline[] (ISO-8601)`, `requiredEvidences[]`, `goldenTruth.facts[].minSupports`, `docBudget`.
-   * `strict: true` no `response_format.json_schema`.
-
-3. **Criar `Expand.schema.json`**
-
-   * Campos: `persons[] {id,name,role,alibis[] ISO-8601}`, `locations[]`, (opcional) `enrichedTimeline[]`.
-
-4. **Services**
-
-   * `PlanService`/`ExpandService`: trocar schema inline → provider (`IJsonSchemaProvider`).
-   * `CaseGenerationService`: validar Plan/Expand após geração usando `SchemaValidationService`.
-
-5. **CI/Config**
-
-   * App Settings: `SCHEMAS_BASE_PATH= Schemas/v1`.
-   * README: instruções para promover v1→v2 (branch e config).
 
 ---
 
