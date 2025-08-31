@@ -142,7 +142,7 @@ public class CaseGeneratorOrchestrator
             };
             context.SetCustomStatus(status);
 
-            var designResult = await context.CallActivityAsync<string>("DesignActivity", expandResult);
+            var designResult = await context.CallActivityAsync<string>("DesignActivity", new DesignActivityModel { PlanJson = planResult, ExpandedJson = expandResult, Difficulty = request.Difficulty });
             completedSteps.Add(CaseGenerationSteps.Design);
 
             // Step 4: Generate Documents

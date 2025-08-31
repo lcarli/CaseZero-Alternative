@@ -8,6 +8,13 @@ public record PlanActivityModel
     public required string CaseId { get; init; }
 }
 
+public record DesignActivityModel
+{
+    public required string PlanJson { get; init; }
+    public required string ExpandedJson { get; init; }
+    public string? Difficulty { get; init; }
+}
+
 public record NormalizeActivityModel
 {
     public required string[] Documents { get; init; }
@@ -175,9 +182,6 @@ public record DocumentSpec
     [JsonPropertyName("title")]
     public required string Title { get; init; }
     
-    [JsonPropertyName("i18nKey")]
-    public required string I18nKey { get; init; }
-    
     [JsonPropertyName("sections")]
     public required string[] Sections { get; init; }
     
@@ -201,9 +205,6 @@ public record MediaSpec
 
     [JsonPropertyName("title")]
     public required string Title { get; init; }
-
-    [JsonPropertyName("i18nKey")]
-    public required string I18nKey { get; init; }
 
     [JsonPropertyName("prompt")]
     public required string Prompt { get; init; }

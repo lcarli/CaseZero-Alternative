@@ -201,7 +201,6 @@ public class CaseGenerationService : ICaseGenerationService
             IMPORTANTE:
             - Saída APENAS JSON válido no schema DocumentAndMediaSpecs
             - NÃO adicione explicações, comentários ou texto extra
-            - Use i18nKey para todos os títulos (formato: categoria.identificador)
             - Marque documentos sensíveis com "gated": true e inclua "gatingRule" como objeto { action, evidenceId?, notes? }
             - Para documentos gated=true, sempre inclua gatingRule
             - Para laudos periciais, inclua seção "Cadeia de Custódia"
@@ -231,15 +230,8 @@ public class CaseGenerationService : ICaseGenerationService
             - 8-14 documentos (adequados ao nível Iniciante)
             - 2-6 itens de mídia como evidências
             - 1-2 laudos periciais gated=true com gatingRule
-            - Todos com i18nKey apropriadas
             - LengthTarget adequado ao nível (documentos curtos: 150-400 palavras)
             
-            Exemplos de i18nKey:
-            - documents.police_report_001
-            - documents.interview_suspect_main
-            - documents.forensics_ballistics
-            - media.crime_scene_photo_001
-            - media.weapon_evidence_photo
             """;
 
         var jsonSchema = _schemaProvider.GetSchema("DocumentAndMediaSpecs");
@@ -252,7 +244,7 @@ public class CaseGenerationService : ICaseGenerationService
             {
                 var response = await _llmService.GenerateStructuredAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
 
-                // Validate the response against schema
+                // Validate the response against schema (without difficulty context for legacy method)
                 var validationResult = await _schemaValidationService.ParseAndValidateAsync(response);
                 if (validationResult != null)
                 {
@@ -275,6 +267,121 @@ public class CaseGenerationService : ICaseGenerationService
 
         throw new InvalidOperationException("Failed to generate valid design specs");
     }
+
+    public async Task<string> DesignCaseAsync(string planJson, string expandedJson, string? difficulty = null, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Designing case structure");
+
+        using var planDoc = JsonDocument.Parse(planJson);
+        var planDifficulty = planDoc.RootElement.GetProperty("difficulty").GetString() ?? "Rookie";
+
+        // Get the actual difficulty profile for dynamic validation
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty ?? planDifficulty);
+        
+        (int minDocs, int maxDocs) = difficultyProfile.Documents;
+        (int minEvid, int maxEvid) = difficultyProfile.Evidences;
+
+        // Override with plan values if available (for backward compatibility)
+        if (planDoc.RootElement.TryGetProperty("profileApplied", out var prof))
+        {
+            if (prof.TryGetProperty("documents", out var docsArr) && docsArr.ValueKind == JsonValueKind.Array && docsArr.GetArrayLength() == 2)
+            { minDocs = docsArr[0].GetInt32(); maxDocs = docsArr[1].GetInt32(); }
+
+            if (prof.TryGetProperty("evidences", out var evidArr) && evidArr.ValueKind == JsonValueKind.Array && evidArr.GetArrayLength() == 2)
+            { minEvid = evidArr[0].GetInt32(); maxEvid = evidArr[1].GetInt32(); }
+        }
+
+        var gatedDocsCount = difficultyProfile.GatedDocuments;
+        var minMedia = Math.Max(2, minEvid);
+        var maxMedia = Math.Max(minMedia, maxEvid);
+
+        var systemPrompt = """
+            Você é um designer de casos investigativos. Converta o plano e a expansão
+            em especificações estruturadas para geração paralela de documentos e mídias.
+
+            IMPORTANTE:
+            - Saída APENAS JSON válido no schema DocumentAndMediaSpecs.
+            - NÃO adicione explicações, comentários ou texto extra.
+            - Marque documentos sensíveis com "gated": true e inclua "gatingRule" como objeto { action, evidenceId?, notes? }.
+            - Para laudos periciais, inclua seção "Cadeia de Custódia".
+
+            POLÍTICA DE LOCALIZAÇÃO/NOMES:
+            - Não invente endereços reais; mantenha locais abstratos ou cidade/UF apenas.
+            - Não use marcas/empresas reais; use nomes fictícios plausíveis.
+
+            Tipos de documento permitidos:
+            - police_report, interview, memo_admin, forensics_report, evidence_log, witness_statement
+
+            Tipos de mídia permitidos:
+            - photo, document_scan, diagram (suportados agora)
+            - audio, video (DEVEM ter deferred=true - não suportados ainda)
+            """;
+
+        var userPrompt = $"""
+            Transforme este caso em especificações estruturadas.
+
+            Dificuldade: {difficulty ?? planDifficulty}
+
+            CONTEXTO DO PLANO:
+            {planJson}
+
+            CONTEXTO EXPANDIDO:
+            {expandedJson}
+
+            REGRAS DE QUANTIDADE (dinâmicas por perfil do plano):
+            - Documentos: {minDocs}-{maxDocs}
+            - Itens de mídia (evidence): {minMedia}-{maxMedia}
+            - Documentos gated: exatamente {gatedDocsCount} (se > 0, DEVEM ser do tipo forensics_report)
+
+            POLÍTICA DE LOCALIZAÇÃO/NOMES:
+            - Não usar endereços reais (rua/número/coordenadas) ou marcas/empresas reais.
+            - Locais podem ser abstratos ou, se necessário, apenas cidade/UF.
+
+            REGRAS ESPECÍFICAS PARA GATED:
+            {(gatedDocsCount > 0 ? $@"- Exatamente {gatedDocsCount} documento(s) do tipo forensics_report com ""gated"": true.
+            - Cada documento gated DEVE conter ""gatingRule"" como objeto: {{ ""action"": ""requires_evidence"" ou ""submit_evidence"", ""evidenceId"": ""<id>"" }}.
+            - O ""evidenceId"" referenciado em cada gatingRule DEVE existir em mediaSpecs[*].evidenceId.
+            - Cada laudo gated deve incluir a seção ""Cadeia de Custódia"" nas sections." 
+            : @"- PROIBIDO usar ""gated"": true para QUALQUER documento neste nível.
+            - TODOS os documentos DEVEM ter ""gated"": false.
+            - NÃO inclua o campo ""gatingRule"" em NENHUM documento.")}
+
+            REQUISITOS DE DOCUMENTOS:
+            - Para cada documento, gerar: docId único (ex.: ""doc_<slug>_<nnn>""), type, title, sections[], lengthTarget[min,max], gated (bool).
+            - Incluir pelo menos 1 evidence_log e 1 police_report.
+            - Tipos permitidos: police_report, interview, memo_admin, forensics_report, evidence_log, witness_statement.
+            - Se type == forensics_report, incluir a seção ""Cadeia de Custódia"" nas sections (mesmo quando não-gated).
+
+            REQUISITOS DE MÍDIA:
+            - mediaSpecs: evidenceId único (ex.: ""ev_<slug>_<nnn>""), kind (photo/document_scan/diagram/audio/video), title, prompt, constraints (OBJETO), deferred (bool).
+            - audio e video DEVEM ter deferred=true (a geração desses tipos ainda não é suportada).
+            - constraints deve ser um OBJETO com chaves/valores simples (ex.: ""iluminacao"": ""raking"", ""escala"": true).
+
+            CONFORMIDADE DE SCHEMA (OBRIGATÓRIO):
+            - Saída APENAS em JSON válido conforme **DocumentAndMediaSpecs**.
+            - NÃO incluir campos fora do schema (sem i18nKey, sem extras).
+            - IDs (docId/evidenceId) devem ser únicos e consistentes.
+            - Quando gated=false, NÃO incluir o campo ""gatingRule"".
+
+            Saída: **APENAS JSON** válido conforme **DocumentAndMediaSpecs** (sem comentários nem texto extra).
+            """;
+
+        var jsonSchema = _schemaProvider.GetSchema("DocumentAndMediaSpecs");
+        const int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var response = await _llmService.GenerateStructuredAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
+                var validationResult = await _schemaValidationService.ParseAndValidateAsync(response, difficulty ?? planDifficulty);
+                if (validationResult != null) return response;
+                if (attempt == maxRetries) throw new InvalidOperationException("Design specs failed validation after retries");
+            }
+            catch when (attempt < maxRetries) { /* retry */ }
+        }
+        throw new InvalidOperationException("Failed to generate design specs");
+    }
+
 
     public async Task<string[]> GenerateDocumentsAsync(string designJson, CancellationToken cancellationToken = default)
     {
@@ -317,7 +424,7 @@ public class CaseGenerationService : ICaseGenerationService
 
             var userPrompt = $"""
             Gere um documento do tipo: {spec.Type}
-            Título: {spec.Title} (i18nKey: {spec.I18nKey})
+            Título: {spec.Title}
 
             Seções (na ordem):
             {string.Join("\n", spec.Sections.Select(s => "- " + s))}
@@ -361,7 +468,7 @@ public class CaseGenerationService : ICaseGenerationService
 
             var userPrompt = $"""
             Tipo de mídia: {m.Kind}
-            Título: {m.Title} (i18nKey: {m.I18nKey})
+            Título: {m.Title}
 
             Prompt base:
             {m.Prompt}
@@ -532,7 +639,7 @@ public class CaseGenerationService : ICaseGenerationService
             - Respeite as seções exigidas na ordem
             - Respeite o alvo de tamanho (min..max palavras)
             - Se gated=true, inclua a nota de acesso no rodapé
-            - Saída **APENAS** JSON: { docId, type, title, i18nKey, sections: [{title, content}], words }
+            - Saída **APENAS** JSON: { docId, type, title, sections: [{title, content}], words }
             """;
 
         var userPrompt = $"""
@@ -543,7 +650,6 @@ public class CaseGenerationService : ICaseGenerationService
             docId: {spec.DocId}
             type: {spec.Type}
             title: {spec.Title}
-            i18nKey: {spec.I18nKey}
             sections: {string.Join(", ", spec.Sections)}
             lengthTarget: [{spec.LengthTarget[0]}, {spec.LengthTarget[1]}]
             gated: {spec.Gated}
@@ -562,7 +668,7 @@ public class CaseGenerationService : ICaseGenerationService
         var systemPrompt = """
             Você é um engenheiro de evidências de mídia. Gere uma especificação JSON para criação de mídia.
             Requisitos:
-            - Saída **APENAS** JSON: { evidenceId, kind, title, i18nKey, genPrompt, constraints }
+            - Saída **APENAS** JSON: { evidenceId, kind, title, genPrompt, constraints }
             - genPrompt deve ser detalhado e reproduzível (iluminação/ângulo/escala/etiquetas etc.)
             - NADA de texto fora do JSON
             """;
@@ -575,7 +681,6 @@ public class CaseGenerationService : ICaseGenerationService
             evidenceId: {spec.EvidenceId}
             kind: {spec.Kind}
             title: {spec.Title}
-            i18nKey: {spec.I18nKey}
             constraints: {(spec.Constraints != null && spec.Constraints.Any() ? string.Join(", ", spec.Constraints.Select(kv => $"{kv.Key}: {kv.Value}")) : "n/a")}
 
             Gere o JSON final da mídia conforme instruções (campo genPrompt obrigatório).

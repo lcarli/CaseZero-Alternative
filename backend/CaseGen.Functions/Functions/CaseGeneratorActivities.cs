@@ -31,10 +31,10 @@ public class CaseGeneratorActivities
     }
 
     [Function("DesignActivity")]
-    public async Task<string> DesignActivity([ActivityTrigger] string expandedJson)
+    public async Task<string> DesignActivity([ActivityTrigger] DesignActivityModel model)
     {
         _logger.LogInformation("Designing case structure");
-        return await _caseGenerationService.DesignCaseAsync(expandedJson);
+        return await _caseGenerationService.DesignCaseAsync(model.PlanJson, model.ExpandedJson, model.Difficulty);
     }
 
     [Function("GenerateDocumentsActivity")]

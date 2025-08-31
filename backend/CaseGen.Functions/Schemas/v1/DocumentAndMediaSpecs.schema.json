@@ -1,55 +1,89 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "DocumentAndMediaSpecs",
-  "description": "Schema for case design output containing document specifications and media specifications for parallel generation",
   "type": "object",
+  "additionalProperties": false,
   "properties": {
     "caseId": { "type": "string" },
     "version": { "type": "string" },
+
     "documentSpecs": {
       "type": "array",
-      "description": "List of documents to be generated for the case",
+      "minItems": 1,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
-          "docId": { "type": "string", "description": "Unique identifier for the document within the case" },
+          "docId": {
+            "type": "string",
+            "pattern": "^[a-z0-9_\\-]+$",
+            "description": "Unique identifier in the case"
+          },
           "type": {
             "type": "string",
-            "enum": ["police_report", "interview", "memo_admin", "forensics_report", "evidence_log", "witness_statement"],
-            "description": "Type of document to generate"
+            "enum": [
+              "police_report",
+              "interview",
+              "memo_admin",
+              "forensics_report",
+              "evidence_log",
+              "witness_statement"
+            ],
+            "description": "Document type"
           },
-          "title": { "type": "string", "description": "Human-readable title for the document" },
-          "i18nKey": {
+          "title": {
             "type": "string",
-            "description": "Internationalization key for the document title",
-            "pattern": "^[a-z0-9_]+\\.[a-z0-9_]+$"
+            "description": "Human-readable title (pt-BR)"
           },
           "sections": {
             "type": "array",
-            "description": "Required sections for the document",
+            "minItems": 1,
             "items": { "type": "string" },
-            "minItems": 1
+            "description": "Required sections of the document"
           },
           "lengthTarget": {
             "type": "array",
-            "description": "Target length range [min, max] in words",
-            "items": { "type": "integer", "minimum": 10 },
             "minItems": 2,
-            "maxItems": 2
+            "maxItems": 2,
+            "items": { "type": "integer", "minimum": 50 },
+            "description": "Target word range [min, max]"
           },
-          "gated": { "type": "boolean", "description": "Whether this document requires special access rules" },
+          "gated": {
+            "type": "boolean",
+            "default": false,
+            "description": "Access-gated document"
+          },
           "gatingRule": {
             "type": "object",
-            "description": "Access rule when gated is true",
+            "additionalProperties": false,
+            "description": "Unlock rule when gated=true",
             "properties": {
-              "action": { "type": "string", "enum": ["submit_evidence", "role_required", "manual_unlock"] },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "requires_evidence",
+                  "requires_document",
+                  "requires_decision",
+                  "role_required",
+                  "manual_unlock",
+                  "submit_evidence"
+                ]
+              },
               "evidenceId": { "type": "string" },
+              "docId": { "type": "string" },
               "notes": { "type": "string" }
             },
             "required": ["action"]
           }
         },
-        "required": ["docId", "type", "title", "i18nKey", "sections", "lengthTarget", "gated"],
+        "required": [
+          "docId",
+          "type",
+          "title",
+          "sections",
+          "lengthTarget",
+          "gated"
+        ],
         "allOf": [
           {
             "if": { "properties": { "gated": { "const": true } } },
@@ -60,42 +94,62 @@
             "then": {
               "properties": {
                 "sections": {
-                  "contains": { "type": "string", "pattern": "(?i)cadeia de cust[óo]dia" }
+                  "contains": {
+                    "type": "string",
+                    "pattern": "(?i)cadeia de cust[óo]dia"
+                  }
                 }
               }
             }
           }
         ]
-      },
-      "minItems": 1
+      }
     },
+
     "mediaSpecs": {
       "type": "array",
-      "description": "List of media items to be generated for the case",
+      "minItems": 0,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
-          "evidenceId": { "type": "string", "description": "Unique identifier for the evidence/media item" },
+          "evidenceId": {
+            "type": "string",
+            "pattern": "^[a-z0-9_\\-]+$",
+            "description": "Unique identifier of the media item"
+          },
           "kind": {
             "type": "string",
-            "enum": ["photo", "audio", "video", "document_scan", "diagram"],
-            "description": "Type of media to generate"
+            "enum": ["photo", "document_scan", "diagram", "audio", "video"],
+            "description": "Media type"
           },
-          "title": { "type": "string", "description": "Human-readable title for the media item" },
-          "i18nKey": {
+          "title": {
             "type": "string",
-            "description": "Internationalization key for the media title",
-            "pattern": "^[a-z0-9_]+\\.[a-z0-9_]+$"
+            "description": "Human-readable title (pt-BR)"
           },
-          "prompt": { "type": "string", "description": "Generation prompt for the media item" },
+          "prompt": {
+            "type": "string",
+            "description": "Prompt for generating the media"
+          },
           "constraints": {
             "type": "object",
-            "description": "Additional constraints for media generation (lighting, angle, etc.)",
+            "description": "Additional constraints (lighting, angle, anonymization, etc.)",
             "additionalProperties": { "type": ["string", "number", "boolean"] }
           },
-          "deferred": { "type": "boolean", "description": "Mark true if media type isn't supported yet", "default": false }
+          "deferred": {
+            "type": "boolean",
+            "default": false,
+            "description": "Set to true if the type is not yet supported"
+          }
         },
-        "required": ["evidenceId", "kind", "title", "i18nKey", "prompt"]
+        "required": [
+          "evidenceId",
+          "kind",
+          "title",
+          "prompt",
+          "constraints",
+          "deferred"
+        ]
       }
     }
   },
