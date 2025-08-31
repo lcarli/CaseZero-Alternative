@@ -12,10 +12,12 @@ Esta pasta contém toda a documentação técnica detalhada do projeto CaseZero-
 - **[FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md)** - Arquitetura do frontend React
 - **[BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md)** - Arquitetura do backend .NET
 - **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** - Schema e estrutura do banco de dados
+- **[CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md)** - Pipeline de geração automática de casos com AI
 
 ### 🔧 APIs e Integrações
 - **[API_COMPLETE.md](API_COMPLETE.md)** - Documentação completa da REST API
 - **[OBJETO_CASO.md](OBJETO_CASO.md)** - Sistema de casos modulares
+- **[CASE_GENERATOR_SETUP.md](CASE_GENERATOR_SETUP.md)** - Setup do gerador de casos com AI
 
 ### 🚀 Planejamento e Evolução
 - **[FUTURE_FEATURES.md](FUTURE_FEATURES.md)** - Futuras funcionalidades e melhorias planejadas
@@ -41,10 +43,12 @@ Se você vai fazer deploy ou manter o sistema:
 3. Use [API_COMPLETE.md](API_COMPLETE.md) para health checks e monitoramento
 4. Tenha [TROUBLESHOOTING.md](TROUBLESHOOTING.md) como referência para problemas
 
-### 🎮 Game Designers
+### 🎮 Game Designers / Content Creators
 Se você vai criar novos casos investigativos:
-1. Leia [OBJETO_CASO.md](OBJETO_CASO.md)
-2. Consulte [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) seção "Contribuindo com Novos Casos"
+1. Leia [OBJETO_CASO.md](OBJETO_CASO.md) para entender a estrutura manual
+2. Consulte [CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md) para geração automática com AI
+3. Use [CASE_GENERATOR_SETUP.md](CASE_GENERATOR_SETUP.md) para configurar o gerador
+4. Consulte [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) seção "Contribuindo com Novos Casos"
 
 ### 🏢 Product Managers/Stakeholders
 Se você quer entender o sistema tecnicamente:

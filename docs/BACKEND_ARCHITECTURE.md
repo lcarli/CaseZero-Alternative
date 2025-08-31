@@ -16,7 +16,38 @@ O backend do CaseZero é uma REST API robusta construída em .NET 8 Core com Ent
 | JWT Bearer | 8.0 | Autenticação stateless |
 | AutoMapper | 12.x | Mapeamento de DTOs |
 
-## Arquitetura Geral
+## Arquitetura de Componentes
+
+O sistema CaseZero possui **duas arquiteturas principais**:
+
+### 🏛️ **CaseZeroApi - Core System**
+API principal para autenticação, gestão de usuários e execução de casos:
+
+```
+backend/CaseZeroApi/
+├── Controllers/           # Controllers da API
+├── Models/               # Entidades do domínio
+├── DTOs/                 # Data Transfer Objects
+├── Data/                 # DbContext e configurações
+├── Services/             # Lógica de negócio
+└── Program.cs            # Configuração da aplicação
+```
+
+### 🤖 **CaseGen.Functions - AI Pipeline**
+Sistema de geração automática de casos com Azure Functions e AI:
+
+```
+backend/CaseGen.Functions/
+├── Functions/            # Azure Durable Functions
+├── Services/            # LLM, Storage, Logging
+├── Models/              # Case Generation Models
+├── Schemas/             # JSON Schemas para AI
+└── Program.cs           # Configuração do pipeline
+```
+
+**🔗 Documentação Detalhada:** Para entender completamente o pipeline de geração de casos com AI, consulte [CASE_GENERATION_PIPELINE.md](./CASE_GENERATION_PIPELINE.md).
+
+## Estrutura do CaseZeroApi (Core)
 
 ```
 backend/CaseZeroApi/
