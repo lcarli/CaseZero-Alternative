@@ -1,13 +1,37 @@
 POST http://localhost:7071/api/StartCaseGeneration
 
 {
-  "title": "Roubo em Empresa de Tecnologia",
-  "location": "São Paulo, SP",
-  "difficulty": "Iniciante",
-  "targetDurationMinutes": 60,
+  "difficulty": "Rookie",
   "generateImages": true,
-  "constraints": [],
-  "timezone": "America/Sao_Paulo"
+  "timezone": "America/Toronto"
+}
+
+###
+
+# Caso completamente automatizado - nível aleatório
+POST http://localhost:7071/api/StartCaseGeneration
+
+{
+  "generateImages": true
+}
+
+###
+
+# Caso de nível avançado
+POST http://localhost:7071/api/StartCaseGeneration
+
+{
+  "difficulty": "Lieutenant"
+}
+
+###
+
+# Caso de nível extremo
+POST http://localhost:7071/api/StartCaseGeneration
+
+{
+  "difficulty": "Commander",
+  "generateImages": true
 }
 
 ###

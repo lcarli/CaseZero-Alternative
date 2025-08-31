@@ -32,57 +32,157 @@ public class CaseGenerationService : ICaseGenerationService
 
     public async Task<string> PlanCaseAsync(CaseGenerationRequest request, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Planning case: {Title}", request.Title);
+        // Resolve difficulty/profile com fallback robusto
+        var requestedDiff = request.Difficulty;
+        var difficultyProfile = DifficultyLevels.GetProfile(requestedDiff);
+        var actualDifficulty = request.Difficulty ?? DifficultyLevels.AllLevels[Random.Shared.Next(DifficultyLevels.AllLevels.Length)];
+
+        _logger.LogInformation("PLAN: Auto-generating case with difficulty={Difficulty}, timezone={Timezone}, images={GenerateImages}", actualDifficulty, request.Timezone, request.GenerateImages);
 
         var systemPrompt = $"""
-            Você é um arquiteto de casos investigativos experiente. Sua tarefa é criar um plano inicial 
-            para um caso detetivesco baseado nos parâmetros fornecidos.
-            
-            Nível de dificuldade: {request.Difficulty}
-            Duração estimada: {request.TargetDurationMinutes} minutos
-            
-            Crie um plano estruturado que seja adequado para o nível de dificuldade especificado.
-            """;
+        Você é um arquiteto mestre de casos investigativos. Sua tarefa é criar um plano inicial COMPLETAMENTE AUTOMATIZADO
+        para um caso detetivesco baseado no perfil de dificuldade especificado.
+
+        PERFIL DE DIFICULDADE: {actualDifficulty}
+        Descrição: {difficultyProfile?.Description}
+
+        DIRETRIZES DE COMPLEXIDADE:
+        - Suspeitos: {difficultyProfile?.Suspects.Min}-{difficultyProfile?.Suspects.Max}
+        - Documentos: {difficultyProfile?.Documents.Min}-{difficultyProfile?.Documents.Max}
+        - Evidências: {difficultyProfile?.Evidences.Min}-{difficultyProfile?.Evidences.Max}
+        - Pistas falsas: {difficultyProfile?.RedHerrings}
+        - Documentos gated: {difficultyProfile?.GatedDocuments}
+        - Complexidade forense: {difficultyProfile?.ForensicsComplexity}
+        - Fatores de complexidade: {string.Join(", ", difficultyProfile?.ComplexityFactors ?? Array.Empty<string>())}
+        - Duração estimada: {difficultyProfile?.EstimatedDurationMinutes.Min}-{difficultyProfile?.EstimatedDurationMinutes.Max} minutos
+
+        POLÍTICA DE GEOGRAFIA E NOMES (verossimilhança sem dados reais sensíveis):
+        - NÃO use nomes reais de ruas, números de endereço ou coordenadas.
+        - Cidades reais só se necessário e APENAS no nível cidade/UF (sem bairros/ruas reais).
+        - É aceitável NÃO citar cidade/UF: use descrições genéricas como "rua residencial", "galpão logístico", "loja de bairro", "shopping center".
+        - Nunca use marcas/empresas reais; crie nomes fictícios plausíveis quando preciso.
+
+        PADRÕES DE TEMPO E LINGUAGEM:
+        - Timestamps SEMPRE em ISO-8601 com offset (timezone alvo: {request.Timezone}).
+
+        AUTOMATIZAÇÃO COMPLETA:
+        - Gere automaticamente: título único, local verossímil (seguindo a POLÍTICA DE GEOGRAFIA), e tipo de crime adequado ao nível.
+        - O título deve ser específico e atraente (ex: "Desaparecimento no Shopping Center", "Fraude na Startup de Fintech")
+        - O local pode ser ABSTRATO (sem cidade/UF) quando fizer sentido; se usar cidade real, limite-se ao nome da cidade/UF (sem endereços).
+        - Tipo de crime deve ser adequado ao nível (Rookie: roubo simples; Commander: crimes organizados complexos)
+        - Adeque TODOS os elementos ao perfil de dificuldade
+
+        IMPORTANTE: Seja criativo e varie os tipos de crime, locais e contextos para cada geração.
+        """;
 
         var userPrompt = $"""
-            Crie um plano para o seguinte caso:
-            
-            Título: {request.Title}
-            Local: {request.Location}
-            Duração alvo: {request.TargetDurationMinutes} minutos
-            Dificuldade: {request.Difficulty}
-            Gerar imagens: {request.GenerateImages}
-            Restrições: {string.Join(", ", request.Constraints)}
-            
-            O plano deve incluir: tipo de crime, visão geral, objetivos de aprendizado, 
-            estrutura básica do caso, e elementos principais a serem desenvolvidos.
-            """;
+        Crie um PLANO COMPLETAMENTE AUTOMATIZADO para um novo caso investigativo.
+
+        ENTRADA MÍNIMA:
+        - Nível de dificuldade: {actualDifficulty}
+        - Gerar imagens (metadado, não gerar agora): {request.GenerateImages}
+        - Timezone preferencial para timestamps: {request.Timezone}
+
+        POLÍTICA DE LOCALIZAÇÃO E NOMES:
+        - NÃO usar nomes reais de ruas, números de endereço, coordenadas ou marcas/empresas reais.
+        - O local pode ser ABSTRATO (ex.: "rua residencial", "loja de bairro", "galpão logístico", "shopping center").
+        - Se for estritamente necessário citar cidade, limite-se ao nível cidade/UF (sem bairro/rua).
+
+        GERE AUTOMATICAMENTE (siga o schema do Plan):
+        - caseId único
+        - title específico e atraente (pt-BR)
+        - location verossímil (pode ser abstrato; se usar cidade, apenas cidade/UF)
+        - incidentType adequado ao nível
+        - overview envolvente (pt-BR)
+        - learningObjectives[] alinhados ao nível
+        - mainElements[] que guiarão o desenvolvimento
+        - estimatedDuration (baseada no perfil de dificuldade)
+        - timeline[] com eventos canônicos em **ISO-8601 com offset** (timezone alvo: {request.Timezone})
+        - minDetectiveRank = {requestedDiff}
+        - profileApplied: ranges numéricos efetivamente aplicados (suspects, documents, evidences, gatingSteps, falseLeads, interpretiveComplexity)
+        - goldenTruth.facts com **minSupports ≥ 2** (NÃO revelar culpado(a) ou solução)
+
+        VARIAÇÃO:
+        - Varie entre tipos de crime (roubo, fraude, desaparecimento, homicídio, sequestro, crimes cibernéticos, etc.) conforme a dificuldade.
+        - Adeque **todos** os elementos ao perfil (quantidade de suspeitos, documentos, evidências, encadeamentos/gating, pistas falsas e complexidade interpretativa).
+
+        FORMATO DE SAÍDA:
+        - **APENAS JSON** válido conforme o **Plan schema** (sem comentários, sem texto fora do JSON).
+        """;
 
         var jsonSchema = _schemaProvider.GetSchema("Plan");
-
         return await _llmService.GenerateStructuredAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
     }
 
     public async Task<string> ExpandCaseAsync(string planJson, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Expanding case from plan");
+        _logger.LogInformation("EXPAND: Building detailed case from plan");
 
-        var systemPrompt = """
+        // Parse the plan to extract difficulty level
+        var planData = JsonDocument.Parse(planJson);
+        var difficulty = planData.RootElement.GetProperty("difficulty").GetString();
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+
+        _logger.LogInformation("EXPAND: Building detailed case from plan with difficulty={Difficulty}", difficulty);
+
+        var systemPrompt = $"""
             Você é um especialista em desenvolvimento de casos investigativos. Expanda o plano inicial 
-            criando detalhes completos para suspeitos, evidências, cronologia e testemunhas.
+            criando detalhes completos baseados no PERFIL DE DIFICULDADE específico.
+            
+            PERFIL DE DIFICULDADE: {difficulty}
+            Descrição: {difficultyProfile.Description}
+            
+            DIRETRIZES DE EXPANSÃO:
+            - Suspeitos: {difficultyProfile.Suspects.Min}-{difficultyProfile.Suspects.Max} (varie perfis, motivos, alibis)
+            - Evidências: {difficultyProfile.Evidences.Min}-{difficultyProfile.Evidences.Max} (físicas, digitais, testemunhais)
+            - Pistas falsas: {difficultyProfile.RedHerrings} (red herrings sutis adequados ao nível)
+            - Complexidade forense: {difficultyProfile.ForensicsComplexity}
+            - Fatores: {string.Join(", ", difficultyProfile.ComplexityFactors)}
+            
+            COMPLEXIDADE POR NÍVEL:
+            - Rookie/Detective: Evidências diretas, motivos claros, cronologia linear
+            - Detective2/Sergeant: Correlações entre fontes, análises cruzadas, alguns elementos gated
+            - Lieutenant/Captain: Análises especializadas, dependências entre evidências, inferências profundas
+            - Commander: Conexões globais, casos em série, evidências de alta tecnologia
             """;
 
         var userPrompt = $"""
-            Expanda este plano de caso em detalhes completos:
+            Expanda este plano de caso em detalhes completos adequados ao nível de dificuldade:
             
             {planJson}
             
-            Inclua:
-            - Lista detalhada de suspeitos com perfis e motivos
-            - Evidências principais e secundárias
-            - Cronologia detalhada dos eventos
-            - Testemunhas e seus depoimentos
-            - Localizações específicas
+            EXPANSÃO DETALHADA DEVE INCLUIR:
+            
+            1. SUSPEITOS (baseado no perfil de dificuldade):
+            - Perfis variados com backgrounds detalhados
+            - Motivos convincentes e proporcionais ao nível
+            - Alibis que variam em solidez conforme a dificuldade
+            - Conexões entre suspeitos (para níveis altos)
+            
+            2. EVIDÊNCIAS (quantidade e complexidade por nível):
+            - Evidências físicas principais e secundárias
+            - Evidências digitais (crescente com a dificuldade)
+            - Evidências testemunhais com variação de confiabilidade
+            - Para níveis altos: evidências que exigem análise especializada
+            
+            3. CRONOLOGIA DETALHADA:
+            - Linear para níveis baixos
+            - Camadas múltiplas para níveis médios/altos
+            - Eventos com timestamps precisos
+            - Conexões temporais entre evidências
+            
+            4. TESTEMUNHAS:
+            - Número adequado ao nível
+            - Confiabilidade variável
+            - Depoimentos com detalhes específicos
+            - Para níveis altos: especialistas e peritos
+            
+            5. LOCALIZAÇÕES ESPECÍFICAS:
+            - Detalhes forenses relevantes
+            - Pontos de coleta de evidências
+            - Rotas e acessos (importante para níveis altos)
+            
+            Adapte a complexidade narrativa, técnica e investigativa ao perfil especificado.
             """;
 
         var jsonSchema = _schemaProvider.GetSchema("Expand");
@@ -435,7 +535,7 @@ public class CaseGenerationService : ICaseGenerationService
             - Saída **APENAS** JSON: { docId, type, title, i18nKey, sections: [{title, content}], words }
             """;
 
-                var userPrompt = $"""
+        var userPrompt = $"""
             CONTEXTO DO DESIGN (resumo estruturado):
             {designJson}
 
@@ -467,7 +567,7 @@ public class CaseGenerationService : ICaseGenerationService
             - NADA de texto fora do JSON
             """;
 
-                var userPrompt = $"""
+        var userPrompt = $"""
             CONTEXTO DO DESIGN (resumo estruturado):
             {designJson}
 

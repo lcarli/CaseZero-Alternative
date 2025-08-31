@@ -23,12 +23,12 @@ public class AzureFoundryLLMProvider : ILLMProvider
         var deploymentName = configuration["AzureFoundry:ModelName"]
             ?? throw new InvalidOperationException("AzureFoundry:ModelName not configured");
 
-        var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions{TenantId = configuration["AzureFoundry:TenantId"]});
+        var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { TenantId = configuration["AzureFoundry:TenantId"] });
 
         var azureClient = new AzureOpenAIClient(new Uri(endpoint), credential);
         _chatClient = azureClient.GetChatClient(deploymentName);
 
-        _logger.LogInformation("Azure Foundry LLM Provider initialized with endpoint: {Endpoint}, model: {Model}", 
+        _logger.LogInformation("Azure Foundry LLM Provider initialized with endpoint: {Endpoint}, model: {Model}",
             endpoint, deploymentName);
     }
 
@@ -42,9 +42,9 @@ public class AzureFoundryLLMProvider : ILLMProvider
             };
 
             // Enable the new max_completion_tokens property
-            #pragma warning disable AOAI001
+#pragma warning disable AOAI001
             requestOptions.SetNewMaxCompletionTokensPropertyEnabled(true);
-            #pragma warning restore AOAI001
+#pragma warning restore AOAI001
 
             var messages = new List<ChatMessage>()
             {
@@ -55,7 +55,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
             var response = await _chatClient.CompleteChatAsync(messages, requestOptions, cancellationToken);
 
             var content = response.Value.Content[0].Text;
-            
+
             return content ?? "";
         }
         catch (Exception ex)
@@ -83,9 +83,9 @@ public class AzureFoundryLLMProvider : ILLMProvider
             };
 
             // Enable the new max_completion_tokens property
-            #pragma warning disable AOAI001
+#pragma warning disable AOAI001
             requestOptions.SetNewMaxCompletionTokensPropertyEnabled(true);
-            #pragma warning restore AOAI001
+#pragma warning restore AOAI001
 
             var messages = new List<ChatMessage>()
             {
@@ -97,19 +97,21 @@ public class AzureFoundryLLMProvider : ILLMProvider
 
             var content = response.Value.Content[0].Text;
 
-            // Validate that the response is valid JSON
+            // Validate JSON and normalize
             try
             {
-                JsonDocument.Parse(content ?? "{}");
-                return content ?? "{}";
+                System.Text.Json.JsonDocument.Parse(content ?? "{}");
+                var normalized = NormalizePlanJson(content ?? "{}");
+                return normalized;
             }
-            catch (JsonException)
+            catch (System.Text.Json.JsonException)
             {
-                // Try to extract JSON from the response
                 var cleanedContent = ExtractJsonFromResponse(content ?? "");
-                JsonDocument.Parse(cleanedContent); // Validate the cleaned content
-                return cleanedContent;
+                System.Text.Json.JsonDocument.Parse(cleanedContent);
+                var normalized = NormalizePlanJson(cleanedContent);
+                return normalized;
             }
+
         }
         catch (Exception ex)
         {
@@ -132,4 +134,35 @@ public class AzureFoundryLLMProvider : ILLMProvider
         // If no JSON found, return empty object
         return "{}";
     }
+
+    private static string NormalizePlanJson(string content)
+    {
+        try
+        {
+            var node = System.Text.Json.Nodes.JsonNode.Parse(content);
+            if (node is System.Text.Json.Nodes.JsonObject obj)
+            {
+                obj.Remove("$schema");
+
+                var opts = new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                };
+                return obj.ToJsonString(opts);
+            }
+
+            using var doc = System.Text.Json.JsonDocument.Parse(content);
+            return System.Text.Json.JsonSerializer.Serialize(doc.RootElement, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+        }
+        catch
+        {
+            return content;
+        }
+    }
+
 }
