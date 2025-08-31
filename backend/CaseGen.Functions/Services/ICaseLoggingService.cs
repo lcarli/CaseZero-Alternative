@@ -28,7 +28,12 @@ public interface ICaseLoggingService
     Task<string> GetDetailedLogAsync(string caseId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Migrates logs from one case ID to another
+    /// Logs a step response as formatted JSON in case folder structure
     /// </summary>
-    Task MigrateLogAsync(string fromCaseId, string toCaseId, CancellationToken cancellationToken = default);
+    Task LogStepResponseAsync(string caseId, string stepName, string jsonResponse, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Logs step metadata as JSON in case folder structure
+    /// </summary>
+    Task LogStepMetadataAsync(string caseId, string stepName, object metadata, CancellationToken cancellationToken = default);
 }

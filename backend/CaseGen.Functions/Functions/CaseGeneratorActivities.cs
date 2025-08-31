@@ -8,11 +8,13 @@ namespace CaseGen.Functions.Functions;
 public class CaseGeneratorActivities
 {
     private readonly ICaseGenerationService _caseGenerationService;
+    private readonly ICaseLoggingService _caseLogging;
     private readonly ILogger<CaseGeneratorActivities> _logger;
 
-    public CaseGeneratorActivities(ICaseGenerationService caseGenerationService, ILogger<CaseGeneratorActivities> logger)
+    public CaseGeneratorActivities(ICaseGenerationService caseGenerationService, ICaseLoggingService caseLogging, ILogger<CaseGeneratorActivities> logger)
     {
         _caseGenerationService = caseGenerationService;
+        _caseLogging = caseLogging;
         _logger = logger;
     }
 
@@ -20,49 +22,65 @@ public class CaseGeneratorActivities
     public async Task<string> PlanActivity([ActivityTrigger] PlanActivityModel model)
     {
         _logger.LogInformation("Planning case {CaseTitle}", model.CaseId);
-        return await _caseGenerationService.PlanCaseAsync(model.Request);
+        var planResult = await _caseGenerationService.PlanCaseAsync(model.Request, model.CaseId);
+        
+        // Save the plan response as formatted JSON
+        await _caseLogging.LogStepResponseAsync(model.CaseId, "plancase", planResult);
+        
+        return planResult;
     }
 
     [Function("ExpandActivity")]
-    public async Task<string> ExpandActivity([ActivityTrigger] string planJson)
+    public async Task<string> ExpandActivity([ActivityTrigger] ExpandActivityModel model)
     {
         _logger.LogInformation("Expanding case plan");
-        return await _caseGenerationService.ExpandCaseAsync(planJson);
+        var expandResult = await _caseGenerationService.ExpandCaseAsync(model.PlanJson, model.CaseId);
+        
+        // Save the expand response as formatted JSON
+        await _caseLogging.LogStepResponseAsync(model.CaseId, "expandcase", expandResult);
+        
+        return expandResult;
     }
 
     [Function("DesignActivity")]
     public async Task<string> DesignActivity([ActivityTrigger] DesignActivityModel model)
     {
         _logger.LogInformation("Designing case structure");
-        return await _caseGenerationService.DesignCaseAsync(model.PlanJson, model.ExpandedJson, model.Difficulty);
+        var designResult = await _caseGenerationService.DesignCaseAsync(model.PlanJson, model.ExpandedJson, model.CaseId, model.Difficulty);
+        
+        // Save the design response as formatted JSON
+        await _caseLogging.LogStepResponseAsync(model.CaseId, "designcase", designResult);
+        
+        return designResult;
     }
 
-    [Function("GenerateDocumentsActivity")]
-    public async Task<string[]> GenerateDocumentsActivity([ActivityTrigger] string designJson)
-    {
-        _logger.LogInformation("Generating case documents");
-        return await _caseGenerationService.GenerateDocumentsAsync(designJson);
-    }
+    // Note: These bulk activities are deprecated in favor of individual parallel activities
+    // [Function("GenerateDocumentsActivity")]
+    // public async Task<string[]> GenerateDocumentsActivity([ActivityTrigger] GenerateDocumentsActivityModel model)
+    // {
+    //     _logger.LogInformation("Generating case documents");
+    //     return await _caseGenerationService.GenerateDocumentsAsync(model.DesignJson, model.CaseId);
+    // }
 
-    [Function("GenerateMediaActivity")]
-    public async Task<string[]> GenerateMediaActivity([ActivityTrigger] string designJson)
-    {
-        _logger.LogInformation("Generating media prompts");
-        return await _caseGenerationService.GenerateMediaAsync(designJson);
-    }
+    // [Function("GenerateMediaActivity")]
+    // public async Task<string[]> GenerateMediaActivity([ActivityTrigger] GenerateMediaActivityModel model)
+    // {
+    //     _logger.LogInformation("Generating media prompts");
+    //     return await _caseGenerationService.GenerateMediaAsync(model.DesignJson, model.CaseId);
+    // }
 
     [Function("GenerateDocumentItemActivity")]
     public async Task<string> GenerateDocumentItemActivity([ActivityTrigger] GenerateDocumentItemInput input)
     {
         _logger.LogInformation("Activity: GenerateDocumentItem [{DocId}]", input.Spec.DocId);
-        return await _caseGenerationService.GenerateDocumentFromSpecAsync(input.Spec, input.DesignJson);
+        return await _caseGenerationService.GenerateDocumentFromSpecAsync(input.Spec, input.DesignJson, input.CaseId);
     }
 
     [Function("GenerateMediaItemActivity")]
     public async Task<string> GenerateMediaItemActivity([ActivityTrigger] GenerateMediaItemInput input)
     {
         _logger.LogInformation("Activity: GenerateMediaItem [{EvidenceId}]", input.Spec.EvidenceId);
-        return await _caseGenerationService.GenerateMediaFromSpecAsync(input.Spec, input.DesignJson);
+        return await _caseGenerationService.GenerateMediaFromSpecAsync(input.Spec, input.DesignJson, input.CaseId);
     }
 
 
@@ -70,28 +88,28 @@ public class CaseGeneratorActivities
     public async Task<string> NormalizeActivity([ActivityTrigger] NormalizeActivityModel model)
     {
         _logger.LogInformation("Normalizing case content");
-        return await _caseGenerationService.NormalizeCaseAsync(model.Documents, model.Media);
+        return await _caseGenerationService.NormalizeCaseAsync(model.Documents, model.Media, model.CaseId);
     }
 
     [Function("IndexActivity")]
-    public async Task<string> IndexActivity([ActivityTrigger] string normalizedJson)
+    public async Task<string> IndexActivity([ActivityTrigger] IndexActivityModel model)
     {
         _logger.LogInformation("Indexing case content");
-        return await _caseGenerationService.IndexCaseAsync(normalizedJson);
+        return await _caseGenerationService.IndexCaseAsync(model.NormalizedJson, model.CaseId);
     }
 
     [Function("ValidateRulesActivity")]
-    public async Task<string> ValidateRulesActivity([ActivityTrigger] string indexedJson)
+    public async Task<string> ValidateRulesActivity([ActivityTrigger] ValidateActivityModel model)
     {
         _logger.LogInformation("Validating case rules");
-        return await _caseGenerationService.ValidateRulesAsync(indexedJson);
+        return await _caseGenerationService.ValidateRulesAsync(model.IndexedJson, model.CaseId);
     }
 
     [Function("RedTeamActivity")]
-    public async Task<string> RedTeamActivity([ActivityTrigger] string validatedJson)
+    public async Task<string> RedTeamActivity([ActivityTrigger] RedTeamActivityModel model)
     {
         _logger.LogInformation("Red teaming case");
-        return await _caseGenerationService.RedTeamCaseAsync(validatedJson);
+        return await _caseGenerationService.RedTeamCaseAsync(model.ValidatedJson, model.CaseId);
     }
 
     [Function("PackageActivity")]

@@ -4,18 +4,18 @@ namespace CaseGen.Functions.Services;
 
 public interface ICaseGenerationService
 {
-    Task<string> PlanCaseAsync(CaseGenerationRequest request, CancellationToken cancellationToken = default);
-    Task<string> ExpandCaseAsync(string planJson, CancellationToken cancellationToken = default);
-    Task<string> DesignCaseAsync(string expandedJson, CancellationToken cancellationToken = default);
-    Task<string> DesignCaseAsync(string planJson, string expandedJson, string? difficulty = null, CancellationToken cancellationToken = default);
-    Task<string[]> GenerateDocumentsAsync(string designJson, CancellationToken cancellationToken = default);
-    Task<string[]> GenerateMediaAsync(string designJson, CancellationToken cancellationToken = default);
-    Task<string> GenerateDocumentFromSpecAsync(DocumentSpec spec, string designJson, CancellationToken ct = default);
-    Task<string> GenerateMediaFromSpecAsync(MediaSpec spec, string designJson, CancellationToken ct = default);
-    Task<string> NormalizeCaseAsync(string[] documents, string[] media, CancellationToken cancellationToken = default);
-    Task<string> IndexCaseAsync(string normalizedJson, CancellationToken cancellationToken = default);
-    Task<string> ValidateRulesAsync(string indexedJson, CancellationToken cancellationToken = default);
-    Task<string> RedTeamCaseAsync(string validatedJson, CancellationToken cancellationToken = default);
+    Task<string> PlanCaseAsync(CaseGenerationRequest request, string caseId, CancellationToken cancellationToken = default);
+    Task<string> ExpandCaseAsync(string planJson, string caseId, CancellationToken cancellationToken = default);
+    Task<string> DesignCaseAsync(string expandedJson, string caseId, CancellationToken cancellationToken = default);
+    Task<string> DesignCaseAsync(string planJson, string expandedJson, string caseId, string? difficulty = null, CancellationToken cancellationToken = default);
+    Task<string[]> GenerateDocumentsAsync(string designJson, string caseId, CancellationToken cancellationToken = default);
+    Task<string[]> GenerateMediaAsync(string designJson, string caseId, CancellationToken cancellationToken = default);
+    Task<string> GenerateDocumentFromSpecAsync(DocumentSpec spec, string designJson, string caseId, CancellationToken ct = default);
+    Task<string> GenerateMediaFromSpecAsync(MediaSpec spec, string designJson, string caseId, CancellationToken ct = default);
+    Task<string> NormalizeCaseAsync(string[] documents, string[] media, string caseId, CancellationToken cancellationToken = default);
+    Task<string> IndexCaseAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default);
+    Task<string> ValidateRulesAsync(string indexedJson, string caseId, CancellationToken cancellationToken = default);
+    Task<string> RedTeamCaseAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default);
     Task<CaseGenerationOutput> PackageCaseAsync(string finalJson, string caseId, CancellationToken cancellationToken = default);
 }
 
@@ -31,8 +31,8 @@ public interface IStorageService
 
 public interface ILLMService
 {
-    Task<string> GenerateAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
-    Task<string> GenerateStructuredAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default);
+    Task<string> GenerateAsync(string caseId, string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
+    Task<string> GenerateStructuredAsync(string caseId, string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default);
 }
 
 public interface ILLMProvider

@@ -130,7 +130,7 @@ public class CaseGeneratorOrchestrator
             };
             context.SetCustomStatus(status);
 
-            var expandResult = await context.CallActivityAsync<string>("ExpandActivity", planResult);
+            var expandResult = await context.CallActivityAsync<string>("ExpandActivity", new ExpandActivityModel { PlanJson = planResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Expand);
 
             // Step 3: Design
@@ -142,7 +142,7 @@ public class CaseGeneratorOrchestrator
             };
             context.SetCustomStatus(status);
 
-            var designResult = await context.CallActivityAsync<string>("DesignActivity", new DesignActivityModel { PlanJson = planResult, ExpandedJson = expandResult, Difficulty = request.Difficulty });
+            var designResult = await context.CallActivityAsync<string>("DesignActivity", new DesignActivityModel { PlanJson = planResult, ExpandedJson = expandResult, CaseId = caseId, Difficulty = request.Difficulty });
             completedSteps.Add(CaseGenerationSteps.Design);
 
             // Step 4: Generate Documents
@@ -192,7 +192,7 @@ public class CaseGeneratorOrchestrator
             };
             context.SetCustomStatus(status);
 
-            var normalizeResult = await context.CallActivityAsync<string>("NormalizeActivity", new NormalizeActivityModel { Documents = documentsResult, Media = mediaResult });
+            var normalizeResult = await context.CallActivityAsync<string>("NormalizeActivity", new NormalizeActivityModel { Documents = documentsResult, Media = mediaResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Normalize);
 
             // Step 7: Index
@@ -204,7 +204,7 @@ public class CaseGeneratorOrchestrator
             };
             context.SetCustomStatus(status);
 
-            var indexResult = await context.CallActivityAsync<string>("IndexActivity", normalizeResult);
+            var indexResult = await context.CallActivityAsync<string>("IndexActivity", new IndexActivityModel { NormalizedJson = normalizeResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Index);
 
             // Step 8: Rule Validate
@@ -216,7 +216,7 @@ public class CaseGeneratorOrchestrator
             };
             context.SetCustomStatus(status);
 
-            var validateResult = await context.CallActivityAsync<string>("ValidateRulesActivity", indexResult);
+            var validateResult = await context.CallActivityAsync<string>("ValidateRulesActivity", new ValidateActivityModel { IndexedJson = indexResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.RuleValidate);
 
             // Step 9: Red Team
@@ -228,7 +228,7 @@ public class CaseGeneratorOrchestrator
             };
             context.SetCustomStatus(status);
 
-            var redTeamResult = await context.CallActivityAsync<string>("RedTeamActivity", validateResult);
+            var redTeamResult = await context.CallActivityAsync<string>("RedTeamActivity", new RedTeamActivityModel { ValidatedJson = validateResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.RedTeam);
 
             // Step 10: Package

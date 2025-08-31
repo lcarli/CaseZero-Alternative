@@ -12,6 +12,7 @@ public class CaseGenerationService : ICaseGenerationService
     private readonly ISchemaValidationService _schemaValidationService;
     private readonly IConfiguration _configuration;
     private readonly IJsonSchemaProvider _schemaProvider;
+    private readonly ICaseLoggingService _caseLogging;
     private readonly ILogger<CaseGenerationService> _logger;
 
     public CaseGenerationService(
@@ -19,6 +20,7 @@ public class CaseGenerationService : ICaseGenerationService
         IStorageService storageService,
         ISchemaValidationService schemaValidationService,
         IJsonSchemaProvider schemaProvider,
+        ICaseLoggingService caseLogging,
         IConfiguration configuration,
         ILogger<CaseGenerationService> logger)
     {
@@ -26,11 +28,12 @@ public class CaseGenerationService : ICaseGenerationService
         _schemaProvider = schemaProvider;
         _storageService = storageService;
         _schemaValidationService = schemaValidationService;
+        _caseLogging = caseLogging;
         _configuration = configuration;
         _logger = logger;
     }
 
-    public async Task<string> PlanCaseAsync(CaseGenerationRequest request, CancellationToken cancellationToken = default)
+    public async Task<string> PlanCaseAsync(CaseGenerationRequest request, string caseId, CancellationToken cancellationToken = default)
     {
         // Resolve difficulty/profile com fallback robusto
         var requestedDiff = request.Difficulty;
@@ -111,10 +114,10 @@ public class CaseGenerationService : ICaseGenerationService
         """;
 
         var jsonSchema = _schemaProvider.GetSchema("Plan");
-        return await _llmService.GenerateStructuredAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
+        return await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
     }
 
-    public async Task<string> ExpandCaseAsync(string planJson, CancellationToken cancellationToken = default)
+    public async Task<string> ExpandCaseAsync(string planJson, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("EXPAND: Building detailed case from plan");
 
@@ -187,10 +190,10 @@ public class CaseGenerationService : ICaseGenerationService
 
         var jsonSchema = _schemaProvider.GetSchema("Expand");
 
-        return await _llmService.GenerateStructuredAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
+        return await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
     }
 
-    public async Task<string> DesignCaseAsync(string expandedJson, CancellationToken cancellationToken = default)
+    public async Task<string> DesignCaseAsync(string expandedJson, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Designing case structure with structured output");
 
@@ -242,7 +245,7 @@ public class CaseGenerationService : ICaseGenerationService
         {
             try
             {
-                var response = await _llmService.GenerateStructuredAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
+                var response = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
 
                 // Validate the response against schema (without difficulty context for legacy method)
                 var validationResult = await _schemaValidationService.ParseAndValidateAsync(response);
@@ -268,7 +271,7 @@ public class CaseGenerationService : ICaseGenerationService
         throw new InvalidOperationException("Failed to generate valid design specs");
     }
 
-    public async Task<string> DesignCaseAsync(string planJson, string expandedJson, string? difficulty = null, CancellationToken cancellationToken = default)
+    public async Task<string> DesignCaseAsync(string planJson, string expandedJson, string caseId, string? difficulty = null, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Designing case structure");
 
@@ -372,7 +375,7 @@ public class CaseGenerationService : ICaseGenerationService
         {
             try
             {
-                var response = await _llmService.GenerateStructuredAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
+                var response = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
                 var validationResult = await _schemaValidationService.ParseAndValidateAsync(response, difficulty ?? planDifficulty);
                 if (validationResult != null) return response;
                 if (attempt == maxRetries) throw new InvalidOperationException("Design specs failed validation after retries");
@@ -383,7 +386,7 @@ public class CaseGenerationService : ICaseGenerationService
     }
 
 
-    public async Task<string[]> GenerateDocumentsAsync(string designJson, CancellationToken cancellationToken = default)
+    public async Task<string[]> GenerateDocumentsAsync(string designJson, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Generating case documents from structured specs");
 
@@ -437,7 +440,7 @@ public class CaseGenerationService : ICaseGenerationService
             - Se for laudo, inclua a seção 'Cadeia de Custódia'.
             """;
 
-            var markdown = await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+            var markdown = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
             return markdown;
         });
 
@@ -445,7 +448,7 @@ public class CaseGenerationService : ICaseGenerationService
     }
 
 
-    public async Task<string[]> GenerateMediaAsync(string designJson, CancellationToken cancellationToken = default)
+    public async Task<string[]> GenerateMediaAsync(string designJson, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Generating media prompts from structured specs");
 
@@ -475,14 +478,14 @@ public class CaseGenerationService : ICaseGenerationService
             {constraints}
             """;
 
-            var finalPrompt = await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+            var finalPrompt = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
             return finalPrompt;
         });
 
         return await Task.WhenAll(tasks);
     }
 
-    public async Task<string> NormalizeCaseAsync(string[] documents, string[] media, CancellationToken cancellationToken = default)
+    public async Task<string> NormalizeCaseAsync(string[] documents, string[] media, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Normalizing case content");
 
@@ -503,10 +506,10 @@ public class CaseGenerationService : ICaseGenerationService
             Crie uma estrutura normalizada com formatação consistente, metadata adequada e organização lógica.
             """;
 
-        return await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
     }
 
-    public async Task<string> IndexCaseAsync(string normalizedJson, CancellationToken cancellationToken = default)
+    public async Task<string> IndexCaseAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Indexing case content");
 
@@ -523,10 +526,10 @@ public class CaseGenerationService : ICaseGenerationService
             Inclua: tags, categorias, palavras-chave, dificuldade, duração, objetivos de aprendizado.
             """;
 
-        return await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
     }
 
-    public async Task<string> ValidateRulesAsync(string indexedJson, CancellationToken cancellationToken = default)
+    public async Task<string> ValidateRulesAsync(string indexedJson, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Validating case rules");
 
@@ -544,10 +547,10 @@ public class CaseGenerationService : ICaseGenerationService
             realismo, e aderência aos padrões de qualidade.
             """;
 
-        return await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
     }
 
-    public async Task<string> RedTeamCaseAsync(string validatedJson, CancellationToken cancellationToken = default)
+    public async Task<string> RedTeamCaseAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Red teaming case for quality assurance");
 
@@ -565,7 +568,7 @@ public class CaseGenerationService : ICaseGenerationService
             possíveis melhorias, e riscos de qualidade.
             """;
 
-        return await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
     }
 
     public async Task<CaseGenerationOutput> PackageCaseAsync(string finalJson, string caseId, CancellationToken cancellationToken = default)
@@ -628,7 +631,7 @@ public class CaseGenerationService : ICaseGenerationService
         }
     }
 
-    public async Task<string> GenerateDocumentFromSpecAsync(DocumentSpec spec, string designJson, CancellationToken cancellationToken = default)
+    public async Task<string> GenerateDocumentFromSpecAsync(DocumentSpec spec, string designJson, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Gen Doc[{DocId}] type={Type} title={Title}", spec.DocId, spec.Type, spec.Title);
 
@@ -658,10 +661,10 @@ public class CaseGenerationService : ICaseGenerationService
             Gere o JSON final do documento conforme instruções.
             """;
 
-        return await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
     }
 
-    public async Task<string> GenerateMediaFromSpecAsync(MediaSpec spec, string designJson, CancellationToken cancellationToken = default)
+    public async Task<string> GenerateMediaFromSpecAsync(MediaSpec spec, string designJson, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Gen Media[{EvidenceId}] kind={Kind} title={Title}", spec.EvidenceId, spec.Kind, spec.Title);
 
@@ -686,7 +689,7 @@ public class CaseGenerationService : ICaseGenerationService
             Gere o JSON final da mídia conforme instruções (campo genPrompt obrigatório).
             """;
 
-        return await _llmService.GenerateAsync(systemPrompt, userPrompt, cancellationToken);
+        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
     }
 
 }

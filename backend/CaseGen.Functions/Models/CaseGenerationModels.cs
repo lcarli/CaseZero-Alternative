@@ -12,14 +12,72 @@ public record DesignActivityModel
 {
     public required string PlanJson { get; init; }
     public required string ExpandedJson { get; init; }
+    public required string CaseId { get; init; }
     public string? Difficulty { get; init; }
 }
+
+public record ExpandActivityModel
+{
+    public required string PlanJson { get; init; }
+    public required string CaseId { get; init; }
+}
+
+public record IndexActivityModel
+{
+    public required string NormalizedJson { get; init; }
+    public required string CaseId { get; init; }
+}
+
+public record ValidateActivityModel
+{
+    public required string IndexedJson { get; init; }
+    public required string CaseId { get; init; }
+}
+
+public record RedTeamActivityModel
+{
+    public required string ValidatedJson { get; init; }
+    public required string CaseId { get; init; }
+}
+
+// Deprecated bulk activity models (not used in current orchestrator)
+// public record GenerateDocumentsActivityModel
+// {
+//     public required string DesignJson { get; init; }
+//     public required string CaseId { get; init; }
+// }
+
+// public record GenerateMediaActivityModel
+// {
+//     public required string DesignJson { get; init; }
+//     public required string CaseId { get; init; }
+// }
 
 public record NormalizeActivityModel
 {
     public required string[] Documents { get; init; }
     public required string[] Media { get; init; }
+    public required string CaseId { get; init; }
 }
+
+// Duplicate models - removing to avoid confusion
+// public record IndexActivityModel
+// {
+//     public required string NormalizedJson { get; init; }
+//     public required string CaseId { get; init; }
+// }
+
+// public record ValidateActivityModel
+// {
+//     public required string IndexedJson { get; init; }
+//     public required string CaseId { get; init; }
+// }
+
+// public record RedTeamActivityModel
+// {
+//     public required string ValidatedJson { get; init; }
+//     public required string CaseId { get; init; }
+// }
 
 public record GenerateDocumentItemInput
 {

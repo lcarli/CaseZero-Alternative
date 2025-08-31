@@ -11,8 +11,12 @@
   "extensions": {
     "durableTask": {
       "hubName": "CaseGenHub",
-      "storageProvider": { "type": "AzureStorage" }
+      "storageProvider": { "type": "AzureStorage" },
+      "tracing": {
+         "distributedTracingEnabled": true,
+         "version": "V2"
+       }
     }
   },
-  "functionTimeout": "00:10:00"
+  "functionTimeout": "00:30:00"
 }

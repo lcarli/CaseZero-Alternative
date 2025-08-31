@@ -107,6 +107,80 @@ public class CaseLoggingService : ICaseLoggingService
         }
     }
 
+    public async Task LogStepResponseAsync(string caseId, string stepName, string jsonResponse, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containerClient = await GetLogsContainerAsync(cancellationToken);
+            var folderName = $"{caseId}";
+            var fileName = $"{stepName.ToLowerInvariant()}.json";
+            var blobName = $"{folderName}/{fileName}";
+            
+            var blobClient = containerClient.GetBlobClient(blobName);
+            
+            // Format JSON nicely
+            var formattedJson = FormatJsonResponse(jsonResponse);
+            var bytes = Encoding.UTF8.GetBytes(formattedJson);
+            
+            using var stream = new MemoryStream(bytes);
+            await blobClient.UploadAsync(stream, overwrite: true, cancellationToken: cancellationToken);
+            
+            _logger.LogInformation("📁 Saved {StepName} response to {BlobName}", stepName, blobName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save step response for {CaseId} step {StepName}", caseId, stepName);
+        }
+    }
+
+    public async Task LogStepMetadataAsync(string caseId, string stepName, object metadata, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containerClient = await GetLogsContainerAsync(cancellationToken);
+            var folderName = $"{caseId}";
+            var fileName = $"{stepName.ToLowerInvariant()}_metadata.json";
+            var blobName = $"{folderName}/{fileName}";
+            
+            var blobClient = containerClient.GetBlobClient(blobName);
+            
+            var metadataJson = JsonSerializer.Serialize(metadata, new JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+            
+            var bytes = Encoding.UTF8.GetBytes(metadataJson);
+            using var stream = new MemoryStream(bytes);
+            await blobClient.UploadAsync(stream, overwrite: true, cancellationToken: cancellationToken);
+            
+            _logger.LogInformation("📊 Saved {StepName} metadata to {BlobName}", stepName, blobName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save step metadata for {CaseId} step {StepName}", caseId, stepName);
+        }
+    }
+
+    private static string FormatJsonResponse(string jsonResponse)
+    {
+        try
+        {
+            // Try to parse and reformat the JSON for better readability
+            var jsonDoc = JsonDocument.Parse(jsonResponse);
+            return JsonSerializer.Serialize(jsonDoc.RootElement, new JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+        }
+        catch
+        {
+            // If parsing fails, return as-is
+            return jsonResponse;
+        }
+    }
+
     public async Task<string> GetDetailedLogAsync(string caseId, CancellationToken cancellationToken = default)
     {
         try
@@ -157,7 +231,7 @@ public class CaseLoggingService : ICaseLoggingService
 
     private static string GetLogBlobName(string caseId)
     {
-        return $"{caseId}-detailed.log";
+        return $"{caseId}/{caseId}.log";
     }
 
     private static string GenerateProgressBar(int current, int total, int width = 20)
@@ -167,48 +241,6 @@ public class CaseLoggingService : ICaseLoggingService
         var empty = width - filled;
         
         return $"[{'█'.ToString().PadRight(filled, '█')}{'░'.ToString().PadRight(empty, '░')}] {progress:P0}";
-    }
-
-    public async Task MigrateLogAsync(string fromCaseId, string toCaseId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            if (string.Equals(fromCaseId, toCaseId, StringComparison.OrdinalIgnoreCase))
-                return;
-
-            var containerClient = await GetLogsContainerAsync(cancellationToken);
-            var srcBlobName = GetLogBlobName(fromCaseId);
-            var dstBlobName = GetLogBlobName(toCaseId);
-            
-            var srcBlob = containerClient.GetAppendBlobClient(srcBlobName);
-            var dstBlob = containerClient.GetAppendBlobClient(dstBlobName);
-
-            // Check if source blob exists
-            if (!await srcBlob.ExistsAsync(cancellationToken))
-                return;
-
-            // Create destination blob if it doesn't exist
-            await dstBlob.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
-
-            // Copy content from source to destination
-            var downloadResponse = await srcBlob.DownloadStreamingAsync(cancellationToken: cancellationToken);
-            using (var sourceStream = downloadResponse.Value.Content)
-            {
-                using var memoryStream = new MemoryStream();
-                await sourceStream.CopyToAsync(memoryStream, cancellationToken);
-                memoryStream.Position = 0;
-                await dstBlob.AppendBlockAsync(memoryStream, cancellationToken: cancellationToken);
-            }
-
-            // Delete the source blob after successful migration
-            await srcBlob.DeleteIfExistsAsync(cancellationToken: cancellationToken);
-            
-            _logger.LogInformation("Successfully migrated log from {FromCaseId} to {ToCaseId}", fromCaseId, toCaseId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to migrate log from {FromCaseId} to {ToCaseId}", fromCaseId, toCaseId);
-        }
     }
 
     /// <summary>
