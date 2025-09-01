@@ -82,15 +82,22 @@ public record NormalizeActivityModel
 public record GenerateDocumentItemInput
 {
     public required string CaseId { get; init; }
-    public required string DesignJson { get; init; }
     public required DocumentSpec Spec { get; init; }
+    public required string PlanJson { get; init; } = "";
+    public required string ExpandedJson { get; init; } = "";
+    public required string DesignJson { get; init; } = "";
+    public required string? DifficultyOverride { get; init; } = "";
+
 }
 
 public record GenerateMediaItemInput
 {
     public required string CaseId { get; init; }
-    public required string DesignJson { get; init; }
     public required MediaSpec Spec { get; init; }
+    public required string PlanJson { get; init; } = "";
+    public required string ExpandedJson { get; init; } = "";
+    public required string DesignJson { get; init; } = "";
+    public required string? DifficultyOverride { get; init; } = "";
 }
 
 public record PackageActivityModel

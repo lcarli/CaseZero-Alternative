@@ -280,7 +280,7 @@ public class CaseGenerationService : ICaseGenerationService
 
         // Get the actual difficulty profile for dynamic validation
         var difficultyProfile = DifficultyLevels.GetProfile(difficulty ?? planDifficulty);
-        
+
         (int minDocs, int maxDocs) = difficultyProfile.Documents;
         (int minEvid, int maxEvid) = difficultyProfile.Evidences;
 
@@ -344,7 +344,7 @@ public class CaseGenerationService : ICaseGenerationService
             {(gatedDocsCount > 0 ? $@"- Exatamente {gatedDocsCount} documento(s) do tipo forensics_report com ""gated"": true.
             - Cada documento gated DEVE conter ""gatingRule"" como objeto: {{ ""action"": ""requires_evidence"" ou ""submit_evidence"", ""evidenceId"": ""<id>"" }}.
             - O ""evidenceId"" referenciado em cada gatingRule DEVE existir em mediaSpecs[*].evidenceId.
-            - Cada laudo gated deve incluir a seção ""Cadeia de Custódia"" nas sections." 
+            - Cada laudo gated deve incluir a seção ""Cadeia de Custódia"" nas sections."
             : @"- PROIBIDO usar ""gated"": true para QUALQUER documento neste nível.
             - TODOS os documentos DEVEM ter ""gated"": false.
             - NÃO inclua o campo ""gatingRule"" em NENHUM documento.")}
@@ -385,104 +385,240 @@ public class CaseGenerationService : ICaseGenerationService
         throw new InvalidOperationException("Failed to generate design specs");
     }
 
-
-    public async Task<string[]> GenerateDocumentsAsync(string designJson, string caseId, CancellationToken cancellationToken = default)
+    public async Task<string> GenerateDocumentFromSpecAsync(
+    DocumentSpec spec,
+    string designJson,
+    string caseId,
+    string? planJson = null,
+    string? expandJson = null,
+    string? difficultyOverride = null,
+    CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Generating case documents from structured specs");
+        _logger.LogInformation("Gen Doc[{DocId}] type={Type} title={Title}", spec.DocId, spec.Type, spec.Title);
 
-        var specs = await _schemaValidationService.ParseAndValidateAsync(designJson);
-        if (specs is null) throw new InvalidOperationException("Invalid design specs");
-
-        var tasks = specs.DocumentSpecs.Select(async spec =>
+        // Deriva dificuldade (Plan > override > Rookie)
+        string difficulty = "Rookie";
+        if (!string.IsNullOrWhiteSpace(difficultyOverride)) difficulty = difficultyOverride;
+        if (!string.IsNullOrWhiteSpace(planJson))
         {
-            // escolhe prompt base por tipo
-            var systemPrompt = spec.Type switch
+            try
             {
-                DocumentTypes.PoliceReport => """
-                Você é um especialista em documentação policial. 
-                Gere APENAS Markdown estruturado seguindo as seções.
-                """,
-                DocumentTypes.Interview => """
-                Você é um entrevistador forense. 
-                Gere APENAS Markdown, com perguntas/respostas e marcações de tempo quando natural.
-                """,
-                DocumentTypes.MemoAdmin => """
-                Você é um administrador. 
-                Gere APENAS Markdown, tom burocrático conciso.
-                """,
-                DocumentTypes.ForensicsReport => """
-                Você é um perito. 
-                Gere APENAS Markdown, incluindo seção obrigatória 'Cadeia de Custódia'.
-                """,
-                DocumentTypes.EvidenceLog => """
-                Você é responsável pelo registro de evidências. 
-                Gere APENAS Markdown com tabela/lista padronizada.
-                """,
-                DocumentTypes.WitnessStatement => """
-                Você é um escrivão. 
-                Gere APENAS Markdown com declaração coesa da testemunha.
-                """,
-                _ => "Gere APENAS Markdown."
-            };
+                using var p = JsonDocument.Parse(planJson);
+                if (p.RootElement.TryGetProperty("difficulty", out var d) && d.ValueKind == JsonValueKind.String)
+                    difficulty = d.GetString() ?? difficulty;
+            }
+            catch { /* ignore */ }
+        }
 
-            var userPrompt = $"""
-            Gere um documento do tipo: {spec.Type}
-            Título: {spec.Title}
+        string typeDirectives = spec.Type.ToLowerInvariant() switch
+        {
+            "police_report" => """
+        FORMATO (Markdown dentro de 'content'):
+        - Cabeçalho: Número do B.O., Data/Hora (ISO-8601 com offset), Unidade/Agente responsável.
+        - Resumo do incidente (objetivo).
+        - Seções solicitadas (use títulos H2: ##).
+        - Listas em bullet quando apropriado.
+        """,
+            "interview" => """
+        FORMATO (Markdown dentro de 'content'):
+        - Transcrição limpa da entrevista (sem observações/juízo do entrevistador).
+        - Rotule falas: **Entrevistador:** / **Entrevistado(a):**.
+        - Timestamps opcionais em colchetes quando natural (ex.: [00:05]).
+        - Perguntas e respostas objetivas; sem inferir culpabilidade.
+        """,
+            "memo_admin" => """
+        FORMATO (Markdown dentro de 'content'):
+        - Cabeçalho: Para / De / Assunto / Data.
+        - Tom burocrático conciso; bullets para ações.
+        - Referencie documentos/evidências por ID quando existir.
+        """,
+            "forensics_report" => """
+        FORMATO (Markdown dentro de 'content'):
+        - Cabeçalho: Laboratório/Perito/Data/Hora (ISO-8601 com offset).
+        - Metodologia (procedimentos), Resultados, Interpretação/Limitações.
+        - **Cadeia de Custódia** (obrigatória) com eventos em ordem temporal.
+        - Referencie evidenceId/docId pertinentes (sem revelar solução).
+        """,
+            "evidence_log" => """
+        FORMATO (Markdown dentro de 'content'):
+        - Tabela: ItemId | Coleta em | Coletado por | Descrição | Armazenamento | Transferências.
+        - Observações breves por item.
+        """,
+            "witness_statement" => """
+        FORMATO (Markdown dentro de 'content'):
+        - Declaração em 1ª pessoa, objetiva, sem especular culpado(a).
+        - Data/Hora (ISO-8601 com offset) e identificação fictícia resumida.
+        """,
+            _ => "FORMATO: use as seções solicitadas; texto objetivo, documental."
+        };
 
-            Seções (na ordem):
-            {string.Join("\n", spec.Sections.Select(s => "- " + s))}
+        // Diretrizes por dificuldade (corrigido "Cruze")
+        string difficultyDirectives = difficulty switch
+        {
+            "Rookie" or "Iniciante" => """
+        PERFIL DE DIFICULDADE:
+        - Vocabulário simples e direto; pouca ambiguidade.
+        - Cronologia linear e relações explícitas.
+        - Mire próximo do mínimo em lengthTarget.
+        """,
+            "Detective" or "Detective2" => """
+        PERFIL DE DIFICULDADE:
+        - Vocabulário moderado; algum jargão com contexto.
+        - Introduza ambiguidades plausíveis e checagens cruzadas leves.
+        - Mire o meio da faixa de lengthTarget.
+        """,
+            "Sergeant" or "Lieutenant" => """
+        PERFIL DE DIFICULDADE:
+        - Tom técnico quando pertinente; correlações entre fontes.
+        - Ambiguidades reais (sem revelar solução); cite horários e IDs.
+        - Mire o topo da faixa de lengthTarget.
+        """,
+            _ /* Captain/Commander */ => """
+        PERFIL DE DIFICULDADE:
+        - Linguagem técnica; inferências especializadas.
+        - Ambiguidade controlada, hipóteses concorrentes.
+        - Cruze múltiplas fontes; mencione limitações de método.
+        - Use perto do máximo do lengthTarget.
+        """
+        };
 
-            Tamanho alvo (palavras): {spec.LengthTarget[0]}–{spec.LengthTarget[1]}
+        var designCtx = designJson ?? "{}";
+        var planCtx = planJson ?? "{}";
+        var expandCtx = expandJson ?? "{}";
 
-            Regras:
-            - Não resolva o caso.
-            - Seja realista e consistente com práticas policiais/periciais.
-            - Se for laudo, inclua a seção 'Cadeia de Custódia'.
+        var systemPrompt = """
+            Você é um redator técnico policial/pericial. Gere **APENAS JSON** com o corpo do documento.
+            Regras gerais:
+            - Jamais revele a solução/culpado(a).
+            - Mantenha consistência com o contexto do caso (Plan/Expand/Design).
+            - Cumpra exatamente as seções e o intervalo de palavras solicitado (lengthTarget).
+            - Se o documento for laudo pericial, inclua "Cadeia de Custódia" (obrigatória).
+            - Use timestamps ISO-8601 com offset quando citar horários.
+            - Nada fora de JSON.
+
+            OUTPUT JSON (obrigatório):
+            {
+            "docId": "string",
+            "type": "string",
+            "title": "string",
+            "words": number,
+            "sections": [
+                { "title": "string", "content": "markdown" }
+            ]
+            }
             """;
 
-            var markdown = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
-            return markdown;
-        });
+        var userPrompt = $"""
+            CONTEXTO — DESIGN (resumo):
+            {designCtx}
 
-        return await Task.WhenAll(tasks);
+            CONTEXTO — PLAN (resumo):
+            {planCtx}
+
+            CONTEXTO — EXPAND (resumo):
+            {expandCtx}
+
+            DOCUMENTO A GERAR:
+            - docId: {spec.DocId}
+            - type: {spec.Type}
+            - title: {spec.Title}
+            - sections (ordem): {string.Join(", ", spec.Sections)}
+            - lengthTarget: {spec.LengthTarget[0]}–{spec.LengthTarget[1]} palavras
+            - gated: {spec.Gated}
+
+            DIRETIVAS POR TIPO:
+            {typeDirectives}
+
+            DIRETIVAS POR DIFICULDADE ({difficulty}):
+            {difficultyDirectives}
+
+            Restrições adicionais:
+            - Se citar pessoas, locais, evidências: use somente as definidas em Expand/Design.
+            - **Não mencione gating/autorização no conteúdo** (o bloqueio é metadado do jogo).
+            - Evite PII real, marcas e endereços reais (use nomes fictícios/locais abstratos).
+
+            Saída: **APENAS o JSON** na estrutura especificada, sem comentários ou texto extra.
+            """;
+
+        var json = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+
+        try
+        {
+
+            await _caseLogging.LogStepResponseAsync(caseId, $"documents/{spec.DocId}", json, cancellationToken);
+
+            var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
+            var docBundlePath = $"{caseId}/documents/{spec.DocId}.json";
+            await _storageService.SaveFileAsync(bundlesContainer, docBundlePath, json, cancellationToken);
+
+            _logger.LogInformation("BUNDLE: Saved doc to bundle: {Path} (case={CaseId}, type={Type})",
+                docBundlePath, caseId, spec.Type);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to persist generated document {DocId} for case {CaseId}",
+                spec.DocId, caseId);
+        }
+
+
+        return json;
     }
 
 
-    public async Task<string[]> GenerateMediaAsync(string designJson, string caseId, CancellationToken cancellationToken = default)
+
+    public async Task<string> GenerateMediaFromSpecAsync(
+        MediaSpec spec,
+        string designJson,
+        string caseId,
+        string? planJson = null,
+        string? expandJson = null,
+        string? difficultyOverride = null,
+        CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Generating media prompts from structured specs");
+        _logger.LogInformation("Gen Media[{EvidenceId}] kind={Kind} title={Title}", spec.EvidenceId, spec.Kind, spec.Title);
 
-        var specs = await _schemaValidationService.ParseAndValidateAsync(designJson);
-        if (specs is null) throw new InvalidOperationException("Invalid design specs");
+        var systemPrompt = """
+            Você é um engenheiro de evidências de mídia. Gere uma especificação JSON para criação de mídia.
+            Requisitos:
+            - Saída **APENAS** JSON: { evidenceId, kind, title, genPrompt, constraints }
+            - genPrompt deve ser detalhado e reproduzível (iluminação/ângulo/escala/etiquetas etc.)
+            - NADA de texto fora do JSON
+            """;
 
-        var tasks = specs.MediaSpecs
-            .Where(m => !m.Deferred) // ignore o que não é suportado agora
-            .Select(async m =>
+        var userPrompt = $"""
+            CONTEXTO DO DESIGN (resumo estruturado):
+            {designJson}
+
+            ESPECIFICAÇÃO DE MÍDIA:
+            evidenceId: {spec.EvidenceId}
+            kind: {spec.Kind}
+            title: {spec.Title}
+            constraints: {(spec.Constraints != null && spec.Constraints.Any() ? string.Join(", ", spec.Constraints.Select(kv => $"{kv.Key}: {kv.Value}")) : "n/a")}
+
+            Gere o JSON final da mídia conforme instruções (campo genPrompt obrigatório).
+            """;
+
+        var json = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+
+        try
         {
-            // monte um prompt final combinando prompt + constraints em bullet points
-            var constraints = (m.Constraints is { Count: > 0 })
-                ? "\n\nConstraints:\n" + string.Join("\n", m.Constraints.Select(kv => $"- {kv.Key}: {kv.Value}"))
-                : string.Empty;
 
-            var systemPrompt = """
-            Você é um especialista em criação de prompts para geração de imagens realistas (estilo documentação forense).
-            Gere APENAS o texto do prompt final.
-            """;
+            await _caseLogging.LogStepResponseAsync(caseId, $"media/{spec.EvidenceId}", json, cancellationToken);
 
-            var userPrompt = $"""
-            Tipo de mídia: {m.Kind}
-            Título: {m.Title}
+            var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
+            var docBundlePath = $"{caseId}/media/{spec.EvidenceId}.json";
+            await _storageService.SaveFileAsync(bundlesContainer, docBundlePath, json, cancellationToken);
 
-            Prompt base:
-            {m.Prompt}
-            {constraints}
-            """;
+            _logger.LogInformation("BUNDLE: Saved media to bundle: {Path} (case={CaseId},  kind={Kind})",
+                docBundlePath, caseId, spec.Kind);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to persist generated media {DocId} for case {CaseId}",
+                spec.EvidenceId, caseId);
+        }
 
-            var finalPrompt = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
-            return finalPrompt;
-        });
-
-        return await Task.WhenAll(tasks);
+        return json;
     }
 
     public async Task<string> NormalizeCaseAsync(string[] documents, string[] media, string caseId, CancellationToken cancellationToken = default)
@@ -630,66 +766,4 @@ public class CaseGenerationService : ICaseGenerationService
             throw;
         }
     }
-
-    public async Task<string> GenerateDocumentFromSpecAsync(DocumentSpec spec, string designJson, string caseId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("Gen Doc[{DocId}] type={Type} title={Title}", spec.DocId, spec.Type, spec.Title);
-
-        var systemPrompt = """
-            Você é um escritor técnico policial. Gere um documento verossímil seguindo o tipo e seções requeridas.
-            Requisitos:
-            - Texto objetivo, com tom documental
-            - Respeite as seções exigidas na ordem
-            - Respeite o alvo de tamanho (min..max palavras)
-            - Se gated=true, inclua a nota de acesso no rodapé
-            - Saída **APENAS** JSON: { docId, type, title, sections: [{title, content}], words }
-            """;
-
-        var userPrompt = $"""
-            CONTEXTO DO DESIGN (resumo estruturado):
-            {designJson}
-
-            ESPECIFICAÇÃO DO DOCUMENTO:
-            docId: {spec.DocId}
-            type: {spec.Type}
-            title: {spec.Title}
-            sections: {string.Join(", ", spec.Sections)}
-            lengthTarget: [{spec.LengthTarget[0]}, {spec.LengthTarget[1]}]
-            gated: {spec.Gated}
-            gatingRule: {(spec.GatingRule != null ? $"{spec.GatingRule.Action} - {spec.GatingRule.Notes ?? "n/a"}" : "n/a")}
-
-            Gere o JSON final do documento conforme instruções.
-            """;
-
-        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
-    }
-
-    public async Task<string> GenerateMediaFromSpecAsync(MediaSpec spec, string designJson, string caseId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("Gen Media[{EvidenceId}] kind={Kind} title={Title}", spec.EvidenceId, spec.Kind, spec.Title);
-
-        var systemPrompt = """
-            Você é um engenheiro de evidências de mídia. Gere uma especificação JSON para criação de mídia.
-            Requisitos:
-            - Saída **APENAS** JSON: { evidenceId, kind, title, genPrompt, constraints }
-            - genPrompt deve ser detalhado e reproduzível (iluminação/ângulo/escala/etiquetas etc.)
-            - NADA de texto fora do JSON
-            """;
-
-        var userPrompt = $"""
-            CONTEXTO DO DESIGN (resumo estruturado):
-            {designJson}
-
-            ESPECIFICAÇÃO DE MÍDIA:
-            evidenceId: {spec.EvidenceId}
-            kind: {spec.Kind}
-            title: {spec.Title}
-            constraints: {(spec.Constraints != null && spec.Constraints.Any() ? string.Join(", ", spec.Constraints.Select(kv => $"{kv.Key}: {kv.Value}")) : "n/a")}
-
-            Gere o JSON final da mídia conforme instruções (campo genPrompt obrigatório).
-            """;
-
-        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
-    }
-
 }

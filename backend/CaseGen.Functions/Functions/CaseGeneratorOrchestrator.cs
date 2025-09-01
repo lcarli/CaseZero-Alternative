@@ -163,13 +163,13 @@ public class CaseGeneratorOrchestrator
             var docTasks = new List<Task<string>>();
             foreach (var ds in specs.DocumentSpecs)
             {
-                var input = new GenerateDocumentItemInput { CaseId = caseId, DesignJson = designResult, Spec = ds };
+                var input = new GenerateDocumentItemInput { CaseId = caseId, PlanJson = planResult, ExpandedJson = expandResult, DesignJson = designResult, Spec = ds, DifficultyOverride = request.Difficulty };
                 docTasks.Add(context.CallActivityAsync<string>("GenerateDocumentItemActivity", input));
             }
             var mediaTasks = new List<Task<string>>();
             foreach (var ms in specs.MediaSpecs)
             {
-                var input = new GenerateMediaItemInput { CaseId = caseId, DesignJson = designResult, Spec = ms };
+                var input = new GenerateMediaItemInput { CaseId = caseId, PlanJson = planResult, ExpandedJson = expandResult, DesignJson = designResult, Spec = ms, DifficultyOverride = request.Difficulty };
                 mediaTasks.Add(context.CallActivityAsync<string>("GenerateMediaItemActivity", input));
             }
 

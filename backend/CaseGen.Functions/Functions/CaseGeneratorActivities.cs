@@ -54,33 +54,18 @@ public class CaseGeneratorActivities
         return designResult;
     }
 
-    // Note: These bulk activities are deprecated in favor of individual parallel activities
-    // [Function("GenerateDocumentsActivity")]
-    // public async Task<string[]> GenerateDocumentsActivity([ActivityTrigger] GenerateDocumentsActivityModel model)
-    // {
-    //     _logger.LogInformation("Generating case documents");
-    //     return await _caseGenerationService.GenerateDocumentsAsync(model.DesignJson, model.CaseId);
-    // }
-
-    // [Function("GenerateMediaActivity")]
-    // public async Task<string[]> GenerateMediaActivity([ActivityTrigger] GenerateMediaActivityModel model)
-    // {
-    //     _logger.LogInformation("Generating media prompts");
-    //     return await _caseGenerationService.GenerateMediaAsync(model.DesignJson, model.CaseId);
-    // }
-
     [Function("GenerateDocumentItemActivity")]
     public async Task<string> GenerateDocumentItemActivity([ActivityTrigger] GenerateDocumentItemInput input)
     {
         _logger.LogInformation("Activity: GenerateDocumentItem [{DocId}]", input.Spec.DocId);
-        return await _caseGenerationService.GenerateDocumentFromSpecAsync(input.Spec, input.DesignJson, input.CaseId);
+        return await _caseGenerationService.GenerateDocumentFromSpecAsync(input.Spec, input.DesignJson, input.CaseId, input.PlanJson, input.ExpandedJson, input.DifficultyOverride);
     }
 
     [Function("GenerateMediaItemActivity")]
     public async Task<string> GenerateMediaItemActivity([ActivityTrigger] GenerateMediaItemInput input)
     {
         _logger.LogInformation("Activity: GenerateMediaItem [{EvidenceId}]", input.Spec.EvidenceId);
-        return await _caseGenerationService.GenerateMediaFromSpecAsync(input.Spec, input.DesignJson, input.CaseId);
+        return await _caseGenerationService.GenerateMediaFromSpecAsync(input.Spec, input.DesignJson, input.CaseId, input.PlanJson, input.ExpandedJson, input.DifficultyOverride);
     }
 
 

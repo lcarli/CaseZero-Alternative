@@ -8,10 +8,8 @@ public interface ICaseGenerationService
     Task<string> ExpandCaseAsync(string planJson, string caseId, CancellationToken cancellationToken = default);
     Task<string> DesignCaseAsync(string expandedJson, string caseId, CancellationToken cancellationToken = default);
     Task<string> DesignCaseAsync(string planJson, string expandedJson, string caseId, string? difficulty = null, CancellationToken cancellationToken = default);
-    Task<string[]> GenerateDocumentsAsync(string designJson, string caseId, CancellationToken cancellationToken = default);
-    Task<string[]> GenerateMediaAsync(string designJson, string caseId, CancellationToken cancellationToken = default);
-    Task<string> GenerateDocumentFromSpecAsync(DocumentSpec spec, string designJson, string caseId, CancellationToken ct = default);
-    Task<string> GenerateMediaFromSpecAsync(MediaSpec spec, string designJson, string caseId, CancellationToken ct = default);
+    Task<string> GenerateDocumentFromSpecAsync(DocumentSpec spec, string designJson, string caseId, string? planJson = null, string? expandJson = null, string? difficultyOverride = null, CancellationToken ct = default);
+    Task<string> GenerateMediaFromSpecAsync(MediaSpec spec, string designJson, string caseId, string? planJson = null, string? expandJson = null, string? difficultyOverride = null, CancellationToken ct = default);
     Task<string> NormalizeCaseAsync(string[] documents, string[] media, string caseId, CancellationToken cancellationToken = default);
     Task<string> IndexCaseAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default);
     Task<string> ValidateRulesAsync(string indexedJson, string caseId, CancellationToken cancellationToken = default);
