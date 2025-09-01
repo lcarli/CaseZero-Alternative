@@ -729,7 +729,8 @@ public class CaseGenerationService : ICaseGenerationService
                     page.Header().Column(headerCol =>
                     {
                         headerCol.Item().Element(h => BuildLetterhead(h, docTypeLabel, title, caseId, docId));
-                        headerCol.Item().Element(h => BuildClassificationBand(h, classification, bandBg, bandText));
+                        // Remove colored classification band as requested in issue
+                        headerCol.Item().Element(h => BuildClassificationBand(h, classification));
                     });
 
                     // Conteúdo
@@ -775,42 +776,95 @@ public class CaseGenerationService : ICaseGenerationService
     {
         c.AlignCenter()
          .AlignMiddle()
+         .PaddingHorizontal(50) // Better centering with padding
          .Rotate(315)
          .Text(text)
-            .FontSize(64)
+            .FontSize(48) // Slightly smaller for better balance
             .Bold()
-            .FontColor(QuestPDF.Helpers.Colors.Grey.Lighten3);
+            .FontColor(QuestPDF.Helpers.Colors.Grey.Lighten4); // Lighter for better readability
+    }
+
+
+    private string GenerateProtocolNumber()
+    {
+        var now = DateTimeOffset.Now;
+        return $"{now:yyyy}{now:MM}{now:dd}{now:HHmm}{Random.Shared.Next(10, 99)}";
     }
 
     private void BuildLetterhead(QuestPDF.Infrastructure.IContainer c, string docTypeLabel, string title, string? caseId, string? docId)
     {
         c.Column(mainCol =>
         {
-            mainCol.Item().PaddingBottom(6).Row(row =>
+            mainCol.Item().PaddingBottom(8).Row(row =>
+            {
+                // Left side - Logo and Institution  
+                row.RelativeItem(2).Column(col =>
+                {
+                    // Simple logo and institution info
+                    col.Item().Row(logoRow =>
+                    {
+                        logoRow.ConstantItem(40).Height(40).Background(QuestPDF.Helpers.Colors.Grey.Darken2)
+                               .AlignCenter().AlignMiddle().Text("★").FontSize(20).FontColor(QuestPDF.Helpers.Colors.White);
+                        
+                        logoRow.RelativeItem().PaddingLeft(8).Column(instCol =>
+                        {
+                            instCol.Item().Text(GetInstitutionName(docTypeLabel))
+                                  .Bold().FontSize(12f);
+                            instCol.Item().Text(GetDepartmentName(docTypeLabel))
+                                  .FontSize(10f).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
+                        });
+                    });
+                });
+
+                // Right side - Document info
+                row.RelativeItem(2).AlignRight().Column(col =>
+                {
+                    col.Item().Text(docTypeLabel).Bold().FontSize(13).AlignRight();
+                    col.Item().PaddingTop(2).Text($"Protocolo: {(docId ?? GenerateProtocolNumber())}")
+                          .FontSize(9.5f).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2).AlignRight();
+                    if (!string.IsNullOrWhiteSpace(caseId))
+                        col.Item().Text($"Caso: {caseId}")
+                              .FontSize(9.5f).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2).AlignRight();
+                    col.Item().Text($"Data: {DateTimeOffset.Now:dd/MM/yyyy HH:mm}")
+                              .FontSize(9.5f).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2).AlignRight();
+                });
+            });
+
+            // Document title with underline
+            mainCol.Item().PaddingTop(4).BorderBottom(2).BorderColor(QuestPDF.Helpers.Colors.Grey.Darken2)
+                   .PaddingBottom(4).Text(title).FontSize(14).Bold().AlignCenter();
+            
+            // Spacer
+            mainCol.Item().PaddingTop(6);
+        });
+    }
+
+    private string GetInstitutionName(string docTypeLabel)
+    {
+        return docTypeLabel.ToUpper() switch
         {
-            // “Brasão” genérico (sem Radius)
-            row.RelativeItem(1).Column(col =>
-            {
-                col.Item().Height(36).Width(36).Background(QuestPDF.Helpers.Colors.Grey.Darken2);
-                col.Item().Text("DEPARTAMENTO DE POLÍCIA MUNICIPAL")
-                          .Bold().FontSize(11.5f);
-            });
+            var x when x.Contains("PERICIAL") => "INSTITUTO DE CRIMINALÍSTICA",
+            var x when x.Contains("ENTREVISTA") => "DELEGACIA DE INVESTIGAÇÕES",
+            var x when x.Contains("OCORRÊNCIA") => "DEPARTAMENTO DE POLÍCIA CIVIL",
+            var x when x.Contains("CADEIA") || x.Contains("CATÁLOGO") => "SEÇÃO DE CUSTÓDIA DE EVIDÊNCIAS",
+            var x when x.Contains("MEMORANDO") => "COORDENADORIA DE INVESTIGAÇÕES",
+            var x when x.Contains("DECLARAÇÃO") => "SECRETARIA DE SEGURANÇA PÚBLICA",
+            _ => "DEPARTAMENTO DE POLÍCIA MUNICIPAL"
+        };
+    }
 
-            row.RelativeItem(1).AlignRight().Column(col =>
-            {
-                col.Item().Text(docTypeLabel).Bold().FontSize(13);
-                if (!string.IsNullOrWhiteSpace(docId))
-                    col.Item().Text($"DocId: {docId}").FontSize(9.5f).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
-                if (!string.IsNullOrWhiteSpace(caseId))
-                    col.Item().Text($"CaseId: {caseId}").FontSize(9.5f).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
-                col.Item().Text($"Emitido em: {DateTimeOffset.Now:yyyy-MM-dd HH:mm (zzz)}")
-                          .FontSize(9.5f).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
-            });
-        });
-
-            // Título
-            mainCol.Item().PaddingTop(2).Text(title).FontSize(14).Bold();
-        });
+    private string GetDepartmentName(string docTypeLabel)
+    {
+        return docTypeLabel.ToUpper() switch
+        {
+            var x when x.Contains("PERICIAL") => "Seção de Análise Técnica",
+            var x when x.Contains("ENTREVISTA") => "Núcleo de Investigação Criminal",
+            var x when x.Contains("OCORRÊNCIA") => "Plantão de Ocorrências",
+            var x when x.Contains("CADEIA") || x.Contains("CATÁLOGO") => "Controle de Evidências",
+            var x when x.Contains("MEMORANDO") => "Assessoria Técnica",
+            var x when x.Contains("DECLARAÇÃO") => "Atendimento ao Cidadão",
+            _ => "Unidade de Investigação"
+        };
     }
 
     private void BuildClassificationBand(IContainer c, string classification)
