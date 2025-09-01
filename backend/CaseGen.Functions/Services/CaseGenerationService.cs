@@ -711,6 +711,7 @@ public class CaseGenerationService : ICaseGenerationService
         {
             var classification = "CONFIDENCIAL • USO INTERNO";
             var docTypeLabel = GetDocumentTypeLabel(documentType);
+            var (bandBg, bandText) = GetThemeColors(documentType);
 
             return Document.Create(container =>
             {
@@ -728,13 +729,13 @@ public class CaseGenerationService : ICaseGenerationService
                     page.Header().Column(headerCol =>
                     {
                         headerCol.Item().Element(h => BuildLetterhead(h, docTypeLabel, title, caseId, docId));
-                        headerCol.Item().Element(h => BuildClassificationBand(h, classification));
+                        headerCol.Item().Element(h => BuildClassificationBand(h, classification, bandBg, bandText));
                     });
 
                     // Conteúdo
                     page.Content().PaddingTop(8).Column(col =>
                     {
-                        RenderMarkdownContent(col, markdownContent);
+                        RenderByType(col, documentType, markdownContent, caseId, docId);
                     });
 
                     // Rodapé com paginação e sigilo
@@ -805,7 +806,7 @@ public class CaseGenerationService : ICaseGenerationService
                 col.Item().Text($"Emitido em: {DateTimeOffset.Now:yyyy-MM-dd HH:mm (zzz)}")
                           .FontSize(9.5f).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
             });
-            });
+        });
 
             // Título
             mainCol.Item().PaddingTop(2).Text(title).FontSize(14).Bold();
@@ -818,6 +819,29 @@ public class CaseGenerationService : ICaseGenerationService
         {
             r.RelativeItem().Text(classification).FontSize(9.5f).FontColor(Colors.Grey.Darken2);
         });
+    }
+
+    private void BuildClassificationBand(IContainer c, string classification, string bandBg, string textColor)
+    {
+        c.PaddingTop(4)
+         .Background(bandBg)
+         .BorderBottom(1).BorderColor(Colors.Grey.Lighten1)
+         .Padding(4)
+         .Row(r => { r.RelativeItem().Text(classification).FontSize(9.5f).FontColor(textColor).SemiBold(); });
+    }
+
+    private (string BandBg, string BandText) GetThemeColors(string documentType)
+    {
+        return documentType.ToLower() switch
+        {
+            "police_report" => (Colors.Blue.Lighten5, Colors.Blue.Darken2),
+            "forensics_report" => (Colors.Indigo.Lighten5, Colors.Indigo.Darken2),
+            "interview" => (Colors.Amber.Lighten5, Colors.Amber.Darken3),
+            "evidence_log" => (Colors.Teal.Lighten5, Colors.Teal.Darken2),
+            "memo" or "memo_admin" => (Colors.Grey.Lighten4, Colors.Grey.Darken2),
+            "witness_statement" => (Colors.DeepOrange.Lighten5, Colors.DeepOrange.Darken2),
+            _ => (Colors.Grey.Lighten4, Colors.Grey.Darken2)
+        };
     }
 
     private string GetDocumentHeader(string documentType, string title)
@@ -957,6 +981,99 @@ public class CaseGenerationService : ICaseGenerationService
             i++;
         }
     }
+
+    private void RenderByType(ColumnDescriptor col, string documentType, string markdownContent, string? caseId, string? docId)
+    {
+        switch (documentType.ToLower())
+        {
+            case "police_report":
+                RenderPoliceReport(col, markdownContent, caseId, docId);
+                break;
+            case "forensics_report":
+                RenderForensicsReport(col, markdownContent);
+                break;
+            case "interview":
+                RenderInterview(col, markdownContent);
+                break;
+            case "evidence_log":
+                RenderEvidenceLog(col, markdownContent);
+                break;
+            default:
+                RenderGeneric(col, markdownContent);
+                break;
+        }
+    }
+
+    private void RenderPoliceReport(ColumnDescriptor col, string md, string? caseId, string? docId)
+    {
+        col.Item().PaddingBottom(6).Border(1).BorderColor(Colors.Grey.Lighten2).Padding(8).Row(r =>
+        {
+            r.RelativeItem().Column(c =>
+            {
+                c.Item().Text("Unidade/Agente: __________________").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+                c.Item().Text("Contato: ________________________").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+            });
+            r.RelativeItem().Column(c =>
+            {
+                c.Item().Text($"Nº B.O.: {(docId ?? "________")}").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+                c.Item().Text($"Data/Hora: {DateTimeOffset.Now:yyyy-MM-dd HH:mm (zzz)}").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+            });
+            r.RelativeItem().AlignRight().Column(c =>
+            {
+                c.Item().Text($"CaseId: {(caseId ?? "________")}").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+                c.Item().Text("Classificação: Confidencial").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+            });
+        });
+
+        RenderMarkdownContent(col, md);
+    }
+
+    private void RenderForensicsReport(ColumnDescriptor col, string md)
+    {
+        col.Item().Background(Colors.Indigo.Lighten5).Padding(6)
+           .Text(t =>
+           {
+               t.DefaultTextStyle(TextStyle.Default.FontSize(9.5f).FontColor(Colors.Indigo.Darken2));
+               t.Span("Este laudo segue protocolos periciais. ");
+               t.Span("Sempre registrar cadeia de custódia ao final.").SemiBold();
+           });
+
+        RenderMarkdownContent(col, md);
+
+        col.Item().PaddingTop(6).BorderTop(1).BorderColor(Colors.Indigo.Lighten2)
+           .Text("— Fim do Laudo / Cadeia de Custódia acima —").FontSize(9).FontColor(Colors.Grey.Darken1);
+    }
+
+    private void RenderInterview(ColumnDescriptor col, string md)
+    {
+        col.Item().Background(Colors.Amber.Lighten5).Padding(6)
+           .Text(t =>
+           {
+               t.DefaultTextStyle(TextStyle.Default.FontSize(9.5f).FontColor(Colors.Amber.Darken3));
+               t.Span("Transcrição integral, sem comentários do entrevistador. ");
+               t.Span("Rotulagem: ").FontColor(Colors.Amber.Darken3);
+               t.Span("**Entrevistador:** / **Entrevistado(a):**").SemiBold();
+           });
+
+        RenderMarkdownContent(col, md);
+    }
+
+    private void RenderEvidenceLog(ColumnDescriptor col, string md)
+    {
+        col.Item().Background(Colors.Teal.Lighten5).Padding(6)
+           .Text(t =>
+           {
+               t.DefaultTextStyle(TextStyle.Default.FontColor(Colors.Teal.Darken2));
+               t.Span("Catálogo de itens e cadeia de custódia. ");
+               t.Span("Campos: ItemId, Coleta em, Coletado por, Descrição, Armazenamento, Transferências.")
+                .FontSize(9.5f);
+           });
+
+        RenderMarkdownContent(col, md);
+    }
+
+    // --- fallback: genérico ---
+    private void RenderGeneric(ColumnDescriptor col, string md) => RenderMarkdownContent(col, md);
 
     private bool IsTableLine(string line)
     {
