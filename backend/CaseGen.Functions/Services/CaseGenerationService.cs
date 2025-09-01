@@ -2,6 +2,7 @@ using CaseGen.Functions.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using System.Text;
 
 namespace CaseGen.Functions.Services;
 
@@ -619,6 +620,145 @@ public class CaseGenerationService : ICaseGenerationService
         }
 
         return json;
+    }
+
+    public async Task<string> RenderDocumentFromJsonAsync(string docId, string documentJson, string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Rendering document [{DocId}] from JSON to MD and PDF", docId);
+
+        try
+        {
+            // Parse the JSON document to extract metadata and content
+            using var doc = JsonDocument.Parse(documentJson);
+            var root = doc.RootElement;
+            
+            if (!root.TryGetProperty("docId", out var docIdProp) || 
+                !root.TryGetProperty("title", out var titleProp) ||
+                !root.TryGetProperty("sections", out var sectionsProp))
+            {
+                throw new InvalidOperationException($"Invalid document JSON structure for {docId}");
+            }
+
+            var title = titleProp.GetString() ?? "Untitled Document";
+            var sections = sectionsProp.EnumerateArray();
+
+            // Generate Markdown content
+            var markdownBuilder = new StringBuilder();
+            markdownBuilder.AppendLine($"# {title}");
+            markdownBuilder.AppendLine();
+
+            foreach (var section in sections)
+            {
+                if (section.TryGetProperty("title", out var sectionTitle) &&
+                    section.TryGetProperty("content", out var sectionContent))
+                {
+                    markdownBuilder.AppendLine($"## {sectionTitle.GetString()}");
+                    markdownBuilder.AppendLine();
+                    markdownBuilder.AppendLine(sectionContent.GetString());
+                    markdownBuilder.AppendLine();
+                }
+            }
+
+            var markdownContent = markdownBuilder.ToString();
+
+            // Generate simple PDF content (text-based since we don't have PDF libraries)
+            var pdfContent = GenerateSimplePdfContent(title, markdownContent);
+
+            // Save files to bundles container
+            var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
+            var mdPath = $"{caseId}/documents/{docId}.md";
+            var pdfPath = $"{caseId}/documents/{docId}.pdf";
+
+            await _storageService.SaveFileAsync(bundlesContainer, mdPath, markdownContent, cancellationToken);
+            await _storageService.SaveFileAsync(bundlesContainer, pdfPath, pdfContent, cancellationToken);
+
+            // Log the rendering step
+            await _caseLogging.LogStepResponseAsync(caseId, $"render/{docId}", 
+                JsonSerializer.Serialize(new { 
+                    docId, 
+                    markdownPath = mdPath, 
+                    pdfPath = pdfPath,
+                    wordCount = markdownContent.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length
+                }, new JsonSerializerOptions { WriteIndented = true }), 
+                cancellationToken);
+
+            _logger.LogInformation("RENDER: Generated MD and PDF for doc {DocId} (case={CaseId})", docId, caseId);
+
+            // Return a summary of the rendering operation
+            return JsonSerializer.Serialize(new { 
+                docId, 
+                status = "rendered", 
+                files = new { markdown = mdPath, pdf = pdfPath }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to render document {DocId} for case {CaseId}", docId, caseId);
+            throw;
+        }
+    }
+
+    private string GenerateSimplePdfContent(string title, string markdownContent)
+    {
+        // For now, generate a simple text-based PDF content
+        // In a real implementation, you'd use a PDF library like iTextSharp or PdfSharp
+        var pdfBuilder = new StringBuilder();
+        pdfBuilder.AppendLine("%PDF-1.4");
+        pdfBuilder.AppendLine("1 0 obj");
+        pdfBuilder.AppendLine("<<");
+        pdfBuilder.AppendLine("/Type /Catalog");
+        pdfBuilder.AppendLine("/Pages 2 0 R");
+        pdfBuilder.AppendLine(">>");
+        pdfBuilder.AppendLine("endobj");
+        pdfBuilder.AppendLine();
+        pdfBuilder.AppendLine("2 0 obj");
+        pdfBuilder.AppendLine("<<");
+        pdfBuilder.AppendLine("/Type /Pages");
+        pdfBuilder.AppendLine("/Kids [3 0 R]");
+        pdfBuilder.AppendLine("/Count 1");
+        pdfBuilder.AppendLine(">>");
+        pdfBuilder.AppendLine("endobj");
+        pdfBuilder.AppendLine();
+        pdfBuilder.AppendLine("3 0 obj");
+        pdfBuilder.AppendLine("<<");
+        pdfBuilder.AppendLine("/Type /Page");
+        pdfBuilder.AppendLine("/Parent 2 0 R");
+        pdfBuilder.AppendLine("/MediaBox [0 0 612 792]");
+        pdfBuilder.AppendLine("/Contents 4 0 R");
+        pdfBuilder.AppendLine(">>");
+        pdfBuilder.AppendLine("endobj");
+        pdfBuilder.AppendLine();
+        pdfBuilder.AppendLine("4 0 obj");
+        pdfBuilder.AppendLine("<<");
+        var content = $"DOCUMENT: {title}\n\n{markdownContent.Replace("#", "").Replace("*", "")}";
+        pdfBuilder.AppendLine($"/Length {content.Length}");
+        pdfBuilder.AppendLine(">>");
+        pdfBuilder.AppendLine("stream");
+        pdfBuilder.AppendLine("BT");
+        pdfBuilder.AppendLine("/F1 12 Tf");
+        pdfBuilder.AppendLine("72 720 Td");
+        pdfBuilder.AppendLine($"({content.Replace("\n", " ").Replace("(", "\\(").Replace(")", "\\)")}) Tj");
+        pdfBuilder.AppendLine("ET");
+        pdfBuilder.AppendLine("endstream");
+        pdfBuilder.AppendLine("endobj");
+        pdfBuilder.AppendLine();
+        pdfBuilder.AppendLine("xref");
+        pdfBuilder.AppendLine("0 5");
+        pdfBuilder.AppendLine("0000000000 65535 f ");
+        pdfBuilder.AppendLine("0000000010 00000 n ");
+        pdfBuilder.AppendLine("0000000079 00000 n ");
+        pdfBuilder.AppendLine("0000000173 00000 n ");
+        pdfBuilder.AppendLine("0000000279 00000 n ");
+        pdfBuilder.AppendLine("trailer");
+        pdfBuilder.AppendLine("<<");
+        pdfBuilder.AppendLine("/Size 5");
+        pdfBuilder.AppendLine("/Root 1 0 R");
+        pdfBuilder.AppendLine(">>");
+        pdfBuilder.AppendLine("startxref");
+        pdfBuilder.AppendLine("400");
+        pdfBuilder.AppendLine("%%EOF");
+
+        return pdfBuilder.ToString();
     }
 
     public async Task<string> NormalizeCaseAsync(string[] documents, string[] media, string caseId, CancellationToken cancellationToken = default)

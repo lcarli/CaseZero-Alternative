@@ -68,6 +68,13 @@ public class CaseGeneratorActivities
         return await _caseGenerationService.GenerateMediaFromSpecAsync(input.Spec, input.DesignJson, input.CaseId, input.PlanJson, input.ExpandedJson, input.DifficultyOverride);
     }
 
+    [Function("RenderDocumentItemActivity")]
+    public async Task<string> RenderDocumentItemActivity([ActivityTrigger] RenderDocumentItemInput input)
+    {
+        _logger.LogInformation("Activity: RenderDocumentItem [{DocId}]", input.DocId);
+        return await _caseGenerationService.RenderDocumentFromJsonAsync(input.DocId, input.DocumentJson, input.CaseId);
+    }
+
 
     [Function("NormalizeActivity")]
     public async Task<string> NormalizeActivity([ActivityTrigger] NormalizeActivityModel model)
