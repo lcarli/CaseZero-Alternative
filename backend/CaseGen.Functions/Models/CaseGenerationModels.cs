@@ -452,3 +452,27 @@ public record GatingRule
     public string? EvidenceId { get; init; }
     public string? Notes { get; init; }
 }
+
+// Test models for PDF generation
+public record DocumentTestRequest
+{
+    public required string DocId { get; init; }
+    public required string Type { get; init; }
+    public required string Title { get; init; }
+    public int Words { get; init; }
+    public required DocumentSection[] Sections { get; init; }
+}
+
+public record DocumentSection
+{
+    public required string Title { get; init; }
+    public required string Content { get; init; }
+}
+
+public record DocumentTestResponse
+{
+    public required string MarkdownContent { get; init; }
+    public required string PdfBlobUrl { get; init; }
+    public required string DocumentType { get; init; }
+    public required string FileName { get; init; }
+}

@@ -3,6 +3,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Text;
+using System;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace CaseGen.Functions.Services;
 
@@ -32,6 +36,9 @@ public class CaseGenerationService : ICaseGenerationService
         _caseLogging = caseLogging;
         _configuration = configuration;
         _logger = logger;
+        
+        // Configure QuestPDF for realistic document generation
+        QuestPDF.Settings.License = LicenseType.Community;
     }
 
     public async Task<string> PlanCaseAsync(CaseGenerationRequest request, string caseId, CancellationToken cancellationToken = default)
@@ -561,7 +568,6 @@ public class CaseGenerationService : ICaseGenerationService
                 spec.DocId, caseId);
         }
 
-
         return json;
     }
 
@@ -628,7 +634,6 @@ public class CaseGenerationService : ICaseGenerationService
 
         try
         {
-            // Parse the JSON document to extract metadata and content
             using var doc = JsonDocument.Parse(documentJson);
             var root = doc.RootElement;
             
@@ -698,67 +703,329 @@ public class CaseGenerationService : ICaseGenerationService
         }
     }
 
+    private byte[] GenerateRealisticPdf(string title, string markdownContent, string documentType = "general")
+    {
+        try
+        {
+            var document = Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(2, Unit.Centimetre);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(11));
+
+                    page.Header()
+                        .Height(60)
+                        .Background(Colors.Grey.Lighten2)
+                        .Padding(10)
+                        .AlignCenter()
+                        .Text(GetDocumentHeader(documentType, title))
+                        .FontSize(16)
+                        .Bold();
+
+                    page.Content()
+                        .PaddingVertical(10)
+                        .Column(column =>
+                        {
+                            column.Item().Text(title).FontSize(14).Bold();
+                            column.Item().PaddingVertical(5);
+                            column.Item().Text(FormatMarkdownContent(markdownContent)).LineHeight(1.4f);
+                        });
+
+                    page.Footer()
+                        .Height(30)
+                        .AlignCenter()
+                        .Text($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm}")
+                        .FontSize(9);
+                });
+            });
+
+            return document.GeneratePdf();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GenerateRealisticPdf");
+            throw;
+        }
+    }
+
+    private string GetDocumentHeader(string documentType, string title)
+    {
+        return documentType.ToLower() switch
+        {
+            "police_report" => "POLICE INCIDENT REPORT",
+            "forensics_report" => "FORENSIC ANALYSIS REPORT",
+            "interview" => "INVESTIGATION INTERVIEW TRANSCRIPT",
+            "evidence_log" => "EVIDENCE CATALOG & CHAIN OF CUSTODY",
+            "memo" => "INVESTIGATIVE MEMORANDUM",
+            "witness_statement" => "WITNESS STATEMENT FORM",
+            _ => "INVESTIGATIVE DOCUMENT"
+        };
+    }
+
+    private void AddPoliceReportContent(ColumnDescriptor column, string title, string content)
+    {
+        column.Item().PaddingBottom(10).Row(row =>
+        {
+            row.RelativeItem(2).Text("INCIDENT #:").Bold();
+            row.RelativeItem(3).Text(ExtractIncidentNumber(title));
+            row.RelativeItem(2).Text("DATE:").Bold();
+            row.RelativeItem(3).Text(DateTime.Now.ToString("MM/dd/yyyy"));
+        });
+
+        column.Item().PaddingBottom(10).Row(row =>
+        {
+            row.RelativeItem(2).Text("REPORTING OFFICER:").Bold();
+            row.RelativeItem(3).Text(ExtractOfficerName(content));
+            row.RelativeItem(2).Text("BADGE #:").Bold();
+            row.RelativeItem(3).Text(GenerateBadgeNumber());
+        });
+
+        column.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
+        column.Item().PaddingVertical(10).Text("INCIDENT DETAILS").FontSize(14).Bold();
+        column.Item().Text(FormatMarkdownContent(content)).LineHeight(1.5f);
+    }
+
+    private void AddForensicsReportContent(ColumnDescriptor column, string title, string content)
+    {
+        column.Item().PaddingBottom(10).Row(row =>
+        {
+            row.RelativeItem(2).Text("CASE #:").Bold();
+            row.RelativeItem(3).Text(ExtractCaseNumber(title));
+            row.RelativeItem(2).Text("LAB ID:").Bold();
+            row.RelativeItem(3).Text($"LAB-{Random.Shared.Next(1000, 9999)}");
+        });
+
+        column.Item().PaddingBottom(10).Row(row =>
+        {
+            row.RelativeItem(2).Text("EXAMINER:").Bold();
+            row.RelativeItem(3).Text(ExtractExaminerName(content));
+            row.RelativeItem(2).Text("DATE EXAMINED:").Bold();
+            row.RelativeItem(3).Text(DateTime.Now.ToString("MM/dd/yyyy"));
+        });
+
+        column.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
+        column.Item().PaddingVertical(10).Text("FORENSIC ANALYSIS").FontSize(14).Bold();
+        //column.Item().Text("EVIDENCE SUBMITTED:").Bold().PaddingBottom(5);
+        column.Item().Text(FormatMarkdownContent(content)).LineHeight(1.5f);
+    }
+
+    private void AddInterviewContent(ColumnDescriptor column, string title, string content)
+    {
+        column.Item().PaddingBottom(10).Row(row =>
+        {
+            row.RelativeItem(2).Text("INTERVIEW DATE:").Bold();
+            row.RelativeItem(3).Text(DateTime.Now.ToString("MM/dd/yyyy"));
+            row.RelativeItem(2).Text("TIME:").Bold();
+            row.RelativeItem(3).Text(DateTime.Now.ToString("HH:mm"));
+        });
+
+        column.Item().PaddingBottom(10).Row(row =>
+        {
+            row.RelativeItem(2).Text("SUBJECT:").Bold();
+            row.RelativeItem(3).Text(ExtractSubjectName(title, content));
+            row.RelativeItem(2).Text("INTERVIEWER:").Bold();
+            row.RelativeItem(3).Text(ExtractInterviewerName(content));
+        });
+
+        column.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
+        column.Item().PaddingVertical(10).Text("INTERVIEW TRANSCRIPT").FontSize(14).Bold();
+        column.Item().Text(FormatMarkdownContent(content)).LineHeight(1.5f);
+    }
+
+    private void AddEvidenceLogContent(ColumnDescriptor column, string title, string content)
+    {
+        column.Item().PaddingBottom(10).Row(row =>
+        {
+            row.RelativeItem(2).Text("CASE #:").Bold();
+            row.RelativeItem(3).Text(ExtractCaseNumber(title));
+            row.RelativeItem(2).Text("LOGGED BY:").Bold();
+            row.RelativeItem(3).Text(ExtractOfficerName(content));
+        });
+
+        column.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
+        column.Item().PaddingVertical(10).Text("EVIDENCE INVENTORY").FontSize(14).Bold();
+        column.Item().Text(FormatMarkdownContent(content)).LineHeight(1.5f);
+    }
+
+    private void AddMemoContent(ColumnDescriptor column, string title, string content)
+    {
+        column.Item().PaddingBottom(10).Row(row =>
+        {
+            row.RelativeItem(2).Text("TO:").Bold();
+            row.RelativeItem(3).Text("INVESTIGATING TEAM");
+            row.RelativeItem(2).Text("FROM:").Bold();
+            row.RelativeItem(3).Text(ExtractAuthorName(content));
+        });
+
+        column.Item().PaddingBottom(10).Row(row =>
+        {
+            row.RelativeItem(2).Text("DATE:").Bold();
+            row.RelativeItem(3).Text(DateTime.Now.ToString("MM/dd/yyyy"));
+            row.RelativeItem(2).Text("RE:").Bold();
+            row.RelativeItem(3).Text(title);
+        });
+
+        column.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
+        column.Item().PaddingVertical(10).Text(FormatMarkdownContent(content)).LineHeight(1.5f);
+    }
+
+    private void AddWitnessStatementContent(ColumnDescriptor column, string title, string content)
+    {
+        column.Item().PaddingBottom(10).Row(row =>
+        {
+            row.RelativeItem(2).Text("WITNESS NAME:").Bold();
+            row.RelativeItem(3).Text(ExtractWitnessName(title, content));
+            row.RelativeItem(2).Text("DATE:").Bold();
+            row.RelativeItem(3).Text(DateTime.Now.ToString("MM/dd/yyyy"));
+        });
+
+        column.Item().PaddingBottom(10).Row(row =>
+        {
+            row.RelativeItem(2).Text("STATEMENT TAKEN BY:").Bold();
+            row.RelativeItem(4).Text(ExtractOfficerName(content));
+        });
+
+        column.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
+        column.Item().PaddingVertical(10).Text("WITNESS STATEMENT").FontSize(14).Bold();
+        column.Item().Text(FormatMarkdownContent(content)).LineHeight(1.5f);
+    }
+
+    private void AddGeneralContent(ColumnDescriptor column, string title, string content)
+    {
+        column.Item().PaddingBottom(10).Text(title).FontSize(16).Bold();
+        column.Item().LineHorizontal(1).LineColor(Colors.Grey.Medium);
+        column.Item().PaddingVertical(10).Text(FormatMarkdownContent(content)).LineHeight(1.5f);
+    }
+
+    // Helper methods for extracting information from content
+    private string ExtractIncidentNumber(string title)
+    {
+        return $"INC-{DateTime.Now:yyyy}-{Random.Shared.Next(1000, 9999)}";
+    }
+
+    private string ExtractCaseNumber(string title)
+    {
+        return $"CASE-{DateTime.Now:yyyy}-{Random.Shared.Next(100, 999)}";
+    }
+
+    private string ExtractOfficerName(string content)
+    {
+        // Try to extract officer name from content, fallback to generated name
+        var lines = content.Split('\n');
+        foreach (var line in lines)
+        {
+            if (line.ToLower().Contains("officer") || line.ToLower().Contains("detective"))
+            {
+                var words = line.Split(' ');
+                for (int i = 0; i < words.Length - 1; i++)
+                {
+                    if (words[i].ToLower().Contains("officer") || words[i].ToLower().Contains("detective"))
+                    {
+                        return words[i + 1].Trim('.', ',', ':');
+                    }
+                }
+            }
+        }
+        return $"Officer {GenerateRandomName()}";
+    }
+
+    private string ExtractExaminerName(string content)
+    {
+        return $"Dr. {GenerateRandomName()}";
+    }
+
+    private string ExtractSubjectName(string title, string content)
+    {
+        // Try to extract from title or content
+        var names = new[] { "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis" };
+        return $"{GenerateRandomName()} {names[Random.Shared.Next(names.Length)]}";
+    }
+
+    private string ExtractInterviewerName(string content)
+    {
+        return $"Detective {GenerateRandomName()}";
+    }
+
+    private string ExtractAuthorName(string content)
+    {
+        return $"Agent {GenerateRandomName()}";
+    }
+
+    private string ExtractWitnessName(string title, string content)
+    {
+        var names = new[] { "Anderson", "Taylor", "Thomas", "Jackson", "White", "Harris", "Martin", "Thompson" };
+        return $"{GenerateRandomName()} {names[Random.Shared.Next(names.Length)]}";
+    }
+
+    private string GenerateRandomName()
+    {
+        var firstNames = new[] { "Michael", "Sarah", "David", "Lisa", "John", "Jennifer", "Robert", "Amanda", "James", "Michelle" };
+        return firstNames[Random.Shared.Next(firstNames.Length)];
+    }
+
+    private string GenerateBadgeNumber()
+    {
+        return Random.Shared.Next(1000, 9999).ToString();
+    }
+
+    private string FormatMarkdownContent(string markdown)
+    {
+        if (string.IsNullOrEmpty(markdown))
+            return "No content available.";
+
+        // Basic markdown to text conversion
+        return markdown
+            .Replace("**", "")  // Remove bold markers
+            .Replace("*", "")   // Remove italic markers
+            .Replace("#", "")   // Remove headers
+            .Replace("- ", "• ") // Convert bullets
+            .Trim();
+    }
+
+    // Updated method that calls the new realistic PDF generator
     private string GenerateSimplePdfContent(string title, string markdownContent)
     {
-        // For now, generate a simple text-based PDF content
-        // In a real implementation, you'd use a PDF library like iTextSharp or PdfSharp
-        var pdfBuilder = new StringBuilder();
-        pdfBuilder.AppendLine("%PDF-1.4");
-        pdfBuilder.AppendLine("1 0 obj");
-        pdfBuilder.AppendLine("<<");
-        pdfBuilder.AppendLine("/Type /Catalog");
-        pdfBuilder.AppendLine("/Pages 2 0 R");
-        pdfBuilder.AppendLine(">>");
-        pdfBuilder.AppendLine("endobj");
-        pdfBuilder.AppendLine();
-        pdfBuilder.AppendLine("2 0 obj");
-        pdfBuilder.AppendLine("<<");
-        pdfBuilder.AppendLine("/Type /Pages");
-        pdfBuilder.AppendLine("/Kids [3 0 R]");
-        pdfBuilder.AppendLine("/Count 1");
-        pdfBuilder.AppendLine(">>");
-        pdfBuilder.AppendLine("endobj");
-        pdfBuilder.AppendLine();
-        pdfBuilder.AppendLine("3 0 obj");
-        pdfBuilder.AppendLine("<<");
-        pdfBuilder.AppendLine("/Type /Page");
-        pdfBuilder.AppendLine("/Parent 2 0 R");
-        pdfBuilder.AppendLine("/MediaBox [0 0 612 792]");
-        pdfBuilder.AppendLine("/Contents 4 0 R");
-        pdfBuilder.AppendLine(">>");
-        pdfBuilder.AppendLine("endobj");
-        pdfBuilder.AppendLine();
-        pdfBuilder.AppendLine("4 0 obj");
-        pdfBuilder.AppendLine("<<");
-        var content = $"DOCUMENT: {title}\n\n{markdownContent.Replace("#", "").Replace("*", "")}";
-        pdfBuilder.AppendLine($"/Length {content.Length}");
-        pdfBuilder.AppendLine(">>");
-        pdfBuilder.AppendLine("stream");
-        pdfBuilder.AppendLine("BT");
-        pdfBuilder.AppendLine("/F1 12 Tf");
-        pdfBuilder.AppendLine("72 720 Td");
-        pdfBuilder.AppendLine($"({content.Replace("\n", " ").Replace("(", "\\(").Replace(")", "\\)")}) Tj");
-        pdfBuilder.AppendLine("ET");
-        pdfBuilder.AppendLine("endstream");
-        pdfBuilder.AppendLine("endobj");
-        pdfBuilder.AppendLine();
-        pdfBuilder.AppendLine("xref");
-        pdfBuilder.AppendLine("0 5");
-        pdfBuilder.AppendLine("0000000000 65535 f ");
-        pdfBuilder.AppendLine("0000000010 00000 n ");
-        pdfBuilder.AppendLine("0000000079 00000 n ");
-        pdfBuilder.AppendLine("0000000173 00000 n ");
-        pdfBuilder.AppendLine("0000000279 00000 n ");
-        pdfBuilder.AppendLine("trailer");
-        pdfBuilder.AppendLine("<<");
-        pdfBuilder.AppendLine("/Size 5");
-        pdfBuilder.AppendLine("/Root 1 0 R");
-        pdfBuilder.AppendLine(">>");
-        pdfBuilder.AppendLine("startxref");
-        pdfBuilder.AppendLine("400");
-        pdfBuilder.AppendLine("%%EOF");
+        try
+        {
+            // Determine document type from title
+            string documentType = DetermineDocumentType(title);
+            
+            // Generate realistic PDF using QuestPDF
+            var pdfBytes = GenerateRealisticPdf(title, markdownContent, documentType);
+            
+            // Convert to base64 string for storage/transmission
+            return Convert.ToBase64String(pdfBytes);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating PDF content for title: {Title}", title);
+            
+            // Fallback to simple text content
+            return $"PDF_CONTENT_ERROR: {title}\n\n{markdownContent}";
+        }
+    }
 
-        return pdfBuilder.ToString();
+    private string DetermineDocumentType(string title)
+    {
+        var titleLower = title.ToLower();
+        
+        if (titleLower.Contains("police") || titleLower.Contains("incident") || titleLower.Contains("report"))
+            return "police_report";
+        if (titleLower.Contains("forensic") || titleLower.Contains("lab") || titleLower.Contains("analysis"))
+            return "forensics_report";
+        if (titleLower.Contains("interview") || titleLower.Contains("interrogation"))
+            return "interview";
+        if (titleLower.Contains("evidence") || titleLower.Contains("log") || titleLower.Contains("inventory"))
+            return "evidence_log";
+        if (titleLower.Contains("memo") || titleLower.Contains("memorandum"))
+            return "memo";
+        if (titleLower.Contains("witness") || titleLower.Contains("statement"))
+            return "witness_statement";
+            
+        return "general";
     }
 
     public async Task<string> NormalizeCaseAsync(string[] documents, string[] media, string caseId, CancellationToken cancellationToken = default)
@@ -905,5 +1172,17 @@ public class CaseGenerationService : ICaseGenerationService
             _logger.LogError(ex, "Failed to package case: {CaseId}", caseId);
             throw;
         }
+    }
+
+    // Public method for testing PDF generation
+    public async Task<byte[]> GenerateTestPdfAsync(string title, string markdownContent, string documentType = "general", CancellationToken cancellationToken = default)
+    {
+        var actualDocumentType = DetermineDocumentType(title);
+        if (!string.IsNullOrEmpty(documentType) && documentType != "general")
+        {
+            actualDocumentType = documentType;
+        }
+        
+        return GenerateRealisticPdf(title, markdownContent, actualDocumentType);
     }
 }

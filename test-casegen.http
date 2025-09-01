@@ -37,3 +37,41 @@ POST http://localhost:7071/api/StartCaseGeneration
 ###
 
 GET http://localhost:7071/api/status/593a7ea794924f028624a369fe3e1e7d
+
+###
+
+# Teste de geração de PDF
+POST http://localhost:7071/api/test/pdf
+
+{
+  "docId": "doc_evidence_log_001",
+  "type": "evidence_log",
+  "title": "Registro de Evidências - Assalto à Caixa",
+  "words": 359,
+  "sections": [
+    {
+      "title": "Inventário de Evidências",
+      "content": "Legenda: tabela com inventário e transferências.\n\n| ItemId | Coleta em | Coletado por | Descrição | Armazenamento | Transferências |\n|---|---:|---|---|---|---|\n| ev_drawer_photo_001 | 2025-09-01T09:36:00-04:00 | Primeira equipe policial | Fotografia frontal da gaveta do caixa, trilhos remexidos | Pen-drive forense; cópia no servidor | Local -> Perícia (2025-09-01T11:15:00-04:00) |\n| ev_receipts_scan_001 | 2025-09-01T09:45:00-04:00 | Miguel Santos; Primeira equipe policial | Scans dos recibos e relatório de caixa (diferença $245) | PDF 300dpi em pen-drive forense | Local -> Perícia (2025-09-01T11:15:00-04:00) |\n| ev_cctv_video_001 | 2025-09-01T10:10:00-04:00 | Perícia Digital | Trecho de CCTV 09:20 (30–60s) com indivíduo de capuz | MP4 em pen-drive forense; metadados extraídos | Extração (2025-09-01T10:10:00-04:00) -> Laboratório (2025-09-01T11:15:00-04:00) |\n| ev_fingerprint_photo_001 | 2025-09-01T09:40:00-04:00 | Perícia | Foto macro de impressão parcial no puxador; amostra em fita adesiva | Foto digital + amostra em envelope selado | Etiqueta iniciada (2025-09-01T09:40:00-04:00); Enviado à Perícia (2025-09-01T11:15:00-04:00) |\n| ev_footprint_photo_001 | 2025-09-01T09:37:00-04:00 | Primeira equipe policial | Marca de sola úmida na calçada com régua de escala | Foto digital; registro fotográfico em servidor | Local -> Perícia (2025-09-01T11:15:00-04:00) |"
+    },
+    {
+      "title": "Descrição Detalhada por Item",
+      "content": "- ev_drawer_photo_001: Foto documenta gaveta parcialmente fora e sinais de arrombamento. Não foi removida do local na primeira patrulha; imagens servem para avaliação.\n\n- ev_receipts_scan_001: Scans mostram vendas entre 09:00–09:20; relatório evidencia déficit de $245. Arquivos com metadados de digitalização.\n\n- ev_cctv_video_001: Trecho extraído do DVR mostra entrada às 09:20; qualidade média impede identificação facial, mas permite estimativa de estatura.\n\n- ev_fingerprint_photo_001: Impressão parcial de dois dedos em pó, coletada com fita; foto macro documenta posição e contraste.\n\n- ev_footprint_photo_001: Marca de sola úmida com direção de fuga registrada; padrão simples, tamanho estimado 42–44."
+    },
+    {
+      "title": "Local da Coleta e Condições",
+      "content": "Coleta na loja de bairro e calçada em frente. Iluminação interna neutra no momento (manhã), calçada úmida conforme observação da equipe. Área isolada pela primeira equipe policial a partir de 2025-09-01T09:35:00-04:00."
+    },
+    {
+      "title": "Etiquetas e Identificação",
+      "content": "Cada item recebeu etiqueta com ItemId, data/hora e coletado por. Impressão e CCTV receberam rótulos específicos indicando extração forense e operador (Perícia / Perícia Digital). Arquivos digitais receberam metadados básicos e hash."
+    },
+    {
+      "title": "Transferências e Movimentações",
+      "content": "Transferências registradas: CCTV extraída 2025-09-01T10:10:00-04:00 (Pen-drive forense); evidências físicas e digitais encaminhadas ao laboratório/perícia em 2025-09-01T11:15:00-04:00. Registros de cadeia de custódia iniciados no local."
+    },
+    {
+      "title": "Observações sobre Preservação",
+      "content": "Evitar nova manipulação da impressão; manter amostra em envelope selado. Fotografias e vídeos preservados em mídia forense com cópia de segurança. Receipts em PDF autenticados por metadados. Recomenda-se armazenamento seco e temperatura controlada até análise. Notar que algumas evidências (CCTV) têm qualidade média; preservar original."
+    }
+  ]
+}

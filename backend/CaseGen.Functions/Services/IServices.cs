@@ -16,6 +16,9 @@ public interface ICaseGenerationService
     Task<string> ValidateRulesAsync(string indexedJson, string caseId, CancellationToken cancellationToken = default);
     Task<string> RedTeamCaseAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default);
     Task<CaseGenerationOutput> PackageCaseAsync(string finalJson, string caseId, CancellationToken cancellationToken = default);
+    
+    // Test method for PDF generation
+    Task<byte[]> GenerateTestPdfAsync(string title, string markdownContent, string documentType = "general", CancellationToken cancellationToken = default);
 }
 
 public interface IStorageService
