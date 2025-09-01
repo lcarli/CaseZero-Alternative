@@ -25,6 +25,8 @@ public class TestPdfFunction
     public async Task<HttpResponseData> TestPdfGeneration(
         [HttpTrigger(AuthorizationLevel.Function, "post", Route = "test/pdf")] HttpRequestData req)
     {
+        // This is a TEST FUNCTION ONLY - all actual PDF generation logic is in the main orchestrator
+        // via CaseGenerationService.RenderDocumentFromJsonAsync()
         _logger.LogInformation("TestPdfGeneration function processed a request.");
 
         try
@@ -92,6 +94,7 @@ public class TestPdfFunction
 
     private string ConvertToMarkdown(DocumentTestRequest request)
     {
+        // Simple conversion for testing - the real logic is in the service
         var markdown = new System.Text.StringBuilder();
         
         markdown.AppendLine($"# {request.Title}");
@@ -116,7 +119,7 @@ public class TestPdfFunction
     {
         try
         {
-            // Use the public test method
+            // Simply call the service method that is now used in the main orchestrator
             var pdfBytes = await _caseGenerationService.GenerateTestPdfAsync(title, markdownContent, documentType);
             var pdfBase64 = Convert.ToBase64String(pdfBytes);
             

@@ -666,8 +666,11 @@ public class CaseGenerationService : ICaseGenerationService
 
             var markdownContent = markdownBuilder.ToString();
 
-            // Generate simple PDF content (text-based since we don't have PDF libraries)
-            var pdfContent = GenerateSimplePdfContent(title, markdownContent);
+            // Determine document type from title
+            var documentType = DetermineDocumentType(title);
+
+            // Generate realistic PDF using QuestPDF
+            var pdfBytes = GenerateRealisticPdf(title, markdownContent, documentType);
 
             // Save files to bundles container
             var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
@@ -675,7 +678,7 @@ public class CaseGenerationService : ICaseGenerationService
             var pdfPath = $"{caseId}/documents/{docId}.pdf";
 
             await _storageService.SaveFileAsync(bundlesContainer, mdPath, markdownContent, cancellationToken);
-            await _storageService.SaveFileAsync(bundlesContainer, pdfPath, pdfContent, cancellationToken);
+            await _storageService.SaveFileAsync(bundlesContainer, pdfPath, pdfBytes, cancellationToken);
 
             // Log the rendering step
             await _caseLogging.LogStepResponseAsync(caseId, $"render/{docId}",
@@ -729,7 +732,7 @@ public class CaseGenerationService : ICaseGenerationService
                     page.Header().Column(headerCol =>
                     {
                         headerCol.Item().Element(h => BuildLetterhead(h, docTypeLabel, title, caseId, docId));
-                        headerCol.Item().Element(h => BuildClassificationBand(h, classification, bandBg, bandText));
+                        headerCol.Item().Element(h => BuildClassificationBand(h, classification));
                     });
 
                     // Conteúdo
@@ -775,9 +778,10 @@ public class CaseGenerationService : ICaseGenerationService
     {
         c.AlignCenter()
          .AlignMiddle()
+         .PaddingHorizontal(50)
          .Rotate(315)
          .Text(text)
-            .FontSize(64)
+            .FontSize(48)
             .Bold()
             .FontColor(QuestPDF.Helpers.Colors.Grey.Lighten3);
     }
@@ -1144,29 +1148,6 @@ public class CaseGenerationService : ICaseGenerationService
         });
 
         column.Item().PaddingBottom(4);
-    }
-
-    // Updated method that calls the new realistic PDF generator
-    private string GenerateSimplePdfContent(string title, string markdownContent)
-    {
-        try
-        {
-            // Determine document type from title
-            string documentType = DetermineDocumentType(title);
-
-            // Generate realistic PDF using QuestPDF
-            var pdfBytes = GenerateRealisticPdf(title, markdownContent, documentType);
-
-            // Convert to base64 string for storage/transmission
-            return Convert.ToBase64String(pdfBytes);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error generating PDF content for title: {Title}", title);
-
-            // Fallback to simple text content
-            return $"PDF_CONTENT_ERROR: {title}\n\n{markdownContent}";
-        }
     }
 
     private string DetermineDocumentType(string title)
