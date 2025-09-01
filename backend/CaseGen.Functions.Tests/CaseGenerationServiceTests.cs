@@ -27,8 +27,12 @@ public class CaseGenerationServiceTests
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging(builder => builder.AddConsole());
         services.AddScoped<ICaseGenerationService, CaseGenerationService>();
-    services.AddScoped<IStorageService, StorageService>();
-    services.AddScoped<ILLMService, LLMService>();
+        services.AddScoped<IStorageService, StorageService>();
+        services.AddScoped<ILLMService, LLMService>();
+        services.AddScoped<ILLMProvider, MockLLMProvider>();
+        services.AddScoped<ISchemaValidationService, SchemaValidationService>();
+        services.AddScoped<IJsonSchemaProvider, FileJsonSchemaProvider>();
+        services.AddScoped<ICaseLoggingService, CaseLoggingService>();
 
         _serviceProvider = services.BuildServiceProvider();
         _caseGenerationService = _serviceProvider.GetRequiredService<ICaseGenerationService>();
@@ -98,5 +102,65 @@ public class CaseGenerationServiceTests
         Assert.Equal(10, steps.Length);
         Assert.Contains(CaseGenerationSteps.Plan, steps);
         Assert.Contains(CaseGenerationSteps.Package, steps);
+    }
+
+    [Fact]
+    public async Task RenderDocumentFromJsonAsync_ShouldGenerateMarkdownAndPdf()
+    {
+        // Arrange
+        var testDocumentJson = """
+        {
+            "docId": "test_police_001",
+            "type": "police_report",
+            "title": "Test Police Report",
+            "words": 120,
+            "sections": [
+                {
+                    "title": "Summary",
+                    "content": "This is a test police report summary for rendering validation."
+                },
+                {
+                    "title": "Evidence",
+                    "content": "Test evidence description with sample content."
+                }
+            ]
+        }
+        """;
+        var caseId = "TEST-CASE-001";
+        var docId = "test_police_001";
+
+        // Act
+        var result = await _caseGenerationService.RenderDocumentFromJsonAsync(docId, testDocumentJson, caseId);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotEmpty(result);
+        
+        // Verify the result contains expected information
+        var resultObj = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(result);
+        Assert.True(resultObj.TryGetProperty("docId", out var resultDocId));
+        Assert.Equal("test_police_001", resultDocId.GetString());
+        Assert.True(resultObj.TryGetProperty("status", out var status));
+        Assert.Equal("rendered", status.GetString());
+        Assert.True(resultObj.TryGetProperty("files", out var files));
+        Assert.True(files.TryGetProperty("markdown", out var mdPath));
+        Assert.True(files.TryGetProperty("pdf", out var pdfPath));
+        Assert.Contains(".md", mdPath.GetString());
+        Assert.Contains(".pdf", pdfPath.GetString());
+    }
+
+    [Fact]
+    public async Task RenderDocumentFromJsonAsync_WithInvalidJson_ShouldThrowException()
+    {
+        // Arrange
+        var invalidJson = """{"incomplete": "json"}""";
+        var caseId = "TEST-CASE-002";
+        var docId = "invalid_doc";
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _caseGenerationService.RenderDocumentFromJsonAsync(docId, invalidJson, caseId));
+        
+        Assert.Contains("Invalid document JSON structure", exception.Message);
     }
 }

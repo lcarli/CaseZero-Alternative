@@ -183,6 +183,46 @@ public class CaseGeneratorOrchestrator
             completedSteps.Add(CaseGenerationSteps.GenDocs);
             completedSteps.Add(CaseGenerationSteps.GenMedia);
 
+            // Step 5.5: RenderDocuments (fan-out JSON→MD→PDF)
+            status = status with
+            {
+                CurrentStep = CaseGenerationSteps.RenderDocs,
+                Progress = 0.55,
+                CompletedSteps = completedSteps.ToArray()
+            };
+            context.SetCustomStatus(status);
+
+            var renderTasks = new List<Task<string>>();
+            foreach (var docJson in documentsResult)
+            {
+                // Parse docId from the JSON result
+                string docId = "unknown";
+                try
+                {
+                    using var doc = JsonDocument.Parse(docJson);
+                    if (doc.RootElement.TryGetProperty("docId", out var docIdProp))
+                    {
+                        docId = docIdProp.GetString() ?? "unknown";
+                    }
+                }
+                catch (JsonException)
+                {
+                    // If parsing fails, generate a fallback docId
+                    docId = $"doc_{renderTasks.Count + 1}";
+                }
+
+                var renderInput = new RenderDocumentItemInput 
+                { 
+                    CaseId = caseId, 
+                    DocId = docId, 
+                    DocumentJson = docJson 
+                };
+                renderTasks.Add(context.CallActivityAsync<string>("RenderDocumentItemActivity", renderInput));
+            }
+
+            var renderResults = await Task.WhenAll(renderTasks);
+            completedSteps.Add(CaseGenerationSteps.RenderDocs);
+
             // Step 6: Normalize
             status = status with
             {
