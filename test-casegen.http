@@ -75,3 +75,45 @@ POST http://localhost:7071/api/test/pdf
     }
   ]
 }
+
+###
+
+# Teste de geração de PDF - Forensics
+POST http://localhost:7071/api/test/pdf
+
+{
+  "docId": "doc_forensics_report_001",
+  "type": "forensics_report",
+  "title": "Laudo Pericial - Impressões e Análise de Imagens CCTV",
+  "words": 432,
+  "sections": [
+    {
+      "title": "Resumo Executivo",
+      "content": "Laboratório: Laboratório Forense Municipal\nPerito: Perito Forense (identificador interno)\nData/Hora: 2025-09-01T11:30:00-04:00\n\nRelato compacto das análises realizadas no incidente registrado em 2025-09-01T09:20:00-04:00 (assalto à loja de bairro). Foram examinadas: fotografias da gaveta do caixa (ev_drawer_photo_001), fotografia macro da impressão parcial no puxador (ev_fingerprint_photo_001), fotografia da marca de sola na calçada (ev_footprint_photo_001), cópia digital dos recibos/relatório de caixa (ev_receipts_scan_001) e trecho de CCTV armazenado conforme item ev_cctv_video_001 (cópia extraída para pen-drive). Este laudo resume método, resultados preliminares, limitações e recomendações para continuidade. Referência interna ao relatório policial inicial: doc_police_report_001 e registro de evidências: doc_evidence_log_001."
+    },
+    {
+      "title": "Metodologia",
+      "content": "Procedimentos adotados (resumo):\n\n- Documentação fotográfica in situ da gaveta e áreas adjacentes conforme ev_drawer_photo_001, com régua de escala e exposição neutra.\n- Levantamento e coleta de impressão parcial no puxador usando pó e fita de levantamento; registro macro fotográfico (ev_fingerprint_photo_001).\n- Fotografia da marca de sola na calçada com régua de escala e vista ampla para contexto (ev_footprint_photo_001).\n- Cópia forense do vídeo de vigilância extraída do DVR para pen-drive forense; timecode preservado (ev_cctv_video_001).\n- Digitalização dos recibos e relatório de caixa conforme ev_receipts_scan_001 (300 dpi, PDF).\n\nAnálises realizadas: comparação visual de padrão de sola, avaliação qualitativa da impressão parcial, extração de frames do vídeo, medidas aproximadas de estatura por referência de objetos fixos, e registro de todas as operações para cadeia de custódia. Métodos seguem procedimentos básicos do laboratório para casos de baixa complexidade."
+    },
+    {
+      "title": "Resultados da Análise de Impressões",
+      "content": "Impressão parcial (ev_fingerprint_photo_001): levantamento contendo fragmento correspondente a dois arcos digitais parciais. Qualidade: média-baixa por fragmentação e sobreposição de pó; pontos de referência suficientes para análise orientadora, não conclusiva sem comparação trifásica. A amostra foi acondicionada em envelope forense e registrada em cadeia de custódia.\n\nGaveta do caixa (ev_drawer_photo_001): fotografias mostram trilhos remexidos e marca de força compatível com remoção manual. Não foram observadas impressões latentes claras nos registros fotográficos gerais; o puxador foi a fonte principal de impressão coletada.\n\nMarca de sola (ev_footprint_photo_001): padrão simples, diâmetro e comprimento aproximados compatíveis com numeração 42–44. Impressão úmida preservou sulcos básicos; não foi possível identificar marca de fabricante ou padrão único que permita associação sem comparativo direto com suspeitos conhecidos ou base local de solas."
+    },
+    {
+      "title": "Resultados da Análise de Vídeo/CCTV",
+      "content": "Vídeo (ev_cctv_video_001): trecho de 30–45s extraído com timecode preservado. Frame-chave mostra indivíduo com capuz escuro entrando pela porta às 2025-09-01T09:20:00-04:00. Qualificadores observados: capuz cobrindo parte do rosto, jaqueta escura, mochila pequena, marcha rápida.\n\nEstimativa de estatura: 1,75–1,85 m com base em comparação a moldura da porta e balcão. Comportamento: abordagem rápida ao balcão, manipulação direta da gaveta, retirada e saída a pé na direção indicada pela marca de sola.\n\nLimitações do vídeo: resolução média, ângulo frontal limitado, o capuz e baixa resolução impedem identificação facial confiável. Gait e estatura podem orientar comparação, mas não são per se identificadores exclusivos."
+    },
+    {
+      "title": "Cadeia de Custódia",
+      "content": "Eventos registrados em ordem cronológica:\n\n- 2025-09-01T09:36:00-04:00 — Gaveta documentada e fotografada pela primeira equipe policial (referência: ev_drawer_photo_001). Registro inicial em doc_evidence_log_001.\n- 2025-09-01T09:37:00-04:00 — Fotografia da marca de sola coletada e preservada (ev_footprint_photo_001). Registro em doc_evidence_log_001.\n- 2025-09-01T09:40:00-04:00 — Coleta de impressão parcial no puxador; amostra levantada com fita e fotografada (ev_fingerprint_photo_001). Início da etiqueta de cadeia de custódia.\n- 2025-09-01T09:45:00-04:00 — Recebimento e cópia dos recibos/relatório de caixa (ev_receipts_scan_001); entregue ao perícia em envelope identificado.\n- 2025-09-01T10:10:00-04:00 — Extração e cópia forense do trecho de CCTV do DVR para pen-drive; metadados e timecode preservados (ev_cctv_video_001). Assinatura do responsável pela extração registrada em doc_evidence_log_001.\n- 2025-09-01T11:15:00-04:00 — Encaminhamento dos itens acima ao Laboratório Forense para análise; recepção e registro interno concluídos (entrada no sistema do laboratório)."
+    },
+    {
+      "title": "Conclusões",
+      "content": "As evidências documentadas indicam que a gaveta do caixa foi removida e que há discrepância no relatório de caixa (ver ev_receipts_scan_001 e doc_police_report_001). A impressão parcial no puxador constitui um vestígio potencialmente útil para comparação laboratorial, embora fragmentada. O trecho de CCTV confirma presença de indivíduo com capuz no horário do incidente e fornece parâmetros de estatura e direção de fuga, mas é insuficiente para identificação facial isolada.\n\nOs resultados são consistentes entre si em termos temporais e contextuais, mas permanecem inconclusivos quanto à autoria sem comparações adicionais (bases de impressão, comparativos de solas, e testemunhos correlacionados)."
+    },
+    {
+      "title": "Recomendações Técnicas",
+      "content": "- Encaminhar a impressão parcial (ev_fingerprint_photo_001) para comparação com base local de impressões e, se aplicável, comparativos de suspeitos mencionados em investigações paralelas.\n- Realizar comparativo de padrão de sola entre a marca preservada (ev_footprint_photo_001) e amostras de calçados recolhidos de pontos de interesse.\n- Processamento adicional das imagens de CCTV: aplicação de técnicas básicas de realce e estabilização de frames para melhorar medidas biométricas não faciais; preservar timecodes (ev_cctv_video_001).\n- Conservar todas as provas segundo a cadeia de custódia documentada; anexar cópia digital dos recibos (ev_receipts_scan_001) ao processo pericial.\n- Recomenda-se correlação com entrevistas registradas em doc_interview_ana_001 e declarações de testemunhas para sustentação comparativa de tempo e movimento.\n\nTodas as ações devem ser registradas em doc_evidence_log_001 e encaminhadas para continuidade investigativa conforme protocolos locais."
+    }
+  ]
+}
