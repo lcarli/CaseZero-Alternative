@@ -111,7 +111,7 @@ public class PdfRenderingService : IPdfRenderingService
         }
     }
 
-    public async Task<byte[]> GenerateTestPdfAsync(string title, string markdownContent, string documentType = "general", CancellationToken cancellationToken = default)
+    public Task<byte[]> GenerateTestPdfAsync(string title, string markdownContent, string documentType = "general", CancellationToken cancellationToken = default)
     {
         var actualDocumentType = DetermineDocumentType(title);
         if (!string.IsNullOrEmpty(documentType) && documentType != "general")
@@ -119,7 +119,7 @@ public class PdfRenderingService : IPdfRenderingService
             actualDocumentType = documentType;
         }
 
-        return GenerateRealisticPdf(title, markdownContent, actualDocumentType);
+        return Task.FromResult(GenerateRealisticPdf(title, markdownContent, actualDocumentType));
     }
 
     private byte[] GenerateRealisticPdf(string title, string markdownContent, string documentType = "general", string? caseId = null, string? docId = null)

@@ -96,7 +96,7 @@ public class MockLLMProvider : ILLMProvider
         return JsonSerializer.Serialize(new { status = "generated", message = "Mock structured response" }, new JsonSerializerOptions { WriteIndented = true });
     }
 
-    public async Task<byte[]> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default)
+    public Task<byte[]> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -106,7 +106,7 @@ public class MockLLMProvider : ILLMProvider
             
             _logger.LogInformation("Image generated successfully with size: {Size} bytes", placeholderImageBytes.Length);
             
-            return placeholderImageBytes;
+            return Task.FromResult(placeholderImageBytes);
         }
         catch (Exception ex)
         {

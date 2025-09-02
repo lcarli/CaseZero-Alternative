@@ -134,7 +134,7 @@ public class NormalizerService : INormalizerService
         }
     }
 
-    private async Task<(NormalizedDocument[] documents, NormalizedMedia[] media)> ParseInputDataAsync(
+    private Task<(NormalizedDocument[] documents, NormalizedMedia[] media)> ParseInputDataAsync(
         NormalizationInput input, List<LogEntry> logEntries, List<ValidationResult> validationResults)
     {
         var documents = new List<NormalizedDocument>();
@@ -204,7 +204,7 @@ public class NormalizerService : INormalizerService
             }
         }
 
-        return (documents.ToArray(), media.ToArray());
+        return Task.FromResult((documents.ToArray(), media.ToArray()));
     }
 
     private NormalizedDocument ParseDocument(Dictionary<string, object> docData, List<LogEntry> logEntries)
@@ -335,7 +335,7 @@ public class NormalizerService : INormalizerService
         };
     }
 
-    private async Task ValidateIdsAndReferencesAsync(
+    private Task ValidateIdsAndReferencesAsync(
         NormalizedDocument[] documents, NormalizedMedia[] media,
         List<LogEntry> logEntries, List<ValidationResult> validationResults)
     {
@@ -419,6 +419,8 @@ public class NormalizerService : INormalizerService
                 ["duplicateEvidence"] = duplicateMediaIds.Count()
             }
         });
+
+        return Task.CompletedTask;
     }
 
     private DifficultyProfile ValidateDifficultyRules(
@@ -892,7 +894,7 @@ public class NormalizerService : INormalizerService
         };
     }
 
-    private async Task ValidateNormalizedBundleAsync(
+    private Task ValidateNormalizedBundleAsync(
         NormalizedCaseBundle bundle, List<LogEntry> logEntries, List<ValidationResult> validationResults)
     {
         // Validate ISO-8601 timestamps
@@ -950,6 +952,8 @@ public class NormalizerService : INormalizerService
                 ["totalItems"] = bundle.Documents.Length + bundle.Media.Length
             }
         });
+
+        return Task.CompletedTask;
     }
 
     private static string ComputeHash(string content)
