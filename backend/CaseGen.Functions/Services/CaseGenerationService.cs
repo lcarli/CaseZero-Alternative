@@ -799,4 +799,10 @@ public class CaseGenerationService : ICaseGenerationService
     {
         return await _pdfRenderingService.GenerateTestPdfAsync(title, markdownContent, documentType, cancellationToken);
     }
+    
+    // Public method for testing image generation
+    public async Task<string> GenerateTestImageAsync(MediaSpec spec, string caseId, CancellationToken cancellationToken = default)
+    {
+        return await _imagesService.GenerateAsync(caseId, spec);
+    }
 }

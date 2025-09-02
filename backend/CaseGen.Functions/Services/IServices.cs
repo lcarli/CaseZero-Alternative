@@ -21,6 +21,9 @@ public interface ICaseGenerationService
     
     // Test method for PDF generation
     Task<byte[]> GenerateTestPdfAsync(string title, string markdownContent, string documentType = "general", CancellationToken cancellationToken = default);
+    
+    // Test method for image generation  
+    Task<string> GenerateTestImageAsync(MediaSpec spec, string caseId, CancellationToken cancellationToken = default);
 }
 
 public interface IStorageService

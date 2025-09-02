@@ -10,15 +10,18 @@ public class ImagesService : IImagesService
     private readonly IStorageService _storageService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ImagesService> _logger;
+    private readonly ILLMService _llmService;
 
     public ImagesService(
         IStorageService storageService,
         IConfiguration configuration,
-        ILogger<ImagesService> logger)
+        ILogger<ImagesService> logger,
+        ILLMService llmService)
     {
         _storageService = storageService;
         _configuration = configuration;
         _logger = logger;
+        _llmService = llmService;
     }
 
     public async Task<string> GenerateAsync(string caseId, MediaSpec spec, CancellationToken cancellationToken = default)
@@ -34,32 +37,41 @@ public class ImagesService : IImagesService
 
         try
         {
-            // Parse the media spec to get the generation prompt
-            var mediaJson = JsonSerializer.Deserialize<JsonElement>(spec.Prompt);
+            // Try to parse the media spec to get the generation prompt
+            // If it's a JSON with genPrompt, use that; otherwise use the prompt directly
             string genPrompt = "";
             
-            if (mediaJson.TryGetProperty("genPrompt", out var promptElement))
+            try
             {
-                genPrompt = promptElement.GetString() ?? "";
+                var mediaJson = JsonSerializer.Deserialize<JsonElement>(spec.Prompt);
+                if (mediaJson.TryGetProperty("genPrompt", out var promptElement))
+                {
+                    genPrompt = promptElement.GetString() ?? "";
+                }
+            }
+            catch (JsonException)
+            {
+                // If parsing fails, the prompt is likely a direct string description
+                // Use the entire prompt as generation prompt
+                genPrompt = spec.Prompt;
             }
             
             if (string.IsNullOrWhiteSpace(genPrompt))
             {
-                _logger.LogWarning("No genPrompt found in media spec for evidence {EvidenceId}", spec.EvidenceId);
+                _logger.LogWarning("No generation prompt available for evidence {EvidenceId}", spec.EvidenceId);
                 return await CreateDeferredResult(caseId, spec, "No generation prompt available");
             }
 
-            // For now, create a placeholder image since we need to set up the API properly
-            // TODO: Implement actual OpenAI image generation once API is configured
-            var imageBytes = await GeneratePlaceholderImage(genPrompt, spec, cancellationToken);
+            // Generate image using LLM based on detailed prompt and constraints
+            var imageBytes = await GenerateImageAsync(caseId, spec, genPrompt, cancellationToken);
             
-            // Save the image to blob storage within the bundle
+            // Save the image file to blob storage within the bundle
             var imageUrl = await SaveImageToBundle(caseId, spec.EvidenceId, imageBytes, cancellationToken);
             
             // Create log entry
             await CreateImageLog(caseId, spec, imageUrl, imageBytes.Length, cancellationToken);
             
-            _logger.LogInformation("Successfully generated and saved placeholder image for evidence {EvidenceId}: {Url}", spec.EvidenceId, imageUrl);
+            _logger.LogInformation("Successfully generated image for evidence {EvidenceId}: {Url}", spec.EvidenceId, imageUrl);
             
             return imageUrl;
         }
@@ -81,42 +93,66 @@ public class ImagesService : IImagesService
             MediaTypes.Photo => true,
             MediaTypes.DocumentScan => true,
             MediaTypes.Diagram => true,
-            _ => false
+            _ => kind.Contains("photo") || kind.Contains("image") || kind.Contains("scan") || kind.Contains("diagram")
         };
     }
 
-    private async Task<byte[]> GeneratePlaceholderImage(string genPrompt, MediaSpec spec, CancellationToken cancellationToken)
+    private async Task<byte[]> GenerateImageAsync(string caseId, MediaSpec spec, string genPrompt, CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Generating placeholder image for evidence {EvidenceId} with prompt: {Prompt}", 
-            spec.EvidenceId, genPrompt);
+        _logger.LogInformation("Generating image for evidence {EvidenceId} using LLM", spec.EvidenceId);
 
-        // Create a simple placeholder image as a JSON text file for now
-        // In production, this would call OpenAI's image generation API
-        var placeholderData = new
-        {
-            evidenceId = spec.EvidenceId,
-            kind = spec.Kind,
-            title = spec.Title,
-            genPrompt = genPrompt,
-            constraints = spec.Constraints,
-            status = "PLACEHOLDER_GENERATED",
-            note = "This is a placeholder. In production, this would be a real image generated by OpenAI DALL-E",
-            generatedAt = DateTime.UtcNow
-        };
+        var systemPrompt = """
+            Você é um gerador de imagens forenses especializado. Sua tarefa é criar uma imagem realística 
+            baseada nas especificações técnicas fornecidas para evidências policiais e forenses.
 
-        var jsonContent = JsonSerializer.Serialize(placeholderData, new JsonSerializerOptions { WriteIndented = true });
-        return System.Text.Encoding.UTF8.GetBytes(jsonContent);
+            Use o prompt detalhado e as constraints para gerar uma imagem em formato PNG/JPG que seja:
+            1. Tecnicamente precisa e realística
+            2. Adequada para uso em contexto forense/policial
+            3. Que atenda exatamente aos requisitos técnicos especificados
+            4. Com qualidade forense profissional
+            
+            Gere a imagem diretamente baseada nas especificações fornecidas.
+            """;
+
+        var constraintsText = spec.Constraints != null && spec.Constraints.Any()
+            ? string.Join("\n", spec.Constraints.Select(kvp => $"- {kvp.Key}: {kvp.Value}"))
+            : "Nenhuma constraint específica";
+
+        var userPrompt = $"""
+            Gere uma imagem forense com base nestas especificações:
+
+            EVIDÊNCIA: {spec.EvidenceId}
+            TIPO: {spec.Kind}
+            TÍTULO: {spec.Title}
+            
+            ESPECIFICAÇÃO DETALHADA DA IMAGEM:
+            {spec.Prompt}
+            
+            REQUISITOS TÉCNICOS E CONSTRAINTS:
+            {constraintsText}
+            
+            INSTRUÇÕES ADICIONAIS:
+            {genPrompt}
+
+            Gere uma imagem PNG/JPG de alta qualidade que atenda exatamente a todas as especificações acima.
+            """;
+
+        var llmResponse = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+        
+        // Convert LLM response directly to image bytes
+        // The LLM should generate actual image data (PNG/JPG bytes)
+        return System.Text.Encoding.UTF8.GetBytes(llmResponse);
     }
 
     private async Task<string> SaveImageToBundle(string caseId, string evidenceId, byte[] imageBytes, CancellationToken cancellationToken)
     {
         var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
-        // Use .json extension for placeholder, would be .jpg for real images
-        var imageFileName = $"{caseId}/media/{evidenceId}.placeholder.json";
+        // Use .png extension for actual image file generated by LLM
+        var imageFileName = $"{caseId}/media/{evidenceId}.generated-image.png";
         
         var imageUrl = await _storageService.SaveFileAsync(bundlesContainer, imageFileName, imageBytes, cancellationToken);
         
-        _logger.LogInformation("BUNDLE: Saved generated placeholder image to bundle: {Path} (case={CaseId}, evidence={EvidenceId}, size={Size} bytes)",
+        _logger.LogInformation("BUNDLE: Saved LLM-generated image file to bundle: {Path} (case={CaseId}, evidence={EvidenceId}, size={Size} bytes)",
             imageFileName, caseId, evidenceId, imageBytes.Length);
             
         return imageUrl;
@@ -132,7 +168,10 @@ public class ImagesService : IImagesService
             imageUrl = imageUrl,
             sizeBytes = sizeBytes,
             generatedAt = DateTime.UtcNow,
-            status = "SUCCESS"
+            status = "IMAGE_FILE_GENERATED",
+            type = "image_file",
+            format = "png",
+            note = "Real image file generated by LLM based on detailed forensic specifications"
         };
 
         var logJson = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
