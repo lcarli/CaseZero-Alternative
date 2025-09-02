@@ -633,6 +633,7 @@ public class CaseGenerationService : ICaseGenerationService
         return await _pdfRenderingService.RenderDocumentFromJsonAsync(docId, documentJson, caseId, cancellationToken);
     }
 
+    //Old Normalize using LLM
     public async Task<string> NormalizeCaseAsync(string[] documents, string[] media, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Normalizing case content");
@@ -789,71 +790,5 @@ public class CaseGenerationService : ICaseGenerationService
     public async Task<byte[]> GenerateTestPdfAsync(string title, string markdownContent, string documentType = "general", CancellationToken cancellationToken = default)
     {
         return await _pdfRenderingService.GenerateTestPdfAsync(title, markdownContent, documentType, cancellationToken);
-    }
-
-    // Legacy normalization method for backwards compatibility
-    public async Task<string> NormalizeCaseAsync(string[] documents, string[] media, string caseId, CancellationToken cancellationToken = default)
-    {
-        var input = new NormalizationInput
-        {
-            CaseId = caseId,
-            Documents = documents,
-            Media = media
-        };
-        
-        var result = await _normalizerService.NormalizeCaseAsync(input, cancellationToken);
-        return JsonSerializer.Serialize(result.NormalizedJson, new JsonSerializerOptions { WriteIndented = true });
-    }
-
-    // Primary normalization method
-    public async Task<NormalizationResult> NormalizeCaseDeterministicAsync(NormalizationInput input, CancellationToken cancellationToken = default)
-    {
-        return await _normalizerService.NormalizeCaseAsync(input, cancellationToken);
-    }
-
-    public async Task<string> IndexCaseAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("Indexing case {CaseId}", caseId);
-        
-        // For now, return the normalized JSON as-is. In a real implementation, 
-        // this would create search indexes, extract keywords, etc.
-        return normalizedJson;
-    }
-
-    public async Task<string> ValidateRulesAsync(string indexedJson, string caseId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("Validating rules for case {CaseId}", caseId);
-        
-        // For now, return the indexed JSON as-is. In a real implementation,
-        // this would apply business rules validation
-        return indexedJson;
-    }
-
-    public async Task<string> RedTeamCaseAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("Red teaming case {CaseId}", caseId);
-        
-        // For now, return the validated JSON as-is. In a real implementation,
-        // this would apply red team analysis
-        return validatedJson;
-    }
-
-    public async Task<CaseGenerationOutput> PackageCaseAsync(string finalJson, string caseId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("Packaging case {CaseId}", caseId);
-        
-        // For now, return a basic package result. In a real implementation,
-        // this would create final bundles, ZIP files, etc.
-        return new CaseGenerationOutput
-        {
-            CaseId = caseId,
-            BundlePath = $"bundles/{caseId}",
-            Files = Array.Empty<GeneratedFile>(),
-            Metadata = new CaseMetadata
-            {
-                Title = caseId,
-                GeneratedAt = DateTime.UtcNow
-            }
-        };
     }
 }
