@@ -18,6 +18,7 @@ builder.Services
     .AddScoped<IStorageService, StorageService>()
     .AddScoped<ICaseLoggingService, CaseLoggingService>()
     .AddScoped<ISchemaValidationService, SchemaValidationService>()
+    .AddScoped<INormalizerService, NormalizerService>()
     .AddSingleton<IJsonSchemaProvider, FileJsonSchemaProvider>()
     .AddScoped<ILLMService, LLMService>()
     // Configure LLM Provider - using Mock for now, Azure Foundry when stable

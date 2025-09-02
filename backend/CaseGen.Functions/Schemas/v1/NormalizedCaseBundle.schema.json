@@ -1,0 +1,309 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NormalizedCaseBundle",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "caseId": {
+      "type": "string",
+      "pattern": "^CASE-[0-9]{8}-[a-f0-9]{8}$",
+      "description": "Unique case identifier"
+    },
+    "version": {
+      "type": "string",
+      "description": "Schema version"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp"
+    },
+    "timezone": {
+      "type": "string",
+      "description": "IANA timezone identifier"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["Rookie", "Detective", "Detective2", "Sergeant", "Lieutenant", "Captain", "Commander"],
+      "description": "Difficulty level"
+    },
+    "documents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/NormalizedDocument"
+      }
+    },
+    "media": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "$ref": "#/definitions/NormalizedMedia"
+      }
+    },
+    "gatingGraph": {
+      "$ref": "#/definitions/GatingGraph"
+    },
+    "metadata": {
+      "$ref": "#/definitions/CaseMetadata"
+    }
+  },
+  "required": [
+    "caseId",
+    "version", 
+    "createdAt",
+    "timezone",
+    "documents",
+    "media",
+    "gatingGraph",
+    "metadata"
+  ],
+  "definitions": {
+    "NormalizedDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "docId": {
+          "type": "string",
+          "pattern": "^[a-z0-9_\\-]+$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "police_report",
+            "interview", 
+            "memo_admin",
+            "forensics_report",
+            "evidence_log",
+            "witness_statement"
+          ]
+        },
+        "title": {
+          "$ref": "#/definitions/I18nText"
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "lengthTarget": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": { "type": "integer", "minimum": 50 }
+        },
+        "gated": {
+          "type": "boolean"
+        },
+        "gatingRule": {
+          "$ref": "#/definitions/GatingRule"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "modifiedAt": {
+          "type": "string", 
+          "format": "date-time"
+        },
+        "content": {
+          "type": "string",
+          "description": "Generated document content"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "docId",
+        "type",
+        "title", 
+        "sections",
+        "lengthTarget",
+        "gated",
+        "content",
+        "metadata"
+      ],
+      "allOf": [
+        {
+          "if": { "properties": { "gated": { "const": true } } },
+          "then": { "required": ["gatingRule"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "forensics_report" } } },
+          "then": {
+            "properties": {
+              "sections": {
+                "contains": {
+                  "type": "string",
+                  "pattern": "(?i)cadeia de cust[óo]dia"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "NormalizedMedia": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "evidenceId": {
+          "type": "string",
+          "pattern": "^[a-z0-9_\\-]+$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["photo", "document_scan", "diagram", "audio", "video"]
+        },
+        "title": {
+          "$ref": "#/definitions/I18nText"
+        },
+        "prompt": {
+          "type": "string"
+        },
+        "constraints": {
+          "type": "object",
+          "additionalProperties": { "type": ["string", "number", "boolean"] }
+        },
+        "deferred": {
+          "type": "boolean",
+          "default": false
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "evidenceId",
+        "kind",
+        "title",
+        "prompt",
+        "deferred",
+        "metadata"
+      ]
+    },
+    "I18nText": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ptBr": { "type": "string" },
+        "en": { "type": "string" },
+        "es": { "type": "string" },
+        "fr": { "type": "string" }
+      },
+      "required": ["ptBr", "en", "es", "fr"]
+    },
+    "GatingRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "requires_evidence",
+            "requires_document", 
+            "requires_decision",
+            "role_required",
+            "manual_unlock",
+            "submit_evidence"
+          ]
+        },
+        "evidenceId": { "type": "string" },
+        "docId": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "required": ["action"]
+    },
+    "GatingGraph": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GatingNode"
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GatingEdge"
+          }
+        },
+        "hasCycles": {
+          "type": "boolean"
+        },
+        "cycleDescription": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["nodes", "edges", "hasCycles", "cycleDescription"]
+    },
+    "GatingNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "type": { 
+          "type": "string",
+          "enum": ["document", "evidence"]
+        },
+        "gated": { "type": "boolean" },
+        "unlockAction": { "type": "string" },
+        "requiredIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["id", "type", "gated", "requiredIds"]
+    },
+    "GatingEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "relationship": {
+          "type": "string",
+          "enum": ["unlocks", "requires"]
+        }
+      },
+      "required": ["from", "to", "relationship"]
+    },
+    "CaseMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "generatedBy": { "type": "string" },
+        "pipeline": { "type": "string" },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "validationResults": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "appliedRules": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": [
+        "generatedBy",
+        "pipeline",
+        "generatedAt",
+        "validationResults",
+        "appliedRules"
+      ]
+    }
+  }
+}

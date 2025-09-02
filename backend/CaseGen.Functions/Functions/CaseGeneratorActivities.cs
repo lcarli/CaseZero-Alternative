@@ -2,6 +2,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using CaseGen.Functions.Models;
 using CaseGen.Functions.Services;
+using System.Text.Json;
 
 namespace CaseGen.Functions.Functions;
 
@@ -79,8 +80,24 @@ public class CaseGeneratorActivities
     [Function("NormalizeActivity")]
     public async Task<string> NormalizeActivity([ActivityTrigger] NormalizeActivityModel model)
     {
-        _logger.LogInformation("Normalizing case content");
-        return await _caseGenerationService.NormalizeCaseAsync(model.Documents, model.Media, model.CaseId);
+        _logger.LogInformation("Normalizing case content deterministically");
+        
+        var input = new NormalizationInput
+        {
+            CaseId = model.CaseId,
+            Difficulty = model.Difficulty,
+            Timezone = model.Timezone,
+            PlanJson = model.PlanJson,
+            ExpandedJson = model.ExpandedJson,
+            DesignJson = model.DesignJson,
+            Documents = model.Documents,
+            Media = model.Media
+        };
+        
+        var result = await _caseGenerationService.NormalizeCaseDeterministicAsync(input);
+        
+        // Return the normalized bundle as JSON for compatibility with existing pipeline
+        return JsonSerializer.Serialize(result.NormalizedJson, new JsonSerializerOptions { WriteIndented = true });
     }
 
     [Function("IndexActivity")]

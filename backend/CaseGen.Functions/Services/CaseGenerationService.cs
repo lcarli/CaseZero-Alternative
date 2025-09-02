@@ -18,6 +18,7 @@ public class CaseGenerationService : ICaseGenerationService
     private readonly IConfiguration _configuration;
     private readonly IJsonSchemaProvider _schemaProvider;
     private readonly ICaseLoggingService _caseLogging;
+    private readonly INormalizerService _normalizerService;
     private readonly ILogger<CaseGenerationService> _logger;
 
     public CaseGenerationService(
@@ -26,6 +27,7 @@ public class CaseGenerationService : ICaseGenerationService
         ISchemaValidationService schemaValidationService,
         IJsonSchemaProvider schemaProvider,
         ICaseLoggingService caseLogging,
+        INormalizerService normalizerService,
         IConfiguration configuration,
         ILogger<CaseGenerationService> logger)
     {
@@ -34,6 +36,7 @@ public class CaseGenerationService : ICaseGenerationService
         _storageService = storageService;
         _schemaValidationService = schemaValidationService;
         _caseLogging = caseLogging;
+        _normalizerService = normalizerService;
         _configuration = configuration;
         _logger = logger;
 
@@ -1192,6 +1195,12 @@ public class CaseGenerationService : ICaseGenerationService
             """;
 
         return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+    }
+
+    public async Task<NormalizationResult> NormalizeCaseDeterministicAsync(NormalizationInput input, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Normalizing case content deterministically for case {CaseId}", input.CaseId);
+        return await _normalizerService.NormalizeCaseAsync(input, cancellationToken);
     }
 
     public async Task<string> IndexCaseAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default)
