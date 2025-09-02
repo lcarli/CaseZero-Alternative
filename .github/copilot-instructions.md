@@ -1,1 +1,2 @@
-- Always translate all texts to the 4 languages in the application
+- Always translate all texts in the UI to the 4 languages in the application
+- CaseGen.Functions ans CaseGen.Functions.Test MUST remain with .NET SDK 9
