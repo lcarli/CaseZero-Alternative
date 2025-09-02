@@ -95,4 +95,48 @@ public class MockLLMProvider : ILLMProvider
         
         return JsonSerializer.Serialize(new { status = "generated", message = "Mock structured response" }, new JsonSerializerOptions { WriteIndented = true });
     }
+
+    public async Task<byte[]> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Generating image with prompt: {Prompt}", prompt);
+
+            var placeholderImageBytes = CreatePlaceholderImage(prompt);
+            
+            _logger.LogInformation("Image generated successfully with size: {Size} bytes", placeholderImageBytes.Length);
+            
+            return placeholderImageBytes;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Azure Foundry image generation failed for prompt: {Prompt}", prompt);
+            throw;
+        }
+    }
+
+    private byte[] CreatePlaceholderImage(string prompt)
+    {
+        // Create a simple PNG placeholder image
+        // This is a minimal PNG file (1x1 pixel, transparent)
+        var pngBytes = new byte[]
+        {
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+            0x00, 0x00, 0x00, 0x0D, // IHDR chunk length
+            0x49, 0x48, 0x44, 0x52, // IHDR
+            0x00, 0x00, 0x00, 0x01, // Width: 1
+            0x00, 0x00, 0x00, 0x01, // Height: 1
+            0x08, 0x06, 0x00, 0x00, 0x00, // Bit depth: 8, Color type: 6 (RGBA), Compression: 0, Filter: 0, Interlace: 0
+            0x1F, 0x15, 0xC4, 0x89, // CRC
+            0x00, 0x00, 0x00, 0x0B, // IDAT chunk length
+            0x49, 0x44, 0x41, 0x54, // IDAT
+            0x78, 0x9C, 0x62, 0x00, 0x02, 0x00, 0x00, 0x05, 0x00, 0x01, 0x0D, // Compressed image data
+            0x0A, 0x2D, 0xB4, // CRC
+            0x00, 0x00, 0x00, 0x00, // IEND chunk length
+            0x49, 0x45, 0x4E, 0x44, // IEND
+            0xAE, 0x42, 0x60, 0x82  // CRC
+        };
+
+        return pngBytes;
+    }
 }

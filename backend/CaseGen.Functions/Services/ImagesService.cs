@@ -101,24 +101,11 @@ public class ImagesService : IImagesService
     {
         _logger.LogInformation("Generating image for evidence {EvidenceId} using LLM", spec.EvidenceId);
 
-        var systemPrompt = """
-            Você é um gerador de imagens forenses especializado. Sua tarefa é criar uma imagem realística 
-            baseada nas especificações técnicas fornecidas para evidências policiais e forenses.
-
-            Use o prompt detalhado e as constraints para gerar uma imagem em formato PNG/JPG que seja:
-            1. Tecnicamente precisa e realística
-            2. Adequada para uso em contexto forense/policial
-            3. Que atenda exatamente aos requisitos técnicos especificados
-            4. Com qualidade forense profissional
-            
-            Gere a imagem diretamente baseada nas especificações fornecidas.
-            """;
-
         var constraintsText = spec.Constraints != null && spec.Constraints.Any()
             ? string.Join("\n", spec.Constraints.Select(kvp => $"- {kvp.Key}: {kvp.Value}"))
             : "Nenhuma constraint específica";
 
-        var userPrompt = $"""
+        var imagePrompt = $"""
             Gere uma imagem forense com base nestas especificações:
 
             EVIDÊNCIA: {spec.EvidenceId}
@@ -134,14 +121,12 @@ public class ImagesService : IImagesService
             INSTRUÇÕES ADICIONAIS:
             {genPrompt}
 
-            Gere uma imagem PNG/JPG de alta qualidade que atenda exatamente a todas as especificações acima.
+            Gere uma imagem PNG/JPG de alta qualidade que atenda exatamente a todas as especificações acima para uso forense/policial.
             """;
 
-        var llmResponse = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+        var imageBytes = await _llmService.GenerateImageAsync(caseId, imagePrompt, cancellationToken);
         
-        // Convert LLM response directly to image bytes
-        // The LLM should generate actual image data (PNG/JPG bytes)
-        return System.Text.Encoding.UTF8.GetBytes(llmResponse);
+        return imageBytes;
     }
 
     private async Task<string> SaveImageToBundle(string caseId, string evidenceId, byte[] imageBytes, CancellationToken cancellationToken)

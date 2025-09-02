@@ -40,12 +40,14 @@ public interface ILLMService
 {
     Task<string> GenerateAsync(string caseId, string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
     Task<string> GenerateStructuredAsync(string caseId, string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateImageAsync(string caseId, string prompt, CancellationToken cancellationToken = default);
 }
 
 public interface ILLMProvider
 {
     Task<string> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
     Task<string> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default);
 }
 
 public interface INormalizerService

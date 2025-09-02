@@ -88,4 +88,39 @@ public class LLMService : ILLMService
             throw;
         }
     }
+
+    public async Task<byte[]> GenerateImageAsync(string caseId, string prompt, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Clean console log
+            _logger.LogInformation("LLM: Starting image generation for case {CaseId}", caseId);
+
+            // Detailed logging to blob
+            await _caseLogging.LogDetailedAsync(caseId, "LLMService", "INFO",
+                "Starting LLM image generation",
+                new { PromptLength = prompt.Length },
+                cancellationToken);
+
+            var imageBytes = await _llmProvider.GenerateImageAsync(prompt, cancellationToken);
+
+            // Log the interaction details to blob
+            await _caseLogging.LogLLMInteractionAsync(caseId, _llmProvider.GetType().Name,
+                "ImageGeneration", prompt, $"Generated image: {imageBytes.Length} bytes", null, cancellationToken);
+
+            _logger.LogInformation("LLM: Image generation completed successfully for case {CaseId}, size: {Size} bytes", caseId, imageBytes.Length);
+
+            return imageBytes;
+        }
+        catch (Exception ex)
+        {
+            await _caseLogging.LogDetailedAsync(caseId, "LLMService", "ERROR",
+                "Failed to generate LLM image",
+                new { Error = ex.Message, StackTrace = ex.StackTrace },
+                cancellationToken);
+
+            _logger.LogError("LLM: Image generation failed for case {CaseId} - {Error}", caseId, ex.Message);
+            throw;
+        }
+    }
 }

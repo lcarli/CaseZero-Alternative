@@ -2,6 +2,7 @@ using Azure.Identity;
 using Azure.AI.OpenAI;
 using Azure.AI.OpenAI.Chat;
 using OpenAI.Chat;
+using OpenAI.Images;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -11,6 +12,7 @@ namespace CaseGen.Functions.Services;
 public class AzureFoundryLLMProvider : ILLMProvider
 {
     private readonly ChatClient _chatClient;
+    private readonly ImageClient _imageClient;
     private readonly ILogger<AzureFoundryLLMProvider> _logger;
 
     public AzureFoundryLLMProvider(IConfiguration configuration, ILogger<AzureFoundryLLMProvider> logger)
@@ -20,16 +22,24 @@ public class AzureFoundryLLMProvider : ILLMProvider
         var endpoint = configuration["AzureFoundry:Endpoint"]
             ?? throw new InvalidOperationException("AzureFoundry:Endpoint not configured");
 
+        var imageEndpoint = configuration["AzureFoundry:ImageEndpoint"]
+            ?? throw new InvalidOperationException("AzureFoundry:ImageEndpoint not configured");
+
         var deploymentName = configuration["AzureFoundry:ModelName"]
             ?? throw new InvalidOperationException("AzureFoundry:ModelName not configured");
+
+        var imageDeploymentName = configuration["AzureFoundry:ImageDeploymentName"]
+            ?? throw new InvalidOperationException("AzureFoundry:ImageDeploymentName not configured");
 
         var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { TenantId = configuration["AzureFoundry:TenantId"] });
 
         var azureClient = new AzureOpenAIClient(new Uri(endpoint), credential);
+        var azureImageClient = new AzureOpenAIClient(new Uri(imageEndpoint), credential);
         _chatClient = azureClient.GetChatClient(deploymentName);
+        _imageClient = azureImageClient.GetImageClient(imageDeploymentName);
 
-        _logger.LogInformation("Azure Foundry LLM Provider initialized with endpoint: {Endpoint}, model: {Model}",
-            endpoint, deploymentName);
+        _logger.LogInformation("Azure Foundry LLM Provider initialized with endpoint: {Endpoint}, text model: {TextModel}, image model: {ImageModel}",
+            endpoint, deploymentName, imageDeploymentName);
     }
 
     public async Task<string> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
@@ -162,6 +172,35 @@ public class AzureFoundryLLMProvider : ILLMProvider
         catch
         {
             return content;
+        }
+    }
+
+    public async Task<byte[]> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Generating image with DALL-E using prompt: {Prompt}", prompt);
+
+            var imageGeneration = await _imageClient.GenerateImageAsync(
+                prompt,
+                new ImageGenerationOptions()
+                {
+                    Size = GeneratedImageSize.W1024xH1024,
+                    Quality = GeneratedImageQuality.Standard,
+                    ResponseFormat = GeneratedImageFormat.Bytes
+                },
+                cancellationToken);
+
+            var imageBytes = imageGeneration.Value.ImageBytes.ToArray();
+            
+            _logger.LogInformation("Image generated successfully with size: {Size} bytes", imageBytes.Length);
+            
+            return imageBytes;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Azure Foundry image generation failed for prompt: {Prompt}", prompt);
+            throw;
         }
     }
 
