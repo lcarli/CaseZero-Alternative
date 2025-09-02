@@ -633,6 +633,158 @@ public class CaseGenerationService : ICaseGenerationService
         return await _pdfRenderingService.RenderDocumentFromJsonAsync(docId, documentJson, caseId, cancellationToken);
     }
 
+    public async Task<string> NormalizeCaseAsync(string[] documents, string[] media, string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Normalizing case content");
+
+        var systemPrompt = """
+            Você é um especialista em padronização de conteúdo educacional. Normalize e organize 
+            todos os elementos do caso em uma estrutura consistente e bem formatada.
+            """;
+
+        var userPrompt = $"""
+            Normalize e organize estes elementos do caso:
+            
+            DOCUMENTOS:
+            {string.Join("\n---\n", documents)}
+
+            PROMPTS DE MÍDIA:
+            {string.Join("\n---\n", media)}
+
+            Crie uma estrutura normalizada com formatação consistente, metadata adequada e organização lógica.
+            """;
+
+        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+    }
+
+    public async Task<NormalizationResult> NormalizeCaseDeterministicAsync(NormalizationInput input, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Normalizing case content deterministically for case {CaseId}", input.CaseId);
+        return await _normalizerService.NormalizeCaseAsync(input, cancellationToken);
+    }
+
+    public async Task<string> IndexCaseAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Indexing case content");
+
+        var systemPrompt = """
+            Você é um especialista em indexação de conteúdo educacional. Crie índices e metadados 
+            para facilitar a busca e organização do caso.
+            """;
+
+        var userPrompt = $"""
+            Crie índices e metadados para este caso normalizado:
+            
+            {normalizedJson}
+            
+            Inclua: tags, categorias, palavras-chave, dificuldade, duração, objetivos de aprendizado.
+            """;
+
+        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+    }
+
+    public async Task<string> ValidateRulesAsync(string indexedJson, string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Validating case rules");
+
+        var systemPrompt = """
+            Você é um especialista em validação de conteúdo educacional. Verifique se o caso 
+            atende a todas as regras pedagógicas e de qualidade estabelecidas.
+            """;
+
+        var userPrompt = $"""
+            Valide este caso indexado contra as regras de qualidade:
+            
+            {indexedJson}
+            
+            Verifique: consistência narrativa, adequação pedagógica, completude das informações, 
+            realismo, e aderência aos padrões de qualidade.
+            """;
+
+        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+    }
+
+    public async Task<string> RedTeamCaseAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Red teaming case for quality assurance");
+
+        var systemPrompt = """
+            Você é um especialista em red team para conteúdo educacional. Faça uma análise crítica 
+            do caso buscando problemas, inconsistências e pontos de melhoria.
+            """;
+
+        var userPrompt = $"""
+            Faça uma análise de red team deste caso validado:
+            
+            {validatedJson}
+            
+            Identifique: problemas lógicos, inconsistências, pontos fracos na narrativa, 
+            possíveis melhorias, e riscos de qualidade.
+            """;
+
+        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+    }
+
+    public async Task<CaseGenerationOutput> PackageCaseAsync(string finalJson, string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Packaging final case: {CaseId}", caseId);
+
+        try
+        {
+            var casesContainer = _configuration["CaseGeneratorStorage:CasesContainer"] ?? "cases";
+            var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
+
+            var files = new List<GeneratedFile>();
+
+            // Save main case file
+            var caseFileName = $"{caseId}/case.json";
+            await _storageService.SaveFileAsync(casesContainer, caseFileName, finalJson, cancellationToken);
+            files.Add(new GeneratedFile
+            {
+                Path = caseFileName,
+                Type = "json",
+                Size = System.Text.Encoding.UTF8.GetByteCount(finalJson),
+                CreatedAt = DateTime.UtcNow
+            });
+
+            // Save bundle metadata
+            var bundlePath = $"{caseId}";
+            var metadata = new CaseMetadata
+            {
+                Title = caseId,
+                Difficulty = "Iniciante", // Extract from finalJson in real implementation
+                EstimatedDuration = 60,
+                Categories = new[] { "Investigation", "Training" },
+                Tags = new[] { "generated", "ai" },
+                GeneratedAt = DateTime.UtcNow
+            };
+
+            var metadataJson = JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true });
+            var metadataFileName = $"{caseId}/metadata.json";
+            await _storageService.SaveFileAsync(bundlesContainer, metadataFileName, metadataJson, cancellationToken);
+            files.Add(new GeneratedFile
+            {
+                Path = metadataFileName,
+                Type = "json",
+                Size = System.Text.Encoding.UTF8.GetByteCount(metadataJson),
+                CreatedAt = DateTime.UtcNow
+            });
+
+            return new CaseGenerationOutput
+            {
+                BundlePath = bundlePath,
+                CaseId = caseId,
+                Files = files.ToArray(),
+                Metadata = metadata
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to package case: {CaseId}", caseId);
+            throw;
+        }
+    }
+
     // Public method for testing PDF generation
     public async Task<byte[]> GenerateTestPdfAsync(string title, string markdownContent, string documentType = "general", CancellationToken cancellationToken = default)
     {
