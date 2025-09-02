@@ -56,7 +56,7 @@ public class CaseGenerationServiceTests
         };
 
         // Act
-        var result = await _caseGenerationService.PlanCaseAsync(request);
+        var result = await _caseGenerationService.PlanCaseAsync(request, "TEST-CASE-001");
 
         // Assert
         Assert.NotNull(result);
@@ -71,7 +71,7 @@ public class CaseGenerationServiceTests
         var planJson = """{"caseId": "TEST-123", "title": "Test Case"}""";
 
         // Act
-        var result = await _caseGenerationService.ExpandCaseAsync(planJson);
+        var result = await _caseGenerationService.ExpandCaseAsync(planJson, "TEST-CASE-002");
 
         // Assert
         Assert.NotNull(result);
@@ -79,17 +79,17 @@ public class CaseGenerationServiceTests
     }
 
     [Fact]
-    public async Task GenerateDocumentsAsync_ShouldReturnMultipleDocuments()
+    public async Task DesignCaseAsync_ShouldReturnValidJson()
     {
         // Arrange
-        var designJson = """{"caseId": "TEST-123", "title": "Test Case"}""";
+        var expandedJson = """{"caseId": "TEST-123", "title": "Test Case"}""";
 
         // Act
-        var result = await _caseGenerationService.GenerateDocumentsAsync(designJson);
+        var result = await _caseGenerationService.DesignCaseAsync(expandedJson, "TEST-CASE-003");
 
         // Assert
         Assert.NotNull(result);
-        Assert.True(result.Length > 0);
+        Assert.NotEmpty(result);
     }
 
     [Fact]

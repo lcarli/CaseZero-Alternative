@@ -17,7 +17,7 @@ public class NormalizerServiceTests
     {
         var services = new ServiceCollection();
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string>
+            .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["SCHEMAS_BASE_PATH"] = "Schemas/v1"
             })
