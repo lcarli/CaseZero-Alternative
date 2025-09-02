@@ -590,8 +590,8 @@ public class CaseGenerationService : ICaseGenerationService
         var systemPrompt = """
             Você é um engenheiro de evidências de mídia. Gere uma especificação JSON para criação de mídia.
             Requisitos:
-            - Saída **APENAS** JSON: { evidenceId, kind, title, genPrompt, constraints }
-            - genPrompt deve ser detalhado e reproduzível (iluminação/ângulo/escala/etiquetas etc.)
+            - Saída **APENAS** JSON: { evidenceId, kind, title, prompt, constraints }
+            - prompt deve ser detalhado e reproduzível (iluminação/ângulo/escala/etiquetas etc.)
             - NADA de texto fora do JSON
             """;
 
@@ -605,7 +605,7 @@ public class CaseGenerationService : ICaseGenerationService
             title: {spec.Title}
             constraints: {(spec.Constraints != null && spec.Constraints.Any() ? string.Join(", ", spec.Constraints.Select(kv => $"{kv.Key}: {kv.Value}")) : "n/a")}
 
-            Gere o JSON final da mídia conforme instruções (campo genPrompt obrigatório).
+            Gere o JSON final da mídia conforme instruções (campo prompt obrigatório).
             """;
 
         var json = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);

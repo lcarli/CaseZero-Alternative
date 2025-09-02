@@ -36,34 +36,15 @@ public class ImagesService : IImagesService
         }
 
         try
-        {
-            // Try to parse the media spec to get the generation prompt
-            // If it's a JSON with genPrompt, use that; otherwise use the prompt directly
-            string genPrompt = "";
-            
-            try
-            {
-                var mediaJson = JsonSerializer.Deserialize<JsonElement>(spec.Prompt);
-                if (mediaJson.TryGetProperty("genPrompt", out var promptElement))
-                {
-                    genPrompt = promptElement.GetString() ?? "";
-                }
-            }
-            catch (JsonException)
-            {
-                // If parsing fails, the prompt is likely a direct string description
-                // Use the entire prompt as generation prompt
-                genPrompt = spec.Prompt;
-            }
-            
-            if (string.IsNullOrWhiteSpace(genPrompt))
+        {            
+            if (string.IsNullOrWhiteSpace(spec.Prompt))
             {
                 _logger.LogWarning("No generation prompt available for evidence {EvidenceId}", spec.EvidenceId);
                 return await CreateDeferredResult(caseId, spec, "No generation prompt available");
             }
 
             // Generate image using LLM based on detailed prompt and constraints
-            var imageBytes = await GenerateImageAsync(caseId, spec, genPrompt, cancellationToken);
+            var imageBytes = await GenerateImageAsync(caseId, spec, cancellationToken);
             
             // Save the image file to blob storage within the bundle
             var imageUrl = await SaveImageToBundle(caseId, spec.EvidenceId, imageBytes, cancellationToken);
@@ -97,7 +78,7 @@ public class ImagesService : IImagesService
         };
     }
 
-    private async Task<byte[]> GenerateImageAsync(string caseId, MediaSpec spec, string genPrompt, CancellationToken cancellationToken)
+    private async Task<byte[]> GenerateImageAsync(string caseId, MediaSpec spec, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Generating image for evidence {EvidenceId} using LLM", spec.EvidenceId);
 
@@ -117,9 +98,6 @@ public class ImagesService : IImagesService
             
             REQUISITOS TÉCNICOS E CONSTRAINTS:
             {constraintsText}
-            
-            INSTRUÇÕES ADICIONAIS:
-            {genPrompt}
 
             Gere uma imagem PNG/JPG de alta qualidade que atenda exatamente a todas as especificações acima para uso forense/policial.
             """;
