@@ -22,9 +22,6 @@ public class AzureFoundryLLMProvider : ILLMProvider
         var endpoint = configuration["AzureFoundry:Endpoint"]
             ?? throw new InvalidOperationException("AzureFoundry:Endpoint not configured");
 
-        var imageEndpoint = configuration["AzureFoundry:ImageEndpoint"]
-            ?? throw new InvalidOperationException("AzureFoundry:ImageEndpoint not configured");
-
         var deploymentName = configuration["AzureFoundry:ModelName"]
             ?? throw new InvalidOperationException("AzureFoundry:ModelName not configured");
 
@@ -34,9 +31,8 @@ public class AzureFoundryLLMProvider : ILLMProvider
         var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { TenantId = configuration["AzureFoundry:TenantId"] });
 
         var azureClient = new AzureOpenAIClient(new Uri(endpoint), credential);
-        var azureImageClient = new AzureOpenAIClient(new Uri(imageEndpoint), credential);
         _chatClient = azureClient.GetChatClient(deploymentName);
-        _imageClient = azureImageClient.GetImageClient(imageDeploymentName);
+        _imageClient = azureClient.GetImageClient(imageDeploymentName);
 
         _logger.LogInformation("Azure Foundry LLM Provider initialized with endpoint: {Endpoint}, text model: {TextModel}, image model: {ImageModel}",
             endpoint, deploymentName, imageDeploymentName);
@@ -179,10 +175,40 @@ public class AzureFoundryLLMProvider : ILLMProvider
     {
         try
         {
-            _logger.LogInformation("Generating image with DALL-E using prompt: {Prompt}", prompt);
+            // Translate and enrich the prompt with context before image generation
+            string improvedPrompt = prompt;
+            try
+            {
+                var translateOptions = new ChatCompletionOptions()
+                {
+                    MaxOutputTokenCount = 10000
+                };
+#pragma warning disable AOAI001
+                translateOptions.SetNewMaxCompletionTokensPropertyEnabled(true);
+#pragma warning restore AOAI001
+
+                var messages = new List<ChatMessage>()
+                {
+                    new SystemChatMessage("You are an expert prompt engineer for image generation. Translate the user's prompt to English and enrich it with concise, specific visual context (subject, setting, composition, lighting, mood, camera/style details) while preserving intent. Avoid unsafe or copyrighted content. Respond with only the final prompt text, no quotes or extra words."),
+                    new UserChatMessage(prompt)
+                };
+
+                var translateResponse = await _chatClient.CompleteChatAsync(messages, translateOptions, cancellationToken);
+                var translated = translateResponse.Value.Content[0].Text?.Trim();
+                if (!string.IsNullOrWhiteSpace(translated))
+                {
+                    improvedPrompt = translated;
+                }
+            }
+            catch (Exception exTranslate)
+            {
+                _logger.LogWarning(exTranslate, "Falling back to original prompt after translation/context step failed.");
+            }
+
+            _logger.LogInformation("Generating image with FLUX-1.1-pro using prompt: {Prompt}", improvedPrompt);
 
             var imageGeneration = await _imageClient.GenerateImageAsync(
-                prompt,
+                improvedPrompt,
                 new ImageGenerationOptions()
                 {
                     Size = GeneratedImageSize.W1024xH1024,
@@ -192,9 +218,9 @@ public class AzureFoundryLLMProvider : ILLMProvider
                 cancellationToken);
 
             var imageBytes = imageGeneration.Value.ImageBytes.ToArray();
-            
+
             _logger.LogInformation("Image generated successfully with size: {Size} bytes", imageBytes.Length);
-            
+
             return imageBytes;
         }
         catch (Exception ex)

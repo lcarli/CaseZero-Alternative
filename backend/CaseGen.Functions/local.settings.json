@@ -11,9 +11,8 @@
     "SCHEMAS_BASE_PATH": "Schemas/v1",
     "LLM__UseAzureFoundry": "false",
     "AzureFoundry__Endpoint": "{AI_FOUNDRY_ENDPOINT}",
-    "AzureFoundry__ImageEndpoint": "{AI_FOUNDRY_IMAGE_ENDPOINT}",
     "AzureFoundry__ModelName": "{AI_FOUNDRY_MODEL_NAME}",
-    "AzureFoundry__ImageModelName": "{AI_FOUNDRY_IMAGE_MODEL_NAME}",
+    "AzureFoundry__ImageDeploymentName": "{AI_FOUNDRY_IMAGE_MODEL_NAME}",
     "AzureFoundry__TenantId": "{AI_FOUNDRY_TENANT_ID}"
   }
 }
