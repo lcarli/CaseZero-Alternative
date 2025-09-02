@@ -232,7 +232,17 @@ public class CaseGeneratorOrchestrator
             };
             context.SetCustomStatus(status);
 
-            var normalizeResult = await context.CallActivityAsync<string>("NormalizeActivity", new NormalizeActivityModel { Documents = documentsResult, Media = mediaResult, CaseId = caseId });
+            var normalizeResult = await context.CallActivityAsync<string>("NormalizeActivity", new NormalizeActivityModel 
+            { 
+                Documents = documentsResult, 
+                Media = mediaResult, 
+                CaseId = caseId,
+                Difficulty = request.Difficulty,
+                Timezone = "UTC", // Could be extracted from request if needed
+                PlanJson = planResult,
+                ExpandedJson = expandResult,
+                DesignJson = designResult
+            });
             completedSteps.Add(CaseGenerationSteps.Normalize);
 
             // Step 7: Index

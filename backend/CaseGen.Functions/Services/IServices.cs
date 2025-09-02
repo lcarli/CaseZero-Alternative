@@ -12,6 +12,7 @@ public interface ICaseGenerationService
     Task<string> GenerateMediaFromSpecAsync(MediaSpec spec, string designJson, string caseId, string? planJson = null, string? expandJson = null, string? difficultyOverride = null, CancellationToken ct = default);
     Task<string> RenderDocumentFromJsonAsync(string docId, string documentJson, string caseId, CancellationToken cancellationToken = default);
     Task<string> NormalizeCaseAsync(string[] documents, string[] media, string caseId, CancellationToken cancellationToken = default);
+    Task<NormalizationResult> NormalizeCaseDeterministicAsync(NormalizationInput input, CancellationToken cancellationToken = default);
     Task<string> IndexCaseAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default);
     Task<string> ValidateRulesAsync(string indexedJson, string caseId, CancellationToken cancellationToken = default);
     Task<string> RedTeamCaseAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default);
@@ -41,4 +42,9 @@ public interface ILLMProvider
 {
     Task<string> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
     Task<string> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default);
+}
+
+public interface INormalizerService
+{
+    Task<NormalizationResult> NormalizeCaseAsync(NormalizationInput input, CancellationToken cancellationToken = default);
 }

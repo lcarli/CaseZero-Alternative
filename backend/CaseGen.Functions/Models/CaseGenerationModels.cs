@@ -58,6 +58,11 @@ public record NormalizeActivityModel
     public required string[] Documents { get; init; }
     public required string[] Media { get; init; }
     public required string CaseId { get; init; }
+    public string? Difficulty { get; init; }
+    public string? Timezone { get; init; }
+    public string? PlanJson { get; init; }
+    public string? ExpandedJson { get; init; }
+    public string? DesignJson { get; init; }
 }
 
 // Duplicate models - removing to avoid confusion
@@ -450,6 +455,7 @@ public record GatingRule
 {
     public required string Action { get; init; } // submit_evidence | role_required | manual_unlock
     public string? EvidenceId { get; init; }
+    public string? DocId { get; init; }
     public string? Notes { get; init; }
 }
 
@@ -475,4 +481,164 @@ public record DocumentTestResponse
     public required string PdfBlobUrl { get; init; }
     public required string DocumentType { get; init; }
     public required string FileName { get; init; }
+}
+
+// Normalization Models
+
+public record NormalizationInput
+{
+    public required string CaseId { get; init; }
+    public string? Difficulty { get; init; }
+    public string? Timezone { get; init; }
+    public string? PlanJson { get; init; }
+    public string? ExpandedJson { get; init; }
+    public string? DesignJson { get; init; }
+    public required string[] Documents { get; init; }
+    public required string[] Media { get; init; }
+}
+
+public record NormalizationResult
+{
+    public required NormalizedCaseBundle NormalizedJson { get; init; }
+    public required CaseManifest Manifest { get; init; }
+    public required NormalizationLog Log { get; init; }
+}
+
+public record NormalizedCaseBundle
+{
+    public required string CaseId { get; init; }
+    public required string Version { get; init; }
+    public DateTime CreatedAt { get; init; }
+    public required string Timezone { get; init; }
+    public string? Difficulty { get; init; }
+    public required NormalizedDocument[] Documents { get; init; }
+    public required NormalizedMedia[] Media { get; init; }
+    public required GatingGraph GatingGraph { get; init; }
+    public required NormalizedCaseMetadata Metadata { get; init; }
+}
+
+public record NormalizedDocument
+{
+    public required string DocId { get; init; }
+    public required string Type { get; init; }
+    public required I18nText Title { get; init; }
+    public required string[] Sections { get; init; }
+    public required int[] LengthTarget { get; init; }
+    public required bool Gated { get; init; }
+    public GatingRule? GatingRule { get; init; }
+    public DateTime? CreatedAt { get; set; }
+    public DateTime? ModifiedAt { get; set; }
+    public required string Content { get; init; }
+    public required Dictionary<string, object> Metadata { get; init; }
+}
+
+public record NormalizedMedia
+{
+    public required string EvidenceId { get; init; }
+    public required string Kind { get; init; }
+    public required I18nText Title { get; init; }
+    public required string Prompt { get; init; }
+    public Dictionary<string, object>? Constraints { get; init; }
+    public bool Deferred { get; init; } = false;
+    public DateTime? CreatedAt { get; set; }
+    public required Dictionary<string, object> Metadata { get; init; }
+}
+
+public record I18nText
+{
+    public required string PtBr { get; init; }
+    public required string En { get; init; }
+    public required string Es { get; init; }
+    public required string Fr { get; init; }
+}
+
+public record GatingGraph
+{
+    public required GatingNode[] Nodes { get; init; }
+    public required GatingEdge[] Edges { get; init; }
+    public bool HasCycles { get; init; }
+    public string[] CycleDescription { get; init; } = Array.Empty<string>();
+}
+
+public record GatingNode
+{
+    public required string Id { get; init; }
+    public required string Type { get; init; } // "document" or "evidence"
+    public required bool Gated { get; init; }
+    public string? UnlockAction { get; init; }
+    public string[] RequiredIds { get; init; } = Array.Empty<string>();
+}
+
+public record GatingEdge
+{
+    public required string From { get; init; }
+    public required string To { get; init; }
+    public required string Relationship { get; init; } // "unlocks", "requires"
+}
+
+public record CaseManifest
+{
+    public required string CaseId { get; init; }
+    public required string Version { get; init; }
+    public DateTime GeneratedAt { get; init; }
+    public required string[] BundlePaths { get; init; }
+    public required ManifestEntry[] Documents { get; init; }
+    public required ManifestEntry[] Media { get; init; }
+    public required Dictionary<string, string> FileHashes { get; init; }
+    public required CaseVisibility Visibility { get; init; }
+}
+
+public record ManifestEntry
+{
+    public required string Id { get; init; }
+    public required string RelativePath { get; init; }
+    public required string Type { get; init; }
+    public required bool Gated { get; init; }
+    public required string Hash { get; init; }
+    public long SizeBytes { get; init; }
+}
+
+public record CaseVisibility
+{
+    public required string[] AlwaysVisible { get; init; }
+    public required string[] GatedVisible { get; init; }
+    public required string[] HiddenUntilUnlocked { get; init; }
+}
+
+public record NormalizedCaseMetadata
+{
+    public required string GeneratedBy { get; init; }
+    public required string Pipeline { get; init; }
+    public DateTime GeneratedAt { get; init; }
+    public required Dictionary<string, object> ValidationResults { get; init; }
+    public required string[] AppliedRules { get; init; }
+}
+
+public record NormalizationLog
+{
+    public required string CaseId { get; init; }
+    public required string Step { get; init; }
+    public DateTime StartTime { get; init; }
+    public DateTime EndTime { get; init; }
+    public TimeSpan Duration => EndTime - StartTime;
+    public required string Status { get; init; }
+    public required LogEntry[] Entries { get; init; }
+    public required ValidationResult[] ValidationResults { get; init; }
+    public string? ErrorMessage { get; init; }
+}
+
+public record LogEntry
+{
+    public DateTime Timestamp { get; init; }
+    public required string Level { get; init; } // "INFO", "WARN", "ERROR"
+    public required string Message { get; init; }
+    public Dictionary<string, object>? Details { get; init; }
+}
+
+public record ValidationResult
+{
+    public required string Rule { get; init; }
+    public required string Status { get; init; } // "PASS", "FAIL", "WARN"
+    public required string Description { get; init; }
+    public string? Details { get; init; }
 }
