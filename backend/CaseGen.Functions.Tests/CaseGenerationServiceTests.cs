@@ -101,8 +101,9 @@ public class CaseGenerationServiceTests
         var steps = CaseGenerationSteps.AllSteps;
 
         // Assert
-        Assert.Equal(10, steps.Length);
+        Assert.Equal(12, steps.Length); // Updated from 10 to 12 due to new RenderImages step
         Assert.Contains(CaseGenerationSteps.Plan, steps);
+        Assert.Contains(CaseGenerationSteps.RenderImages, steps); // Verify new step is included
         Assert.Contains(CaseGenerationSteps.Package, steps);
     }
 

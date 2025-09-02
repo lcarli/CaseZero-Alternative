@@ -54,3 +54,8 @@ public interface IPdfRenderingService
     Task<string> RenderDocumentFromJsonAsync(string docId, string documentJson, string caseId, CancellationToken cancellationToken = default);
     Task<byte[]> GenerateTestPdfAsync(string title, string markdownContent, string documentType = "general", CancellationToken cancellationToken = default);
 }
+
+public interface IImagesService
+{
+    Task<string> GenerateAsync(string caseId, MediaSpec spec, CancellationToken cancellationToken = default);
+}

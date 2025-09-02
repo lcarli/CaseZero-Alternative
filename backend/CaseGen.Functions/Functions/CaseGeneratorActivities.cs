@@ -10,12 +10,18 @@ public class CaseGeneratorActivities
 {
     private readonly ICaseGenerationService _caseGenerationService;
     private readonly ICaseLoggingService _caseLogging;
+    private readonly IImagesService _imagesService;
     private readonly ILogger<CaseGeneratorActivities> _logger;
 
-    public CaseGeneratorActivities(ICaseGenerationService caseGenerationService, ICaseLoggingService caseLogging, ILogger<CaseGeneratorActivities> logger)
+    public CaseGeneratorActivities(
+        ICaseGenerationService caseGenerationService, 
+        ICaseLoggingService caseLogging, 
+        IImagesService imagesService,
+        ILogger<CaseGeneratorActivities> logger)
     {
         _caseGenerationService = caseGenerationService;
         _caseLogging = caseLogging;
+        _imagesService = imagesService;
         _logger = logger;
     }
 
@@ -74,6 +80,13 @@ public class CaseGeneratorActivities
     {
         _logger.LogInformation("Activity: RenderDocumentItem [{DocId}]", input.DocId);
         return await _caseGenerationService.RenderDocumentFromJsonAsync(input.DocId, input.DocumentJson, input.CaseId);
+    }
+
+    [Function("RenderMediaItemActivity")]
+    public async Task<string> RenderMediaItemActivity([ActivityTrigger] RenderMediaItemInput input)
+    {
+        _logger.LogInformation("Activity: RenderMediaItem [{EvidenceId}]", input.Spec.EvidenceId);
+        return await _imagesService.GenerateAsync(input.CaseId, input.Spec);
     }
 
 
