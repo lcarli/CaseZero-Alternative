@@ -33,6 +33,8 @@ public class CaseGenerationServiceTests
         services.AddScoped<ISchemaValidationService, SchemaValidationService>();
         services.AddScoped<IJsonSchemaProvider, FileJsonSchemaProvider>();
         services.AddScoped<ICaseLoggingService, CaseLoggingService>();
+        services.AddScoped<INormalizerService, NormalizerService>();
+        services.AddScoped<IPdfRenderingService, PdfRenderingService>();
 
         _serviceProvider = services.BuildServiceProvider();
         _caseGenerationService = _serviceProvider.GetRequiredService<ICaseGenerationService>();

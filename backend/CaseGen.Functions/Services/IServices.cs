@@ -48,3 +48,9 @@ public interface INormalizerService
 {
     Task<NormalizationResult> NormalizeCaseAsync(NormalizationInput input, CancellationToken cancellationToken = default);
 }
+
+public interface IPdfRenderingService
+{
+    Task<string> RenderDocumentFromJsonAsync(string docId, string documentJson, string caseId, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateTestPdfAsync(string title, string markdownContent, string documentType = "general", CancellationToken cancellationToken = default);
+}
