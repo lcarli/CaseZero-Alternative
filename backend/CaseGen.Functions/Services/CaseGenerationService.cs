@@ -17,6 +17,7 @@ public class CaseGenerationService : ICaseGenerationService
     private readonly ICaseLoggingService _caseLogging;
     private readonly INormalizerService _normalizerService;
     private readonly IPdfRenderingService _pdfRenderingService;
+    private readonly IImagesService _imagesService;
     private readonly ILogger<CaseGenerationService> _logger;
 
     public CaseGenerationService(
@@ -26,7 +27,8 @@ public class CaseGenerationService : ICaseGenerationService
         IJsonSchemaProvider schemaProvider,
         ICaseLoggingService caseLogging,
         INormalizerService normalizerService,
-        IPdfRenderingService pdfRenderingService,
+        IPdfRenderingService pdfRenderingService, 
+        IImagesService imagesService,
         IConfiguration configuration,
         ILogger<CaseGenerationService> logger)
     {
@@ -37,6 +39,7 @@ public class CaseGenerationService : ICaseGenerationService
         _caseLogging = caseLogging;
         _normalizerService = normalizerService;
         _pdfRenderingService = pdfRenderingService;
+        _imagesService = imagesService;
         _configuration = configuration;
         _logger = logger;
     }
@@ -631,6 +634,11 @@ public class CaseGenerationService : ICaseGenerationService
     public async Task<string> RenderDocumentFromJsonAsync(string docId, string documentJson, string caseId, CancellationToken cancellationToken = default)
     {
         return await _pdfRenderingService.RenderDocumentFromJsonAsync(docId, documentJson, caseId, cancellationToken);
+    }
+
+    public async Task<string> RenderMediaFromJsonAsync(MediaSpec spec, string caseId, CancellationToken cancellationToken = default)
+    {
+        return await _imagesService.GenerateAsync(caseId, spec);
     }
 
     //Old Normalize using LLM
