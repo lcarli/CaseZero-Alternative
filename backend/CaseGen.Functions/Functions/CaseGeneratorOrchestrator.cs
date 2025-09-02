@@ -223,6 +223,45 @@ public class CaseGeneratorOrchestrator
             var renderResults = await Task.WhenAll(renderTasks);
             completedSteps.Add(CaseGenerationSteps.RenderDocs);
 
+            // Step 5.8: RenderImages (fan-out for actual image generation)
+            status = status with
+            {
+                CurrentStep = CaseGenerationSteps.RenderImages,
+                Progress = 0.58,
+                CompletedSteps = completedSteps.ToArray()
+            };
+            context.SetCustomStatus(status);
+
+            var renderImageTasks = new List<Task<string>>();
+            foreach (var mediaJson in mediaResult)
+            {
+                // Parse the media spec from the JSON result
+                try
+                {
+                    var mediaSpec = JsonSerializer.Deserialize<MediaSpec>(mediaJson, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+                    
+                    if (mediaSpec != null)
+                    {
+                        var renderImageInput = new RenderMediaItemInput 
+                        { 
+                            CaseId = caseId, 
+                            Spec = mediaSpec
+                        };
+                        renderImageTasks.Add(context.CallActivityAsync<string>("RenderMediaItemActivity", renderImageInput));
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    logger.LogWarning(ex, "Failed to parse media spec JSON for image rendering: {MediaJson}", mediaJson);
+                }
+            }
+
+            var renderImageResults = await Task.WhenAll(renderImageTasks);
+            completedSteps.Add(CaseGenerationSteps.RenderImages);
+
             // Step 6: Normalize
             status = status with
             {

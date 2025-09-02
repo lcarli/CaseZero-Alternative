@@ -112,6 +112,12 @@ public record RenderDocumentItemInput
     public required string DocumentJson { get; init; }
 }
 
+public record RenderMediaItemInput
+{
+    public required string CaseId { get; init; }
+    public required MediaSpec Spec { get; init; }
+}
+
 public record PackageActivityModel
 {
     public required string FinalJson { get; init; }
@@ -236,6 +242,7 @@ public static class CaseGenerationSteps
     public const string GenDocs = "GenDocs";
     public const string GenMedia = "GenMedia";
     public const string RenderDocs = "RenderDocs";
+    public const string RenderImages = "RenderImages";
     public const string Normalize = "Normalize";
     public const string Index = "Index";
     public const string RuleValidate = "RuleValidate";
@@ -243,7 +250,7 @@ public static class CaseGenerationSteps
     public const string Package = "Package";
     
     public static readonly string[] AllSteps = {
-        Plan, Expand, Design, GenDocs, GenMedia, RenderDocs,
+        Plan, Expand, Design, GenDocs, GenMedia, RenderDocs, RenderImages,
         Normalize, Index, RuleValidate, RedTeam, Package
     };
 }
