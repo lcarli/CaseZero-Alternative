@@ -50,6 +50,8 @@ public record NormalizeActivityModel
     public string? PlanJson { get; init; }
     public string? ExpandedJson { get; init; }
     public string? DesignJson { get; init; }
+    public RenderedDocument[] RenderedDocs { get; init; } = Array.Empty<RenderedDocument>();
+    public RenderedMedia[] RenderedMedia { get; init; } = Array.Empty<RenderedMedia>();
 }
 
 public record GenerateDocumentItemInput
@@ -84,6 +86,25 @@ public record RenderMediaItemInput
 {
     public required string CaseId { get; init; }
     public required MediaSpec Spec { get; init; }
+}
+
+public record RenderedDocument
+{
+    public required string DocId { get; init; }
+    public required string FilePath { get; init; }
+    public long FileSize { get; init; }
+    public string? Sha256Hash { get; init; }
+    public string ContentType { get; init; } = "application/pdf";
+}
+
+public record RenderedMedia
+{
+    public required string EvidenceId { get; init; }
+    public required string FilePath { get; init; }
+    public long FileSize { get; init; }
+    public string? Sha256Hash { get; init; }
+    public string ContentType { get; init; } = "image/png";
+    public string Kind { get; init; } = "photo";
 }
 
 public record PackageActivityModel
@@ -470,6 +491,8 @@ public record NormalizationInput
     public string? DesignJson { get; init; }
     public required string[] Documents { get; init; }
     public required string[] Media { get; init; }
+    public RenderedDocument[] RenderedDocs { get; init; } = Array.Empty<RenderedDocument>();
+    public RenderedMedia[] RenderedMedia { get; init; } = Array.Empty<RenderedMedia>();
 }
 
 public record NormalizationResult

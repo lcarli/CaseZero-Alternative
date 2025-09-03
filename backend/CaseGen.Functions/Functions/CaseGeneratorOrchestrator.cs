@@ -193,6 +193,7 @@ public class CaseGeneratorOrchestrator
             context.SetCustomStatus(status);
 
             var renderTasks = new List<Task<string>>();
+            var docIdList = new List<string>(); // Track docIds for rendered documents
             foreach (var docJson in documentsResult)
             {
                 // Parse docId from the JSON result
@@ -211,6 +212,7 @@ public class CaseGeneratorOrchestrator
                     docId = $"doc_{renderTasks.Count + 1}";
                 }
 
+                docIdList.Add(docId); // Store the docId for later mapping
                 var renderInput = new RenderDocumentItemInput 
                 { 
                     CaseId = caseId, 
@@ -233,6 +235,7 @@ public class CaseGeneratorOrchestrator
             context.SetCustomStatus(status);
 
             var renderImageTasks = new List<Task<string>>();
+            var evidenceIdList = new List<string>(); // Track evidenceIds for rendered media
             foreach (var mediaJson in mediaResult)
             {
                 // Parse the media spec from the JSON result
@@ -245,6 +248,7 @@ public class CaseGeneratorOrchestrator
                     
                     if (mediaSpec != null)
                     {
+                        evidenceIdList.Add(mediaSpec.EvidenceId); // Store the evidenceId for later mapping
                         var renderImageInput = new RenderMediaItemInput 
                         { 
                             CaseId = caseId, 
@@ -261,6 +265,44 @@ public class CaseGeneratorOrchestrator
 
             var renderImageResults = await Task.WhenAll(renderImageTasks);
             completedSteps.Add(CaseGenerationSteps.RenderImages);
+
+            // Build rendered artifacts arrays for normalization
+            var renderedDocs = new List<RenderedDocument>();
+            for (int i = 0; i < renderResults.Length && i < docIdList.Count; i++)
+            {
+                var filePath = renderResults[i];
+                if (!string.IsNullOrEmpty(filePath))
+                {
+                    // TODO: Get actual file size and SHA256 hash if needed
+                    renderedDocs.Add(new RenderedDocument
+                    {
+                        DocId = docIdList[i],
+                        FilePath = filePath,
+                        FileSize = 0, // Could be calculated if needed
+                        Sha256Hash = null, // Could be calculated if needed
+                        ContentType = "application/pdf"
+                    });
+                }
+            }
+
+            var renderedMedia = new List<RenderedMedia>();
+            for (int i = 0; i < renderImageResults.Length && i < evidenceIdList.Count; i++)
+            {
+                var filePath = renderImageResults[i];
+                if (!string.IsNullOrEmpty(filePath))
+                {
+                    // TODO: Get actual file size and SHA256 hash if needed
+                    renderedMedia.Add(new RenderedMedia
+                    {
+                        EvidenceId = evidenceIdList[i],
+                        FilePath = filePath,
+                        FileSize = 0, // Could be calculated if needed
+                        Sha256Hash = null, // Could be calculated if needed
+                        ContentType = "image/png",
+                        Kind = "photo"
+                    });
+                }
+            }
 
             // Step 6: Normalize
             status = status with
@@ -280,7 +322,9 @@ public class CaseGeneratorOrchestrator
                 Timezone = "UTC", // Could be extracted from request if needed
                 PlanJson = planResult,
                 ExpandedJson = expandResult,
-                DesignJson = designResult
+                DesignJson = designResult,
+                RenderedDocs = renderedDocs.ToArray(),
+                RenderedMedia = renderedMedia.ToArray()
             });
             completedSteps.Add(CaseGenerationSteps.Normalize);
 

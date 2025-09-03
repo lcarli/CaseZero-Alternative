@@ -101,7 +101,9 @@ public class CaseGeneratorActivities
             ExpandedJson = model.ExpandedJson,
             DesignJson = model.DesignJson,
             Documents = model.Documents,
-            Media = model.Media
+            Media = model.Media,
+            RenderedDocs = model.RenderedDocs,
+            RenderedMedia = model.RenderedMedia
         };
         
         var result = await _caseGenerationService.NormalizeCaseDeterministicAsync(input);
