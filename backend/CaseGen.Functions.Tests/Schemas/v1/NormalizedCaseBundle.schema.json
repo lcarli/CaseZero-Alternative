@@ -79,7 +79,7 @@
           ]
         },
         "title": {
-          "$ref": "#/definitions/I18nText"
+          "type": "string"
         },
         "sections": {
           "type": "array",
@@ -158,7 +158,7 @@
           "enum": ["photo", "document_scan", "diagram", "audio", "video"]
         },
         "title": {
-          "$ref": "#/definitions/I18nText"
+          "type": "string"
         },
         "prompt": {
           "type": "string"
@@ -188,17 +188,6 @@
         "deferred",
         "metadata"
       ]
-    },
-    "I18nText": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "ptBr": { "type": "string" },
-        "en": { "type": "string" },
-        "es": { "type": "string" },
-        "fr": { "type": "string" }
-      },
-      "required": ["ptBr", "en", "es", "fr"]
     },
     "GatingRule": {
       "type": "object",

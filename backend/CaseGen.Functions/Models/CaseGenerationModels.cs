@@ -40,19 +40,6 @@ public record RedTeamActivityModel
     public required string CaseId { get; init; }
 }
 
-// Deprecated bulk activity models (not used in current orchestrator)
-// public record GenerateDocumentsActivityModel
-// {
-//     public required string DesignJson { get; init; }
-//     public required string CaseId { get; init; }
-// }
-
-// public record GenerateMediaActivityModel
-// {
-//     public required string DesignJson { get; init; }
-//     public required string CaseId { get; init; }
-// }
-
 public record NormalizeActivityModel
 {
     public required string[] Documents { get; init; }
@@ -64,25 +51,6 @@ public record NormalizeActivityModel
     public string? ExpandedJson { get; init; }
     public string? DesignJson { get; init; }
 }
-
-// Duplicate models - removing to avoid confusion
-// public record IndexActivityModel
-// {
-//     public required string NormalizedJson { get; init; }
-//     public required string CaseId { get; init; }
-// }
-
-// public record ValidateActivityModel
-// {
-//     public required string IndexedJson { get; init; }
-//     public required string CaseId { get; init; }
-// }
-
-// public record RedTeamActivityModel
-// {
-//     public required string ValidatedJson { get; init; }
-//     public required string CaseId { get; init; }
-// }
 
 public record GenerateDocumentItemInput
 {
@@ -506,7 +474,7 @@ public record NormalizationInput
 
 public record NormalizationResult
 {
-    public required NormalizedCaseBundle NormalizedJson { get; init; }
+    public required string NormalizedJson { get; init; }
     public required CaseManifest Manifest { get; init; }
     public required NormalizationLog Log { get; init; }
 }
@@ -528,7 +496,7 @@ public record NormalizedDocument
 {
     public required string DocId { get; init; }
     public required string Type { get; init; }
-    public required I18nText Title { get; init; }
+    public required string Title { get; init; }
     public required string[] Sections { get; init; }
     public required int[] LengthTarget { get; init; }
     public required bool Gated { get; init; }
@@ -543,20 +511,12 @@ public record NormalizedMedia
 {
     public required string EvidenceId { get; init; }
     public required string Kind { get; init; }
-    public required I18nText Title { get; init; }
+    public required string Title { get; init; }
     public required string Prompt { get; init; }
     public Dictionary<string, object>? Constraints { get; init; }
     public bool Deferred { get; init; } = false;
     public DateTime? CreatedAt { get; set; }
     public required Dictionary<string, object> Metadata { get; init; }
-}
-
-public record I18nText
-{
-    public required string PtBr { get; init; }
-    public required string En { get; init; }
-    public required string Es { get; init; }
-    public required string Fr { get; init; }
 }
 
 public record GatingGraph

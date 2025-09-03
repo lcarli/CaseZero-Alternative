@@ -106,8 +106,8 @@ public class CaseGeneratorActivities
         
         var result = await _caseGenerationService.NormalizeCaseDeterministicAsync(input);
         
-        // Return the normalized bundle as JSON for compatibility with existing pipeline
-        return JsonSerializer.Serialize(result.NormalizedJson, new JsonSerializerOptions { WriteIndented = true });
+        // Return the JSON string directly - NormalizedJson is already a serialized JSON string
+        return result.NormalizedJson;
     }
 
     [Function("IndexActivity")]

@@ -74,13 +74,7 @@ public class NormalizationIntegrationTests
                 {
                     DocId = "doc_test_001",
                     Type = "police_report",
-                    Title = new I18nText
-                    {
-                        PtBr = "Relatório Policial",
-                        En = "Police Report",
-                        Es = "Informe Policial",
-                        Fr = "Rapport de Police"
-                    },
+                    Title = "Relatório Policial",
                     Sections = new[] { "Ocorrência", "Detalhes" },
                     LengthTarget = new[] { 200, 500 },
                     Gated = false,
@@ -97,13 +91,7 @@ public class NormalizationIntegrationTests
                 {
                     EvidenceId = "ev_test_001",
                     Kind = "photo",
-                    Title = new I18nText
-                    {
-                        PtBr = "Foto da Cena",
-                        En = "Scene Photo",
-                        Es = "Foto de la Escena",
-                        Fr = "Photo de la Scène"
-                    },
+                    Title = "Foto da Cena",
                     Prompt = "Fotografia da cena",
                     Deferred = false,
                     Metadata = new Dictionary<string, object>

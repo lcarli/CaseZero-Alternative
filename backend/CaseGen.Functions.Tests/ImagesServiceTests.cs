@@ -11,6 +11,7 @@ public class ImagesServiceTests
 {
     private readonly IImagesService _imagesService;
     private readonly IStorageService _mockStorageService;
+    private readonly ILLMService _mockLLMService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ImagesService> _logger;
 
@@ -32,8 +33,11 @@ public class ImagesServiceTests
         // Create mock storage service
         _mockStorageService = new MockStorageService();
 
+        // Create mock LLM service
+        _mockLLMService = new MockLLMProvider();
+
         // Create the service
-        _imagesService = new ImagesService(_mockStorageService, _configuration, _logger);
+        _imagesService = new ImagesService(_mockStorageService, _configuration, _logger, _mockLLMService);
     }
 
     [Fact]

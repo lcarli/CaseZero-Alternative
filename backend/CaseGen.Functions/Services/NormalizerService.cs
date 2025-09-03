@@ -107,9 +107,12 @@ public class NormalizerService : INormalizerService
             var logJson = JsonSerializer.Serialize(log, new JsonSerializerOptions { WriteIndented = true });
             await _caseLogging.LogStepResponseAsync(input.CaseId, "normalize", logJson);
 
+            // Serialize the normalized bundle to JSON string
+            var normalizedJson = JsonSerializer.Serialize(normalizedBundle, new JsonSerializerOptions { WriteIndented = true });
+
             return new NormalizationResult
             {
-                NormalizedJson = normalizedBundle,
+                NormalizedJson = normalizedJson,
                 Manifest = manifest,
                 Log = log
             };
@@ -261,7 +264,7 @@ public class NormalizerService : INormalizerService
         {
             DocId = docId,
             Type = type,
-            Title = CreateSimpleI18nText(title),
+            Title = title,
             Sections = sections,
             LengthTarget = lengthTarget.Length >= 2 ? new[] { lengthTarget[0], lengthTarget[1] } : new[] { 100, 500 },
             Gated = gated,
@@ -309,7 +312,7 @@ public class NormalizerService : INormalizerService
         {
             EvidenceId = evidenceId,
             Kind = kind,
-            Title = CreateSimpleI18nText(title),
+            Title = title,
             Prompt = prompt,
             Constraints = constraints,
             Deferred = deferred,
@@ -319,19 +322,6 @@ public class NormalizerService : INormalizerService
                 ["generatedBy"] = "normalize",
                 ["originalData"] = mediaData
             }
-        };
-    }
-
-    private I18nText CreateSimpleI18nText(string text)
-    {
-        // For now, just use the same text for all languages
-        // In a real implementation, this would use translation service
-        return new I18nText
-        {
-            PtBr = text,
-            En = text, // Would need translation
-            Es = text, // Would need translation  
-            Fr = text  // Would need translation
         };
     }
 
