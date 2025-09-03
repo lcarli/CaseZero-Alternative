@@ -319,7 +319,7 @@ public class CaseGeneratorOrchestrator
                 Media = mediaResult, 
                 CaseId = caseId,
                 Difficulty = request.Difficulty,
-                Timezone = "UTC", // Could be extracted from request if needed
+                Timezone = request.Timezone,
                 PlanJson = planResult,
                 ExpandedJson = expandResult,
                 DesignJson = designResult,
