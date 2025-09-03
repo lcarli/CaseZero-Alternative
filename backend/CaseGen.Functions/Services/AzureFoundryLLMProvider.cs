@@ -205,27 +205,54 @@ public class AzureFoundryLLMProvider : ILLMProvider
                 _logger.LogWarning(exTranslate, "Falling back to original prompt after translation/context step failed.");
             }
 
-            _logger.LogInformation("Generating image with FLUX-1.1-pro using prompt: {Prompt}", improvedPrompt);
+            _logger.LogInformation("Generating image with gpt-image-1 using prompt: {Prompt}", improvedPrompt);
 
+            // For gpt-image-1, we need to use different configuration
+            // gpt-image-1 always returns base64-encoded images and doesn't support ResponseFormat parameter
             var imageGeneration = await _imageClient.GenerateImageAsync(
                 improvedPrompt,
                 new ImageGenerationOptions()
                 {
-                    Size = GeneratedImageSize.W1024xH1024,
-                    Quality = GeneratedImageQuality.Standard,
-                    ResponseFormat = GeneratedImageFormat.Bytes
+                    Size = GeneratedImageSize.W1024xH1024, // gpt-image-1 supports: 1024x1024, 1024x1536, 1536x1024
+                    // Omitting Quality parameter due to enum mapping issues with gpt-image-1
+                    // gpt-image-1 will use default quality
+                    // Note: gpt-image-1 does not support ResponseFormat parameter - always returns base64
                 },
                 cancellationToken);
 
-            var imageBytes = imageGeneration.Value.ImageBytes.ToArray();
+            // gpt-image-1 always returns base64-encoded images, so we need to decode from base64
+            byte[] imageBytes;
+            if (!string.IsNullOrEmpty(imageGeneration.Value.ImageUri?.ToString()))
+            {
+                // If we get a URI, it's likely a data URI with base64 content
+                var dataUri = imageGeneration.Value.ImageUri.ToString();
+                if (dataUri.StartsWith("data:image"))
+                {
+                    var base64Data = dataUri.Substring(dataUri.IndexOf(',') + 1);
+                    imageBytes = Convert.FromBase64String(base64Data);
+                }
+                else
+                {
+                    throw new InvalidOperationException("Unexpected image URI format from gpt-image-1");
+                }
+            }
+            else if (imageGeneration.Value.ImageBytes != null && imageGeneration.Value.ImageBytes.Length > 0)
+            {
+                // Fallback: try ImageBytes if available
+                imageBytes = imageGeneration.Value.ImageBytes.ToArray();
+            }
+            else
+            {
+                throw new InvalidOperationException("gpt-image-1 did not return image data in expected format");
+            }
 
-            _logger.LogInformation("Image generated successfully with size: {Size} bytes", imageBytes.Length);
+            _logger.LogInformation("Image generated successfully with gpt-image-1, size: {Size} bytes", imageBytes.Length);
 
             return imageBytes;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Azure Foundry image generation failed for prompt: {Prompt}", prompt);
+            _logger.LogError(ex, "Azure Foundry gpt-image-1 generation failed for prompt: {Prompt}", prompt);
             throw;
         }
     }
