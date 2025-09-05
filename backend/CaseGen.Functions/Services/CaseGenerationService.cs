@@ -608,7 +608,7 @@ public class CaseGenerationService : ICaseGenerationService
             5) Elementos obrigatórios (régua mm, marcador A/B/C, timestamp, “CAM-03”, etc.)
             6) Negativos (lista objetiva do que NÃO pode aparecer)
             7) Checklist de aceitação (lista de verificação acionável)
-            - constraints: string curta contendo: angle_deg, camera_height_m ou distance_m, aspect_ratio, resolution_px, seed, deferred=false.
+            - constraints: objeto json contendo: angle_deg, camera_height_m ou distance_m, aspect_ratio, resolution_px, seed, deferred=false.
 
             REGRAS ESPECÍFICAS POR TIPO
             - kind=cftv_frame: informar overlay de timestamp (monoespaçado, branco com contorno), label da câmera (“CAM-03”), altura 2.5–3.0 m, lente grande-angular 2.8–4 mm, leve compressão H.264 (artefatos moderados), shutter 1/60 s, leve motion blur coerente.
@@ -644,7 +644,7 @@ public class CaseGenerationService : ICaseGenerationService
             GERE:
             - evidenceId, kind, title
             - prompt: seções fixas (Função; Cena/Composição; Ângulo & Distância; Óptica & Técnica; Elementos obrigatórios; Negativos; Checklist de aceitação)
-            - constraints: string com angle_deg, camera_height_m/distance_m, aspect_ratio, resolution_px, seed (7 dígitos), deferred=false
+            - constraints: obejto json com angle_deg, camera_height_m/distance_m, aspect_ratio, resolution_px, seed (7 dígitos), deferred=false
 
             IMPORTANTE:
             - Se kind=cftv_frame: timestamp overlay “YYYY-MM-DD HH:MM:SS”, canto superior direito; label “CAM-03”.

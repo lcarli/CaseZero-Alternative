@@ -4,6 +4,7 @@ using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
 using Microsoft.Extensions.Logging;
 using CaseGen.Functions.Models;
+using CaseGen.Functions.Services;
 using System.Text.Json;
 
 namespace CaseGen.Functions.Functions;
@@ -11,10 +12,12 @@ namespace CaseGen.Functions.Functions;
 public class CaseGeneratorOrchestrator
 {
     private readonly ILogger<CaseGeneratorOrchestrator> _logger;
+    private readonly ICaseLoggingService _caseLogging;
 
-    public CaseGeneratorOrchestrator(ILogger<CaseGeneratorOrchestrator> logger)
+    public CaseGeneratorOrchestrator(ILogger<CaseGeneratorOrchestrator> logger, ICaseLoggingService caseLogging)
     {
         _logger = logger;
+        _caseLogging = caseLogging;
     }
 
     [Function("StartCaseGeneration")]
@@ -97,6 +100,7 @@ public class CaseGeneratorOrchestrator
         var request = context.GetInput<CaseGenerationRequest>() ?? throw new System.InvalidOperationException("Orchestration requires CaseGenerationRequest input.");
         var caseId = $"CASE-{context.CurrentUtcDateTime:yyyyMMdd}-{context.NewGuid().ToString("N")[..8]}";
         var startTime = context.CurrentUtcDateTime;
+        var completedSteps = new List<string>(); // Move outside try block
 
         var status = new CaseGenerationStatus
         {
@@ -111,15 +115,16 @@ public class CaseGeneratorOrchestrator
         {
             var logger = context.CreateReplaySafeLogger<CaseGeneratorOrchestrator>();
             logger.LogInformation("Starting case generation orchestration for case {CaseId}", caseId);
-
-            var completedSteps = new List<string>();
+            _caseLogging.LogOrchestratorStep(caseId, "WORKFLOW_START", "Beginning case generation workflow");
 
             // Step 1: Plan
             status = status with { CurrentStep = CaseGenerationSteps.Plan, Progress = 0.1 };
             context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "PLAN_START", "Creating initial case plan");
 
             var planResult = await context.CallActivityAsync<string>("PlanActivity", new PlanActivityModel { Request = request, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Plan);
+            _caseLogging.LogOrchestratorStep(caseId, "PLAN_COMPLETE", $"Plan generated: {planResult.Length} chars");
 
             // Step 2: Expand
             status = status with
@@ -129,9 +134,11 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "EXPAND_START", "Expanding plan into detailed content");
 
             var expandResult = await context.CallActivityAsync<string>("ExpandActivity", new ExpandActivityModel { PlanJson = planResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Expand);
+            _caseLogging.LogOrchestratorStep(caseId, "EXPAND_COMPLETE", $"Content expanded: {expandResult.Length} chars");
 
             // Step 3: Design
             status = status with
@@ -141,9 +148,11 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "DESIGN_START", "Creating document and media specifications");
 
             var designResult = await context.CallActivityAsync<string>("DesignActivity", new DesignActivityModel { PlanJson = planResult, ExpandedJson = expandResult, CaseId = caseId, Difficulty = request.Difficulty });
             completedSteps.Add(CaseGenerationSteps.Design);
+            _caseLogging.LogOrchestratorStep(caseId, "DESIGN_COMPLETE", $"Design created: {designResult.Length} chars");
 
             // Step 4: Generate Documents
             var specs = JsonSerializer.Deserialize<DocumentAndMediaSpecs>(designResult, new JsonSerializerOptions
@@ -159,6 +168,7 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "GENERATION_START", $"Starting parallel generation: {specs.DocumentSpecs.Length} docs, {specs.MediaSpecs.Length} media");
 
             var docTasks = new List<Task<string>>();
             foreach (var ds in specs.DocumentSpecs)
@@ -182,6 +192,7 @@ public class CaseGeneratorOrchestrator
 
             completedSteps.Add(CaseGenerationSteps.GenDocs);
             completedSteps.Add(CaseGenerationSteps.GenMedia);
+            _caseLogging.LogOrchestratorStep(caseId, "GENERATION_COMPLETE", $"Generated {documentsResult.Length} docs, {mediaResult.Length} media");
 
             // Step 5.5: RenderDocuments (fan-out JSON→MD→PDF)
             status = status with
@@ -191,6 +202,7 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "RENDER_DOCS_START", $"Rendering {documentsResult.Length} documents to PDF");
 
             var renderTasks = new List<Task<string>>();
             var docIdList = new List<string>(); // Track docIds for rendered documents
@@ -224,6 +236,7 @@ public class CaseGeneratorOrchestrator
 
             var renderResults = await Task.WhenAll(renderTasks);
             completedSteps.Add(CaseGenerationSteps.RenderDocs);
+            _caseLogging.LogOrchestratorStep(caseId, "RENDER_DOCS_COMPLETE", $"Rendered {renderResults.Length} documents");
 
             // Step 5.8: RenderImages (fan-out for actual image generation)
             status = status with
@@ -233,6 +246,7 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "RENDER_IMAGES_START", $"Rendering {mediaResult.Length} images");
 
             var renderImageTasks = new List<Task<string>>();
             var evidenceIdList = new List<string>(); // Track evidenceIds for rendered media
@@ -265,6 +279,7 @@ public class CaseGeneratorOrchestrator
 
             var renderImageResults = await Task.WhenAll(renderImageTasks);
             completedSteps.Add(CaseGenerationSteps.RenderImages);
+            _caseLogging.LogOrchestratorStep(caseId, "RENDER_IMAGES_COMPLETE", $"Rendered {renderImageResults.Length} images");
 
             // Build rendered artifacts arrays for normalization
             var renderedDocs = new List<RenderedDocument>();
@@ -312,6 +327,7 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "NORMALIZE_START", $"Normalizing case data and creating manifest");
 
             var normalizeResult = await context.CallActivityAsync<string>("NormalizeActivity", new NormalizeActivityModel 
             { 
@@ -327,6 +343,7 @@ public class CaseGeneratorOrchestrator
                 RenderedMedia = renderedMedia.ToArray()
             });
             completedSteps.Add(CaseGenerationSteps.Normalize);
+            _caseLogging.LogOrchestratorStep(caseId, "NORMALIZE_COMPLETE", $"Normalization completed: {normalizeResult.Length} chars");
 
             // Step 7: Index
             status = status with
@@ -336,9 +353,11 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "INDEX_START", "Creating searchable index of case content");
 
             var indexResult = await context.CallActivityAsync<string>("IndexActivity", new IndexActivityModel { NormalizedJson = normalizeResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Index);
+            _caseLogging.LogOrchestratorStep(caseId, "INDEX_COMPLETE", $"Index created: {indexResult.Length} chars");
 
             // Step 8: Rule Validate
             status = status with
@@ -348,9 +367,11 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "VALIDATE_START", "Validating case against business rules");
 
             var validateResult = await context.CallActivityAsync<string>("ValidateRulesActivity", new ValidateActivityModel { IndexedJson = indexResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.RuleValidate);
+            _caseLogging.LogOrchestratorStep(caseId, "VALIDATE_COMPLETE", $"Validation completed: {validateResult.Length} chars");
 
             // Step 9: Red Team
             status = status with
@@ -360,9 +381,11 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_START", "Performing security analysis and red team review");
 
             var redTeamResult = await context.CallActivityAsync<string>("RedTeamActivity", new RedTeamActivityModel { ValidatedJson = validateResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.RedTeam);
+            _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_COMPLETE", $"Red team analysis completed: {redTeamResult.Length} chars");
 
             // Step 10: Package
             status = status with
@@ -372,9 +395,15 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "PACKAGE_START", "Creating final case package and delivery artifacts");
 
             var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = redTeamResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Package);
+            _caseLogging.LogOrchestratorStep(caseId, "PACKAGE_COMPLETE", "Final packaging completed successfully");
+
+            var endTime = context.CurrentUtcDateTime;
+            var totalDuration = endTime - startTime;
+            _caseLogging.LogOrchestratorStep(caseId, "WORKFLOW_COMPLETE", $"Case generation completed in {Math.Round(totalDuration.TotalMinutes, 2)} minutes");
 
             // Complete
             status = status with
@@ -394,6 +423,10 @@ public class CaseGeneratorOrchestrator
         {
             var logger = context.CreateReplaySafeLogger<CaseGeneratorOrchestrator>();
             logger.LogError(ex, "Failed case generation orchestration for case {CaseId}", caseId);
+            _caseLogging.LogOrchestratorStep(caseId, "WORKFLOW_FAILED", $"Error: {ex.Message}");
+
+            var endTime = context.CurrentUtcDateTime;
+            var totalDuration = endTime - startTime;
 
             return status with
             {

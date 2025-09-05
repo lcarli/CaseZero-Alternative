@@ -36,4 +36,19 @@ public interface ICaseLoggingService
     /// Logs step metadata as JSON in case folder structure
     /// </summary>
     Task LogStepMetadataAsync(string caseId, string stepName, object metadata, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Logs a workflow step with clear phase tracking for better readability
+    /// </summary>
+    Task LogWorkflowStepAsync(string caseId, string phase, string step, object? stepData = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Logs workflow phase transitions with summary data
+    /// </summary>
+    Task LogPhaseTransitionAsync(string caseId, string fromPhase, string toPhase, object? phaseData = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates an executive summary of the workflow execution for easy review
+    /// </summary>
+    Task CreateExecutiveSummaryAsync(string caseId, object summaryData, CancellationToken cancellationToken = default);
 }

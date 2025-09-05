@@ -47,19 +47,17 @@ public class CaseLoggingService : ICaseLoggingService
         {
             var logEntry = new
             {
-                Timestamp = DateTime.UtcNow,
-                CaseId = caseId,
-                Source = source,
-                Level = level,
-                Message = message,
-                Data = data
+                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC"),
+                caseId = caseId,
+                source = source,
+                level = level,
+                message = message,
+                data = data,
+                logType = "detailed"
             };
 
-            var logText = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions 
-            { 
-                WriteIndented = true,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-            }) + Environment.NewLine;
+            // Create a structured log with clear separation
+            var logText = CreateStructuredLogEntry("DETAILED", logEntry) + Environment.NewLine;
 
             await AppendToLogBlobAsync(caseId, logText, cancellationToken);
         }
@@ -78,26 +76,33 @@ public class CaseLoggingService : ICaseLoggingService
             
             var interaction = new
             {
-                Timestamp = DateTime.UtcNow,
-                CaseId = caseId,
-                Source = "LLM",
-                Level = "INFO",
-                Provider = provider,
-                PromptType = promptType,
-                PromptPreview = prompt.Length > 200 ? prompt.Substring(0, 200) + "..." : prompt,
-                ResponsePreview = cleanedResponse.Length > 500 ? cleanedResponse.Substring(0, 500) + "..." : cleanedResponse,
-                PromptLength = prompt.Length,
-                ResponseLength = response.Length,
-                TokenCount = tokenCount,
-                FullPrompt = prompt,
-                FullResponse = cleanedResponse // Use cleaned response instead of raw response
+                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC"),
+                caseId = caseId,
+                logType = "llm_interaction",
+                interaction = new
+                {
+                    provider = provider,
+                    promptType = promptType,
+                    metrics = new
+                    {
+                        promptLength = prompt.Length,
+                        responseLength = response.Length,
+                        tokenCount = tokenCount
+                    },
+                    preview = new
+                    {
+                        prompt = prompt.Length > 200 ? prompt.Substring(0, 200) + "..." : prompt,
+                        response = cleanedResponse.Length > 500 ? cleanedResponse.Substring(0, 500) + "..." : cleanedResponse
+                    },
+                    fullContent = new
+                    {
+                        prompt = prompt,
+                        response = cleanedResponse
+                    }
+                }
             };
 
-            var logText = JsonSerializer.Serialize(interaction, new JsonSerializerOptions 
-            { 
-                WriteIndented = true,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-            }) + Environment.NewLine;
+            var logText = CreateStructuredLogEntry("LLM_INTERACTION", interaction) + Environment.NewLine;
 
             await AppendToLogBlobAsync(caseId, logText, cancellationToken);
         }
@@ -281,6 +286,132 @@ public class CaseLoggingService : ICaseLoggingService
         {
             // For any other errors, return original response
             return response;
+        }
+    }
+
+    /// <summary>
+    /// Creates a well-structured, readable log entry with clear visual separation
+    /// </summary>
+    private static string CreateStructuredLogEntry(string entryType, object logData)
+    {
+        var separator = new string('=', 80);
+        var subSeparator = new string('-', 40);
+        
+        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC");
+        
+        var sb = new StringBuilder();
+        sb.AppendLine(separator);
+        sb.AppendLine($"📋 {entryType} - {timestamp}");
+        sb.AppendLine(separator);
+        
+        var jsonOptions = new JsonSerializerOptions 
+        { 
+            WriteIndented = true,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        };
+        
+        var jsonContent = JsonSerializer.Serialize(logData, jsonOptions);
+        sb.AppendLine(jsonContent);
+        sb.AppendLine(separator);
+        sb.AppendLine(); // Empty line for separation
+        
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Logs a workflow step with clear phase tracking
+    /// </summary>
+    public async Task LogWorkflowStepAsync(string caseId, string phase, string step, object? stepData = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var workflowEntry = new
+            {
+                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC"),
+                caseId = caseId,
+                logType = "workflow_step",
+                workflow = new
+                {
+                    phase = phase,
+                    step = step,
+                    stepData = stepData
+                }
+            };
+
+            var logText = CreateStructuredLogEntry($"WORKFLOW - {phase.ToUpper()}", workflowEntry) + Environment.NewLine;
+            await AppendToLogBlobAsync(caseId, logText, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to log workflow step for case {CaseId}", caseId);
+        }
+    }
+
+    /// <summary>
+    /// Logs workflow phase transitions with summary data
+    /// </summary>
+    public async Task LogPhaseTransitionAsync(string caseId, string fromPhase, string toPhase, object? phaseData = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var transitionEntry = new
+            {
+                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC"),
+                caseId = caseId,
+                logType = "phase_transition",
+                transition = new
+                {
+                    from = fromPhase,
+                    to = toPhase,
+                    phaseData = phaseData
+                }
+            };
+
+            var logText = CreateStructuredLogEntry("PHASE_TRANSITION", transitionEntry) + Environment.NewLine;
+            await AppendToLogBlobAsync(caseId, logText, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to log phase transition for case {CaseId}", caseId);
+        }
+    }
+
+    /// <summary>
+    /// Creates an executive summary of the workflow execution
+    /// </summary>
+    public async Task CreateExecutiveSummaryAsync(string caseId, object summaryData, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var summary = new
+            {
+                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC"),
+                caseId = caseId,
+                logType = "executive_summary",
+                summary = summaryData
+            };
+
+            var logText = CreateStructuredLogEntry("EXECUTIVE_SUMMARY", summary) + Environment.NewLine;
+            await AppendToLogBlobAsync(caseId, logText, cancellationToken);
+
+            // Also save as separate summary file
+            var containerClient = await GetLogsContainerAsync(cancellationToken);
+            var summaryBlobName = $"{caseId}/{caseId}_EXECUTIVE_SUMMARY.json";
+            var summaryBlobClient = containerClient.GetBlobClient(summaryBlobName);
+            
+            var summaryJson = JsonSerializer.Serialize(summary, new JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+            });
+            
+            var bytes = Encoding.UTF8.GetBytes(summaryJson);
+            using var stream = new MemoryStream(bytes);
+            await summaryBlobClient.UploadAsync(stream, overwrite: true, cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create executive summary for case {CaseId}", caseId);
         }
     }
 }
