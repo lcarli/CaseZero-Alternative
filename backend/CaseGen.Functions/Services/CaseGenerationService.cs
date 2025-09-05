@@ -588,24 +588,69 @@ public class CaseGenerationService : ICaseGenerationService
         _logger.LogInformation("Gen Media[{EvidenceId}] kind={Kind} title={Title}", spec.EvidenceId, spec.Kind, spec.Title);
 
         var systemPrompt = """
-            Você é um engenheiro de evidências de mídia. Gere uma especificação JSON para criação de mídia.
-            Requisitos:
-            - Saída **APENAS** JSON: { evidenceId, kind, title, prompt, constraints }
-            - prompt deve ser detalhado e reproduzível (iluminação/ângulo/escala/etiquetas etc.)
-            - NADA de texto fora do JSON
+            Você é um gerador de especificações FORENSES de mídia estática.
+            Saída: APENAS JSON válido com { evidenceId, kind, title, prompt, constraints }.
+
+            DEVERES
+            - Crie um prompt operacional e mensurável para UMA imagem (não sequência).
+            - Estilo: fotografia/screenshot documental, neutro, não-artístico.
+            - Proíba pessoas, rostos, mãos, pés, distintivos, logos/marcas (se a cena permitir).
+            - Padronize: ângulo em graus, altura/distância em metros, lente em mm, abertura f/, obturador 1/x s, ISO, WB K.
+            - Para foto pericial (objeto em superfície): use top-down 90° quando aplicável.
+            - Iluminação: difusa/ uniforme; nada de sombras duras.
+
+            FORMATO OBRIGATÓRIO DOS CAMPOS
+            - prompt: texto em seções fixas e curtas, nesta ordem:
+            1) Função (1 frase)
+            2) Cena/Composição (3–5 frases; incluir % do assunto no quadro)
+            3) Ângulo & Distância (valores numéricos)
+            4) Óptica & Técnica (lente mm, f/, 1/x s, ISO, WB K, foco, DOF)
+            5) Elementos obrigatórios (régua mm, marcador A/B/C, timestamp, “CAM-03”, etc.)
+            6) Negativos (lista objetiva do que NÃO pode aparecer)
+            7) Checklist de aceitação (lista de verificação acionável)
+            - constraints: string curta contendo: angle_deg, camera_height_m ou distance_m, aspect_ratio, resolution_px, seed, deferred=false.
+
+            REGRAS ESPECÍFICAS POR TIPO
+            - kind=cftv_frame: informar overlay de timestamp (monoespaçado, branco com contorno), label da câmera (“CAM-03”), altura 2.5–3.0 m, lente grande-angular 2.8–4 mm, leve compressão H.264 (artefatos moderados), shutter 1/60 s, leve motion blur coerente.
+            - kind=document_scan/receipt: sem moiré, sem dedos, correção de perspectiva, 300–600 DPI equivalentes, margens visíveis.
+            - kind=scene_topdown: top-down 90°, plano ortogonal, incluir régua métrica com numeração crescente, manter proporção exata.
+
+            NÃO FAÇA
+            - Não escreva o nome da evidência na imagem.
+            - Não repita as regras como texto genérico; converta-as em parâmetros.
+            - Não retorne Markdown, comentários, ou campos extras.
+
+            Valide mentalmente o checklist antes de responder. Saída: somente JSON.
             """;
 
         var userPrompt = $"""
-            CONTEXTO DO DESIGN (resumo estruturado):
+            CONTEXTO (resumo estruturado de design/documentos relevantes, não descreva tudo: use só o necessário)
             {designJson}
 
-            ESPECIFICAÇÃO DE MÍDIA:
+            ESPECIFICAÇÃO DA EVIDÊNCIA
             evidenceId: {spec.EvidenceId}
             kind: {spec.Kind}
             title: {spec.Title}
-            constraints: {(spec.Constraints != null && spec.Constraints.Any() ? string.Join(", ", spec.Constraints.Select(kv => $"{kv.Key}: {kv.Value}")) : "n/a")}
+            dificuldade: {(difficultyOverride ?? "Detective")}
+            constraints_iniciais: {(spec.Constraints != null && spec.Constraints.Any() ? string.Join(", ", spec.Constraints.Select(kv => $"{kv.Key}: {kv.Value}")) : "n/a")}
+            idioma: pt-BR
 
-            Gere o JSON final da mídia conforme instruções (campo prompt obrigatório).
+            NIVEL DE DETALHE POR DIFICULDADE (aplicar SEM criar sequência de fotos):
+            - Rookie: composição simples; top-down quando aplicável.
+            - Detective/Detective2: +1 detalhe contextual (ainda 1 imagem).
+            - Sergeant+: plano geral + detalhe dentro da MESMA imagem (sem colagem), falso-positivo discreto APENAS se fizer sentido.
+            - Captain/Commander: incluir objetos de controle (cartão de cor/cinza) na MESMA cena quando plausível.
+
+            GERE:
+            - evidenceId, kind, title
+            - prompt: seções fixas (Função; Cena/Composição; Ângulo & Distância; Óptica & Técnica; Elementos obrigatórios; Negativos; Checklist de aceitação)
+            - constraints: string com angle_deg, camera_height_m/distance_m, aspect_ratio, resolution_px, seed (7 dígitos), deferred=false
+
+            IMPORTANTE:
+            - Se kind=cftv_frame: timestamp overlay “YYYY-MM-DD HH:MM:SS”, canto superior direito; label “CAM-03”.
+            - Se houver régua: numeração legível 0,1,2,3 cm em ordem crescente, escala correta.
+            - Proíba pessoas/rostos/mãos/logos quando relevante.
+            - Retorne APENAS JSON válido.
             """;
 
         var json = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);

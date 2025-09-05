@@ -176,34 +176,9 @@ public class AzureFoundryLLMProvider : ILLMProvider
         try
         {
             // Translate and enrich the prompt with context before image generation
+           // string improvedPrompt = await TranslateAndImprove(prompt, cancellationToken);
             string improvedPrompt = prompt;
-            try
-            {
-                var translateOptions = new ChatCompletionOptions()
-                {
-                    MaxOutputTokenCount = 10000
-                };
-#pragma warning disable AOAI001
-                translateOptions.SetNewMaxCompletionTokensPropertyEnabled(true);
-#pragma warning restore AOAI001
 
-                var messages = new List<ChatMessage>()
-                {
-                    new SystemChatMessage("You are an expert prompt engineer for image generation. Translate the user's prompt to English and enrich it with concise, specific visual context (subject, setting, composition, lighting, mood, camera/style details) while preserving intent. Avoid unsafe or copyrighted content. Respond with only the final prompt text, no quotes or extra words."),
-                    new UserChatMessage(prompt)
-                };
-
-                var translateResponse = await _chatClient.CompleteChatAsync(messages, translateOptions, cancellationToken);
-                var translated = translateResponse.Value.Content[0].Text?.Trim();
-                if (!string.IsNullOrWhiteSpace(translated))
-                {
-                    improvedPrompt = translated;
-                }
-            }
-            catch (Exception exTranslate)
-            {
-                _logger.LogWarning(exTranslate, "Falling back to original prompt after translation/context step failed.");
-            }
 
             _logger.LogInformation("Generating image with gpt-image-1 using prompt: {Prompt}", improvedPrompt);
 
@@ -213,10 +188,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
                 improvedPrompt,
                 new ImageGenerationOptions()
                 {
-                    Size = GeneratedImageSize.W1024xH1024, // gpt-image-1 supports: 1024x1024, 1024x1536, 1536x1024
-                    // Omitting Quality parameter due to enum mapping issues with gpt-image-1
-                    // gpt-image-1 will use default quality
-                    // Note: gpt-image-1 does not support ResponseFormat parameter - always returns base64
+                    Size = GeneratedImageSize.W1024xH1024
                 },
                 cancellationToken);
 
@@ -257,4 +229,37 @@ public class AzureFoundryLLMProvider : ILLMProvider
         }
     }
 
+    private async Task<string> TranslateAndImprove(string prompt, CancellationToken cancellationToken = default)
+    {
+        string improvedPrompt = prompt;
+        try
+        {
+            var translateOptions = new ChatCompletionOptions()
+            {
+                MaxOutputTokenCount = 10000
+            };
+#pragma warning disable AOAI001
+            translateOptions.SetNewMaxCompletionTokensPropertyEnabled(true);
+#pragma warning restore AOAI001
+
+            var messages = new List<ChatMessage>()
+                {
+                    new SystemChatMessage("You are an expert prompt engineer for image generation. Translate the user's prompt to English and enrich it with concise, specific visual context (subject, setting, composition, lighting, mood, camera/style details) while preserving intent. Avoid unsafe or copyrighted content. Respond with only the final prompt text, no quotes or extra words."),
+                    new UserChatMessage(prompt)
+                };
+
+            var translateResponse = await _chatClient.CompleteChatAsync(messages, translateOptions, cancellationToken);
+            var translated = translateResponse.Value.Content[0].Text?.Trim();
+            if (!string.IsNullOrWhiteSpace(translated))
+            {
+                improvedPrompt = translated;
+            }
+        }
+        catch (Exception exTranslate)
+        {
+            _logger.LogWarning(exTranslate, "Falling back to original prompt after translation/context step failed.");
+        }
+
+        return improvedPrompt;
+    }
 }
