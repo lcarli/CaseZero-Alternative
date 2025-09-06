@@ -45,6 +45,138 @@ GET http://localhost:7071/api/status/593a7ea794924f028624a369fe3e1e7d
 
 ###
 
+# ============================================================================
+# ENDPOINTS INDIVIDUAIS POR ETAPA
+# ============================================================================
+
+### ETAPA 1: Gerar apenas o PLANO
+POST http://localhost:7071/api/PlanStep
+Content-Type: application/json
+
+{
+  "difficulty": "Rookie",
+  "generateImages": true,
+  "timezone": "America/Toronto"
+}
+
+###
+
+### ETAPA 2: Expandir o plano (usar o resultado da etapa anterior)
+POST http://localhost:7071/api/ExpandStep
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20250906-12345678",
+  "planJson": "{\"caseId\":\"CASE-20250906-12345678\",\"title\":\"Furto em Loja de Roupas\",\"difficulty\":\"Rookie\",\"location\":\"loja de roupas em área comercial\",\"incidentType\":\"furto\",\"overview\":\"Desaparecimento de roupas de uma loja durante o período noturno\"}"
+}
+
+###
+
+### ETAPA 3: Criar design/especificações (usar resultado das etapas anteriores)
+POST http://localhost:7071/api/DesignStep
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20250906-12345678",
+  "planJson": "{\"caseId\":\"CASE-20250906-12345678\",\"title\":\"Furto em Loja de Roupas\",\"difficulty\":\"Rookie\"}",
+  "expandedJson": "{\"suspects\":[{\"name\":\"João Silva\",\"role\":\"Ex-funcionário\"}],\"evidences\":[{\"id\":\"ev_001\",\"type\":\"physical\",\"description\":\"Chave duplicada\"}]}",
+  "difficulty": "Rookie"
+}
+
+###
+
+### ETAPA 4: Gerar documentos (usar specs do design)
+POST http://localhost:7071/api/GenerateDocumentsStep
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20250906-12345678",
+  "designJson": "{\"documentSpecs\":[{\"docId\":\"doc_001\",\"type\":\"police_report\",\"title\":\"Boletim de Ocorrência\",\"sections\":[\"Dados do Incidente\",\"Relato dos Fatos\"],\"lengthTarget\":[200,400],\"gated\":false}]}",
+  "documentSpecs": [
+    {
+      "docId": "doc_001",
+      "type": "police_report", 
+      "title": "Boletim de Ocorrência - Furto",
+      "sections": ["Dados do Incidente", "Relato dos Fatos", "Conclusões"],
+      "lengthTarget": [200, 400],
+      "gated": false
+    },
+    {
+      "docId": "doc_002",
+      "type": "evidence_log",
+      "title": "Registro de Evidências",
+      "sections": ["Lista de Evidências", "Observações"],
+      "lengthTarget": [150, 300],
+      "gated": false
+    }
+  ],
+  "planJson": "{\"caseId\":\"CASE-20250906-12345678\",\"difficulty\":\"Rookie\"}",
+  "expandJson": "{\"suspects\":[{\"name\":\"João Silva\"}]}",
+  "difficulty": "Rookie"
+}
+
+###
+
+### ETAPA 5: Gerar mídia (usar specs do design)
+POST http://localhost:7071/api/GenerateMediaStep
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20250906-12345678",
+  "designJson": "{\"mediaSpecs\":[{\"evidenceId\":\"ev_001\",\"kind\":\"photo\",\"title\":\"Foto da Chave\"}]}",
+  "mediaSpecs": [
+    {
+      "evidenceId": "ev_001",
+      "kind": "photo",
+      "title": "Foto da chave duplicada",
+      "prompt": "Fotografia forense de uma chave duplicada",
+      "constraints": {
+        "angle_deg": 90,
+        "camera_height_m": 0.5,
+        "aspect_ratio": "4:3",
+        "resolution_px": "1920x1440"
+      },
+      "deferred": false
+    },
+    {
+      "evidenceId": "ev_002", 
+      "kind": "document_scan",
+      "title": "Scan do crachá de funcionário",
+      "prompt": "Digitalização de crachá de identificação de funcionário",
+      "constraints": {
+        "resolution_px": "300dpi",
+        "aspect_ratio": "3:2"
+      },
+      "deferred": false
+    }
+  ],
+  "planJson": "{\"caseId\":\"CASE-20250906-12345678\",\"difficulty\":\"Rookie\"}",
+  "difficulty": "Rookie"
+}
+
+###
+
+### ETAPA 6: Normalizar caso completo
+POST http://localhost:7071/api/NormalizeStep
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20250906-12345678",
+  "documents": [
+    "{\"docId\":\"doc_001\",\"type\":\"police_report\",\"title\":\"Boletim de Ocorrência\",\"sections\":[{\"title\":\"Dados do Incidente\",\"content\":\"Furto ocorrido em 2025-09-05...\"}]}",
+    "{\"docId\":\"doc_002\",\"type\":\"evidence_log\",\"title\":\"Registro de Evidências\",\"sections\":[{\"title\":\"Lista\",\"content\":\"1. Chave duplicada...\"}]}"
+  ],
+  "media": [
+    "{\"evidenceId\":\"ev_001\",\"kind\":\"photo\",\"title\":\"Foto da chave\",\"prompt\":\"Fotografia forense...\"}",
+    "{\"evidenceId\":\"ev_002\",\"kind\":\"document_scan\",\"title\":\"Scan do crachá\",\"prompt\":\"Digitalização...\"}"
+  ],
+  "difficulty": "Rookie",
+  "timezone": "America/Toronto"
+}
+
+
+###
+
 # Teste de geração de PDF
 POST http://localhost:7071/api/test/pdf
 

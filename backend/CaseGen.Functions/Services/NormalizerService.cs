@@ -215,29 +215,68 @@ public class NormalizerService : INormalizerService
         var docId = docData.GetValueOrDefault("docId")?.ToString() ?? throw new ArgumentException("Missing docId");
         var type = docData.GetValueOrDefault("type")?.ToString() ?? throw new ArgumentException("Missing type");
         var title = docData.GetValueOrDefault("title")?.ToString() ?? throw new ArgumentException("Missing title");
-        var content = docData.GetValueOrDefault("content")?.ToString() ?? "";
         
-        // Parse sections
-        var sectionsObj = docData.GetValueOrDefault("sections");
-        var sections = sectionsObj switch
+        // Parse sections - the actual document structure has sections array, not content string
+        var sectionsData = new List<Dictionary<string, string>>();
+        var content = "";
+        
+        if (docData.TryGetValue("sections", out var sectionsObj))
         {
-            JsonElement jsonElement when jsonElement.ValueKind == JsonValueKind.Array => 
-                jsonElement.EnumerateArray().Select(e => e.GetString() ?? "").ToArray(),
-            string[] stringArray => stringArray,
-            _ => new[] { "Content" }
-        };
-
-        // Parse lengthTarget
-        var lengthTargetObj = docData.GetValueOrDefault("lengthTarget");
-        var lengthTarget = lengthTargetObj switch
+            if (sectionsObj is JsonElement sectionsElement && sectionsElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var sectionElement in sectionsElement.EnumerateArray())
+                {
+                    if (sectionElement.ValueKind == JsonValueKind.Object)
+                    {
+                        var sectionTitle = sectionElement.TryGetProperty("title", out var titleProp) ? titleProp.GetString() ?? "" : "";
+                        var sectionContent = sectionElement.TryGetProperty("content", out var contentProp) ? contentProp.GetString() ?? "" : "";
+                        
+                        sectionsData.Add(new Dictionary<string, string>
+                        {
+                            ["title"] = sectionTitle,
+                            ["content"] = sectionContent
+                        });
+                        
+                        // Combine all content for full-text search
+                        content += $"{sectionTitle}\n{sectionContent}\n\n";
+                    }
+                }
+            }
+        }
+        
+        // Extract section titles for the sections array (backward compatibility)
+        var sections = sectionsData.Select(s => s["title"]).ToArray();
+        if (sections.Length == 0)
         {
-            JsonElement jsonElement when jsonElement.ValueKind == JsonValueKind.Array => 
-                jsonElement.EnumerateArray().Select(e => e.GetInt32()).ToArray(),
-            int[] intArray => intArray,
-            _ => new[] { 100, 500 }
-        };
+            sections = new[] { "Content" };
+        }
 
-        var gated = bool.TryParse(docData.GetValueOrDefault("gated")?.ToString(), out var gatedValue) && gatedValue;
+        // Parse lengthTarget from the document - this might not exist, so provide defaults
+        var lengthTarget = new[] { 100, 500 }; // default values
+        if (docData.TryGetValue("lengthTarget", out var lengthTargetObj))
+        {
+            if (lengthTargetObj is JsonElement lengthTargetElement && lengthTargetElement.ValueKind == JsonValueKind.Array)
+            {
+                var targets = lengthTargetElement.EnumerateArray().Select(e => e.GetInt32()).ToArray();
+                if (targets.Length >= 2)
+                {
+                    lengthTarget = new[] { targets[0], targets[1] };
+                }
+            }
+        }
+
+        var gated = false;
+        if (docData.TryGetValue("gated", out var gatedObj))
+        {
+            if (gatedObj is JsonElement gatedElement)
+            {
+                gated = gatedElement.GetBoolean();
+            }
+            else
+            {
+                bool.TryParse(gatedObj?.ToString(), out gated);
+            }
+        }
         
         GatingRule? gatingRule = null;
         if (gated && docData.TryGetValue("gatingRule", out var gatingRuleObj))
@@ -266,15 +305,16 @@ public class NormalizerService : INormalizerService
             Type = type,
             Title = title,
             Sections = sections,
-            LengthTarget = lengthTarget.Length >= 2 ? new[] { lengthTarget[0], lengthTarget[1] } : new[] { 100, 500 },
+            LengthTarget = lengthTarget,
             Gated = gated,
             GatingRule = gatingRule,
             CreatedAt = DateTime.UtcNow,
-            Content = content,
+            Content = content.Trim(),
             Metadata = new Dictionary<string, object>
             {
                 ["generatedBy"] = "normalize",
-                ["originalData"] = docData
+                ["originalData"] = docData,
+                ["sectionsData"] = sectionsData
             }
         };
     }

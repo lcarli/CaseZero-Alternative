@@ -30,7 +30,12 @@ public class AzureFoundryLLMProvider : ILLMProvider
 
         var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { TenantId = configuration["AzureFoundry:TenantId"] });
 
-        var azureClient = new AzureOpenAIClient(new Uri(endpoint), credential);
+        var azureClientOptions = new AzureOpenAIClientOptions()
+        {
+            NetworkTimeout = TimeSpan.FromMinutes(10)
+        };
+
+        var azureClient = new AzureOpenAIClient(new Uri(endpoint), credential, azureClientOptions);
         _chatClient = azureClient.GetChatClient(deploymentName);
         _imageClient = azureClient.GetImageClient(imageDeploymentName);
 
@@ -176,7 +181,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
         try
         {
             // Translate and enrich the prompt with context before image generation
-           // string improvedPrompt = await TranslateAndImprove(prompt, cancellationToken);
+            // string improvedPrompt = await TranslateAndImprove(prompt, cancellationToken);
             string improvedPrompt = prompt;
 
 

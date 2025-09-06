@@ -1,0 +1,74 @@
+###
+
+# ============================================================================
+# WORKFLOW COMPLETO - EXEMPLO PASSO A PASSO
+# ============================================================================
+
+### PASSO 1: Gerar plano automaticamente
+POST http://localhost:7071/api/PlanStep
+Content-Type: application/json
+
+{
+  "difficulty": "Rookie",
+  "generateImages": true,
+  "timezone": "America/Toronto"
+}
+
+### PASSO 2: Com o resultado do plano acima, expandir
+# (Copie o resultado do "raw" da resposta anterior e cole no planJson abaixo)
+POST http://localhost:7071/api/ExpandStep
+Content-Type: application/json
+
+{
+  "CaseId": "CC-DT-2025-09-06-N7K3XQ",
+  "PlanJson": "{\"caseId\":\"CC-DT-2025-09-06-N7K3XQ\",\"title\":\"Desaparecimento no Centro de Distribuição Noturno\",\"location\":\"centro de distribuição\",\"incidentType\":\"Desaparecimento suspeito\",\"difficulty\":\"Detective\",\"timezone\":\"America/Sao_Paulo\",\"estimatedDuration\":90,\"overview\":\"Um supervisor de turno desaparece durante a madrugada em um centro de distribuição após registrar um e-mail interno sobre divergências de estoque. Há indícios de que seu cartão de acesso foi usado após o último avistamento em CFTV, e uma van terceirizada esteve na doca de carga no período crítico. Quatro pessoas entram no radar: um operador de empilhadeira que discutiu com a vítima, um motorista terceirizado de uma transportadora, a gerente de turno e o ex-parceiro da vítima. O investigador precisará cruzar registros de acesso, manifesto de cargas, CFTV e depoimentos, filtrando duas pistas falsas (suposta sabotagem de câmera e um avistamento desatualizado) para reconstruir a última hora conhecida da vítima.\",\"learningObjectives\":[\"Cruzar registros de acesso com horários do CFTV para validar movimentações.\",\"Verificar testemunhos e identificar inconsistências temporais simples.\",\"Isolar e descartar pistas falsas por meio de documentação de manutenção e logs.\",\"Correlacionar manifesto de cargas e escala de turnos para mapear presença de terceiros.\",\"Planejar um passo de gating para obter mídia original do CFTV mediante autorização.\"],\"mainElements\":[\"Suspeitos (4): 1) Operador de empilhadeira (colega de turno, histórico de atritos por produtividade); 2) Motorista terceirizado (coleta programada na Doca 3 durante a janela crítica); 3) Gerente de turno (responsável por autorizar manutenção de câmera e controlar escala); 4) Ex-parceiro da vítima (alegado avistamento em horário não confirmado).\",\"Documentos (10): 1) Relatório de ponto/controle de acesso do turno; 2) Clipes de CFTV das áreas de corredor e Doca 3; 3) Manifesto de carga da coleta noturna; 4) Registros de ligações e mensagens da vítima (extrato de chamadas/SMS); 5) Recibo da lanchonete do pátio (consumo no intervalo); 6) Declaração do vigia noturno; 7) E-mail interno sobre divergência de estoque (enviado pela vítima); 8) Ordem de serviço de manutenção da câmera da Doca 2; 9) Boletim de ocorrência do desaparecimento; 10) Log de auditoria do servidor de CFTV (documento bloqueado/gated).\",\"Evidências materiais (6): 1) Fibra têxtil azul presa em prateleira próxima à Doca 3; 2) Resíduo oleoso no piso da Doca 3 compatível com graxa de paleteira; 3) Pegadas com barro seco da área externa para a Doca 3; 4) Registro anômalo de uso do cartão de acesso da vítima às 23:14; 5) Mensagem deletada no celular indicando encontro após o intervalo; 6) Foto de amassado e tinta cinza na porta traseira de uma van que passou pela Doca 3.\",\"Pistas falsas (2): A) Suposta sabotagem da câmera da Doca 2 (na verdade manutenção programada); B) Avistamento do ex-parceiro no local (timestamp anterior ao período crítico).\",\"Gating (1 passo): Solicitar/obter autorização formal da gerência para acesso ao dump original do CFTV (documento 10) a fim de verificar integridade e metadados dos clipes.\",\"Abordagem forense: comparação de fibras com uniforme padrão de operadores; análise de resíduos oleosos vs. manutenção de equipamentos; validação de metadados de vídeo e sincronização com relógio do servidor.\",\"Abordagem investigativa: cruzar horários de manifesto de carga, escalas de trabalho e registros de acesso; confrontar depoimentos com dados objetivos; verificar logs de manutenção para invalidar hipótese de sabotagem.\",\"Hipóteses de trabalho: 1) Saída voluntária após turno (contradita pelo CFTV); 2) Coerção/ocultação durante janela de coleta; 3) Uso indevido do cartão de acesso da vítima por terceiro.\",\"Critérios de progressão: após validar manutenção programada e inconsistência temporal do avistamento, solicitar dump original do CFTV; em seguida, alinhar trilhas temporais (manifesto, acesso, CFTV) para delimitar a janela crítica.\"],\"timeline\":[{\"eventId\":\"E1\",\"ts\":\"2025-07-14T17:58:00-03:00\",\"title\":\"Entrada da vítima registrada no turno\",\"loc\":\"portaria de funcionários\"},{\"eventId\":\"E2\",\"ts\":\"2025-07-14T20:52:00-03:00\",\"title\":\"Compra no intervalo\",\"loc\":\"lanchonete do pátio\"},{\"eventId\":\"E3\",\"ts\":\"2025-07-14T21:12:34-03:00\",\"title\":\"E-mail sobre divergência de estoque enviado pela vítima\",\"loc\":\"estação administrativa do armazém\"},{\"eventId\":\"E4\",\"ts\":\"2025-07-14T21:30:00-03:00\",\"title\":\"Início da manutenção da câmera da Doca 2\",\"loc\":\"Doca 2\"},{\"eventId\":\"E5\",\"ts\":\"2025-07-14T22:05:00-03:00\",\"title\":\"Chegada de van terceirizada para coleta\",\"loc\":\"Doca 3\"},{\"eventId\":\"E6\",\"ts\":\"2025-07-14T22:18:00-03:00\",\"title\":\"Último avistamento da vítima em CFTV\",\"loc\":\"corredor próximo à Doca 3\"},{\"eventId\":\"E7\",\"ts\":\"2025-07-14T23:14:00-03:00\",\"title\":\"Uso do cartão de acesso da vítima\",\"loc\":\"saída de funcionários\"},{\"eventId\":\"E8\",\"ts\":\"2025-07-15T00:10:00-03:00\",\"title\":\"Vigia nota ausência do supervisor na ronda\",\"loc\":\"plataforma de cargas\"},{\"eventId\":\"E9\",\"ts\":\"2025-07-15T08:05:00-03:00\",\"title\":\"Registro do desaparecimento\",\"loc\":\"delegacia local\"}],\"minDetectiveRank\":\"Detective\",\"profileApplied\":{\"suspects\":[3,4],\"documents\":[8,12],\"evidences\":[4,7],\"gatingSteps\":[1,1],\"falseLeads\":[2,2],\"interpretiveComplexity\":\"basic_cross_checks,simple_red_herrings,witness_verification\"},\"goldenTruth\":{\"facts\":[{\"id\":\"GT1\",\"about\":\"O uso do cartão de acesso da vítima às 23:14 não foi feito pela própria vítima, indicado por discrepância entre CFTV e registro de crachá.\",\"minSupports\":2,\"heterogeneous\":true},{\"id\":\"GT2\",\"about\":\"A câmera da Doca 2 estava em manutenção programada, não sabotada, conforme ordem de serviço e registro de tickets.\",\"minSupports\":2,\"heterogeneous\":true},{\"id\":\"GT3\",\"about\":\"A van que realizou coleta na Doca 3 durante a janela crítica apresentava dano e tinta cinza na porta traseira, visível em imagem e foto de inspeção.\",\"minSupports\":2,\"heterogeneous\":true},{\"id\":\"GT4\",\"about\":\"O último contato voluntário da vítima ocorreu às 21:12, quando enviou e-mail sobre divergências de estoque.\",\"minSupports\":2,\"heterogeneous\":false},{\"id\":\"GT5\",\"about\":\"Houve conflito no turno relacionado a divergência de estoque, corroborado por e-mail e depoimento do vigia/funcionários.\",\"minSupports\":2,\"heterogeneous\":true}],\"sealed\":true,\"hash\":\"sha256:5e8a2b3f6dc1c5a9e2c9f047d9a4a6e0c8e2c7b4d3f9a1bdc3e4b8a1f2d6e9ab\"}}"
+}
+
+### PASSO 3: Com plan + expand, criar design
+POST http://localhost:7071/api/DesignStep
+Content-Type: application/json
+
+{
+  "CaseId": "SUBSTITUIR_PELO_CASE_ID",
+  "PlanJson": "SUBSTITUIR_PELO_JSON_RAW_DO_PLANO",
+  "ExpandedJson": "SUBSTITUIR_PELO_JSON_RAW_DO_EXPAND",
+  "Difficulty": "Detective"
+}
+
+### PASSO 4: Extrair documentSpecs do design e gerar documentos
+# (Do resultado do design, copie o array documentSpecs)
+POST http://localhost:7071/api/GenerateDocumentsStep
+Content-Type: application/json
+
+{
+  "caseId": "SUBSTITUIR_PELO_CASE_ID",
+  "designJson": "SUBSTITUIR_PELO_JSON_RAW_DO_DESIGN",
+  "documentSpecs": "SUBSTITUIR_PELO_ARRAY_DOCUMENT_SPECS_DO_DESIGN",
+  "planJson": "SUBSTITUIR_PELO_JSON_RAW_DO_PLANO",
+  "expandJson": "SUBSTITUIR_PELO_JSON_RAW_DO_EXPAND",
+  "difficulty": "Detective"
+}
+
+### PASSO 5: Extrair mediaSpecs do design e gerar mídia
+POST http://localhost:7071/api/GenerateMediaStep
+Content-Type: application/json
+
+{
+  "caseId": "SUBSTITUIR_PELO_CASE_ID",
+  "designJson": "SUBSTITUIR_PELO_JSON_RAW_DO_DESIGN", 
+  "mediaSpecs": "SUBSTITUIR_PELO_ARRAY_MEDIA_SPECS_DO_DESIGN",
+  "planJson": "SUBSTITUIR_PELO_JSON_RAW_DO_PLANO",
+  "difficulty": "Detective"
+}
+
+### PASSO 6: Normalizar com todos os documentos e mídia gerados
+POST http://localhost:7071/api/NormalizeStep
+Content-Type: application/json
+
+{
+  "caseId": "SUBSTITUIR_PELO_CASE_ID",
+  "documents": ["ARRAY_COM_RAW_DOS_DOCUMENTOS_GERADOS"],
+  "media": ["ARRAY_COM_RAW_DAS_MIDIAS_GERADAS"],
+  "difficulty": "Detective",
+  "timezone": "America/Sao_Paulo"
+}
