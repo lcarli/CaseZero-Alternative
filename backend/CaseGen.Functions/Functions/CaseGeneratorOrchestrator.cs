@@ -100,7 +100,7 @@ public class CaseGeneratorOrchestrator
         var request = context.GetInput<CaseGenerationRequest>() ?? throw new System.InvalidOperationException("Orchestration requires CaseGenerationRequest input.");
         var caseId = $"CASE-{context.CurrentUtcDateTime:yyyyMMdd}-{context.NewGuid().ToString("N")[..8]}";
         var startTime = context.CurrentUtcDateTime;
-        var completedSteps = new List<string>(); // Move outside try block
+        var completedSteps = new List<string>();
 
         var status = new CaseGenerationStatus
         {

@@ -1,51 +1,59 @@
-using Microsoft.Extensions.Logging;
-
 namespace CaseGen.Functions.Services;
 
 public class LLMService : ILLMService
 {
     private readonly ILLMProvider _llmProvider;
     private readonly ICaseLoggingService _caseLogging;
-    private readonly ILogger<LLMService> _logger;
 
-    public LLMService(ILLMProvider llmProvider, ICaseLoggingService caseLogging, ILogger<LLMService> logger)
+    public LLMService(ILLMProvider llmProvider, ICaseLoggingService caseLogging)
     {
         _llmProvider = llmProvider;
         _caseLogging = caseLogging;
-        _logger = logger;
     }
 
     public async Task<string> GenerateAsync(string caseId, string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
     {
         try
         {
-            // Clean console log
-            _logger.LogInformation("LLM: Starting text generation for case {CaseId}", caseId);
+            // Clean console log for workflow tracking
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_TEXT_START", $"Starting text generation ({userPrompt.Length} chars)");
 
-            // Detailed logging to blob
+            // Detailed logging to blob storage
             await _caseLogging.LogDetailedAsync(caseId, "LLMService", "INFO",
                 "Starting LLM text generation",
-                new { PromptLength = userPrompt.Length, SystemPromptLength = systemPrompt.Length },
+                new { 
+                    PromptLength = userPrompt.Length, 
+                    SystemPromptLength = systemPrompt.Length,
+                    Provider = _llmProvider.GetType().Name
+                },
                 cancellationToken);
 
             var response = await _llmProvider.GenerateTextAsync(systemPrompt, userPrompt, cancellationToken);
 
-            // Log the interaction details to blob
+            // Log the interaction details to blob storage
             await _caseLogging.LogLLMInteractionAsync(caseId, _llmProvider.GetType().Name,
                 "TextGeneration", userPrompt, response, null, cancellationToken);
 
-            _logger.LogInformation("LLM: Text generation completed successfully for case {CaseId}", caseId);
+            // Clean console log for completion
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_TEXT_COMPLETE", $"Generated {response.Length} chars");
 
             return response;
         }
         catch (Exception ex)
         {
+            // Error logging to both console and blob storage
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_TEXT_ERROR", $"Text generation failed: {ex.Message}");
+            
             await _caseLogging.LogDetailedAsync(caseId, "LLMService", "ERROR",
                 "Failed to generate LLM response",
-                new { Error = ex.Message, StackTrace = ex.StackTrace },
+                new { 
+                    Error = ex.Message, 
+                    StackTrace = ex.StackTrace,
+                    Provider = _llmProvider.GetType().Name,
+                    PromptLength = userPrompt?.Length ?? 0
+                },
                 cancellationToken);
 
-            _logger.LogError("LLM: Text generation failed for case {CaseId} - {Error}", caseId, ex.Message);
             throw;
         }
     }
@@ -54,37 +62,47 @@ public class LLMService : ILLMService
     {
         try
         {
-            // Clean console log
-            _logger.LogInformation("LLM: Starting structured generation for case {CaseId}", caseId);
+            // Clean console log for workflow tracking
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_STRUCTURED_START", $"Starting structured generation ({userPrompt.Length} chars)");
 
-            // Detailed logging to blob
+            // Detailed logging to blob storage
             await _caseLogging.LogDetailedAsync(caseId, "LLMService", "INFO",
                 "Starting structured LLM generation",
                 new {
                     PromptLength = userPrompt.Length,
                     SystemPromptLength = systemPrompt.Length,
-                    SchemaLength = jsonSchema.Length
+                    SchemaLength = jsonSchema.Length,
+                    Provider = _llmProvider.GetType().Name
                 },
                 cancellationToken);
 
             var response = await _llmProvider.GenerateStructuredResponseAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
 
-            // Log the interaction details to blob
+            // Log the interaction details to blob storage
             await _caseLogging.LogLLMInteractionAsync(caseId, _llmProvider.GetType().Name,
                 "StructuredGeneration", userPrompt, response, null, cancellationToken);
 
-            _logger.LogInformation("LLM: Structured generation completed successfully for case {CaseId}", caseId);
+            // Clean console log for completion
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_STRUCTURED_COMPLETE", $"Generated structured response ({response.Length} chars)");
 
             return response;
         }
         catch (Exception ex)
         {
+            // Error logging to both console and blob storage
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_STRUCTURED_ERROR", $"Structured generation failed: {ex.Message}");
+            
             await _caseLogging.LogDetailedAsync(caseId, "LLMService", "ERROR",
                 "Failed to generate structured LLM response",
-                new { Error = ex.Message, StackTrace = ex.StackTrace },
+                new { 
+                    Error = ex.Message, 
+                    StackTrace = ex.StackTrace,
+                    Provider = _llmProvider.GetType().Name,
+                    PromptLength = userPrompt?.Length ?? 0,
+                    SchemaLength = jsonSchema?.Length ?? 0
+                },
                 cancellationToken);
 
-            _logger.LogError("LLM: Structured generation failed for case {CaseId} - {Error}", caseId, ex.Message);
             throw;
         }
     }
@@ -93,33 +111,44 @@ public class LLMService : ILLMService
     {
         try
         {
-            // Clean console log
-            _logger.LogInformation("LLM: Starting image generation for case {CaseId}", caseId);
+            // Clean console log for workflow tracking
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_IMAGE_START", $"Starting image generation ({prompt.Length} chars)");
 
-            // Detailed logging to blob
+            // Detailed logging to blob storage
             await _caseLogging.LogDetailedAsync(caseId, "LLMService", "INFO",
                 "Starting LLM image generation",
-                new { PromptLength = prompt.Length },
+                new { 
+                    PromptLength = prompt.Length,
+                    Provider = _llmProvider.GetType().Name
+                },
                 cancellationToken);
 
             var imageBytes = await _llmProvider.GenerateImageAsync(prompt, cancellationToken);
 
-            // Log the interaction details to blob
+            // Log the interaction details to blob storage
             await _caseLogging.LogLLMInteractionAsync(caseId, _llmProvider.GetType().Name,
                 "ImageGeneration", prompt, $"Generated image: {imageBytes.Length} bytes", null, cancellationToken);
 
-            _logger.LogInformation("LLM: Image generation completed successfully for case {CaseId}, size: {Size} bytes", caseId, imageBytes.Length);
+            // Clean console log for completion
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_IMAGE_COMPLETE", $"Generated image ({imageBytes.Length:N0} bytes)");
 
             return imageBytes;
         }
         catch (Exception ex)
         {
+            // Error logging to both console and blob storage
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_IMAGE_ERROR", $"Image generation failed: {ex.Message}");
+            
             await _caseLogging.LogDetailedAsync(caseId, "LLMService", "ERROR",
                 "Failed to generate LLM image",
-                new { Error = ex.Message, StackTrace = ex.StackTrace },
+                new { 
+                    Error = ex.Message, 
+                    StackTrace = ex.StackTrace,
+                    Provider = _llmProvider.GetType().Name,
+                    PromptLength = prompt?.Length ?? 0
+                },
                 cancellationToken);
 
-            _logger.LogError("LLM: Image generation failed for case {CaseId} - {Error}", caseId, ex.Message);
             throw;
         }
     }

@@ -54,8 +54,8 @@ public class CaseGenerationService : ICaseGenerationService
         _logger.LogInformation("PLAN: Auto-generating case with difficulty={Difficulty}, timezone={Timezone}, images={GenerateImages}", actualDifficulty, request.Timezone, request.GenerateImages);
 
         var systemPrompt = $"""
-        Você é um arquiteto mestre de casos investigativos. Sua tarefa é criar um plano inicial COMPLETAMENTE AUTOMATIZADO
-        para um caso detetivesco baseado no perfil de dificuldade especificado.
+        Você é um arquiteto mestre de casos investigativos (COLD CASES). Sua tarefa é criar um plano inicial COMPLETAMENTE AUTOMATIZADO
+        para um caso detetivesco baseado no perfil de dificuldade especificado. Sao casos frios que requerem uma abordagem meticulosa e detalhada.
 
         PERFIL DE DIFICULDADE: {actualDifficulty}
         Descrição: {difficultyProfile?.Description}
@@ -140,7 +140,7 @@ public class CaseGenerationService : ICaseGenerationService
         _logger.LogInformation("EXPAND: Building detailed case from plan with difficulty={Difficulty}", difficulty);
 
         var systemPrompt = $"""
-            Você é um especialista em desenvolvimento de casos investigativos. Expanda o plano inicial 
+            Você é um especialista em desenvolvimento de casos investigativos (COLD CASES). Expanda o plano inicial 
             criando detalhes completos baseados no PERFIL DE DIFICULDADE específico.
             
             PERFIL DE DIFICULDADE: {difficulty}
@@ -202,84 +202,6 @@ public class CaseGenerationService : ICaseGenerationService
         var jsonSchema = _schemaProvider.GetSchema("Expand");
 
         return await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
-    }
-
-    public async Task<string> DesignCaseAsync(string expandedJson, string caseId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("Designing case structure with structured output");
-
-        var systemPrompt = """
-            Você é um designer de casos investigativos. Sua tarefa é transformar os detalhes expandidos 
-            do caso em especificações estruturadas para geração paralela de documentos e mídias.
-            
-            IMPORTANTE:
-            - Saída APENAS JSON válido no schema DocumentAndMediaSpecs
-            - NÃO adicione explicações, comentários ou texto extra
-            - Marque documentos sensíveis com "gated": true e inclua "gatingRule" como objeto { action, evidenceId?, notes? }
-            - Para documentos gated=true, sempre inclua gatingRule
-            - Para laudos periciais, inclua seção "Cadeia de Custódia"
-            
-            Tipos de documento permitidos:
-            - police_report: Boletim de ocorrência
-            - interview: Entrevista com suspeito/testemunha  
-            - memo_admin: Memorando administrativo
-            - forensics_report: Laudo pericial (sempre incluir "Cadeia de Custódia")
-            - evidence_log: Log de evidências
-            - witness_statement: Depoimento de testemunha
-            
-            Tipos de mídia permitidos:
-            - photo: Fotografia de evidência
-            - audio: Gravação de áudio
-            - video: Gravação de vídeo
-            - document_scan: Digitalização de documento
-            - diagram: Diagrama ou esquema
-            """;
-
-        var userPrompt = $"""
-            Transforme este caso expandido em especificações estruturadas:
-            
-            {expandedJson}
-            
-            Gere especificações para:
-            - 8-14 documentos (adequados ao nível Iniciante)
-            - 2-6 itens de mídia como evidências
-            - 1-2 laudos periciais gated=true com gatingRule
-            - LengthTarget adequado ao nível (documentos curtos: 150-400 palavras)
-            
-            """;
-
-        var jsonSchema = _schemaProvider.GetSchema("DocumentAndMediaSpecs");
-
-        // Generate structured response with retry logic for validation
-        const int maxRetries = 3;
-        for (int attempt = 1; attempt <= maxRetries; attempt++)
-        {
-            try
-            {
-                var response = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
-
-                // Validate the response against schema (without difficulty context for legacy method)
-                var validationResult = await _schemaValidationService.ParseAndValidateAsync(response);
-                if (validationResult != null)
-                {
-                    _logger.LogInformation("Design validation successful on attempt {Attempt}", attempt);
-                    return response;
-                }
-
-                _logger.LogWarning("Design validation failed on attempt {Attempt}, retrying...", attempt);
-
-                if (attempt == maxRetries)
-                {
-                    throw new InvalidOperationException("Failed to generate valid design specs after maximum retries");
-                }
-            }
-            catch (Exception ex) when (attempt < maxRetries)
-            {
-                _logger.LogWarning(ex, "Design generation failed on attempt {Attempt}, retrying...", attempt);
-            }
-        }
-
-        throw new InvalidOperationException("Failed to generate valid design specs");
     }
 
     public async Task<string> DesignCaseAsync(string planJson, string expandedJson, string caseId, string? difficulty = null, CancellationToken cancellationToken = default)
@@ -594,7 +516,8 @@ public class CaseGenerationService : ICaseGenerationService
             DEVERES
             - Crie um prompt operacional e mensurável para UMA imagem (não sequência).
             - Estilo: fotografia/screenshot documental, neutro, não-artístico.
-            - Proíba pessoas, rostos, mãos, pés, distintivos, logos/marcas (se a cena permitir).
+            - Conteúdo 100% fictício. Proíba nomes reais, marcas/logos, rostos/biometrias, placas reais, distintivos oficiais.
+            - Nada gráfico ou violento. Sem crianças. Sem imagens de pessoas (quando a cena permitir).
             - Padronize: ângulo em graus, altura/distância em metros, lente em mm, abertura f/, obturador 1/x s, ISO, WB K.
             - Para foto pericial (objeto em superfície): use top-down 90° quando aplicável.
             - Iluminação: difusa/ uniforme; nada de sombras duras.
@@ -605,7 +528,7 @@ public class CaseGenerationService : ICaseGenerationService
             2) Cena/Composição (3–5 frases; incluir % do assunto no quadro)
             3) Ângulo & Distância (valores numéricos)
             4) Óptica & Técnica (lente mm, f/, 1/x s, ISO, WB K, foco, DOF)
-            5) Elementos obrigatórios (régua mm, marcador A/B/C, timestamp, “CAM-03”, etc.)
+            5) Elementos obrigatórios (marcador A/B/C, timestamp, “CAM-03”, etc.)
             6) Negativos (lista objetiva do que NÃO pode aparecer)
             7) Checklist de aceitação (lista de verificação acionável)
             - constraints: objeto json contendo: angle_deg, camera_height_m ou distance_m, aspect_ratio, resolution_px, seed, deferred=false.
@@ -613,7 +536,7 @@ public class CaseGenerationService : ICaseGenerationService
             REGRAS ESPECÍFICAS POR TIPO
             - kind=cftv_frame: informar overlay de timestamp (monoespaçado, branco com contorno), label da câmera (“CAM-03”), altura 2.5–3.0 m, lente grande-angular 2.8–4 mm, leve compressão H.264 (artefatos moderados), shutter 1/60 s, leve motion blur coerente.
             - kind=document_scan/receipt: sem moiré, sem dedos, correção de perspectiva, 300–600 DPI equivalentes, margens visíveis.
-            - kind=scene_topdown: top-down 90°, plano ortogonal, incluir régua métrica com numeração crescente, manter proporção exata.
+            - kind=scene_topdown: top-down 90°, plano ortogonal.
 
             NÃO FAÇA
             - Não escreva o nome da evidência na imagem.
@@ -648,8 +571,8 @@ public class CaseGenerationService : ICaseGenerationService
 
             IMPORTANTE:
             - Se kind=cftv_frame: timestamp overlay “YYYY-MM-DD HH:MM:SS”, canto superior direito; label “CAM-03”.
-            - Se houver régua: numeração legível 0,1,2,3 cm em ordem crescente, escala correta.
-            - Proíba pessoas/rostos/mãos/logos quando relevante.
+            - Nao use regua de referencia. 
+            - Conteúdo 100% fictício. Proíba nomes reais, marcas/logos, rostos/biometrias, placas reais, distintivos oficiais.
             - Retorne APENAS JSON válido.
             """;
 
@@ -684,31 +607,6 @@ public class CaseGenerationService : ICaseGenerationService
     public async Task<string> RenderMediaFromJsonAsync(MediaSpec spec, string caseId, CancellationToken cancellationToken = default)
     {
         return await _imagesService.GenerateAsync(caseId, spec);
-    }
-
-    //Old Normalize using LLM
-    public async Task<string> NormalizeCaseAsync(string[] documents, string[] media, string caseId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("Normalizing case content");
-
-        var systemPrompt = """
-            Você é um especialista em padronização de conteúdo educacional. Normalize e organize 
-            todos os elementos do caso em uma estrutura consistente e bem formatada.
-            """;
-
-        var userPrompt = $"""
-            Normalize e organize estes elementos do caso:
-            
-            DOCUMENTOS:
-            {string.Join("\n---\n", documents)}
-
-            PROMPTS DE MÍDIA:
-            {string.Join("\n---\n", media)}
-
-            Crie uma estrutura normalizada com formatação consistente, metadata adequada e organização lógica.
-            """;
-
-        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
     }
 
     public async Task<NormalizationResult> NormalizeCaseDeterministicAsync(NormalizationInput input, CancellationToken cancellationToken = default)
