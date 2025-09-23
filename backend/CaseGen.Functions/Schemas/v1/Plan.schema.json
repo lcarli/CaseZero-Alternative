@@ -5,7 +5,7 @@
   "additionalProperties": false,
   "properties": {
     "caseId": { "type": "string", "description": "Unique case identifier" },
-    "title": { "type": "string", "description": "Title in Portuguese, specific and engaging" },
+    "title": { "type": "string", "description": "Title in English, specific and engaging" },
     "location": {
       "type": "string",
       "description": "Plausible location; can be abstract (e.g., 'shopping center', 'logistics warehouse') or city/state without address"
@@ -19,14 +19,14 @@
     "timezone": {
       "type": "string",
       "pattern": "^[A-Za-z_]+\\/[A-Za-z_]+$",
-      "description": "IANA timezone used in timestamps (e.g., America/Sao_Paulo)"
+      "description": "IANA timezone used in timestamps (e.g., America/Toronto)"
     },
     "estimatedDuration": {
       "type": "number",
       "minimum": 10,
       "description": "Estimated duration in minutes"
     },
-    "overview": { "type": "string", "description": "Engaging case summary (in Portuguese)" },
+    "overview": { "type": "string", "description": "Engaging case summary" },
     "learningObjectives": {
       "type": "array",
       "minItems": 1,

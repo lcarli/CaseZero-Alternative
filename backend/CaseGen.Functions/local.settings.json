@@ -9,10 +9,10 @@
     "KeyVault__VaultUri": "",
     "TaskHub": "CaseGeneratorHub",
     "SCHEMAS_BASE_PATH": "Schemas/v1",
-    "LLM__UseAzureFoundry": "false",
-    "AzureFoundry__Endpoint": "{AI_FOUNDRY_ENDPOINT}",
-    "AzureFoundry__ModelName": "{AI_FOUNDRY_MODEL_NAME}",
-    "AzureFoundry__ImageDeploymentName": "{AI_FOUNDRY_IMAGE_MODEL_NAME}",
-    "AzureFoundry__TenantId": "{AI_FOUNDRY_TENANT_ID}"
+    "LLM__UseAzureFoundry": "true",
+    "AzureFoundry__Endpoint": "https://agenttestlucas.cognitiveservices.azure.com/",
+    "AzureFoundry__ModelName": "gpt-5",
+    "AzureFoundry__ImageDeploymentName": "gpt-image-1",
+    "AzureFoundry__TenantId": "1d70d939-06d2-4348-b658-58cb38886348"
   }
 }

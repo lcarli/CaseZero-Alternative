@@ -131,6 +131,7 @@ builder.Services.AddSingleton(serviceProvider =>
     };
 });
 builder.Services.AddScoped<ICaseGenerationService, CaseGenerationService>();
+builder.Services.AddScoped<ICaseFormatService, CaseFormatService>();
 
 // Register background services
 builder.Services.AddHostedService<CaseProcessingBackgroundService>();

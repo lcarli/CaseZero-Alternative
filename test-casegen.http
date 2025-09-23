@@ -26,7 +26,7 @@ POST http://localhost:7071/api/StartCaseGeneration
 POST http://localhost:7071/api/StartCaseGeneration
 
 {
-  "difficulty": "Lieutenant"
+  "difficulty": "Detective"
 }
 
 ###

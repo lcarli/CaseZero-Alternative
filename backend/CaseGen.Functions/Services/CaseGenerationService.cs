@@ -27,7 +27,7 @@ public class CaseGenerationService : ICaseGenerationService
         IJsonSchemaProvider schemaProvider,
         ICaseLoggingService caseLogging,
         INormalizerService normalizerService,
-        IPdfRenderingService pdfRenderingService, 
+        IPdfRenderingService pdfRenderingService,
         IImagesService imagesService,
         IConfiguration configuration,
         ILogger<CaseGenerationService> logger)
@@ -53,76 +53,65 @@ public class CaseGenerationService : ICaseGenerationService
 
         _logger.LogInformation("PLAN: Auto-generating case with difficulty={Difficulty}, timezone={Timezone}, images={GenerateImages}", actualDifficulty, request.Timezone, request.GenerateImages);
 
-        var systemPrompt = $"""
-        You are a master architect of investigative cold cases. Your task is to create a FULLY AUTOMATED INITIAL PLAN
-        for a detective-style case based on the specified difficulty profile. These are cold cases requiring a meticulous and detailed approach.
+        var systemPrompt = $@"
+            You are a master architect of investigative cold cases. Produce a FULLY AUTOMATED INITIAL PLAN
+            strictly aligned with the DIFFICULTY PROFILE and designed to be expanded without contradictions.
 
-        DIFFICULTY PROFILE: {actualDifficulty}
-        Description: {difficultyProfile?.Description}
+            DIFFICULTY PROFILE: {actualDifficulty}
+            Description: {difficultyProfile?.Description}
 
-        COMPLEXITY GUIDELINES:
-        - Suspects: {difficultyProfile?.Suspects.Min}-{difficultyProfile?.Suspects.Max}
-        - Documents: {difficultyProfile?.Documents.Min}-{difficultyProfile?.Documents.Max}
-        - Evidence items: {difficultyProfile?.Evidences.Min}-{difficultyProfile?.Evidences.Max}
-        - False leads (red herrings): {difficultyProfile?.RedHerrings}
-        - Gated documents: {difficultyProfile?.GatedDocuments}
-        - Forensics complexity: {difficultyProfile?.ForensicsComplexity}
-        - Complexity factors: {string.Join(", ", difficultyProfile?.ComplexityFactors ?? Array.Empty<string>())}
-        - Estimated duration: {difficultyProfile?.EstimatedDurationMinutes.Min}-{difficultyProfile?.EstimatedDurationMinutes.Max} minutes
+            COMPLEXITY GUIDELINES (HARD CONSTRAINTS):
+            - Suspects: {difficultyProfile?.Suspects.Min}-{difficultyProfile?.Suspects.Max}
+            - Documents (later): {difficultyProfile?.Documents.Min}-{difficultyProfile?.Documents.Max}
+            - Evidence items (later): {difficultyProfile?.Evidences.Min}-{difficultyProfile?.Evidences.Max}
+            - False leads: {difficultyProfile?.RedHerrings}
+            - Gated documents (later): {difficultyProfile?.GatedDocuments}
+            - Forensics complexity: {difficultyProfile?.ForensicsComplexity}
+            - Complexity factors: {string.Join(", ", difficultyProfile?.ComplexityFactors ?? Array.Empty<string>())}
+            - Estimated duration: {difficultyProfile?.EstimatedDurationMinutes.Min}-{difficultyProfile?.EstimatedDurationMinutes.Max} minutes
 
-        GEOGRAPHY AND NAMING POLICY (plausibility without exposing sensitive real data):
-        - DO NOT use real street names, address numbers, or coordinates.
-        - Real cities ONLY if necessary and ONLY at city/state level (no neighborhoods / real streets).
-        - It is acceptable NOT to specify a city/state: use generic descriptions such as "residential street", "logistics warehouse", "neighborhood store", "shopping center".
-        - Never use real brands/companies; create plausible fictional names when needed.
+            GEOGRAPHY/NAMING POLICY:
+            - No real street names, numbers, coordinates, or real brands/companies.
+            - If a real city is needed, limit to City/State only; prefer abstract locations (e.g., ""neighborhood bakery"").
+            - All names must be plausible and fictitious.
 
-        TIME AND LANGUAGE STANDARDS:
-        - Timestamps MUST ALWAYS be in ISO-8601 with offset (target timezone: {request.Timezone}).
+            TIME/LANGUAGE:
+            - All timestamps MUST be ISO-8601 with offset (target timezone: {request.Timezone}).
 
-        FULL AUTOMATION:
-        - Automatically generate: unique title, plausible location (following the GEOGRAPHY POLICY), and crime type appropriate to difficulty.
-        - The title must be specific and compelling (e.g.: "Disappearance at the Shopping Center", "Fraud Inside a Fintech Startup").
-        - The location MAY be ABSTRACT (without city/state) when it makes sense; if using a real city, restrict to city/state name only (no addresses).
-        - Crime type must match the level (Rookie: simple theft; Commander: complex organized crimes).
-        - Align ALL elements to the difficulty profile.
+            EXPANSION READINESS (NON-NEGOTIABLE):
+            - mainElements[] must already anticipate the minimum entities that will exist later (e.g., ""witness statement"", ""key control log"", ""CCTV collage"", ""receipt"", etc.).
+            - goldenTruth.facts must be verifiable by at least two heterogeneous later items (documents/media), without revealing any culprit.
+            - learningObjectives must be concrete, observable, and testable during gameplay.
 
-        IMPORTANT: Vary crime types, locations and contexts across generations—avoid repetition.
-        """;
+            OUTPUT: ONLY valid JSON conforming to the Plan schema. No comments or extra text.";
 
-        var userPrompt = $"""
-        Generate a FULLY AUTOMATED PLAN for a new investigative case.
 
-        MINIMAL INPUT:
-        - Difficulty level: {actualDifficulty}
-        - Generate images (metadata only, DO NOT generate now): {request.GenerateImages}
-        - Preferred timezone for timestamps: {request.Timezone}
+        var userPrompt = $@"
+            Generate a FULLY AUTOMATED PLAN for a new investigative case.
 
-        LOCATION & NAMING POLICY:
-        - DO NOT use real street names, address numbers, coordinates, or real brands/companies.
-        - Location may be ABSTRACT (e.g.: "residential street", "neighborhood store", "logistics warehouse", "shopping center").
-        - If absolutely necessary to cite a city, restrict to city/state only (no neighborhood/street details).
+            INPUT:
+            - Difficulty: {actualDifficulty}
+            - Generate images (metadata only): {request.GenerateImages}
+            - Timezone for timestamps: {request.Timezone}
 
-        AUTOMATICALLY PRODUCE (follow the Plan schema):
-        - Unique caseId
-        - Specific and compelling title (Portuguese)
-        - Plausible location (may be abstract; if city used, only city/state)
-        - incidentType appropriate to the difficulty
-        - Engaging overview (Portuguese)
-        - learningObjectives[] aligned with the difficulty level
-        - mainElements[] that will drive later development
-        - estimatedDuration (based on difficulty profile)
-        - timeline[] with canonical events in **ISO-8601 with offset** (target timezone: {request.Timezone})
-        - minDetectiveRank = {requestedDiff}
-        - profileApplied: numeric ranges actually applied (suspects, documents, evidences, gatingSteps, falseLeads, interpretiveComplexity)
-        - goldenTruth.facts with **minSupports ≥ 2** (DO NOT reveal culprit or solution)
+            MANDATORY CONTENT (Plan schema only):
+            - Unique caseId, strong specific title, plausible abstract location, incidentType coherent with difficulty
+            - overview that sets clear investigative scope (no solution)
+            - learningObjectives[] directly tied to actions the player will perform
+            - mainElements[] that pre-declare the core sources to be expanded (witness statements, logs, receipts, cctv snapshot collage, forensics inspection, etc.)
+            - estimatedDuration aligned with difficulty
+            - timeline[] canonical events with ISO-8601 + offset (use {request.Timezone})
+            - minDetectiveRank = {requestedDiff}
+            - profileApplied with numeric ranges actually used
+            - goldenTruth.facts with minSupports ≥ 2 and heterogeneous sources (do not reveal culprit/solution)
 
-        VARIATION:
-        - Vary among crime types (theft, fraud, disappearance, homicide, kidnapping, cybercrime, etc.) according to difficulty.
-        - ALL elements must adapt to the profile (quantity of suspects, documents, evidences, gating chains, false leads, interpretive complexity).
+            CONSISTENCY RULES:
+            - Names/roles introduced here must remain verbatim in later stages (Expand/Design).
+            - Do not include any information that would later require real addresses/brands.
+            - Avoid over-specifying details that would conflict with the difficulty (e.g., no advanced forensics on Rookie).
 
-        OUTPUT FORMAT:
-        - **ONLY JSON** valid according to the **Plan schema** (no comments, no extra text).
-        """;
+            OUTPUT FORMAT:
+            - ONLY JSON valid by the **Plan** schema (no comments).";
 
         var jsonSchema = _schemaProvider.GetSchema("Plan");
         return await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
@@ -139,65 +128,55 @@ public class CaseGenerationService : ICaseGenerationService
 
         _logger.LogInformation("EXPAND: Building detailed case from plan with difficulty={Difficulty}", difficulty);
 
-        var systemPrompt = $"""
+        var systemPrompt = $@"
             You are a specialist in developing investigative COLD CASES. Expand the initial plan
-            by creating fully detailed structures based on the specific DIFFICULTY PROFILE.
-            
+            into a coherent, contradiction-free structure strictly bound to the DIFFICULTY PROFILE.
+
             DIFFICULTY PROFILE: {difficulty}
             Description: {difficultyProfile.Description}
-            
-            EXPANSION GUIDELINES:
-            - Suspects: {difficultyProfile.Suspects.Min}-{difficultyProfile.Suspects.Max} (vary profiles, motives, alibis)
-            - Evidence items: {difficultyProfile.Evidences.Min}-{difficultyProfile.Evidences.Max} (physical, digital, testimonial)
-            - False leads: {difficultyProfile.RedHerrings} (subtle red herrings appropriate to the level)
+
+            EXPANSION HARD LIMITS:
+            - Suspects: {difficultyProfile.Suspects.Min}-{difficultyProfile.Suspects.Max}
+            - Evidence items: {difficultyProfile.Evidences.Min}-{difficultyProfile.Evidences.Max} (physical/digital/testimonial)
+            - False leads: {difficultyProfile.RedHerrings} (subtle and plausible)
             - Forensics complexity: {difficultyProfile.ForensicsComplexity}
             - Complexity factors: {string.Join(", ", difficultyProfile.ComplexityFactors)}
-            
-            COMPLEXITY BY LEVEL:
-            - Rookie / Detective: Direct evidence, clear motives, linear chronology
-            - Detective2 / Sergeant: Correlations across sources, cross-analysis, some gated elements
-            - Lieutenant / Captain: Specialized analyses, dependencies across evidences, deeper inferences
-            - Commander: Global connections, serial patterns, high‑tech evidence
-            """;
 
-        var userPrompt = $"""
-            Expand this case plan into full detailed content appropriate to the difficulty level:
-            
+            LEVEL GUIDANCE:
+            - Rookie/Detective: linear chronology, direct indicators, modest ambiguity
+            - Detective2/Sergeant+: cross-correlations, some gating prerequisites
+            - Lieutenant/Captain/Commander: specialized analyses, layered dependencies
+
+            STRICT CONSISTENCY:
+            - Reuse names/roles introduced in Plan verbatim; DO NOT invent new real-world brands/addresses.
+            - All timestamps MUST be ISO-8601 with offset.
+            - Every evidence/witness/suspect introduced here must be usable later in Design (docs or media).";
+
+        var userPrompt = $@"
+            Expand the following plan into detailed content honoring the difficulty and remaining expansion-ready:
+
             {planJson}
-            
-            DETAILED EXPANSION MUST INCLUDE:
-            
-            1. SUSPECTS (driven by difficulty profile):
-            - Varied profiles with detailed backgrounds
-            - Convincing motives proportional to the level
-            - Alibis whose solidity varies with difficulty
-            - Connections/relationships between suspects (for higher levels)
-            
-            2. EVIDENCE (quantity and complexity by level):
-            - Primary and secondary physical evidence
-            - Digital evidence (increases with difficulty)
-            - Testimonial evidence with varying reliability
-            - For higher levels: items requiring specialized analysis
-            
-            3. DETAILED TIMELINE:
-            - Linear for lower levels
-            - Multiple layered threads for mid/high levels
-            - Events with precise ISO-8601 timestamps
-            - Temporal connections linking evidence pieces
-            
-            4. WITNESSES:
-            - Count appropriate to level
-            - Variable reliability
-            - Statements with specific, concrete details
-            - For higher levels: experts / specialists
-            
-            5. SPECIFIC LOCATIONS:
-            - Relevant forensic details
-            - Evidence collection points
-            - Routes and access paths (important for higher levels)
-            
-            Adapt narrative, technical and investigative complexity to the specified profile.
-            """;
+
+            YOU MUST DELIVER (within the Expand schema only):
+            1) SUSPECTS:
+            - Distinct backgrounds/motives/alibis proportional to difficulty
+            - Keep names/roles stable (verbatim from Plan if present)
+            2) EVIDENCE:
+            - Physical, digital, and testimonial items
+            - Each item must be precisely described so it can later become a document or media item (no vague items)
+            3) TIMELINE:
+            - Coherent, ISO-8601 with offset; link key events to suspects/witnesses/evidence when applicable
+            4) WITNESSES:
+            - Add statements with specificity and reliability ratings aligned to difficulty
+            5) LOCATIONS:
+            - Abstract or City/State only (no real addresses/brands)
+
+            CROSS-STAGE GUARANTEES (NO EXCEPTIONS):
+            - Every suspect OR witness must be representable later by at least one document (interview/witness_statement/memo).
+            - Every evidence item here will later appear either as a mediaSpec (photo/document_scan/diagram) or be cited in at least one generated document.
+            - Do NOT introduce content that cannot be legally/realistically depicted later.
+
+            OUTPUT: ONLY valid JSON conforming to the Expand schema.";
 
         var jsonSchema = _schemaProvider.GetSchema("Expand");
 
@@ -231,76 +210,67 @@ public class CaseGenerationService : ICaseGenerationService
         var minMedia = Math.Max(2, minEvid);
         var maxMedia = Math.Max(minMedia, maxEvid);
 
-        var systemPrompt = """
-            Você é um designer de casos investigativos. Converta o plano e a expansão
-            em especificações estruturadas para geração paralela de documentos e mídias.
+        var systemPrompt = @"
+            You are an investigative case designer. Convert the plan and the expansion
+            into structured specifications for parallel generation of documents and media.
 
-            IMPORTANTE:
-            - Saída APENAS JSON válido no schema DocumentAndMediaSpecs.
-            - NÃO adicione explicações, comentários ou texto extra.
-            - Marque documentos sensíveis com "gated": true e inclua "gatingRule" como objeto { action, evidenceId?, notes? }.
-            - Para laudos periciais, inclua seção "Cadeia de Custódia".
+            IMPORTANT (JSON ONLY conforming to the DocumentAndMediaSpecs schema):
+            - No explanations or comments outside the JSON.
+            - Mark sensitive documents with ""gated"": true and include ""gatingRule"" { action, evidenceId?, notes? }.
+            - Forensic reports MUST contain the ""Cadeia de Custódia"" (Chain of Custody) section.
+            - Do not invent real addresses or real brands/companies (use abstract locations or City/State).
+            - Allowed document types: police_report, interview, memo_admin, forensics_report, evidence_log, witness_statement
+            - Allowed media types: photo, document_scan, diagram (audio/video => deferred=true)
 
-            POLÍTICA DE LOCALIZAÇÃO/NOMES:
-            - Não invente endereços reais; mantenha locais abstratos ou cidade/UF apenas.
-            - Não use marcas/empresas reais; use nomes fictícios plausíveis.
+            MANDATORY CONSISTENCY:
+            - Names (suspects/witnesses) and evidence must match 1:1 with Expand (same text/semantics).
+            - Every suspect from Expand must have at least 1 document (interview, witness_statement or memo_admin).
+            - Every witness from Expand must have at least 1 witness_statement.
+            - Every evidence item from Expand must appear in mediaSpecs (scan/photo/diagram) OR be referenced by ID in at least one document.
+            - IDs (docId/evidenceId) must be unique, stable, and mutually coherent.";
 
-            Tipos de documento permitidos:
-            - police_report, interview, memo_admin, forensics_report, evidence_log, witness_statement
+        var userPrompt = $@"
+            Transform this case into structured specifications.
 
-            Tipos de mídia permitidos:
-            - photo, document_scan, diagram (suportados agora)
-            - audio, video (DEVEM ter deferred=true - não suportados ainda)
-            """;
+            Difficulty: {difficulty ?? planDifficulty}
 
-        var userPrompt = $"""
-            Transforme este caso em especificações estruturadas.
-
-            Dificuldade: {difficulty ?? planDifficulty}
-
-            CONTEXTO DO PLANO:
+            PLAN CONTEXT:
             {planJson}
 
-            CONTEXTO EXPANDIDO:
+            EXPANDED CONTEXT:
             {expandedJson}
 
-            REGRAS DE QUANTIDADE (dinâmicas por perfil do plano):
-            - Documentos: {minDocs}-{maxDocs}
-            - Itens de mídia (evidence): {minMedia}-{maxMedia}
-            - Documentos gated: exatamente {gatedDocsCount} (se > 0, DEVEM ser do tipo forensics_report)
+            QUANTITY RULES (from difficulty profile):
+            - Documents: {minDocs}-{maxDocs}
+            - Media items: {minMedia}-{maxMedia}
+            - Gated documents: exactly {gatedDocsCount} {(gatedDocsCount > 0 ? "(forensics_report required)" : "(gated usage forbidden)")}
 
-            POLÍTICA DE LOCALIZAÇÃO/NOMES:
-            - Não usar endereços reais (rua/número/coordenadas) ou marcas/empresas reais.
-            - Locais podem ser abstratos ou, se necessário, apenas cidade/UF.
+            MINIMUM COVERAGE (NON-NEGOTIABLE):
+            - Include at least 1 evidence_log and 1 police_report.
+            - For EACH suspect from Expand: >=1 document (interview, witness_statement OR memo_admin).
+            - For EACH witness from Expand: >=1 witness_statement.
+            - For EACH evidence from Expand: create a corresponding mediaSpec OR explicitly reference the evidence in document(s).
 
-            REGRAS ESPECÍFICAS PARA GATED:
-            {(gatedDocsCount > 0 ? $@"- Exatamente {gatedDocsCount} documento(s) do tipo forensics_report com ""gated"": true.
-            - Cada documento gated DEVE conter ""gatingRule"" como objeto: {{ ""action"": ""requires_evidence"" ou ""submit_evidence"", ""evidenceId"": ""<id>"" }}.
-            - O ""evidenceId"" referenciado em cada gatingRule DEVE existir em mediaSpecs[*].evidenceId.
-            - Cada laudo gated deve incluir a seção ""Cadeia de Custódia"" nas sections."
-            : @"- PROIBIDO usar ""gated"": true para QUALQUER documento neste nível.
-            - TODOS os documentos DEVEM ter ""gated"": false.
-            - NÃO inclua o campo ""gatingRule"" em NENHUM documento.")}
+            SPECIFIC RULES:
+            {(gatedDocsCount > 0 ? @"- Exactly the indicated number of forensics_report with ""gated"": true.
+            - Each ""gatingRule"" must be {{ ""action"": ""requires_evidence"" | ""submit_evidence"", ""evidenceId"": ""<id-existing-in-mediaSpecs>"" }}.
+            - Forensic reports (including gated) must contain the ""Chain of Custody"" section." :
+            @"- It is forbidden to use ""gated"": true at this level; do not include ""gatingRule"".
+            - Forensic reports must still contain the ""Chain of Custody"" section.")}
 
-            REQUISITOS DE DOCUMENTOS:
-            - Para cada documento, gerar: docId único (ex.: ""doc_<slug>_<nnn>""), type, title, sections[], lengthTarget[min,max], gated (bool).
-            - Incluir pelo menos 1 evidence_log e 1 police_report.
-            - Tipos permitidos: police_report, interview, memo_admin, forensics_report, evidence_log, witness_statement.
-            - Se type == forensics_report, incluir a seção ""Cadeia de Custódia"" nas sections (mesmo quando não-gated).
+            DOCUMENT REQUIREMENTS:
+            - For each document: docId (""doc_<slug>_<nnn>""), type, title, sections[], lengthTarget[min,max], gated (bool)
+            - If type == forensics_report, include ""Chain of Custody"" in sections
+            - Reference evidence by evidenceId when relevant; do not reveal the solution
 
-            REQUISITOS DE MÍDIA:
-            - mediaSpecs: evidenceId único (ex.: ""ev_<slug>_<nnn>""), kind (photo/document_scan/diagram/audio/video), title, prompt, constraints (OBJETO), deferred (bool).
-            - audio e video DEVEM ter deferred=true (a geração desses tipos ainda não é suportada).
-            - constraints deve ser um OBJETO com chaves/valores simples (ex.: ""iluminacao"": ""raking"", ""escala"": true).
+            MEDIA REQUIREMENTS:
+            - For each media item: evidenceId (""ev_<slug>_<nnn>""), kind (photo/document_scan/diagram), title, prompt, constraints (OBJECT), deferred (bool)
+            - audio/video: deferred=true
+            - constraints must be a simple object (e.g. ""lighting"": ""raking"", ""scale"": true)
 
-            CONFORMIDADE DE SCHEMA (OBRIGATÓRIO):
-            - Saída APENAS em JSON válido conforme **DocumentAndMediaSpecs**.
-            - NÃO incluir campos fora do schema (sem i18nKey, sem extras).
-            - IDs (docId/evidenceId) devem ser únicos e consistentes.
-            - Quando gated=false, NÃO incluir o campo ""gatingRule"".
-
-            Saída: **APENAS JSON** válido conforme **DocumentAndMediaSpecs** (sem comentários nem texto extra).
-            """;
+            SCHEMA COMPLIANCE:
+            - Output ONLY valid JSON conforming to **DocumentAndMediaSpecs**.
+            - Do not add fields outside the schema; unique IDs; names/evidence faithful to Expand.";
 
         var jsonSchema = _schemaProvider.GetSchema("DocumentAndMediaSpecs");
         const int maxRetries = 3;
@@ -346,72 +316,72 @@ public class CaseGenerationService : ICaseGenerationService
         string typeDirectives = spec.Type.ToLowerInvariant() switch
         {
             "police_report" => """
-        FORMATO (Markdown dentro de 'content'):
-        - Cabeçalho: Número do B.O., Data/Hora (ISO-8601 com offset), Unidade/Agente responsável.
-        - Resumo do incidente (objetivo).
-        - Seções solicitadas (use títulos H2: ##).
-        - Listas em bullet quando apropriado.
+        FORMAT (Markdown inside 'content'):
+        - Header: Report Number, Date/Time (ISO-8601 with offset), Unit / Responsible Officer.
+        - Objective incident summary.
+        - Requested sections (use H2 headings: ##).
+        - Bullet lists when appropriate.
         """,
             "interview" => """
-        FORMATO (Markdown dentro de 'content'):
-        - Transcrição limpa da entrevista (sem observações/juízo do entrevistador).
-        - Rotule falas: **Entrevistador:** / **Entrevistado(a):**.
-        - Timestamps opcionais em colchetes quando natural (ex.: [00:05]).
-        - Perguntas e respostas objetivas; sem inferir culpabilidade.
+        FORMAT (Markdown inside 'content'):
+        - Clean transcript (no interviewer opinions/judgment).
+        - Label lines: **Interviewer:** / **Interviewee:**.
+        - Optional timestamps in brackets when natural (e.g., [00:05]).
+        - Objective Q&A; do not infer guilt.
         """,
             "memo_admin" => """
-        FORMATO (Markdown dentro de 'content'):
-        - Cabeçalho: Para / De / Assunto / Data.
-        - Tom burocrático conciso; bullets para ações.
-        - Referencie documentos/evidências por ID quando existir.
+        FORMAT (Markdown inside 'content'):
+        - Header: To / From / Subject / Date.
+        - Concise bureaucratic tone; use bullets for action items.
+        - Reference documents/evidence by ID when available.
         """,
             "forensics_report" => """
-        FORMATO (Markdown dentro de 'content'):
-        - Cabeçalho: Laboratório/Perito/Data/Hora (ISO-8601 com offset).
-        - Metodologia (procedimentos), Resultados, Interpretação/Limitações.
-        - **Cadeia de Custódia** (obrigatória) com eventos em ordem temporal.
-        - Referencie evidenceId/docId pertinentes (sem revelar solução).
+        FORMAT (Markdown inside 'content'):
+        - Header: Laboratory / Examiner / Date / Time (ISO-8601 with offset).
+        - Methodology (procedures), Results, Interpretation / Limitations.
+        - **Chain of Custody** (mandatory) with events in temporal order.
+        - Reference relevant evidenceId/docId (do not reveal solution).
         """,
             "evidence_log" => """
-        FORMATO (Markdown dentro de 'content'):
-        - Tabela: ItemId | Coleta em | Coletado por | Descrição | Armazenamento | Transferências.
-        - Observações breves por item.
+        FORMAT (Markdown inside 'content'):
+        - Table: ItemId | Collected At | Collected By | Description | Storage | Transfers.
+        - Brief notes per item.
         """,
             "witness_statement" => """
-        FORMATO (Markdown dentro de 'content'):
-        - Declaração em 1ª pessoa, objetiva, sem especular culpado(a).
-        - Data/Hora (ISO-8601 com offset) e identificação fictícia resumida.
+        FORMAT (Markdown inside 'content'):
+        - First-person statement, objective, no speculation about perpetrator.
+        - Date/Time (ISO-8601 with offset) and brief fictitious identification.
         """,
-            _ => "FORMATO: use as seções solicitadas; texto objetivo, documental."
+            _ => "FORMAT: use the requested sections; objective, documentary text."
         };
 
         // Diretrizes por dificuldade (corrigido "Cruze")
         string difficultyDirectives = difficulty switch
         {
             "Rookie" or "Iniciante" => """
-        PERFIL DE DIFICULDADE:
-        - Vocabulário simples e direto; pouca ambiguidade.
-        - Cronologia linear e relações explícitas.
-        - Mire próximo do mínimo em lengthTarget.
+        DIFFICULTY PROFILE:
+        - Simple, direct vocabulary; low ambiguity.
+        - Linear chronology and explicit relationships.
+        - Aim near the minimum of lengthTarget.
         """,
             "Detective" or "Detective2" => """
-        PERFIL DE DIFICULDADE:
-        - Vocabulário moderado; algum jargão com contexto.
-        - Introduza ambiguidades plausíveis e checagens cruzadas leves.
-        - Mire o meio da faixa de lengthTarget.
+        DIFFICULTY PROFILE:
+        - Moderate vocabulary; some jargon with context.
+        - Introduce plausible ambiguities and light cross-checks.
+        - Aim for the middle of the lengthTarget range.
         """,
             "Sergeant" or "Lieutenant" => """
-        PERFIL DE DIFICULDADE:
-        - Tom técnico quando pertinente; correlações entre fontes.
-        - Ambiguidades reais (sem revelar solução); cite horários e IDs.
-        - Mire o topo da faixa de lengthTarget.
+        DIFFICULTY PROFILE:
+        - Technical tone when relevant; correlations across sources.
+        - Realistic ambiguities (without revealing solution); cite times and IDs.
+        - Aim at the top of the lengthTarget range.
         """,
             _ /* Captain/Commander */ => """
-        PERFIL DE DIFICULDADE:
-        - Linguagem técnica; inferências especializadas.
-        - Ambiguidade controlada, hipóteses concorrentes.
-        - Cruze múltiplas fontes; mencione limitações de método.
-        - Use perto do máximo do lengthTarget.
+        DIFFICULTY PROFILE:
+        - Technical language; specialized inferences.
+        - Controlled ambiguity, competing hypotheses.
+        - Cross multiple sources; mention methodological limitations.
+        - Use near the maximum of lengthTarget.
         """
         };
 
@@ -419,59 +389,57 @@ public class CaseGenerationService : ICaseGenerationService
         var planCtx = planJson ?? "{}";
         var expandCtx = expandJson ?? "{}";
 
-        var systemPrompt = """
-            Você é um redator técnico policial/pericial. Gere **APENAS JSON** com o corpo do documento.
-            Regras gerais:
-            - Jamais revele a solução/culpado(a).
-            - Mantenha consistência com o contexto do caso (Plan/Expand/Design).
-            - Cumpra exatamente as seções e o intervalo de palavras solicitado (lengthTarget).
-            - Se o documento for laudo pericial, inclua "Cadeia de Custódia" (obrigatória).
-            - Use timestamps ISO-8601 com offset quando citar horários.
-            - Nada fora de JSON.
+        var systemPrompt = @"
+            You are a police / forensic technical writer. Generate ONLY JSON containing the document body.
 
-            OUTPUT JSON (obrigatório):
+            GENERAL RULES (MANDATORY):
+            - Never reveal the solution or culprit.
+            - Maintain consistency with Plan / Expand / Design.
+            - Follow exactly the provided sections and the word count range (lengthTarget).
+            - Use ISO-8601 timestamps with offset whenever citing times.
+            - If type == forensics_report, include the ""Chain of Custody"" section.
+            - Whenever citing evidence, reference existing evidenceId/docId (do not invent).
+
+            OUTPUT JSON:
             {
-            "docId": "string",
-            "type": "string",
-            "title": "string",
-            "words": number,
-            "sections": [
-                { "title": "string", "content": "markdown" }
-            ]
-            }
-            """;
+            ""docId"": ""string"",
+            ""type"": ""string"",
+            ""title"": ""string"",
+            ""words"": number,
+            ""sections"": [ { ""title"": ""string"", ""content"": ""markdown"" } ]
+            }";
 
-        var userPrompt = $"""
-            CONTEXTO — DESIGN (resumo):
+        var userPrompt = $@"
+            CONTEXT — DESIGN:
             {designCtx}
 
-            CONTEXTO — PLAN (resumo):
+            CONTEXT — PLAN:
             {planCtx}
 
-            CONTEXTO — EXPAND (resumo):
+            CONTEXT — EXPAND:
             {expandCtx}
 
-            DOCUMENTO A GERAR:
+            DOCUMENT TO GENERATE:
             - docId: {spec.DocId}
             - type: {spec.Type}
             - title: {spec.Title}
-            - sections (ordem): {string.Join(", ", spec.Sections)}
-            - lengthTarget: {spec.LengthTarget[0]}–{spec.LengthTarget[1]} palavras
+            - sections (order): {string.Join(", ", spec.Sections)}
+            - lengthTarget: {spec.LengthTarget[0]}–{spec.LengthTarget[1]} words
             - gated: {spec.Gated}
 
-            DIRETIVAS POR TIPO:
+            TYPE DIRECTIVES:
             {typeDirectives}
 
-            DIRETIVAS POR DIFICULDADE ({difficulty}):
+            DIFFICULTY DIRECTIVES ({difficulty}):
             {difficultyDirectives}
 
-            Restrições adicionais:
-            - Se citar pessoas, locais, evidências: use somente as definidas em Expand/Design.
-            - **Não mencione gating/autorização no conteúdo** (o bloqueio é metadado do jogo).
-            - Evite PII real, marcas e endereços reais (use nomes fictícios/locais abstratos).
+            ANTI-INVENTION (MANDATORY):
+            - People/locations/evidence: only those defined in Expand/Design.
+            - If mentioning evidence, use existing evidenceId (do not create new ones).
+            - Do not mention gating in the content (gating is game metadata).
+            - No real PII, brands, or real addresses.
 
-            Saída: **APENAS o JSON** na estrutura especificada, sem comentários ou texto extra.
-            """;
+            Output: **ONLY JSON** in the specified structure (no comments).";
 
         var json = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
 
@@ -509,7 +477,7 @@ public class CaseGenerationService : ICaseGenerationService
     {
         _logger.LogInformation("Gen Media[{EvidenceId}] kind={Kind} title={Title}", spec.EvidenceId, spec.Kind, spec.Title);
 
-        var systemPrompt = """
+        var systemPrompt = @"
             You are a generator of FORENSIC specifications for static media.
             Output: ONLY valid JSON with { evidenceId, kind, title, prompt, constraints }.
 
@@ -543,10 +511,9 @@ public class CaseGenerationService : ICaseGenerationService
             - Do not repeat the rules as generic text; convert them into parameters.
             - Do not return Markdown, comments, or extra fields.
 
-            Mentally validate the checklist before responding. Output: JSON only.
-            """;
+            Mentally validate the checklist before responding. Output: JSON only.";
 
-        var userPrompt = $"""
+        var userPrompt = $@"
             CONTEXT (structured summary of design / relevant documents, do not describe everything: only what is necessary)
             {designJson}
 
@@ -573,8 +540,7 @@ public class CaseGenerationService : ICaseGenerationService
             - If kind=cftv_frame: timestamp overlay “YYYY-MM-DD HH:MM:SS” in top-right corner; label “CAM-03”.
             - Do not use measurement ruler.
             - 100% fictitious content. Forbid real names, brands/logos, faces/biometrics, real license plates, official badges.
-            - Return ONLY valid JSON.
-            """;
+            - Return ONLY valid JSON.";
 
         var json = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
 
@@ -750,7 +716,7 @@ public class CaseGenerationService : ICaseGenerationService
     {
         return await _pdfRenderingService.GenerateTestPdfAsync(title, markdownContent, documentType, cancellationToken);
     }
-    
+
     // Public method for testing image generation
     public async Task<string> GenerateTestImageAsync(MediaSpec spec, string caseId, CancellationToken cancellationToken = default)
     {

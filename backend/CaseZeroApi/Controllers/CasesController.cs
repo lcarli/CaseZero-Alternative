@@ -17,17 +17,20 @@ namespace CaseZeroApi.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ICaseObjectService _caseObjectService;
         private readonly ICaseAccessService _caseAccessService;
+        private readonly ICaseFormatService _caseFormatService;
         private readonly ILogger<CasesController> _logger;
 
         public CasesController(
             ApplicationDbContext context, 
             ICaseObjectService caseObjectService,
             ICaseAccessService caseAccessService,
+            ICaseFormatService caseFormatService,
             ILogger<CasesController> logger)
         {
             _context = context;
             _caseObjectService = caseObjectService;
             _caseAccessService = caseAccessService;
+            _caseFormatService = caseFormatService;
             _logger = logger;
         }
 
@@ -479,6 +482,134 @@ namespace CaseZeroApi.Controllers
             };
 
             return Ok(dashboard);
+        }
+
+        /// <summary>
+        /// Convert a normalized case bundle (from CaseGen) to game format
+        /// </summary>
+        /// <param name="id">Case ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Case object in game-consumable format</returns>
+        [HttpGet("{id}/formats/game")]
+        public async Task<IActionResult> GetGameFormat(string id, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized();
+                }
+
+                // Check if user has access to this case
+                var availableCases = await _caseAccessService.GetAvailableCasesForUserAsync(userId);
+                if (!availableCases.Contains(id))
+                {
+                    return Forbid("Access denied to this case");
+                }
+
+                // For now, we'll need to implement a way to retrieve the normalized case bundle
+                // This could be from a storage service, database, or external API
+                // TODO: Implement normalized bundle retrieval
+                
+                // Example implementation (you'll need to replace this with actual data retrieval):
+                var normalizedBundleJson = await GetNormalizedCaseBundleAsync(id, cancellationToken);
+                
+                if (string.IsNullOrEmpty(normalizedBundleJson))
+                {
+                    return NotFound($"Normalized case bundle not found for case {id}");
+                }
+
+                // Validate the bundle format
+                var validationResult = await _caseFormatService.ValidateForGameFormatAsync(normalizedBundleJson, cancellationToken);
+                if (!validationResult.IsValid)
+                {
+                    _logger.LogWarning("Case bundle validation failed for {CaseId}: {Issues}", 
+                        id, string.Join(", ", validationResult.Issues));
+                    
+                    return BadRequest(new 
+                    { 
+                        error = "Case bundle format is invalid", 
+                        issues = validationResult.Issues,
+                        warnings = validationResult.Warnings
+                    });
+                }
+
+                // Convert to game format
+                var gameFormatCase = await _caseFormatService.ConvertToGameFormatAsync(normalizedBundleJson, cancellationToken);
+                
+                _logger.LogInformation("Successfully converted case {CaseId} to game format", id);
+                return Ok(gameFormatCase);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogError(ex, "Invalid case format for case {CaseId}", id);
+                return BadRequest(new { error = "Invalid case format", details = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error converting case {CaseId} to game format", id);
+                return StatusCode(500, new { error = "Internal server error during format conversion" });
+            }
+        }
+
+        /// <summary>
+        /// Validate a normalized case bundle for game format compatibility
+        /// </summary>
+        /// <param name="id">Case ID</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Validation result</returns>
+        [HttpGet("{id}/formats/game/validate")]
+        public async Task<IActionResult> ValidateGameFormat(string id, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized();
+                }
+
+                // Check if user has access to this case
+                var availableCases = await _caseAccessService.GetAvailableCasesForUserAsync(userId);
+                if (!availableCases.Contains(id))
+                {
+                    return Forbid("Access denied to this case");
+                }
+
+                var normalizedBundleJson = await GetNormalizedCaseBundleAsync(id, cancellationToken);
+                
+                if (string.IsNullOrEmpty(normalizedBundleJson))
+                {
+                    return NotFound($"Normalized case bundle not found for case {id}");
+                }
+
+                var validationResult = await _caseFormatService.ValidateForGameFormatAsync(normalizedBundleJson, cancellationToken);
+                
+                return Ok(validationResult);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating case {CaseId} for game format", id);
+                return StatusCode(500, new { error = "Internal server error during validation" });
+            }
+        }
+
+        /// <summary>
+        /// Placeholder method to retrieve normalized case bundle
+        /// TODO: Implement actual data retrieval from storage/database/external service
+        /// </summary>
+        private async Task<string> GetNormalizedCaseBundleAsync(string caseId, CancellationToken cancellationToken)
+        {
+            // TODO: Implement actual retrieval logic
+            // This could involve:
+            // 1. Querying a database for stored normalized bundles
+            // 2. Calling CaseGen.Functions API to get the case
+            // 3. Reading from blob storage
+            // 4. Calling an external service
+            
+            _logger.LogWarning("GetNormalizedCaseBundleAsync not implemented - returning empty string for case {CaseId}", caseId);
+            return await Task.FromResult(string.Empty);
         }
 
         private static CaseStatus DetermineCaseStatus(CaseSession? lastSession, CaseProgress? caseProgress)
