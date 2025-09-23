@@ -8,11 +8,11 @@
       "items": {
         "type": "object",
         "properties": {
-          "name": { "type": "string" },
-          "role": { "type": "string" },
-          "motive": { "type": "string" },
-          "alibi": { "type": "string" },
-          "background": { "type": "string" }
+          "name": { "type": "string", "description": "Suspect's name" },
+          "role": { "type": "string", "description": "Suspect's role or relationship to the case" },
+          "motive": { "type": "string", "description": "Potential motive for the crime" },
+          "alibi": { "type": "string", "description": "Suspect's alibi" },
+          "background": { "type": "string", "description": "Relevant background information" }
         }
       }
     },
@@ -21,10 +21,10 @@
       "items": {
         "type": "object",
         "properties": {
-          "type": { "type": "string" },
-          "description": { "type": "string" },
-          "location": { "type": "string" },
-          "collectedAt": { "type": "string" }
+          "type": { "type": "string", "description": "Type of evidence" },
+          "description": { "type": "string", "description": "Detailed description of the evidence" },
+          "location": { "type": "string", "description": "Where the evidence was found" },
+          "collectedAt": { "type": "string", "description": "When the evidence was collected" }
         }
       }
     },
@@ -33,11 +33,12 @@
       "items": {
         "type": "object",
         "properties": {
-          "time": { "type": "string" },
-          "event": { "type": "string" },
+          "time": { "type": "string", "description": "Time of the event" },
+          "event": { "type": "string", "description": "Description of what happened" },
           "relatedPersons": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": { "type": "string" },
+            "description": "People involved in this event"
           }
         }
       }
@@ -47,10 +48,10 @@
       "items": {
         "type": "object",
         "properties": {
-          "name": { "type": "string" },
-          "role": { "type": "string" },
-          "testimony": { "type": "string" },
-          "reliability": { "type": "string" }
+          "name": { "type": "string", "description": "Witness's name" },
+          "role": { "type": "string", "description": "Witness's role or relationship to the case" },
+          "testimony": { "type": "string", "description": "Witness testimony" },
+          "reliability": { "type": "string", "description": "Assessment of witness reliability" }
         }
       }
     }

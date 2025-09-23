@@ -84,22 +84,22 @@ public class ImagesService : IImagesService
 
         var constraintsText = spec.Constraints != null && spec.Constraints.Any()
             ? string.Join("\n", spec.Constraints.Select(kvp => $"- {kvp.Key}: {kvp.Value}"))
-            : "Nenhuma constraint específica";
+            : "No specific constraints";
 
         var imagePrompt = $"""
-            Gere uma imagem forense com base nestas especificações:
+            Generate a forensic image based on these specifications:
 
-            EVIDÊNCIA: {spec.EvidenceId}
-            TIPO: {spec.Kind}
-            TÍTULO: {spec.Title}
+            EVIDENCE: {spec.EvidenceId}
+            TYPE: {spec.Kind}
+            TITLE: {spec.Title}
             
-            ESPECIFICAÇÃO DETALHADA DA IMAGEM:
+            DETAILED IMAGE SPECIFICATION:
             {spec.Prompt}
             
-            REQUISITOS TÉCNICOS E CONSTRAINTS:
+            TECHNICAL REQUIREMENTS AND CONSTRAINTS:
             {constraintsText}
 
-            Gere uma imagem PNG/JPG de alta qualidade que atenda exatamente a todas as especificações acima para uso forense/policial.
+            Generate a high-quality PNG/JPG image that strictly satisfies all the above specifications for forensic/police use.
             """;
 
         var imageBytes = await _llmService.GenerateImageAsync(caseId, imagePrompt, cancellationToken);

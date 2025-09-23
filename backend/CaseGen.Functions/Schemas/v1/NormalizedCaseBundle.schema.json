@@ -137,7 +137,7 @@
               "sections": {
                 "contains": {
                   "type": "string",
-                  "pattern": "(?i)cadeia de cust[óo]dia"
+                  "pattern": "(?i)chain of custody|cadeia de cust[óo]dia"
                 }
               }
             }

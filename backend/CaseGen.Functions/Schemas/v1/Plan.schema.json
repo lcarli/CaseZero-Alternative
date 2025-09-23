@@ -4,44 +4,44 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "caseId": { "type": "string", "description": "Identificador único do caso" },
-    "title": { "type": "string", "description": "Título em pt-BR, específico e atraente" },
+    "caseId": { "type": "string", "description": "Unique case identifier" },
+    "title": { "type": "string", "description": "Title in Portuguese, specific and engaging" },
     "location": {
       "type": "string",
-      "description": "Local verossímil; pode ser abstrato (ex.: 'shopping center', 'galpão logístico') ou cidade/UF sem endereço"
+      "description": "Plausible location; can be abstract (e.g., 'shopping center', 'logistics warehouse') or city/state without address"
     },
-    "incidentType": { "type": "string", "description": "Tipo de crime adequado ao nível" },
+    "incidentType": { "type": "string", "description": "Type of crime appropriate to the level" },
     "difficulty": {
       "type": "string",
       "enum": ["Rookie","Detective","Detective2","Sergeant","Lieutenant","Captain","Commander"],
-      "description": "Nível de dificuldade aplicado"
+      "description": "Applied difficulty level"
     },
     "timezone": {
       "type": "string",
       "pattern": "^[A-Za-z_]+\\/[A-Za-z_]+$",
-      "description": "Zona IANA usada nos timestamps (ex.: America/Sao_Paulo)"
+      "description": "IANA timezone used in timestamps (e.g., America/Sao_Paulo)"
     },
     "estimatedDuration": {
       "type": "number",
       "minimum": 10,
-      "description": "Duração estimada em minutos"
+      "description": "Estimated duration in minutes"
     },
-    "overview": { "type": "string", "description": "Resumo envolvente do caso (pt-BR)" },
+    "overview": { "type": "string", "description": "Engaging case summary (in Portuguese)" },
     "learningObjectives": {
       "type": "array",
       "minItems": 1,
       "items": { "type": "string" },
-      "description": "Objetivos de aprendizagem alinhados ao nível"
+      "description": "Learning objectives aligned to the level"
     },
     "mainElements": {
       "type": "array",
       "minItems": 1,
       "items": { "type": "string" },
-      "description": "Elementos principais que guiarão o desenvolvimento"
+      "description": "Main elements that will guide the development"
     },
     "timeline": {
       "type": "array",
-      "description": "Eventos canônicos com timestamps ISO-8601 **com offset**",
+      "description": "Canonical events with ISO-8601 timestamps **with offset**",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -51,10 +51,10 @@
             "type": "string",
             "format": "date-time",
             "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2})$",
-            "description": "Timestamp ISO-8601 com offset (ex.: 2025-08-30T22:15:00-03:00)"
+            "description": "ISO-8601 timestamp with offset (e.g., 2025-08-30T22:15:00-03:00)"
           },
           "title": { "type": "string" },
-          "loc": { "type": "string", "description": "Local do evento; pode ser abstrato" }
+          "loc": { "type": "string", "description": "Event location; can be abstract" }
         },
         "required": ["eventId","ts","title"]
       }
@@ -62,12 +62,12 @@
     "minDetectiveRank": {
       "type": "string",
       "enum": ["Rook","Detective","Detective2","Sergeant","Lieutenant","Captain","Commander"],
-      "description": "Rank mínimo do jogador para este caso"
+      "description": "Minimum player rank for this case"
     },
     "profileApplied": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Resumo dos ranges efetivamente aplicados a partir do perfil de dificuldade",
+      "description": "Summary of ranges effectively applied from the difficulty profile",
       "properties": {
         "suspects": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
         "documents": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
@@ -81,7 +81,7 @@
     "goldenTruth": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Fatos verdadeiros selados (não revelar solução nos documentos).",
+      "description": "Sealed true facts (do not reveal solution in documents).",
       "properties": {
         "facts": {
           "type": "array",
@@ -93,13 +93,13 @@
               "id": { "type": "string" },
               "about": { "type": "string" },
               "minSupports": { "type": "integer", "minimum": 2 },
-              "heterogeneous": { "type": "boolean", "description": "Se os suportes devem vir de fontes variadas" }
+              "heterogeneous": { "type": "boolean", "description": "Whether supports should come from varied sources" }
             },
             "required": ["id","about","minSupports"]
           }
         },
         "sealed": { "type": "boolean", "default": true },
-        "hash": { "type": "string", "description": "Hash opcional do conteúdo selado" }
+        "hash": { "type": "string", "description": "Optional hash of sealed content" }
       },
       "required": ["facts"]
     }

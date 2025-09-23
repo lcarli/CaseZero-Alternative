@@ -126,7 +126,7 @@ public class PdfRenderingService : IPdfRenderingService
     {
         try
         {
-            var classification = "CONFIDENCIAL • USO INTERNO";
+            var classification = "CONFIDENTIAL • INTERNAL USE ONLY";
             var docTypeLabel = GetDocumentTypeLabel(documentType);
             var (bandBg, bandText) = GetThemeColors(documentType);
 
@@ -139,23 +139,23 @@ public class PdfRenderingService : IPdfRenderingService
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(10.5f).LineHeight(1.35f));
 
-                    // Marca d'água suave
+                    // Soft watermark
                     page.Background().Element(e => AddWatermark(e, classification));
 
-                    // Letterhead institucional
+                    // Institutional letterhead
                     page.Header().Column(headerCol =>
                     {
                         headerCol.Item().Element(h => BuildLetterhead(h, docTypeLabel, title, caseId, docId));
                         headerCol.Item().Element(h => BuildClassificationBand(h, classification));
                     });
 
-                    // Conteúdo
+                    // Content
                     page.Content().PaddingTop(8).Column(col =>
                     {
                         RenderByType(col, documentType, markdownContent, caseId, docId);
                     });
 
-                    // Rodapé com paginação e sigilo
+                    // Footer with pagination and classification
                     page.Footer().AlignCenter().Text(t =>
                     {
                         t.Span(classification).FontSize(9).FontColor(Colors.Grey.Darken2);
@@ -178,13 +178,13 @@ public class PdfRenderingService : IPdfRenderingService
     {
         return documentType.ToLower() switch
         {
-            "police_report" => "RELATÓRIO DE OCORRÊNCIA",
-            "forensics_report" => "LAUDO PERICIAL",
-            "interview" => "TRANSCRIÇÃO DE ENTREVISTA",
-            "evidence_log" => "CATÁLOGO & CADEIA DE CUSTÓDIA",
-            "memo" or "memo_admin" => "MEMORANDO INVESTIGATIVO",
-            "witness_statement" => "DECLARAÇÃO DE TESTEMUNHA",
-            _ => "DOCUMENTO INVESTIGATIVO"
+            "police_report" => "INCIDENT REPORT",
+            "forensics_report" => "FORENSIC REPORT",
+            "interview" => "INTERVIEW TRANSCRIPT",
+            "evidence_log" => "EVIDENCE CATALOG & CHAIN OF CUSTODY",
+            "memo" or "memo_admin" => "INVESTIGATIVE MEMORANDUM",
+            "witness_statement" => "WITNESS STATEMENT",
+            _ => "INVESTIGATIVE DOCUMENT"
         };
     }
 
@@ -206,11 +206,11 @@ public class PdfRenderingService : IPdfRenderingService
         {
             mainCol.Item().PaddingBottom(6).Row(row =>
         {
-            // "Brasão" genérico (sem Radius)
+            // Generic "coat of arms" (without Radius)
             row.RelativeItem(1).Column(col =>
             {
                 col.Item().Height(36).Width(36).Background(QuestPDF.Helpers.Colors.Grey.Darken2);
-                col.Item().Text("DEPARTAMENTO DE POLÍCIA MUNICIPAL")
+                col.Item().Text("MUNICIPAL POLICE DEPARTMENT")
                           .Bold().FontSize(11.5f);
             });
 
@@ -221,12 +221,12 @@ public class PdfRenderingService : IPdfRenderingService
                     col.Item().Text($"DocId: {docId}").FontSize(9.5f).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
                 if (!string.IsNullOrWhiteSpace(caseId))
                     col.Item().Text($"CaseId: {caseId}").FontSize(9.5f).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
-                col.Item().Text($"Emitido em: {DateTimeOffset.Now:yyyy-MM-dd HH:mm (zzz)}")
+                col.Item().Text($"Issued on: {DateTimeOffset.Now:yyyy-MM-dd HH:mm (zzz)}")
                           .FontSize(9.5f).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
             });
         });
 
-            // Título
+            // Title
             mainCol.Item().PaddingTop(2).Text(title).FontSize(14).Bold();
         });
     }
@@ -293,7 +293,7 @@ public class PdfRenderingService : IPdfRenderingService
     {
         if (string.IsNullOrWhiteSpace(markdownContent))
         {
-            column.Item().Text("Sem conteúdo.");
+            column.Item().Text("No content available.");
             return;
         }
 
@@ -313,7 +313,7 @@ public class PdfRenderingService : IPdfRenderingService
                 continue;
             }
 
-            // Ignore primeiro H1 (já está no letterhead)
+            // Ignore first H1 (already in letterhead)
             if (line.StartsWith("# ") && !skippedFirstH1)
             {
                 skippedFirstH1 = true;
@@ -321,7 +321,7 @@ public class PdfRenderingService : IPdfRenderingService
                 continue;
             }
 
-            // Tabela markdown
+            // Markdown table
             if (IsTableLine(line) && i + 1 < lines.Length && IsTableSeparatorLine(lines[i + 1]))
             {
                 var tableLines = new List<string> { line, lines[i + 1] };
@@ -343,7 +343,7 @@ public class PdfRenderingService : IPdfRenderingService
                 continue;
             }
 
-            // Cabeçalhos
+            // Headers
             if (line.StartsWith("## "))
             {
                 var h = line.Substring(3);
@@ -359,7 +359,7 @@ public class PdfRenderingService : IPdfRenderingService
                 continue;
             }
 
-            // Lista numerada (render simples)
+            // Numbered list (simple render)
             if (System.Text.RegularExpressions.Regex.IsMatch(line, @"^\d+\.\s+"))
             {
                 var text = System.Text.RegularExpressions.Regex.Replace(line, @"^\d+\.\s+", "");
@@ -372,7 +372,7 @@ public class PdfRenderingService : IPdfRenderingService
                 continue;
             }
 
-            // Lista com bullets
+            // Bulleted list
             if (line.StartsWith("- ") || line.StartsWith("* "))
             {
                 var text = line.Substring(2);
@@ -385,7 +385,7 @@ public class PdfRenderingService : IPdfRenderingService
                 continue;
             }
 
-            // Texto normal
+            // Normal text
             column.Item().Text(line);
             i++;
         }
@@ -419,18 +419,18 @@ public class PdfRenderingService : IPdfRenderingService
         {
             r.RelativeItem().Column(c =>
             {
-                c.Item().Text("Unidade/Agente: __________________").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
-                c.Item().Text("Contato: ________________________").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+                c.Item().Text("Unit/Agent: __________________").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+                c.Item().Text("Contact: ________________________").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
             });
             r.RelativeItem().Column(c =>
             {
-                c.Item().Text($"Nº B.O.: {(docId ?? "________")}").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
-                c.Item().Text($"Data/Hora: {DateTimeOffset.Now:yyyy-MM-dd HH:mm (zzz)}").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+                c.Item().Text($"Report No.: {(docId ?? "________")}").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+                c.Item().Text($"Date/Time: {DateTimeOffset.Now:yyyy-MM-dd HH:mm (zzz)}").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
             });
             r.RelativeItem().AlignRight().Column(c =>
             {
                 c.Item().Text($"CaseId: {(caseId ?? "________")}").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
-                c.Item().Text("Classificação: Confidencial").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+                c.Item().Text("Classification: Confidential").FontSize(9.5f).FontColor(Colors.Grey.Darken2);
             });
         });
 
@@ -443,14 +443,14 @@ public class PdfRenderingService : IPdfRenderingService
            .Text(t =>
            {
                t.DefaultTextStyle(TextStyle.Default.FontSize(9.5f).FontColor(Colors.Indigo.Darken2));
-               t.Span("Este laudo segue protocolos periciais. ");
-               t.Span("Sempre registrar cadeia de custódia ao final.").SemiBold();
+               t.Span("This report follows forensic protocols. ");
+               t.Span("Always record chain of custody at the end.").SemiBold();
            });
 
         RenderMarkdownContent(col, md);
 
         col.Item().PaddingTop(6).BorderTop(1).BorderColor(Colors.Indigo.Lighten2)
-           .Text("— Fim do Laudo / Cadeia de Custódia acima —").FontSize(9).FontColor(Colors.Grey.Darken1);
+           .Text("— End of Report / Chain of Custody above —").FontSize(9).FontColor(Colors.Grey.Darken1);
     }
 
     private void RenderInterview(ColumnDescriptor col, string md)
@@ -459,9 +459,9 @@ public class PdfRenderingService : IPdfRenderingService
            .Text(t =>
            {
                t.DefaultTextStyle(TextStyle.Default.FontSize(9.5f).FontColor(Colors.Amber.Darken3));
-               t.Span("Transcrição integral, sem comentários do entrevistador. ");
-               t.Span("Rotulagem: ").FontColor(Colors.Amber.Darken3);
-               t.Span("**Entrevistador:** / **Entrevistado(a):**").SemiBold();
+               t.Span("Complete transcript, without interviewer comments. ");
+               t.Span("Labeling: ").FontColor(Colors.Amber.Darken3);
+               t.Span("**Interviewer:** / **Interviewee:**").SemiBold();
            });
 
         RenderMarkdownContent(col, md);
@@ -473,15 +473,15 @@ public class PdfRenderingService : IPdfRenderingService
            .Text(t =>
            {
                t.DefaultTextStyle(TextStyle.Default.FontColor(Colors.Teal.Darken2));
-               t.Span("Catálogo de itens e cadeia de custódia. ");
-               t.Span("Campos: ItemId, Coleta em, Coletado por, Descrição, Armazenamento, Transferências.")
+               t.Span("Item catalog and chain of custody. ");
+               t.Span("Fields: ItemId, Collected on, Collected by, Description, Storage, Transfers.")
                 .FontSize(9.5f);
            });
 
         RenderMarkdownContent(col, md);
     }
 
-    // --- fallback: genérico ---
+    // --- fallback: generic ---
     private void RenderGeneric(ColumnDescriptor col, string md) => RenderMarkdownContent(col, md);
 
     private bool IsTableLine(string line)
@@ -506,7 +506,7 @@ public class PdfRenderingService : IPdfRenderingService
                                 .TakeWhile(_ => true)
                                 .ToArray();
 
-        // Limpa bordas vazias
+        // Clean empty borders
         headers = headers.Take(headers.Length - 1).Select(h => h.Trim()).ToArray();
         var colCount = headers.Length;
         if (colCount == 0) return;
@@ -521,7 +521,7 @@ public class PdfRenderingService : IPdfRenderingService
                     cols.RelativeColumn();
             });
 
-            // Cabeçalho
+            // Header
             table.Header(h =>
             {
                 for (int i = 0; i < colCount; i++)
@@ -532,7 +532,7 @@ public class PdfRenderingService : IPdfRenderingService
                 }
             });
 
-            // Dados
+            // Data
             foreach (var dataLine in dataLines)
             {
                 var cells = dataLine.Split('|')

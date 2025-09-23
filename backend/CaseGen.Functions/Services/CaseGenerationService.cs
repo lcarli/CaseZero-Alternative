@@ -54,74 +54,74 @@ public class CaseGenerationService : ICaseGenerationService
         _logger.LogInformation("PLAN: Auto-generating case with difficulty={Difficulty}, timezone={Timezone}, images={GenerateImages}", actualDifficulty, request.Timezone, request.GenerateImages);
 
         var systemPrompt = $"""
-        Você é um arquiteto mestre de casos investigativos (COLD CASES). Sua tarefa é criar um plano inicial COMPLETAMENTE AUTOMATIZADO
-        para um caso detetivesco baseado no perfil de dificuldade especificado. Sao casos frios que requerem uma abordagem meticulosa e detalhada.
+        You are a master architect of investigative cold cases. Your task is to create a FULLY AUTOMATED INITIAL PLAN
+        for a detective-style case based on the specified difficulty profile. These are cold cases requiring a meticulous and detailed approach.
 
-        PERFIL DE DIFICULDADE: {actualDifficulty}
-        Descrição: {difficultyProfile?.Description}
+        DIFFICULTY PROFILE: {actualDifficulty}
+        Description: {difficultyProfile?.Description}
 
-        DIRETRIZES DE COMPLEXIDADE:
-        - Suspeitos: {difficultyProfile?.Suspects.Min}-{difficultyProfile?.Suspects.Max}
-        - Documentos: {difficultyProfile?.Documents.Min}-{difficultyProfile?.Documents.Max}
-        - Evidências: {difficultyProfile?.Evidences.Min}-{difficultyProfile?.Evidences.Max}
-        - Pistas falsas: {difficultyProfile?.RedHerrings}
-        - Documentos gated: {difficultyProfile?.GatedDocuments}
-        - Complexidade forense: {difficultyProfile?.ForensicsComplexity}
-        - Fatores de complexidade: {string.Join(", ", difficultyProfile?.ComplexityFactors ?? Array.Empty<string>())}
-        - Duração estimada: {difficultyProfile?.EstimatedDurationMinutes.Min}-{difficultyProfile?.EstimatedDurationMinutes.Max} minutos
+        COMPLEXITY GUIDELINES:
+        - Suspects: {difficultyProfile?.Suspects.Min}-{difficultyProfile?.Suspects.Max}
+        - Documents: {difficultyProfile?.Documents.Min}-{difficultyProfile?.Documents.Max}
+        - Evidence items: {difficultyProfile?.Evidences.Min}-{difficultyProfile?.Evidences.Max}
+        - False leads (red herrings): {difficultyProfile?.RedHerrings}
+        - Gated documents: {difficultyProfile?.GatedDocuments}
+        - Forensics complexity: {difficultyProfile?.ForensicsComplexity}
+        - Complexity factors: {string.Join(", ", difficultyProfile?.ComplexityFactors ?? Array.Empty<string>())}
+        - Estimated duration: {difficultyProfile?.EstimatedDurationMinutes.Min}-{difficultyProfile?.EstimatedDurationMinutes.Max} minutes
 
-        POLÍTICA DE GEOGRAFIA E NOMES (verossimilhança sem dados reais sensíveis):
-        - NÃO use nomes reais de ruas, números de endereço ou coordenadas.
-        - Cidades reais só se necessário e APENAS no nível cidade/UF (sem bairros/ruas reais).
-        - É aceitável NÃO citar cidade/UF: use descrições genéricas como "rua residencial", "galpão logístico", "loja de bairro", "shopping center".
-        - Nunca use marcas/empresas reais; crie nomes fictícios plausíveis quando preciso.
+        GEOGRAPHY AND NAMING POLICY (plausibility without exposing sensitive real data):
+        - DO NOT use real street names, address numbers, or coordinates.
+        - Real cities ONLY if necessary and ONLY at city/state level (no neighborhoods / real streets).
+        - It is acceptable NOT to specify a city/state: use generic descriptions such as "residential street", "logistics warehouse", "neighborhood store", "shopping center".
+        - Never use real brands/companies; create plausible fictional names when needed.
 
-        PADRÕES DE TEMPO E LINGUAGEM:
-        - Timestamps SEMPRE em ISO-8601 com offset (timezone alvo: {request.Timezone}).
+        TIME AND LANGUAGE STANDARDS:
+        - Timestamps MUST ALWAYS be in ISO-8601 with offset (target timezone: {request.Timezone}).
 
-        AUTOMATIZAÇÃO COMPLETA:
-        - Gere automaticamente: título único, local verossímil (seguindo a POLÍTICA DE GEOGRAFIA), e tipo de crime adequado ao nível.
-        - O título deve ser específico e atraente (ex: "Desaparecimento no Shopping Center", "Fraude na Startup de Fintech")
-        - O local pode ser ABSTRATO (sem cidade/UF) quando fizer sentido; se usar cidade real, limite-se ao nome da cidade/UF (sem endereços).
-        - Tipo de crime deve ser adequado ao nível (Rookie: roubo simples; Commander: crimes organizados complexos)
-        - Adeque TODOS os elementos ao perfil de dificuldade
+        FULL AUTOMATION:
+        - Automatically generate: unique title, plausible location (following the GEOGRAPHY POLICY), and crime type appropriate to difficulty.
+        - The title must be specific and compelling (e.g.: "Disappearance at the Shopping Center", "Fraud Inside a Fintech Startup").
+        - The location MAY be ABSTRACT (without city/state) when it makes sense; if using a real city, restrict to city/state name only (no addresses).
+        - Crime type must match the level (Rookie: simple theft; Commander: complex organized crimes).
+        - Align ALL elements to the difficulty profile.
 
-        IMPORTANTE: Seja criativo e varie os tipos de crime, locais e contextos para cada geração.
+        IMPORTANT: Vary crime types, locations and contexts across generations—avoid repetition.
         """;
 
         var userPrompt = $"""
-        Crie um PLANO COMPLETAMENTE AUTOMATIZADO para um novo caso investigativo.
+        Generate a FULLY AUTOMATED PLAN for a new investigative case.
 
-        ENTRADA MÍNIMA:
-        - Nível de dificuldade: {actualDifficulty}
-        - Gerar imagens (metadado, não gerar agora): {request.GenerateImages}
-        - Timezone preferencial para timestamps: {request.Timezone}
+        MINIMAL INPUT:
+        - Difficulty level: {actualDifficulty}
+        - Generate images (metadata only, DO NOT generate now): {request.GenerateImages}
+        - Preferred timezone for timestamps: {request.Timezone}
 
-        POLÍTICA DE LOCALIZAÇÃO E NOMES:
-        - NÃO usar nomes reais de ruas, números de endereço, coordenadas ou marcas/empresas reais.
-        - O local pode ser ABSTRATO (ex.: "rua residencial", "loja de bairro", "galpão logístico", "shopping center").
-        - Se for estritamente necessário citar cidade, limite-se ao nível cidade/UF (sem bairro/rua).
+        LOCATION & NAMING POLICY:
+        - DO NOT use real street names, address numbers, coordinates, or real brands/companies.
+        - Location may be ABSTRACT (e.g.: "residential street", "neighborhood store", "logistics warehouse", "shopping center").
+        - If absolutely necessary to cite a city, restrict to city/state only (no neighborhood/street details).
 
-        GERE AUTOMATICAMENTE (siga o schema do Plan):
-        - caseId único
-        - title específico e atraente (pt-BR)
-        - location verossímil (pode ser abstrato; se usar cidade, apenas cidade/UF)
-        - incidentType adequado ao nível
-        - overview envolvente (pt-BR)
-        - learningObjectives[] alinhados ao nível
-        - mainElements[] que guiarão o desenvolvimento
-        - estimatedDuration (baseada no perfil de dificuldade)
-        - timeline[] com eventos canônicos em **ISO-8601 com offset** (timezone alvo: {request.Timezone})
+        AUTOMATICALLY PRODUCE (follow the Plan schema):
+        - Unique caseId
+        - Specific and compelling title (Portuguese)
+        - Plausible location (may be abstract; if city used, only city/state)
+        - incidentType appropriate to the difficulty
+        - Engaging overview (Portuguese)
+        - learningObjectives[] aligned with the difficulty level
+        - mainElements[] that will drive later development
+        - estimatedDuration (based on difficulty profile)
+        - timeline[] with canonical events in **ISO-8601 with offset** (target timezone: {request.Timezone})
         - minDetectiveRank = {requestedDiff}
-        - profileApplied: ranges numéricos efetivamente aplicados (suspects, documents, evidences, gatingSteps, falseLeads, interpretiveComplexity)
-        - goldenTruth.facts com **minSupports ≥ 2** (NÃO revelar culpado(a) ou solução)
+        - profileApplied: numeric ranges actually applied (suspects, documents, evidences, gatingSteps, falseLeads, interpretiveComplexity)
+        - goldenTruth.facts with **minSupports ≥ 2** (DO NOT reveal culprit or solution)
 
-        VARIAÇÃO:
-        - Varie entre tipos de crime (roubo, fraude, desaparecimento, homicídio, sequestro, crimes cibernéticos, etc.) conforme a dificuldade.
-        - Adeque **todos** os elementos ao perfil (quantidade de suspeitos, documentos, evidências, encadeamentos/gating, pistas falsas e complexidade interpretativa).
+        VARIATION:
+        - Vary among crime types (theft, fraud, disappearance, homicide, kidnapping, cybercrime, etc.) according to difficulty.
+        - ALL elements must adapt to the profile (quantity of suspects, documents, evidences, gating chains, false leads, interpretive complexity).
 
-        FORMATO DE SAÍDA:
-        - **APENAS JSON** válido conforme o **Plan schema** (sem comentários, sem texto fora do JSON).
+        OUTPUT FORMAT:
+        - **ONLY JSON** valid according to the **Plan schema** (no comments, no extra text).
         """;
 
         var jsonSchema = _schemaProvider.GetSchema("Plan");
@@ -140,63 +140,63 @@ public class CaseGenerationService : ICaseGenerationService
         _logger.LogInformation("EXPAND: Building detailed case from plan with difficulty={Difficulty}", difficulty);
 
         var systemPrompt = $"""
-            Você é um especialista em desenvolvimento de casos investigativos (COLD CASES). Expanda o plano inicial 
-            criando detalhes completos baseados no PERFIL DE DIFICULDADE específico.
+            You are a specialist in developing investigative COLD CASES. Expand the initial plan
+            by creating fully detailed structures based on the specific DIFFICULTY PROFILE.
             
-            PERFIL DE DIFICULDADE: {difficulty}
-            Descrição: {difficultyProfile.Description}
+            DIFFICULTY PROFILE: {difficulty}
+            Description: {difficultyProfile.Description}
             
-            DIRETRIZES DE EXPANSÃO:
-            - Suspeitos: {difficultyProfile.Suspects.Min}-{difficultyProfile.Suspects.Max} (varie perfis, motivos, alibis)
-            - Evidências: {difficultyProfile.Evidences.Min}-{difficultyProfile.Evidences.Max} (físicas, digitais, testemunhais)
-            - Pistas falsas: {difficultyProfile.RedHerrings} (red herrings sutis adequados ao nível)
-            - Complexidade forense: {difficultyProfile.ForensicsComplexity}
-            - Fatores: {string.Join(", ", difficultyProfile.ComplexityFactors)}
+            EXPANSION GUIDELINES:
+            - Suspects: {difficultyProfile.Suspects.Min}-{difficultyProfile.Suspects.Max} (vary profiles, motives, alibis)
+            - Evidence items: {difficultyProfile.Evidences.Min}-{difficultyProfile.Evidences.Max} (physical, digital, testimonial)
+            - False leads: {difficultyProfile.RedHerrings} (subtle red herrings appropriate to the level)
+            - Forensics complexity: {difficultyProfile.ForensicsComplexity}
+            - Complexity factors: {string.Join(", ", difficultyProfile.ComplexityFactors)}
             
-            COMPLEXIDADE POR NÍVEL:
-            - Rookie/Detective: Evidências diretas, motivos claros, cronologia linear
-            - Detective2/Sergeant: Correlações entre fontes, análises cruzadas, alguns elementos gated
-            - Lieutenant/Captain: Análises especializadas, dependências entre evidências, inferências profundas
-            - Commander: Conexões globais, casos em série, evidências de alta tecnologia
+            COMPLEXITY BY LEVEL:
+            - Rookie / Detective: Direct evidence, clear motives, linear chronology
+            - Detective2 / Sergeant: Correlations across sources, cross-analysis, some gated elements
+            - Lieutenant / Captain: Specialized analyses, dependencies across evidences, deeper inferences
+            - Commander: Global connections, serial patterns, high‑tech evidence
             """;
 
         var userPrompt = $"""
-            Expanda este plano de caso em detalhes completos adequados ao nível de dificuldade:
+            Expand this case plan into full detailed content appropriate to the difficulty level:
             
             {planJson}
             
-            EXPANSÃO DETALHADA DEVE INCLUIR:
+            DETAILED EXPANSION MUST INCLUDE:
             
-            1. SUSPEITOS (baseado no perfil de dificuldade):
-            - Perfis variados com backgrounds detalhados
-            - Motivos convincentes e proporcionais ao nível
-            - Alibis que variam em solidez conforme a dificuldade
-            - Conexões entre suspeitos (para níveis altos)
+            1. SUSPECTS (driven by difficulty profile):
+            - Varied profiles with detailed backgrounds
+            - Convincing motives proportional to the level
+            - Alibis whose solidity varies with difficulty
+            - Connections/relationships between suspects (for higher levels)
             
-            2. EVIDÊNCIAS (quantidade e complexidade por nível):
-            - Evidências físicas principais e secundárias
-            - Evidências digitais (crescente com a dificuldade)
-            - Evidências testemunhais com variação de confiabilidade
-            - Para níveis altos: evidências que exigem análise especializada
+            2. EVIDENCE (quantity and complexity by level):
+            - Primary and secondary physical evidence
+            - Digital evidence (increases with difficulty)
+            - Testimonial evidence with varying reliability
+            - For higher levels: items requiring specialized analysis
             
-            3. CRONOLOGIA DETALHADA:
-            - Linear para níveis baixos
-            - Camadas múltiplas para níveis médios/altos
-            - Eventos com timestamps precisos
-            - Conexões temporais entre evidências
+            3. DETAILED TIMELINE:
+            - Linear for lower levels
+            - Multiple layered threads for mid/high levels
+            - Events with precise ISO-8601 timestamps
+            - Temporal connections linking evidence pieces
             
-            4. TESTEMUNHAS:
-            - Número adequado ao nível
-            - Confiabilidade variável
-            - Depoimentos com detalhes específicos
-            - Para níveis altos: especialistas e peritos
+            4. WITNESSES:
+            - Count appropriate to level
+            - Variable reliability
+            - Statements with specific, concrete details
+            - For higher levels: experts / specialists
             
-            5. LOCALIZAÇÕES ESPECÍFICAS:
-            - Detalhes forenses relevantes
-            - Pontos de coleta de evidências
-            - Rotas e acessos (importante para níveis altos)
+            5. SPECIFIC LOCATIONS:
+            - Relevant forensic details
+            - Evidence collection points
+            - Routes and access paths (important for higher levels)
             
-            Adapte a complexidade narrativa, técnica e investigativa ao perfil especificado.
+            Adapt narrative, technical and investigative complexity to the specified profile.
             """;
 
         var jsonSchema = _schemaProvider.GetSchema("Expand");
@@ -510,70 +510,70 @@ public class CaseGenerationService : ICaseGenerationService
         _logger.LogInformation("Gen Media[{EvidenceId}] kind={Kind} title={Title}", spec.EvidenceId, spec.Kind, spec.Title);
 
         var systemPrompt = """
-            Você é um gerador de especificações FORENSES de mídia estática.
-            Saída: APENAS JSON válido com { evidenceId, kind, title, prompt, constraints }.
+            You are a generator of FORENSIC specifications for static media.
+            Output: ONLY valid JSON with { evidenceId, kind, title, prompt, constraints }.
 
-            DEVERES
-            - Crie um prompt operacional e mensurável para UMA imagem (não sequência).
-            - Estilo: fotografia/screenshot documental, neutro, não-artístico.
-            - Conteúdo 100% fictício. Proíba nomes reais, marcas/logos, rostos/biometrias, placas reais, distintivos oficiais.
-            - Nada gráfico ou violento. Sem crianças. Sem imagens de pessoas (quando a cena permitir).
-            - Padronize: ângulo em graus, altura/distância em metros, lente em mm, abertura f/, obturador 1/x s, ISO, WB K.
-            - Para foto pericial (objeto em superfície): use top-down 90° quando aplicável.
-            - Iluminação: difusa/ uniforme; nada de sombras duras.
+            DUTIES
+            - Create an operational and measurable prompt for ONE image (not a sequence).
+            - Style: documentary photograph/screenshot, neutral, non‑artistic.
+            - Content 100% fictitious. Forbid real names, brands/logos, faces/biometrics, real license plates, official badges.
+            - Nothing graphic or violent. No children. Avoid images of people (when the scene allows).
+            - Standardize: angle in degrees, height/distance in meters, lens in mm, aperture f/, shutter 1/x s, ISO, WB K.
+            - For forensic item photo (object on a surface): use 90° top‑down when applicable.
+            - Lighting: diffuse / even; no harsh shadows.
 
-            FORMATO OBRIGATÓRIO DOS CAMPOS
-            - prompt: texto em seções fixas e curtas, nesta ordem:
-            1) Função (1 frase)
-            2) Cena/Composição (3–5 frases; incluir % do assunto no quadro)
-            3) Ângulo & Distância (valores numéricos)
-            4) Óptica & Técnica (lente mm, f/, 1/x s, ISO, WB K, foco, DOF)
-            5) Elementos obrigatórios (marcador A/B/C, timestamp, “CAM-03”, etc.)
-            6) Negativos (lista objetiva do que NÃO pode aparecer)
-            7) Checklist de aceitação (lista de verificação acionável)
-            - constraints: objeto json contendo: angle_deg, camera_height_m ou distance_m, aspect_ratio, resolution_px, seed, deferred=false.
+            MANDATORY FIELD FORMAT
+            - prompt: text in fixed, concise sections, in this order:
+              1) Function (1 sentence)
+              2) Scene / Composition (3–5 sentences; include % of subject in frame)
+              3) Angle & Distance (numeric values)
+              4) Optics & Technique (lens mm, f/, 1/x s, ISO, WB K, focus, DOF)
+              5) Mandatory elements (marker A/B/C, timestamp, “CAM-03”, etc.)
+              6) Negatives (objective list of what MUST NOT appear)
+              7) Acceptance checklist (actionable verification list)
+            - constraints: JSON object containing: angle_deg, camera_height_m or distance_m, aspect_ratio, resolution_px, seed, deferred=false.
 
-            REGRAS ESPECÍFICAS POR TIPO
-            - kind=cftv_frame: informar overlay de timestamp (monoespaçado, branco com contorno), label da câmera (“CAM-03”), altura 2.5–3.0 m, lente grande-angular 2.8–4 mm, leve compressão H.264 (artefatos moderados), shutter 1/60 s, leve motion blur coerente.
-            - kind=document_scan/receipt: sem moiré, sem dedos, correção de perspectiva, 300–600 DPI equivalentes, margens visíveis.
-            - kind=scene_topdown: top-down 90°, plano ortogonal.
+            SPECIFIC RULES BY TYPE
+            - kind=cftv_frame: provide timestamp overlay (monospaced, white with outline), camera label (“CAM-03”), height 2.5–3.0 m, wide‑angle lens 2.8–4 mm, light H.264 compression (moderate artifacts), shutter 1/60 s, slight coherent motion blur.
+            - kind=document_scan/receipt: no moiré, no fingers, perspective corrected, 300–600 DPI equivalent, visible margins.
+            - kind=scene_topdown: 90° top‑down, orthogonal plane.
 
-            NÃO FAÇA
-            - Não escreva o nome da evidência na imagem.
-            - Não repita as regras como texto genérico; converta-as em parâmetros.
-            - Não retorne Markdown, comentários, ou campos extras.
+            DO NOT
+            - Do not write the evidence name on the image.
+            - Do not repeat the rules as generic text; convert them into parameters.
+            - Do not return Markdown, comments, or extra fields.
 
-            Valide mentalmente o checklist antes de responder. Saída: somente JSON.
+            Mentally validate the checklist before responding. Output: JSON only.
             """;
 
         var userPrompt = $"""
-            CONTEXTO (resumo estruturado de design/documentos relevantes, não descreva tudo: use só o necessário)
+            CONTEXT (structured summary of design / relevant documents, do not describe everything: only what is necessary)
             {designJson}
 
-            ESPECIFICAÇÃO DA EVIDÊNCIA
+            EVIDENCE SPECIFICATION
             evidenceId: {spec.EvidenceId}
             kind: {spec.Kind}
             title: {spec.Title}
-            dificuldade: {(difficultyOverride ?? "Detective")}
-            constraints_iniciais: {(spec.Constraints != null && spec.Constraints.Any() ? string.Join(", ", spec.Constraints.Select(kv => $"{kv.Key}: {kv.Value}")) : "n/a")}
-            idioma: pt-BR
+            difficulty: {(difficultyOverride ?? "Detective")}
+            initial_constraints: {(spec.Constraints != null && spec.Constraints.Any() ? string.Join(", ", spec.Constraints.Select(kv => $"{kv.Key}: {kv.Value}")) : "n/a")}
+            language: en-US
 
-            NIVEL DE DETALHE POR DIFICULDADE (aplicar SEM criar sequência de fotos):
-            - Rookie: composição simples; top-down quando aplicável.
-            - Detective/Detective2: +1 detalhe contextual (ainda 1 imagem).
-            - Sergeant+: plano geral + detalhe dentro da MESMA imagem (sem colagem), falso-positivo discreto APENAS se fizer sentido.
-            - Captain/Commander: incluir objetos de controle (cartão de cor/cinza) na MESMA cena quando plausível.
+            LEVEL OF DETAIL BY DIFFICULTY (apply WITHOUT creating a photo sequence):
+            - Rookie: simple composition; top-down when applicable.
+            - Detective/Detective2: +1 contextual detail (still a single image).
+            - Sergeant+: wide context + relevant detail within the SAME image (no collage), subtle false-positive ONLY if it makes sense.
+            - Captain/Commander: include control objects (color/gray card) in the SAME scene when plausible.
 
-            GERE:
+            GENERATE:
             - evidenceId, kind, title
-            - prompt: seções fixas (Função; Cena/Composição; Ângulo & Distância; Óptica & Técnica; Elementos obrigatórios; Negativos; Checklist de aceitação)
-            - constraints: obejto json com angle_deg, camera_height_m/distance_m, aspect_ratio, resolution_px, seed (7 dígitos), deferred=false
+            - prompt: fixed sections (Function; Scene / Composition; Angle & Distance; Optics & Technique; Mandatory Elements; Negatives; Acceptance Checklist)
+            - constraints: JSON object with angle_deg, camera_height_m / distance_m, aspect_ratio, resolution_px, seed (7 digits), deferred=false
 
-            IMPORTANTE:
-            - Se kind=cftv_frame: timestamp overlay “YYYY-MM-DD HH:MM:SS”, canto superior direito; label “CAM-03”.
-            - Nao use regua de referencia. 
-            - Conteúdo 100% fictício. Proíba nomes reais, marcas/logos, rostos/biometrias, placas reais, distintivos oficiais.
-            - Retorne APENAS JSON válido.
+            IMPORTANT:
+            - If kind=cftv_frame: timestamp overlay “YYYY-MM-DD HH:MM:SS” in top-right corner; label “CAM-03”.
+            - Do not use measurement ruler.
+            - 100% fictitious content. Forbid real names, brands/logos, faces/biometrics, real license plates, official badges.
+            - Return ONLY valid JSON.
             """;
 
         var json = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
@@ -620,16 +620,25 @@ public class CaseGenerationService : ICaseGenerationService
         _logger.LogInformation("Indexing case content");
 
         var systemPrompt = """
-            Você é um especialista em indexação de conteúdo educacional. Crie índices e metadados 
-            para facilitar a busca e organização do caso.
+            You are a specialist in indexing educational investigative training content. Create structured indices and metadata
+            to facilitate search, retrieval, filtering, and organization of this police investigative case.
             """;
 
         var userPrompt = $"""
-            Crie índices e metadados para este caso normalizado:
-            
+            Generate indices and metadata for this normalized case:
+
             {normalizedJson}
-            
-            Inclua: tags, categorias, palavras-chave, dificuldade, duração, objetivos de aprendizado.
+
+            Include (concise and relevant):
+            - tags (general thematic descriptors)
+            - categories (higher‑level grouping: e.g. crime type, procedural phase)
+            - keywords (investigative and forensic focus terms)
+            - difficulty (normalized if possible)
+            - estimatedDuration (minutes if derivable)
+            - learningObjectives (refined / deduplicated)
+            - summary (1–2 sentence abstract)
+            - entities (people, locations, evidence IDs) — list with type classification
+            Output only JSON (no commentary).
             """;
 
         return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
@@ -640,17 +649,17 @@ public class CaseGenerationService : ICaseGenerationService
         _logger.LogInformation("Validating case rules");
 
         var systemPrompt = """
-            Você é um especialista em validação de conteúdo educacional. Verifique se o caso 
-            atende a todas as regras pedagógicas e de qualidade estabelecidas.
+            You are a specialist in validating educational police investigative training content. 
+            Verify that the case complies with all established pedagogical, realism, and quality standards.
             """;
 
         var userPrompt = $"""
-            Valide este caso indexado contra as regras de qualidade:
+            Validate this indexed case against the defined quality rules:
             
             {indexedJson}
             
-            Verifique: consistência narrativa, adequação pedagógica, completude das informações, 
-            realismo, e aderência aos padrões de qualidade.
+            Check: narrative consistency, pedagogical suitability, completeness of information, realism, 
+            and adherence to investigative training quality standards. Do NOT reveal any solution or culprit.
             """;
 
         return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
@@ -661,17 +670,16 @@ public class CaseGenerationService : ICaseGenerationService
         _logger.LogInformation("Red teaming case for quality assurance");
 
         var systemPrompt = """
-            Você é um especialista em red team para conteúdo educacional. Faça uma análise crítica 
-            do caso buscando problemas, inconsistências e pontos de melhoria.
+            You are a red team specialist for police investigative training content. Perform a critical analysis
+            of the case, identifying weaknesses, inconsistencies, and opportunities for improvement.
             """;
 
         var userPrompt = $"""
-            Faça uma análise de red team deste caso validado:
+            Perform a red team analysis of this validated case:
             
             {validatedJson}
             
-            Identifique: problemas lógicos, inconsistências, pontos fracos na narrativa, 
-            possíveis melhorias, e riscos de qualidade.
+            Identify: logical issues, inconsistencies, narrative weaknesses, potential improvements, and quality risks.
             """;
 
         return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
@@ -704,7 +712,7 @@ public class CaseGenerationService : ICaseGenerationService
             var metadata = new CaseMetadata
             {
                 Title = caseId,
-                Difficulty = "Iniciante", // Extract from finalJson in real implementation
+                Difficulty = "Rookie",
                 EstimatedDuration = 60,
                 Categories = new[] { "Investigation", "Training" },
                 Tags = new[] { "generated", "ai" },
