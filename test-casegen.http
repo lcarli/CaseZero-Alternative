@@ -1,42 +1,58 @@
 
 ### 
 
-#Request Base
+#Request Base - CASO COMPLETO SEM RENDERIZAÇÃO (RÁPIDO)
 
 POST http://localhost:7071/api/StartCaseGeneration
 
 {
   "difficulty": "Rookie",
   "generateImages": true,
+  "renderFiles": false,
   "timezone": "America/Toronto"
 }
 
 ###
 
-# Caso completamente automatizado - nível aleatório
+# CASO COMPLETO COM RENDERIZAÇÃO (LENTO - GERA PDFs E IMAGENS)
 POST http://localhost:7071/api/StartCaseGeneration
 
 {
-  "generateImages": true
+  "difficulty": "Rookie", 
+  "generateImages": true,
+  "renderFiles": true,
+  "timezone": "America/Toronto"
 }
 
 ###
 
-# Caso de nível avançado
+# Caso completamente automatizado - nível aleatório (SEM RENDERIZAÇÃO)
 POST http://localhost:7071/api/StartCaseGeneration
 
 {
-  "difficulty": "Rookie"
+  "generateImages": true,
+  "renderFiles": false
 }
 
 ###
 
-# Caso de nível extremo
+# Caso de nível avançado (SEM RENDERIZAÇÃO)
+POST http://localhost:7071/api/StartCaseGeneration
+
+{
+  "difficulty": "Sergeant", /* Levels: Rookie | Detective| Detective2 | Sergeant | Captain | Commander */ 
+  "renderFiles": false
+}
+
+###
+
+# Caso de nível extremo (COM RENDERIZAÇÃO COMPLETA)
 POST http://localhost:7071/api/StartCaseGeneration
 
 {
   "difficulty": "Commander",
-  "generateImages": true
+  "generateImages": true,
+  "renderFiles": true
 }
 
 ###

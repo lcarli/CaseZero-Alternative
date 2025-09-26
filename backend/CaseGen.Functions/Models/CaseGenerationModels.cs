@@ -121,6 +121,9 @@ public record CaseGenerationRequest
     [JsonPropertyName("generateImages")]
     public bool GenerateImages { get; init; } = true;
 
+    [JsonPropertyName("renderFiles")]
+    public bool RenderFiles { get; init; } = false;
+
     [JsonPropertyName("timezone")]
     public string Timezone { get; init; } = "America/Toronto";
 
