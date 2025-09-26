@@ -130,8 +130,8 @@ public class SchemaValidationService : ISchemaValidationService
         // Laudos devem conter “Cadeia de Custódia”
         foreach (var d in specs.DocumentSpecs.Where(x => x.Type == DocumentTypes.ForensicsReport))
         {
-            if (!d.Sections.Any(s => Regex.IsMatch(s, "cadeia de cust[óo]dia", RegexOptions.IgnoreCase)))
-                errors.Add($"Forensics report {d.DocId} missing 'Cadeia de Custódia' section");
+            if (!d.Sections.Any(s => Regex.IsMatch(s, "chain of custody", RegexOptions.IgnoreCase)))
+                errors.Add($"Forensics report {d.DocId} missing 'Chain of Custody' section");
         }
 
         // Validate media types - unsupported types should be deferred

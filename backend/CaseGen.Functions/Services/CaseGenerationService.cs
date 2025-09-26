@@ -215,6 +215,7 @@ public class CaseGenerationService : ICaseGenerationService
             into structured specifications for parallel generation of documents and media.
 
             IMPORTANT (JSON ONLY conforming to the DocumentAndMediaSpecs schema):
+            - All text in english
             - No explanations or comments outside the JSON.
             - Mark sensitive documents with ""gated"": true and include ""gatingRule"" { action, evidenceId?, notes? }.
             - Forensic reports MUST contain the ""Cadeia de Custódia"" (Chain of Custody) section.
@@ -233,9 +234,6 @@ public class CaseGenerationService : ICaseGenerationService
             Transform this case into structured specifications.
 
             Difficulty: {difficulty ?? planDifficulty}
-
-            PLAN CONTEXT:
-            {planJson}
 
             EXPANDED CONTEXT:
             {expandedJson}
@@ -299,7 +297,7 @@ public class CaseGenerationService : ICaseGenerationService
     {
         _logger.LogInformation("Gen Doc[{DocId}] type={Type} title={Title}", spec.DocId, spec.Type, spec.Title);
 
-        // Deriva dificuldade (Plan > override > Rookie)
+        // Derive difficulty (Plan > override > Rookie)
         string difficulty = "Rookie";
         if (!string.IsNullOrWhiteSpace(difficultyOverride)) difficulty = difficultyOverride;
         if (!string.IsNullOrWhiteSpace(planJson))
@@ -313,76 +311,103 @@ public class CaseGenerationService : ICaseGenerationService
             catch { /* ignore */ }
         }
 
+        // Type-specific directives (augmented with minimum referencing rules)
         string typeDirectives = spec.Type.ToLowerInvariant() switch
         {
             "police_report" => """
-        FORMAT (Markdown inside 'content'):
-        - Header: Report Number, Date/Time (ISO-8601 with offset), Unit / Responsible Officer.
-        - Objective incident summary.
-        - Requested sections (use H2 headings: ##).
-        - Bullet lists when appropriate.
-        """,
+                FORMAT (Markdown inside 'content'):
+                - Header: Report Number, Date/Time (ISO-8601 with offset), Unit / Responsible Officer.
+                - Objective incident summary.
+                - Requested sections (use H2 headings: ##).
+                - Bullet lists when appropriate.
+
+                MINIMUM ANCHORS (must be real from Design/Expand):
+                - Cite ≥2 real IDs (evidenceId and/or docId) and/or concrete timeline timestamps/events.
+                - Do not infer guilt or reveal solution.
+                """,
+
             "interview" => """
-        FORMAT (Markdown inside 'content'):
-        - Clean transcript (no interviewer opinions/judgment).
-        - Label lines: **Interviewer:** / **Interviewee:**.
-        - Optional timestamps in brackets when natural (e.g., [00:05]).
-        - Objective Q&A; do not infer guilt.
-        """,
+                FORMAT (Markdown inside 'content'):
+                - Clean transcript (no interviewer opinions/judgment).
+                - Label lines: **Interviewer:** / **Interviewee:**.
+                - Optional timestamps in brackets when natural (e.g., [00:05]).
+                - Objective Q&A; do not infer guilt.
+
+                MINIMUM ANCHORS:
+                - Reference ≥1 real support: an evidenceId and/or a concrete timeline event/timestamp relevant to statements.
+                """,
+
             "memo_admin" => """
-        FORMAT (Markdown inside 'content'):
-        - Header: To / From / Subject / Date.
-        - Concise bureaucratic tone; use bullets for action items.
-        - Reference documents/evidence by ID when available.
-        """,
+                FORMAT (Markdown inside 'content'):
+                - Header: To / From / Subject / Date.
+                - Concise bureaucratic tone; use bullets for action items.
+                - Reference documents/evidence by ID when available.
+
+                MINIMUM ANCHORS:
+                - Cite ≥1 real docId or evidenceId mentioned in Design/Expand when appropriate.
+                """,
+
             "forensics_report" => """
-        FORMAT (Markdown inside 'content'):
-        - Header: Laboratory / Examiner / Date / Time (ISO-8601 with offset).
-        - Methodology (procedures), Results, Interpretation / Limitations.
-        - **Chain of Custody** (mandatory) with events in temporal order.
-        - Reference relevant evidenceId/docId (do not reveal solution).
-        """,
+                FORMAT (Markdown inside 'content'):
+                - Header: Laboratory / Examiner / Date / Time (ISO-8601 with offset).
+                - Methodology (procedures), Results, Interpretation / Limitations.
+                - **Chain of Custody** (mandatory) with events in temporal order.
+                - Reference relevant evidenceId/docId (do not reveal solution).
+
+                MINIMUM ANCHORS:
+                - Cite ≥2 real evidenceId (and docId if applicable).
+                - Chain of Custody must include ISO-8601 timestamps and ordered handoffs.
+                """,
+
             "evidence_log" => """
-        FORMAT (Markdown inside 'content'):
-        - Table: ItemId | Collected At | Collected By | Description | Storage | Transfers.
-        - Brief notes per item.
-        """,
+                FORMAT (Markdown inside 'content'):
+                - Table: ItemId | Collected At | Collected By | Description | Storage | Transfers.
+                - Brief notes per item.
+
+                MINIMUM ANCHORS:
+                - Every line must correspond to a real evidenceId present in Design (no new items).
+                """,
+
             "witness_statement" => """
-        FORMAT (Markdown inside 'content'):
-        - First-person statement, objective, no speculation about perpetrator.
-        - Date/Time (ISO-8601 with offset) and brief fictitious identification.
-        """,
+                FORMAT (Markdown inside 'content'):
+                - First-person statement, objective, no speculation about perpetrator.
+                - Date/Time (ISO-8601 with offset) and brief fictional identification.
+
+                MINIMUM ANCHORS:
+                - Reference ≥1 real evidenceId or a concrete timeline event/timestamp corroborating the statement.
+                """,
+
             _ => "FORMAT: use the requested sections; objective, documentary text."
         };
 
-        // Diretrizes por dificuldade (corrigido "Cruze")
+        // Difficulty-specific directives
         string difficultyDirectives = difficulty switch
         {
             "Rookie" or "Iniciante" => """
-        DIFFICULTY PROFILE:
-        - Simple, direct vocabulary; low ambiguity.
-        - Linear chronology and explicit relationships.
-        - Aim near the minimum of lengthTarget.
-        """,
+                DIFFICULTY PROFILE:
+                - Simple, direct vocabulary; low ambiguity.
+                - Linear chronology and explicit relationships.
+                - Aim near the minimum of lengthTarget.
+                """,
             "Detective" or "Detective2" => """
-        DIFFICULTY PROFILE:
-        - Moderate vocabulary; some jargon with context.
-        - Introduce plausible ambiguities and light cross-checks.
-        - Aim for the middle of the lengthTarget range.
-        """,
+                DIFFICULTY PROFILE:
+                - Moderate vocabulary; some jargon with context.
+                - Introduce plausible ambiguities and light cross-checks.
+                - Aim for the middle of the lengthTarget range.
+                """,
             "Sergeant" or "Lieutenant" => """
-        DIFFICULTY PROFILE:
-        - Technical tone when relevant; correlations across sources.
-        - Realistic ambiguities (without revealing solution); cite times and IDs.
-        - Aim at the top of the lengthTarget range.
-        """,
+                DIFFICULTY PROFILE:
+                - Technical tone when relevant; correlations across sources.
+                - Realistic ambiguities (without revealing solution); cite times and IDs.
+                - Aim at the top of the lengthTarget range.
+                """,
             _ /* Captain/Commander */ => """
-        DIFFICULTY PROFILE:
-        - Technical language; specialized inferences.
-        - Controlled ambiguity, competing hypotheses.
-        - Cross multiple sources; mention methodological limitations.
-        - Use near the maximum of lengthTarget.
-        """
+                DIFFICULTY PROFILE:
+                - Technical language; specialized inferences.
+                - Controlled ambiguity, competing hypotheses.
+                - Cross multiple sources; mention methodological limitations.
+                - Use near the maximum of lengthTarget.
+                """
         };
 
         var designCtx = designJson ?? "{}";
@@ -393,12 +418,16 @@ public class CaseGenerationService : ICaseGenerationService
             You are a police / forensic technical writer. Generate ONLY JSON containing the document body.
 
             GENERAL RULES (MANDATORY):
+            - Write all text in english.
             - Never reveal the solution or culprit.
             - Maintain consistency with Plan / Expand / Design.
-            - Follow exactly the provided sections and the word count range (lengthTarget).
+            - **Use exactly the provided 'sections' titles and in the exact order. Do NOT add or rename sections.**
+            - Follow exactly the word count range (lengthTarget).
             - Use ISO-8601 timestamps with offset whenever citing times.
             - If type == forensics_report, include the ""Chain of Custody"" section.
             - Whenever citing evidence, reference existing evidenceId/docId (do not invent).
+            - Do not mention gating in the content (gating is game metadata).
+            - No real PII, brands, or real addresses.
 
             OUTPUT JSON:
             {
@@ -412,12 +441,6 @@ public class CaseGenerationService : ICaseGenerationService
         var userPrompt = $@"
             CONTEXT — DESIGN:
             {designCtx}
-
-            CONTEXT — PLAN:
-            {planCtx}
-
-            CONTEXT — EXPAND:
-            {expandCtx}
 
             DOCUMENT TO GENERATE:
             - docId: {spec.DocId}
@@ -435,9 +458,14 @@ public class CaseGenerationService : ICaseGenerationService
 
             ANTI-INVENTION (MANDATORY):
             - People/locations/evidence: only those defined in Expand/Design.
-            - If mentioning evidence, use existing evidenceId (do not create new ones).
-            - Do not mention gating in the content (gating is game metadata).
-            - No real PII, brands, or real addresses.
+            - If mentioning evidence, use existing evidenceId/docId; do not create new items.
+            - Do not mention gating in the content (gating is metadata).
+
+            PRE-SUBMISSION CHECK (the model must self-check before writing):
+            - Did you verify that every cited evidenceId/docId exists in the supplied Design?
+            - Are you using the exact 'sections' titles in the given order, without adding extra sections?
+            - Are you within the specified lengthTarget range?
+            - Are timestamps (when present) in ISO-8601 with offset?
 
             Output: **ONLY JSON** in the specified structure (no comments).";
 
@@ -445,7 +473,6 @@ public class CaseGenerationService : ICaseGenerationService
 
         try
         {
-
             await _caseLogging.LogStepResponseAsync(caseId, $"documents/{spec.DocId}", json, cancellationToken);
 
             var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
@@ -464,8 +491,6 @@ public class CaseGenerationService : ICaseGenerationService
         return json;
     }
 
-
-
     public async Task<string> GenerateMediaFromSpecAsync(
         MediaSpec spec,
         string designJson,
@@ -478,75 +503,95 @@ public class CaseGenerationService : ICaseGenerationService
         _logger.LogInformation("Gen Media[{EvidenceId}] kind={Kind} title={Title}", spec.EvidenceId, spec.Kind, spec.Title);
 
         var systemPrompt = @"
-            You are a generator of FORENSIC specifications for static media.
+            You are a generator of FORENSIC specifications for a single static media asset.
             Output: ONLY valid JSON with { evidenceId, kind, title, prompt, constraints }.
 
-            DUTIES
-            - Create an operational and measurable prompt for ONE image (not a sequence).
-            - Style: documentary photograph/screenshot, neutral, non‑artistic.
+            SCOPE & SAFETY
+            - One image only (a collage is acceptable if composed into a single bitmap); never a multi-image sequence.
+            - Style: documentary photograph/screenshot, neutral, non-artistic.
             - Content 100% fictitious. Forbid real names, brands/logos, faces/biometrics, real license plates, official badges.
-            - Nothing graphic or violent. No children. Avoid images of people (when the scene allows).
-            - Standardize: angle in degrees, height/distance in meters, lens in mm, aperture f/, shutter 1/x s, ISO, WB K.
-            - For forensic item photo (object on a surface): use 90° top‑down when applicable.
-            - Lighting: diffuse / even; no harsh shadows.
+            - No graphic/violent content. Avoid people when the scene allows.
+            - Do NOT write the evidence name or caseId inside the image.
+
+            STRICT CONSISTENCY (NON-NEGOTIABLE)
+            - Reflect ONLY the narrative elements already present in Plan/Expand/Design; do not invent new entities, locations, vehicles, or timestamps.
+            - If the evidence exists in Expand/Design with specific attributes (time, camera label, object condition, location), MIRROR those details.
+            - Use only existing labels already implied by the case (e.g., 'CAM-03', zone ids, door ids). No new camera IDs or zones.
+            - Honor any provided initial_constraints (unless they violate safety), mapping them into the final constraints.
+
+            TECHNICAL STANDARDIZATION
+            - Always quantify: angle in degrees, camera height OR subject distance in meters, lens in mm, aperture f/, shutter 1/x s, ISO, white balance (K).
+            - Lighting: diffuse/even; avoid harsh shadows; prefer color-neutral rendering.
+            - For object-on-surface evidence: prefer 90° top-down when applicable.
 
             MANDATORY FIELD FORMAT
-            - prompt: text in fixed, concise sections, in this order:
-              1) Function (1 sentence)
-              2) Scene / Composition (3–5 sentences; include % of subject in frame)
-              3) Angle & Distance (numeric values)
-              4) Optics & Technique (lens mm, f/, 1/x s, ISO, WB K, focus, DOF)
-              5) Mandatory elements (marker A/B/C, timestamp, “CAM-03”, etc.)
-              6) Negatives (objective list of what MUST NOT appear)
-              7) Acceptance checklist (actionable verification list)
-            - constraints: JSON object containing: angle_deg, camera_height_m or distance_m, aspect_ratio, resolution_px, seed, deferred=false.
+            - prompt: fixed sections in this exact order:
+            1) Function (1 sentence)
+            2) Scene / Composition (3–5 sentences; include subject percentage in frame)
+            3) Angle & Distance (strict numeric values)
+            4) Optics & Technique (lens mm, f/, 1/x s, ISO, WB K, focus, DOF)
+            5) Mandatory elements (labels/markers/timestamps already present in the case)
+            6) Negatives (objective list of what MUST NOT appear)
+            7) Acceptance checklist (objective, verifiable bullets)
+            - constraints: JSON object containing:
+            - angle_deg (number)
+            - camera_height_m OR distance_m (number; include exactly one of these keys)
+            - aspect_ratio (string, e.g., ""16:9"", ""4:3"", ""A4"")
+            - resolution_px (string, e.g., ""1920x1080"")
+            - seed (7-digit integer as string)
+            - deferred=false
 
-            SPECIFIC RULES BY TYPE
-            - kind=cftv_frame: provide timestamp overlay (monospaced, white with outline), camera label (“CAM-03”), height 2.5–3.0 m, wide‑angle lens 2.8–4 mm, light H.264 compression (moderate artifacts), shutter 1/60 s, slight coherent motion blur.
-            - kind=document_scan/receipt: no moiré, no fingers, perspective corrected, 300–600 DPI equivalent, visible margins.
-            - kind=scene_topdown: 90° top‑down, orthogonal plane.
+            TYPE-SPECIFIC RULES
+            - kind=cftv_frame:
+            - Overlay timestamp ""YYYY-MM-DD HH:MM:SS"" (top-right, monospaced, white with 1–2px outline).
+            - Camera label (e.g., ""CAM-03"") on frame.
+            - Camera height 2.5–3.0 m; lens 2.8–4 mm equiv.; shutter 1/60 s; mild H.264 artifacts; slight coherent motion blur.
+            - kind=document_scan / receipt:
+            - Perspective corrected; 300–600 DPI equivalent; visible margins; no fingers, no moiré; crop clean edges.
+            - kind=scene_topdown:
+            - 90° orthographic top-down; keep edges parallel to frame; include simple scale reference ONLY if already implied by case (no rulers).
 
             DO NOT
-            - Do not write the evidence name on the image.
-            - Do not repeat the rules as generic text; convert them into parameters.
+            - Do not repeat the rulebook in prose; translate rules into concrete parameters.
             - Do not return Markdown, comments, or extra fields.
 
-            Mentally validate the checklist before responding. Output: JSON only.";
+            PRE-SUBMISSION SELF-CHECK (must be satisfied before answering)
+            - Are all referenced labels/timestamps present in the supplied case context?
+            - Are prompt sections exactly in the required order (1–7) and fully populated?
+            - Does constraints include angle_deg and exactly one of camera_height_m or distance_m, plus aspect_ratio, resolution_px, seed (7 digits), deferred=false?
+            - Is this a single image (no sequence)?";
 
         var userPrompt = $@"
-            CONTEXT (structured summary of design / relevant documents, do not describe everything: only what is necessary)
+            CONTEXT (only the minimal, relevant parts — do NOT restate everything)
             {designJson}
 
             EVIDENCE SPECIFICATION
-            evidenceId: {spec.EvidenceId}
-            kind: {spec.Kind}
-            title: {spec.Title}
-            difficulty: {(difficultyOverride ?? "Detective")}
-            initial_constraints: {(spec.Constraints != null && spec.Constraints.Any() ? string.Join(", ", spec.Constraints.Select(kv => $"{kv.Key}: {kv.Value}")) : "n/a")}
-            language: en-US
+            - evidenceId: {spec.EvidenceId}
+            - kind: {spec.Kind}
+            - title: {spec.Title}
+            - difficulty: {(difficultyOverride ?? "Detective")}
+            - initial_constraints: {(spec.Constraints != null && spec.Constraints.Any() ? string.Join(", ", spec.Constraints.Select(kv => $"{kv.Key}: {kv.Value}")) : "n/a")}
+            - language: en-US
 
-            LEVEL OF DETAIL BY DIFFICULTY (apply WITHOUT creating a photo sequence):
-            - Rookie: simple composition; top-down when applicable.
-            - Detective/Detective2: +1 contextual detail (still a single image).
-            - Sergeant+: wide context + relevant detail within the SAME image (no collage), subtle false-positive ONLY if it makes sense.
-            - Captain/Commander: include control objects (color/gray card) in the SAME scene when plausible.
+            LEVEL OF DETAIL BY DIFFICULTY (apply WITHOUT creating a sequence):
+            - Rookie: simple composition; prefer top-down when applicable.
+            - Detective/Detective2: add one contextual detail within the same frame.
+            - Sergeant+: wider context PLUS a relevant local detail in the same frame (no multi-image montage); subtle false-positive ONLY if consistent with the case.
+            - Captain/Commander: include plausible control objects (e.g., neutral color/gray card) only if consistent with operational reality for that scene.
 
-            GENERATE:
-            - evidenceId, kind, title
-            - prompt: fixed sections (Function; Scene / Composition; Angle & Distance; Optics & Technique; Mandatory Elements; Negatives; Acceptance Checklist)
-            - constraints: JSON object with angle_deg, camera_height_m / distance_m, aspect_ratio, resolution_px, seed (7 digits), deferred=false
-
-            IMPORTANT:
-            - If kind=cftv_frame: timestamp overlay “YYYY-MM-DD HH:MM:SS” in top-right corner; label “CAM-03”.
-            - Do not use measurement ruler.
-            - 100% fictitious content. Forbid real names, brands/logos, faces/biometrics, real license plates, official badges.
-            - Return ONLY valid JSON.";
+            HARD REQUIREMENTS FOR THIS OUTPUT
+            - Return ONLY valid JSON with: evidenceId, kind, title, prompt, constraints.
+            - The prompt MUST follow the 7 fixed sections in the exact order and include measurable values.
+            - constraints MUST include: angle_deg, camera_height_m OR distance_m (exactly one), aspect_ratio, resolution_px, seed (7 digits), deferred=false.
+            - If kind=cftv_frame: put timestamp overlay ""YYYY-MM-DD HH:MM:SS"" (top-right) and a camera label like ""CAM-03"".
+            - Respect initial_constraints when provided (unless unsafe/contradictory).
+            - Do NOT invent new entities, labels, brands, or times.
+            ";
 
         var json = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
 
         try
         {
-
             await _caseLogging.LogStepResponseAsync(caseId, $"media/{spec.EvidenceId}", json, cancellationToken);
 
             var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
@@ -564,6 +609,7 @@ public class CaseGenerationService : ICaseGenerationService
 
         return json;
     }
+
 
     public async Task<string> RenderDocumentFromJsonAsync(string docId, string documentJson, string caseId, CancellationToken cancellationToken = default)
     {

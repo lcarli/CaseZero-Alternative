@@ -117,16 +117,50 @@ public class CaseGeneratorOrchestrator
             logger.LogInformation("Starting case generation orchestration for case {CaseId}", caseId);
             _caseLogging.LogOrchestratorStep(caseId, "WORKFLOW_START", "Beginning case generation workflow");
 
-            // Step 1: Plan
+            // Configuration for retry logic
+            const int maxRetries = 3;
+            const int maxDocumentRetries = 2; // Lower retry count for individual documents to avoid excessive delays
+
+            // Step 1: Plan (with retry)
             status = status with { CurrentStep = CaseGenerationSteps.Plan, Progress = 0.1 };
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "PLAN_START", "Creating initial case plan");
 
-            var planResult = await context.CallActivityAsync<string>("PlanActivity", new PlanActivityModel { Request = request, CaseId = caseId });
+            string planResult = "";
+            for (int planAttempt = 1; planAttempt <= maxRetries; planAttempt++)
+            {
+                try
+                {
+                    planResult = await context.CallActivityAsync<string>("PlanActivity", new PlanActivityModel { Request = request, CaseId = caseId });
+                    
+                    if (IsValidContent(planResult, "Plan"))
+                    {
+                        logger.LogInformation("Plan generation succeeded on attempt {Attempt} for case {CaseId}", planAttempt, caseId);
+                        break;
+                    }
+                    else
+                    {
+                        logger.LogWarning("Plan generation attempt {Attempt} returned invalid/empty content for case {CaseId}. Content length: {Length}", 
+                            planAttempt, caseId, planResult?.Length ?? 0);
+                        _caseLogging.LogOrchestratorStep(caseId, "PLAN_RETRY", $"Attempt {planAttempt} failed - invalid content, retrying...");
+                        
+                        if (planAttempt == maxRetries)
+                        {
+                            throw new InvalidOperationException($"Plan generation failed after {maxRetries} attempts - all attempts returned empty or invalid content");
+                        }
+                    }
+                }
+                catch (Exception ex) when (planAttempt < maxRetries)
+                {
+                    logger.LogWarning(ex, "Plan generation attempt {Attempt} failed for case {CaseId}, retrying...", planAttempt, caseId);
+                    _caseLogging.LogOrchestratorStep(caseId, "PLAN_RETRY", $"Attempt {planAttempt} failed with error: {ex.Message}, retrying...");
+                }
+            }
+
             completedSteps.Add(CaseGenerationSteps.Plan);
             _caseLogging.LogOrchestratorStep(caseId, "PLAN_COMPLETE", $"Plan generated: {planResult.Length} chars");
 
-            // Step 2: Expand
+            // Step 2: Expand (with retry)
             status = status with
             {
                 CurrentStep = CaseGenerationSteps.Expand,
@@ -136,11 +170,41 @@ public class CaseGeneratorOrchestrator
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "EXPAND_START", "Expanding plan into detailed content");
 
-            var expandResult = await context.CallActivityAsync<string>("ExpandActivity", new ExpandActivityModel { PlanJson = planResult, CaseId = caseId });
+            string expandResult = "";
+            for (int expandAttempt = 1; expandAttempt <= maxRetries; expandAttempt++)
+            {
+                try
+                {
+                    expandResult = await context.CallActivityAsync<string>("ExpandActivity", new ExpandActivityModel { PlanJson = planResult, CaseId = caseId });
+                    
+                    if (IsValidContent(expandResult, "Expand"))
+                    {
+                        logger.LogInformation("Expand generation succeeded on attempt {Attempt} for case {CaseId}", expandAttempt, caseId);
+                        break;
+                    }
+                    else
+                    {
+                        logger.LogWarning("Expand generation attempt {Attempt} returned invalid/empty content for case {CaseId}. Content length: {Length}", 
+                            expandAttempt, caseId, expandResult?.Length ?? 0);
+                        _caseLogging.LogOrchestratorStep(caseId, "EXPAND_RETRY", $"Attempt {expandAttempt} failed - invalid content, retrying...");
+                        
+                        if (expandAttempt == maxRetries)
+                        {
+                            throw new InvalidOperationException($"Expand generation failed after {maxRetries} attempts - all attempts returned empty or invalid content");
+                        }
+                    }
+                }
+                catch (Exception ex) when (expandAttempt < maxRetries)
+                {
+                    logger.LogWarning(ex, "Expand generation attempt {Attempt} failed for case {CaseId}, retrying...", expandAttempt, caseId);
+                    _caseLogging.LogOrchestratorStep(caseId, "EXPAND_RETRY", $"Attempt {expandAttempt} failed with error: {ex.Message}, retrying...");
+                }
+            }
+
             completedSteps.Add(CaseGenerationSteps.Expand);
             _caseLogging.LogOrchestratorStep(caseId, "EXPAND_COMPLETE", $"Content expanded: {expandResult.Length} chars");
 
-            // Step 3: Design
+            // Step 3: Design (with retry)
             status = status with
             {
                 CurrentStep = CaseGenerationSteps.Design,
@@ -150,7 +214,37 @@ public class CaseGeneratorOrchestrator
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "DESIGN_START", "Creating document and media specifications");
 
-            var designResult = await context.CallActivityAsync<string>("DesignActivity", new DesignActivityModel { PlanJson = planResult, ExpandedJson = expandResult, CaseId = caseId, Difficulty = request.Difficulty });
+            string designResult = "";
+            for (int designAttempt = 1; designAttempt <= maxRetries; designAttempt++)
+            {
+                try
+                {
+                    designResult = await context.CallActivityAsync<string>("DesignActivity", new DesignActivityModel { PlanJson = planResult, ExpandedJson = expandResult, CaseId = caseId, Difficulty = request.Difficulty });
+                    
+                    if (IsValidContent(designResult, "Design"))
+                    {
+                        logger.LogInformation("Design generation succeeded on attempt {Attempt} for case {CaseId}", designAttempt, caseId);
+                        break;
+                    }
+                    else
+                    {
+                        logger.LogWarning("Design generation attempt {Attempt} returned invalid/empty content for case {CaseId}. Content length: {Length}", 
+                            designAttempt, caseId, designResult?.Length ?? 0);
+                        _caseLogging.LogOrchestratorStep(caseId, "DESIGN_RETRY", $"Attempt {designAttempt} failed - invalid content, retrying...");
+                        
+                        if (designAttempt == maxRetries)
+                        {
+                            throw new InvalidOperationException($"Design generation failed after {maxRetries} attempts - all attempts returned empty or invalid content");
+                        }
+                    }
+                }
+                catch (Exception ex) when (designAttempt < maxRetries)
+                {
+                    logger.LogWarning(ex, "Design generation attempt {Attempt} failed for case {CaseId}, retrying...", designAttempt, caseId);
+                    _caseLogging.LogOrchestratorStep(caseId, "DESIGN_RETRY", $"Attempt {designAttempt} failed with error: {ex.Message}, retrying...");
+                }
+            }
+
             completedSteps.Add(CaseGenerationSteps.Design);
             _caseLogging.LogOrchestratorStep(caseId, "DESIGN_COMPLETE", $"Design created: {designResult.Length} chars");
 
@@ -160,7 +254,7 @@ public class CaseGeneratorOrchestrator
                 PropertyNameCaseInsensitive = true
             }) ?? throw new InvalidOperationException("Design result could not be parsed into DocumentAndMediaSpecs");
 
-            // Step 4+5: GenDocs & GenMedia em paralelo com FAN-OUT/FAN-IN
+            // Step 4+5: GenDocs & GenMedia com validação individual e retry
             status = status with
             {
                 CurrentStep = $"{CaseGenerationSteps.GenDocs}+{CaseGenerationSteps.GenMedia}",
@@ -168,31 +262,33 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
-            _caseLogging.LogOrchestratorStep(caseId, "GENERATION_START", $"Starting parallel generation: {specs.DocumentSpecs.Length} docs, {specs.MediaSpecs.Length} media");
+            _caseLogging.LogOrchestratorStep(caseId, "GENERATION_START", $"Starting parallel generation with validation: {specs.DocumentSpecs.Length} docs, {specs.MediaSpecs.Length} media");
 
-            var docTasks = new List<Task<string>>();
-            foreach (var ds in specs.DocumentSpecs)
+            // Generate documents with individual validation and retry
+            var documentTasks = new List<Task<string>>();
+            
+            foreach (var docSpec in specs.DocumentSpecs)
             {
-                var input = new GenerateDocumentItemInput { CaseId = caseId, PlanJson = planResult, ExpandedJson = expandResult, DesignJson = designResult, Spec = ds, DifficultyOverride = request.Difficulty };
-                docTasks.Add(context.CallActivityAsync<string>("GenerateDocumentItemActivity", input));
+                documentTasks.Add(GenerateDocumentWithRetryAsync(context, docSpec, planResult, expandResult, designResult, request.Difficulty, caseId, maxDocumentRetries, logger));
             }
+
+            // Generate media with individual validation and retry
             var mediaTasks = new List<Task<string>>();
-            foreach (var ms in specs.MediaSpecs)
+            
+            foreach (var mediaSpec in specs.MediaSpecs)
             {
-                var input = new GenerateMediaItemInput { CaseId = caseId, PlanJson = planResult, ExpandedJson = expandResult, DesignJson = designResult, Spec = ms, DifficultyOverride = request.Difficulty };
-                mediaTasks.Add(context.CallActivityAsync<string>("GenerateMediaItemActivity", input));
+                mediaTasks.Add(GenerateMediaWithRetryAsync(context, mediaSpec, planResult, expandResult, designResult, request.Difficulty, caseId, maxDocumentRetries, logger));
             }
 
-            var docsWhenAll = Task.WhenAll(docTasks);
-            var mediaWhenAll = Task.WhenAll(mediaTasks);
-            await Task.WhenAll(docsWhenAll, mediaWhenAll);
+            // Wait for all generation tasks to complete
+            await Task.WhenAll(documentTasks.Concat(mediaTasks));
 
-            var documentsResult = docsWhenAll.Result;
-            var mediaResult = mediaWhenAll.Result;
+            var documentsResult = documentTasks.Select(t => t.Result).ToArray();
+            var mediaResult = mediaTasks.Select(t => t.Result).ToArray();
 
             completedSteps.Add(CaseGenerationSteps.GenDocs);
             completedSteps.Add(CaseGenerationSteps.GenMedia);
-            _caseLogging.LogOrchestratorStep(caseId, "GENERATION_COMPLETE", $"Generated {documentsResult.Length} docs, {mediaResult.Length} media");
+            _caseLogging.LogOrchestratorStep(caseId, "GENERATION_COMPLETE", $"Generated {documentsResult.Length} docs, {mediaResult.Length} media with validation");
 
             // Step 5.5: RenderDocuments (fan-out JSON→MD→PDF)
             status = status with
@@ -435,5 +531,319 @@ public class CaseGeneratorOrchestrator
                 EstimatedCompletion = context.CurrentUtcDateTime
             };
         }
+    }
+
+    /// <summary>
+    /// Validates if the content is not empty and contains valid data
+    /// </summary>
+    private static bool IsValidContent(string content, string stepName)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return false;
+        }
+
+        // For JSON steps, validate JSON structure
+        if (stepName.ToLowerInvariant().Contains("json") || 
+            stepName == "Plan" || stepName == "Expand" || stepName == "Design" ||
+            stepName == "Normalize" || stepName == "Index" || stepName == "Validate" || stepName == "RedTeam")
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(content);
+                // Check if it's not just an empty object or array
+                var root = document.RootElement;
+                if (root.ValueKind == JsonValueKind.Object && root.EnumerateObject().Any())
+                {
+                    return true;
+                }
+                if (root.ValueKind == JsonValueKind.Array && root.GetArrayLength() > 0)
+                {
+                    return true;
+                }
+                return false;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
+        }
+
+        // For other content, check minimum length
+        return content.Length > 50; // Minimum meaningful content
+    }
+
+    /// <summary>
+    /// Validates if a document JSON contains required fields and content
+    /// </summary>
+    private static bool IsValidDocumentContent(string documentJson)
+    {
+        if (string.IsNullOrWhiteSpace(documentJson))
+            return false;
+
+        try
+        {
+            using var document = JsonDocument.Parse(documentJson);
+            var root = document.RootElement;
+
+            // Check for required fields
+            if (!root.TryGetProperty("docId", out var docId) || string.IsNullOrWhiteSpace(docId.GetString()))
+                return false;
+
+            if (!root.TryGetProperty("content", out var content) || string.IsNullOrWhiteSpace(content.GetString()))
+                return false;
+
+            if (!root.TryGetProperty("title", out var title) || string.IsNullOrWhiteSpace(title.GetString()))
+                return false;
+
+            // Check if content has meaningful length
+            var contentText = content.GetString();
+            return contentText != null && contentText.Length > 100; // Minimum meaningful document content
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Validates if a media JSON contains required fields and specifications
+    /// </summary>
+    private static bool IsValidMediaContent(string mediaJson)
+    {
+        if (string.IsNullOrWhiteSpace(mediaJson))
+            return false;
+
+        try
+        {
+            using var document = JsonDocument.Parse(mediaJson);
+            var root = document.RootElement;
+
+            // Check for required fields
+            if (!root.TryGetProperty("evidenceId", out var evidenceId) || string.IsNullOrWhiteSpace(evidenceId.GetString()))
+                return false;
+
+            if (!root.TryGetProperty("description", out var description) || string.IsNullOrWhiteSpace(description.GetString()))
+                return false;
+
+            if (!root.TryGetProperty("kind", out var kind) || string.IsNullOrWhiteSpace(kind.GetString()))
+                return false;
+
+            // Check if description has meaningful length
+            var descriptionText = description.GetString();
+            return descriptionText != null && descriptionText.Length > 20; // Minimum meaningful media description
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Creates a fallback document when generation fails
+    /// </summary>
+    private static string CreateFallbackDocument(DocumentSpec spec)
+    {
+        var fallbackContent = spec.Type.ToLowerInvariant() switch
+        {
+            "police_report" => $"Police Report #{spec.DocId}\n\nThis report is currently unavailable due to technical issues. Please contact the system administrator for assistance.\n\nReport ID: {spec.DocId}\nStatus: Placeholder\nGenerated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC",
+            "witness_statement" => $"Witness Statement - {spec.Title}\n\nStatement currently unavailable due to system error.\n\nWitness: [Name Redacted]\nStatement ID: {spec.DocId}\nStatus: Placeholder\nGenerated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC",
+            "forensics_report" => $"Forensic Analysis Report\n\nReport: {spec.Title}\n\nDetailed analysis is currently unavailable due to technical issues.\n\nEvidence ID: {spec.DocId}\nAnalysis Type: Forensic\nStatus: Placeholder\nGenerated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC",
+            _ => $"Document: {spec.Title}\n\nContent is currently unavailable due to technical issues.\n\nDocument ID: {spec.DocId}\nType: {spec.Type}\nStatus: Placeholder\nGenerated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC"
+        };
+
+        var fallbackDocument = new
+        {
+            docId = spec.DocId,
+            type = spec.Type,
+            title = $"{spec.Title} [FALLBACK]",
+            content = fallbackContent,
+            sections = spec.Sections ?? new[] { "Content" },
+            lengthTarget = spec.LengthTarget ?? new[] { 200, 400 },
+            gated = spec.Gated,
+            gatingRule = spec.GatingRule,
+            metadata = new Dictionary<string, object>
+            {
+                { "fallback", true },
+                { "generationAttempts", "failed" },
+                { "createdAt", DateTime.UtcNow.ToString("O") }
+            }
+        };
+
+        return JsonSerializer.Serialize(fallbackDocument);
+    }
+
+    /// <summary>
+    /// Creates a fallback media spec when generation fails
+    /// </summary>
+    private static string CreateFallbackMedia(MediaSpec spec)
+    {
+        var fallbackDescription = spec.Kind.ToLowerInvariant() switch
+        {
+            "photo" => $"Crime scene photograph #{spec.EvidenceId}. Image currently unavailable due to technical issues.",
+            "video" => $"Surveillance video #{spec.EvidenceId}. Video content currently unavailable due to technical issues.",
+            "audio" => $"Audio recording #{spec.EvidenceId}. Audio content currently unavailable due to technical issues.",
+            _ => $"Media evidence #{spec.EvidenceId} of type {spec.Kind}. Content currently unavailable due to technical issues."
+        };
+
+        var fallbackMedia = new
+        {
+            evidenceId = spec.EvidenceId,
+            kind = spec.Kind,
+            title = $"{spec.Title} [FALLBACK]",
+            prompt = $"{fallbackDescription} [FALLBACK]",
+            constraints = spec.Constraints ?? new Dictionary<string, object>(),
+            deferred = spec.Deferred,
+            metadata = new Dictionary<string, object>
+            {
+                { "fallback", true },
+                { "generationAttempts", "failed" },
+                { "createdAt", DateTime.UtcNow.ToString("O") }
+            }
+        };
+
+        return JsonSerializer.Serialize(fallbackMedia);
+    }
+
+    /// <summary>
+    /// Generates a document with retry logic and fallback
+    /// </summary>
+    private async Task<string> GenerateDocumentWithRetryAsync(
+        TaskOrchestrationContext context,
+        DocumentSpec docSpec,
+        string planResult,
+        string expandResult,
+        string designResult,
+        string? difficulty,
+        string caseId,
+        int maxRetries,
+        ILogger logger)
+    {
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var input = new GenerateDocumentItemInput 
+                { 
+                    CaseId = caseId, 
+                    PlanJson = planResult, 
+                    ExpandedJson = expandResult, 
+                    DesignJson = designResult, 
+                    Spec = docSpec, 
+                    DifficultyOverride = difficulty 
+                };
+                
+                var docResult = await context.CallActivityAsync<string>("GenerateDocumentItemActivity", input);
+                
+                if (IsValidDocumentContent(docResult))
+                {
+                    logger.LogInformation("Document {DocId} generated successfully on attempt {Attempt}", docSpec.DocId, attempt);
+                    return docResult;
+                }
+                else
+                {
+                    logger.LogWarning("Document {DocId} generation attempt {Attempt} returned invalid content. Content length: {Length}", 
+                        docSpec.DocId, attempt, docResult?.Length ?? 0);
+                    _caseLogging.LogOrchestratorStep(caseId, "DOC_RETRY", $"Document {docSpec.DocId} attempt {attempt} failed - invalid content, retrying...");
+                    
+                    if (attempt == maxRetries)
+                    {
+                        // Fallback: create a minimal placeholder document
+                        var fallbackDoc = CreateFallbackDocument(docSpec);
+                        logger.LogWarning("Document {DocId} generation failed after {MaxRetries} attempts - using fallback content", 
+                            docSpec.DocId, maxRetries);
+                        _caseLogging.LogOrchestratorStep(caseId, "DOC_FALLBACK", $"Document {docSpec.DocId} using fallback content after {maxRetries} failed attempts");
+                        return fallbackDoc;
+                    }
+                }
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                logger.LogWarning(ex, "Document {DocId} generation attempt {Attempt} failed, retrying...", docSpec.DocId, attempt);
+                _caseLogging.LogOrchestratorStep(caseId, "DOC_RETRY", $"Document {docSpec.DocId} attempt {attempt} failed with error: {ex.Message}, retrying...");
+            }
+            catch (Exception ex) when (attempt == maxRetries)
+            {
+                // Final attempt failed - create fallback
+                logger.LogError(ex, "Document {DocId} generation failed after {MaxRetries} attempts - using fallback", docSpec.DocId, maxRetries);
+                var fallbackDoc = CreateFallbackDocument(docSpec);
+                _caseLogging.LogOrchestratorStep(caseId, "DOC_FALLBACK", $"Document {docSpec.DocId} using fallback after final attempt failed: {ex.Message}");
+                return fallbackDoc;
+            }
+        }
+
+        // Fallback if all retries exhausted (should not reach here)
+        return CreateFallbackDocument(docSpec);
+    }
+
+    /// <summary>
+    /// Generates media with retry logic and fallback
+    /// </summary>
+    private async Task<string> GenerateMediaWithRetryAsync(
+        TaskOrchestrationContext context,
+        MediaSpec mediaSpec,
+        string planResult,
+        string expandResult,
+        string designResult,
+        string? difficulty,
+        string caseId,
+        int maxRetries,
+        ILogger logger)
+    {
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var input = new GenerateMediaItemInput 
+                { 
+                    CaseId = caseId, 
+                    PlanJson = planResult, 
+                    ExpandedJson = expandResult, 
+                    DesignJson = designResult, 
+                    Spec = mediaSpec, 
+                    DifficultyOverride = difficulty 
+                };
+                
+                var mediaResult = await context.CallActivityAsync<string>("GenerateMediaItemActivity", input);
+                
+                if (IsValidMediaContent(mediaResult))
+                {
+                    logger.LogInformation("Media {EvidenceId} generated successfully on attempt {Attempt}", mediaSpec.EvidenceId, attempt);
+                    return mediaResult;
+                }
+                else
+                {
+                    logger.LogWarning("Media {EvidenceId} generation attempt {Attempt} returned invalid content. Content length: {Length}", 
+                        mediaSpec.EvidenceId, attempt, mediaResult?.Length ?? 0);
+                    _caseLogging.LogOrchestratorStep(caseId, "MEDIA_RETRY", $"Media {mediaSpec.EvidenceId} attempt {attempt} failed - invalid content, retrying...");
+                    
+                    if (attempt == maxRetries)
+                    {
+                        // Fallback: create a minimal placeholder media spec
+                        var fallbackMedia = CreateFallbackMedia(mediaSpec);
+                        logger.LogWarning("Media {EvidenceId} generation failed after {MaxRetries} attempts - using fallback content", 
+                            mediaSpec.EvidenceId, maxRetries);
+                        _caseLogging.LogOrchestratorStep(caseId, "MEDIA_FALLBACK", $"Media {mediaSpec.EvidenceId} using fallback content after {maxRetries} failed attempts");
+                        return fallbackMedia;
+                    }
+                }
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                logger.LogWarning(ex, "Media {EvidenceId} generation attempt {Attempt} failed, retrying...", mediaSpec.EvidenceId, attempt);
+                _caseLogging.LogOrchestratorStep(caseId, "MEDIA_RETRY", $"Media {mediaSpec.EvidenceId} attempt {attempt} failed with error: {ex.Message}, retrying...");
+            }
+            catch (Exception ex) when (attempt == maxRetries)
+            {
+                // Final attempt failed - create fallback
+                logger.LogError(ex, "Media {EvidenceId} generation failed after {MaxRetries} attempts - using fallback", mediaSpec.EvidenceId, maxRetries);
+                var fallbackMedia = CreateFallbackMedia(mediaSpec);
+                _caseLogging.LogOrchestratorStep(caseId, "MEDIA_FALLBACK", $"Media {mediaSpec.EvidenceId} using fallback after final attempt failed: {ex.Message}");
+                return fallbackMedia;
+            }
+        }
+
+        // Fallback if all retries exhausted (should not reach here)
+        return CreateFallbackMedia(mediaSpec);
     }
 }

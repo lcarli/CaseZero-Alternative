@@ -83,14 +83,14 @@ public class AzureFoundryLLMProvider : ILLMProvider
             // Enhance the system prompt to include JSON schema requirements
             var enhancedSystemPrompt = $@"{systemPrompt}
 
-            IMPORTANTE: Você deve responder com um JSON válido que esteja em total conformidade com este esquema exato:
+            IMPORTANT: You must respond with valid JSON that fully complies with this exact schema:
             {jsonSchema}
 
-            Sua resposta deve ser apenas JSON válido, sem texto ou formatação adicional.";
+            Your response must be only valid JSON, with no additional text or formatting.";
 
             var requestOptions = new ChatCompletionOptions()
             {
-                MaxOutputTokenCount = 10000
+                MaxOutputTokenCount = 30000
             };
 
             // Enable the new max_completion_tokens property

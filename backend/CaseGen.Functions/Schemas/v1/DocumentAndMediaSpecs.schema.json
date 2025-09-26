@@ -33,7 +33,7 @@
           },
           "title": {
             "type": "string",
-            "description": "Human-readable title (in Portuguese)"
+            "description": "Human-readable title"
           },
           "sections": {
             "type": "array",
@@ -96,7 +96,7 @@
                 "sections": {
                   "contains": {
                     "type": "string",
-                    "pattern": "(?i)chain of custody|cadeia de cust[óo]dia"
+                    "pattern": "(?i)chain of custody"
                   }
                 }
               }
@@ -125,7 +125,7 @@
           },
           "title": {
             "type": "string",
-            "description": "Human-readable title (in Portuguese)"
+            "description": "Human-readable title"
           },
           "prompt": {
             "type": "string",
