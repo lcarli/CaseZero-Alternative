@@ -282,8 +282,15 @@ public class CaseGeneratorOrchestrator
             _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_START", "Performing security analysis and red team review");
 
             var redTeamResult = await context.CallActivityAsync<string>("RedTeamActivity", new RedTeamActivityModel { ValidatedJson = validateResult, CaseId = caseId });
+            
+            // Save RedTeam analysis separately to logs container (not as case.json)
+            await context.CallActivityAsync("SaveRedTeamAnalysisActivity", new SaveRedTeamAnalysisActivityModel { 
+                CaseId = caseId, 
+                RedTeamAnalysis = redTeamResult 
+            });
+            
             completedSteps.Add(CaseGenerationSteps.RedTeam);
-            _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_COMPLETE", $"Red team analysis completed: {redTeamResult.Length} chars");
+            _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_COMPLETE", $"Red team analysis completed and saved to logs: {redTeamResult.Length} chars");
 
             // OPTIONAL RENDERING PHASE (only if requested)
             var renderedDocs = new List<RenderedDocument>();
@@ -433,7 +440,7 @@ public class CaseGeneratorOrchestrator
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "PACKAGE_START", "Creating final case package and delivery artifacts");
 
-            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = redTeamResult, CaseId = caseId });
+            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = validateResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Package);
             _caseLogging.LogOrchestratorStep(caseId, "PACKAGE_COMPLETE", "Final packaging completed successfully");
 

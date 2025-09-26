@@ -768,4 +768,16 @@ public class CaseGenerationService : ICaseGenerationService
     {
         return await _imagesService.GenerateAsync(caseId, spec);
     }
+
+    // Save RedTeam analysis to logs container
+    public async Task SaveRedTeamAnalysisAsync(string caseId, string redTeamAnalysis, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Saving RedTeam analysis for case {CaseId}", caseId);
+        
+        var logsContainer = "logs";
+        var fileName = $"{caseId}/RedTeamAnalysis.txt";
+        await _storageService.SaveFileAsync(logsContainer, fileName, redTeamAnalysis, cancellationToken);
+        
+        _logger.LogInformation("RedTeam analysis saved successfully to {Container}/{FileName}", logsContainer, fileName);
+    }
 }

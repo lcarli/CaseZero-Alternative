@@ -107,6 +107,12 @@ public record RenderedMedia
     public string Kind { get; init; } = "photo";
 }
 
+public record SaveRedTeamAnalysisActivityModel
+{
+    public required string CaseId { get; init; }
+    public required string RedTeamAnalysis { get; init; }
+}
+
 public record PackageActivityModel
 {
     public required string FinalJson { get; init; }

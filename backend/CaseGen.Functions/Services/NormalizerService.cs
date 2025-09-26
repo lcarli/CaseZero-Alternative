@@ -12,15 +12,18 @@ public class NormalizerService : INormalizerService
     private readonly ILogger<NormalizerService> _logger;
     private readonly ISchemaValidationService _schemaValidation;
     private readonly ICaseLoggingService _caseLogging;
+    private readonly IStorageService _storageService;
 
     public NormalizerService(
         ILogger<NormalizerService> logger, 
         ISchemaValidationService schemaValidation,
-        ICaseLoggingService caseLogging)
+        ICaseLoggingService caseLogging,
+        IStorageService storageService)
     {
         _logger = logger;
         _schemaValidation = schemaValidation;
         _caseLogging = caseLogging;
+        _storageService = storageService;
     }
 
     public async Task<NormalizationResult> NormalizeCaseAsync(NormalizationInput input, CancellationToken cancellationToken = default)
@@ -109,6 +112,14 @@ public class NormalizerService : INormalizerService
 
             // Serialize the normalized bundle to JSON string
             var normalizedJson = JsonSerializer.Serialize(normalizedBundle, new JsonSerializerOptions { WriteIndented = true });
+
+            // Save the complete normalized case (not just the log) to logs and cases containers
+            await _caseLogging.LogStepResponseAsync(input.CaseId, "normalized_case", normalizedJson);
+            
+            // Also save to cases container for direct access
+            var casesContainer = "cases";
+            var normalizedFileName = $"{input.CaseId}/Normalized.json";
+            await _storageService.SaveFileAsync(casesContainer, normalizedFileName, normalizedJson);
 
             return new NormalizationResult
             {

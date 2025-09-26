@@ -36,11 +36,12 @@ POST http://localhost:7071/api/StartCaseGeneration
 
 ###
 
+# Levels: Rookie | Detective| Detective2 | Sergeant | Captain | Commander
 # Caso de nível avançado (SEM RENDERIZAÇÃO)
 POST http://localhost:7071/api/StartCaseGeneration
 
 {
-  "difficulty": "Sergeant", /* Levels: Rookie | Detective| Detective2 | Sergeant | Captain | Commander */ 
+  "difficulty": "Rookie",
   "renderFiles": false
 }
 

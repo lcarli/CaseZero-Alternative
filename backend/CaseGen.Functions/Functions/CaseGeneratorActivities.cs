@@ -133,6 +133,13 @@ public class CaseGeneratorActivities
         return await _caseGenerationService.RedTeamCaseAsync(model.ValidatedJson, model.CaseId);
     }
 
+    [Function("SaveRedTeamAnalysisActivity")]
+    public async Task SaveRedTeamAnalysisActivity([ActivityTrigger] SaveRedTeamAnalysisActivityModel model)
+    {
+        _logger.LogInformation("Saving RedTeam analysis to logs container for case {CaseId}", model.CaseId);
+        await _caseGenerationService.SaveRedTeamAnalysisAsync(model.CaseId, model.RedTeamAnalysis);
+    }
+
     [Function("PackageActivity")]
     public async Task<CaseGenerationOutput> PackageActivity([ActivityTrigger] PackageActivityModel model)
     {
