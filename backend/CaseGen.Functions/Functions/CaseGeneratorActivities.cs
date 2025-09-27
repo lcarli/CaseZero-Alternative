@@ -126,6 +126,20 @@ public class CaseGeneratorActivities
         return await _caseGenerationService.RedTeamCaseAsync(model.ValidatedJson, model.CaseId);
     }
 
+    [Function("FixActivity")]
+    public async Task<string> FixActivity([ActivityTrigger] FixActivityModel model)
+    {
+        _logger.LogInformation("Fixing case issues - iteration {Iteration}", model.IterationNumber);
+        return await _caseGenerationService.FixCaseAsync(model.RedTeamAnalysis, model.CurrentJson, model.CaseId, model.IterationNumber);
+    }
+
+    [Function("CheckCaseCleanActivity")]
+    public async Task<bool> CheckCaseCleanActivity([ActivityTrigger] CheckCaseCleanActivityModel model)
+    {
+        _logger.LogInformation("Checking if case is clean and ready for packaging");
+        return await _caseGenerationService.IsCaseCleanAsync(model.RedTeamAnalysis, model.CaseId);
+    }
+
     [Function("SaveRedTeamAnalysisActivity")]
     public async Task SaveRedTeamAnalysisActivity([ActivityTrigger] SaveRedTeamAnalysisActivityModel model)
     {

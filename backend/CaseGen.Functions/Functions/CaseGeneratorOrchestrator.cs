@@ -257,26 +257,89 @@ public class CaseGeneratorOrchestrator
             completedSteps.Add(CaseGenerationSteps.RuleValidate);
             _caseLogging.LogOrchestratorStep(caseId, "VALIDATE_COMPLETE", $"Validation completed: {validateResult.Length} chars");
 
-            // Step 8: Red Team (CORE COMPLETION BEFORE OPTIONAL RENDERING)
-            status = status with
-            {
-                CurrentStep = CaseGenerationSteps.RedTeam,
-                Progress = 0.8,
-                CompletedSteps = completedSteps.ToArray()
-            };
-            context.SetCustomStatus(status);
-            _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_START", "Performing security analysis and red team review");
+            // Step 8: Quality Assurance Loop (RedTeam → Fix → RedTeam until clean)
+            const int maxIterations = 3;
+            var currentCaseJson = normalizeResult;
+            var iteration = 1;
+            string finalRedTeamResult = "";
 
-            var redTeamResult = await context.CallActivityAsync<string>("RedTeamActivity", new RedTeamActivityModel { ValidatedJson = normalizeResult, CaseId = caseId });
+            _caseLogging.LogOrchestratorStep(caseId, "QA_LOOP_START", $"Starting quality assurance loop (max {maxIterations} iterations). Initial JSON length: {currentCaseJson?.Length ?? 0}");
             
-            // Save RedTeam analysis separately to logs container (not as case.json)
+            // Validate initial JSON
+            if (string.IsNullOrWhiteSpace(currentCaseJson))
+            {
+                logger.LogError("Normalize result is empty for case {CaseId}", caseId);
+                throw new InvalidOperationException($"Cannot start QA loop: normalize result is empty for case {caseId}");
+            }
+
+            while (iteration <= maxIterations)
+            {
+                // RedTeam Analysis
+                status = status with
+                {
+                    CurrentStep = CaseGenerationSteps.RedTeam,
+                    Progress = 0.75 + (iteration - 1) * 0.05, // 0.75, 0.8, 0.85
+                    CompletedSteps = completedSteps.ToArray()
+                };
+                context.SetCustomStatus(status);
+                _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_START", $"Red team analysis - iteration {iteration}");
+
+                var redTeamResult = await context.CallActivityAsync<string>("RedTeamActivity", new RedTeamActivityModel { ValidatedJson = currentCaseJson, CaseId = caseId });
+                finalRedTeamResult = redTeamResult;
+                
+                _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_COMPLETE", $"Red team analysis {iteration} completed: {redTeamResult.Length} chars");
+
+                // Check if case is clean
+                var isCaseClean = await context.CallActivityAsync<bool>("CheckCaseCleanActivity", new CheckCaseCleanActivityModel { RedTeamAnalysis = redTeamResult, CaseId = caseId });
+                
+                if (isCaseClean || iteration == maxIterations)
+                {
+                    _caseLogging.LogOrchestratorStep(caseId, "QA_LOOP_COMPLETE", $"Quality assurance completed after {iteration} iteration(s). Case is {'c' + (isCaseClean ? "lean" : $"at max iterations ({maxIterations})")}");
+                    break;
+                }
+
+                // Apply Fixes
+                status = status with
+                {
+                    CurrentStep = CaseGenerationSteps.Fix,
+                    Progress = 0.75 + (iteration - 1) * 0.05 + 0.025, // 0.775, 0.825, 0.875
+                    CompletedSteps = completedSteps.ToArray()
+                };
+                context.SetCustomStatus(status);
+                _caseLogging.LogOrchestratorStep(caseId, "FIX_START", $"Applying corrections - iteration {iteration}. Input JSON length: {currentCaseJson?.Length ?? 0}");
+
+                var fixedCaseJson = await context.CallActivityAsync<string>("FixActivity", new FixActivityModel 
+                { 
+                    RedTeamAnalysis = redTeamResult, 
+                    CurrentJson = currentCaseJson, 
+                    CaseId = caseId, 
+                    IterationNumber = iteration 
+                });
+
+                // Validate the fix didn't break the JSON
+                if (string.IsNullOrWhiteSpace(fixedCaseJson))
+                {
+                    _caseLogging.LogOrchestratorStep(caseId, "FIX_ERROR", $"Fix iteration {iteration} returned empty result - keeping original");
+                }
+                else
+                {
+                    currentCaseJson = fixedCaseJson;
+                    _caseLogging.LogOrchestratorStep(caseId, "FIX_COMPLETE", $"Corrections applied - iteration {iteration}: {currentCaseJson.Length} chars");
+                }
+                
+                iteration++;
+            }
+
+            // Save final RedTeam analysis to logs container
             await context.CallActivityAsync("SaveRedTeamAnalysisActivity", new SaveRedTeamAnalysisActivityModel { 
                 CaseId = caseId, 
-                RedTeamAnalysis = redTeamResult 
+                RedTeamAnalysis = finalRedTeamResult 
             });
             
             completedSteps.Add(CaseGenerationSteps.RedTeam);
-            _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_COMPLETE", $"Red team analysis completed and saved to logs: {redTeamResult.Length} chars");
+            if (iteration > 1) completedSteps.Add(CaseGenerationSteps.Fix);
+            
+            _caseLogging.LogOrchestratorStep(caseId, "QA_FINAL", $"Final case ready for packaging after {iteration - 1} iteration(s)");
 
             // OPTIONAL RENDERING PHASE (only if requested)
             var renderedDocs = new List<RenderedDocument>();
@@ -426,7 +489,7 @@ public class CaseGeneratorOrchestrator
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "PACKAGE_START", "Creating final case package and delivery artifacts");
 
-            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = normalizeResult, CaseId = caseId });
+            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = currentCaseJson, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Package);
             _caseLogging.LogOrchestratorStep(caseId, "PACKAGE_COMPLETE", "Final packaging completed successfully");
 

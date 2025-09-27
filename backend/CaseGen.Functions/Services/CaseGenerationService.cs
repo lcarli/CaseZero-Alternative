@@ -668,6 +668,123 @@ public class CaseGenerationService : ICaseGenerationService
         return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
     }
 
+    public async Task<string> FixCaseAsync(string redTeamAnalysis, string currentJson, string caseId, int iterationNumber = 1, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Fixing case issues based on red team analysis - iteration {Iteration}", iterationNumber);
+        _logger.LogInformation("Current JSON length: {JsonLength} chars", currentJson?.Length ?? 0);
+
+        // Validate input JSON
+        if (string.IsNullOrWhiteSpace(currentJson))
+        {
+            throw new ArgumentException("Current case JSON cannot be null or empty", nameof(currentJson));
+        }
+
+        // Try to validate JSON structure
+        try
+        {
+            using var doc = JsonDocument.Parse(currentJson);
+            _logger.LogInformation("JSON validation successful for case {CaseId}", caseId);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Invalid JSON provided to FixCaseAsync for case {CaseId}", caseId);
+            throw new ArgumentException($"Invalid JSON structure: {ex.Message}", nameof(currentJson));
+        }
+
+        var systemPrompt = """
+            You are an expert case correction agent for police investigative training content. 
+
+            CRITICAL INSTRUCTIONS:
+            1. The user will provide you with a COMPLETE case JSON that needs corrections
+            2. You MUST return a COMPLETE corrected JSON (not a summary or status message)
+            3. Apply only the specific fixes mentioned in the red team analysis
+            4. Preserve ALL existing structure, IDs, timestamps, and relationships
+            5. Do NOT return error messages or status objects - return the corrected case JSON
+            
+            FORMATTING REQUIREMENTS:
+            - Return valid JSON only (no markdown, no explanations)
+            - Maintain the exact same JSON structure as input
+            - Preserve all field names and data types
+            - Keep all existing IDs and timestamps unchanged
+            - Make surgical corrections only where issues are identified
+            
+            Your response must be a valid JSON that can be parsed directly.
+            """;
+
+        var userPrompt = $"""
+            Fix the following case JSON by addressing the issues in the red team analysis.
+            
+            RED TEAM ANALYSIS:
+            {redTeamAnalysis}
+            
+            CASE JSON TO CORRECT:
+            {currentJson}
+            
+            Return the corrected case JSON with fixes applied. This is iteration #{iterationNumber}.
+            """;
+
+        var result = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+        
+        // Validate the result is valid JSON
+        try
+        {
+            using var doc = JsonDocument.Parse(result);
+            _logger.LogInformation("Fix result validation successful for case {CaseId}, iteration {Iteration}", caseId, iterationNumber);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "FixAgent returned invalid JSON for case {CaseId}, iteration {Iteration}", caseId, iterationNumber);
+            
+            // Fallback: return original JSON if fix failed
+            _logger.LogWarning("Returning original JSON as fallback due to fix failure");
+            return currentJson;
+        }
+
+        return result;
+    }
+
+    public async Task<bool> IsCaseCleanAsync(string redTeamAnalysis, string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("Analyzing if case is clean and ready for packaging");
+
+        var systemPrompt = """
+            You are a quality assessment agent. Analyze red team feedback to determine if a case is ready for final packaging.
+            
+            Respond with exactly "CLEAN" if the case has no critical issues, or "NEEDS_FIX" if critical issues remain.
+            
+            Consider critical issues:
+            - Logical inconsistencies that break the case narrative
+            - Missing or contradictory evidence
+            - Timeline errors that affect investigation flow
+            - Character inconsistencies that confuse the story
+            - Serious formatting or structural problems
+            
+            Minor issues (not critical):
+            - Small wording improvements
+            - Minor character details
+            - Stylistic suggestions
+            - Performance optimizations
+            """;
+
+        var userPrompt = $"""
+            Analyze this red team feedback and determine if the case is CLEAN (ready for packaging) or NEEDS_FIX (has critical issues):
+            
+            RED TEAM ANALYSIS:
+            {redTeamAnalysis}
+            
+            Respond with exactly one word: "CLEAN" or "NEEDS_FIX"
+            """;
+
+        var result = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+        
+        // Parse the LLM response
+        var cleanResult = result.Trim().ToUpperInvariant();
+        var isClean = cleanResult.Contains("CLEAN") && !cleanResult.Contains("NEEDS_FIX");
+        
+        _logger.LogInformation("Case quality assessment: {Result} (isClean: {IsClean})", cleanResult, isClean);
+        return isClean;
+    }
+
     public async Task<CaseGenerationOutput> PackageCaseAsync(string finalJson, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Packaging final case: {CaseId}", caseId);

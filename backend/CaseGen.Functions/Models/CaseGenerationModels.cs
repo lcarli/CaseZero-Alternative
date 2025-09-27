@@ -34,6 +34,20 @@ public record RedTeamActivityModel
     public required string CaseId { get; init; }
 }
 
+public record FixActivityModel
+{
+    public required string RedTeamAnalysis { get; init; }
+    public required string CurrentJson { get; init; }
+    public required string CaseId { get; init; }
+    public int IterationNumber { get; init; } = 1;
+}
+
+public record CheckCaseCleanActivityModel
+{
+    public required string RedTeamAnalysis { get; init; }
+    public required string CaseId { get; init; }
+}
+
 public record NormalizeActivityModel
 {
     public required string[] Documents { get; init; }
@@ -238,11 +252,12 @@ public static class CaseGenerationSteps
     public const string Normalize = "Normalize";
     public const string RuleValidate = "RuleValidate";
     public const string RedTeam = "RedTeam";
+    public const string Fix = "Fix";
     public const string Package = "Package";
     
     public static readonly string[] AllSteps = {
         Plan, Expand, Design, GenDocs, GenMedia, RenderDocs, RenderImages,
-        Normalize, RuleValidate, RedTeam, Package
+        Normalize, RuleValidate, RedTeam, Fix, Package
     };
 }
 
