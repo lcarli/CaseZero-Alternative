@@ -112,18 +112,11 @@ public class CaseGeneratorActivities
         return result.NormalizedJson;
     }
 
-    [Function("IndexActivity")]
-    public async Task<string> IndexActivity([ActivityTrigger] IndexActivityModel model)
-    {
-        _logger.LogInformation("Indexing case content");
-        return await _caseGenerationService.IndexCaseAsync(model.NormalizedJson, model.CaseId);
-    }
-
     [Function("ValidateRulesActivity")]
     public async Task<string> ValidateRulesActivity([ActivityTrigger] ValidateActivityModel model)
     {
         _logger.LogInformation("Validating case rules");
-        return await _caseGenerationService.ValidateRulesAsync(model.IndexedJson, model.CaseId);
+        return await _caseGenerationService.ValidateRulesAsync(model.NormalizedJson, model.CaseId);
     }
 
     [Function("RedTeamActivity")]

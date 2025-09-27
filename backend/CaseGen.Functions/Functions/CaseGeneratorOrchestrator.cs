@@ -243,45 +243,31 @@ public class CaseGeneratorOrchestrator
             completedSteps.Add(CaseGenerationSteps.Normalize);
             _caseLogging.LogOrchestratorStep(caseId, "NORMALIZE_COMPLETE", $"Normalization completed: {normalizeResult.Length} chars");
 
-            // Step 7: Index
-            status = status with
-            {
-                CurrentStep = CaseGenerationSteps.Index,
-                Progress = 0.7,
-                CompletedSteps = completedSteps.ToArray()
-            };
-            context.SetCustomStatus(status);
-            _caseLogging.LogOrchestratorStep(caseId, "INDEX_START", "Creating searchable index of case content");
-
-            var indexResult = await context.CallActivityAsync<string>("IndexActivity", new IndexActivityModel { NormalizedJson = normalizeResult, CaseId = caseId });
-            completedSteps.Add(CaseGenerationSteps.Index);
-            _caseLogging.LogOrchestratorStep(caseId, "INDEX_COMPLETE", $"Index created: {indexResult.Length} chars");
-
-            // Step 8: Rule Validate
+            // Step 7: Rule Validate (simplified - no index needed)
             status = status with
             {
                 CurrentStep = CaseGenerationSteps.RuleValidate,
-                Progress = 0.8,
+                Progress = 0.7,
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "VALIDATE_START", "Validating case against business rules");
 
-            var validateResult = await context.CallActivityAsync<string>("ValidateRulesActivity", new ValidateActivityModel { IndexedJson = indexResult, CaseId = caseId });
+            var validateResult = await context.CallActivityAsync<string>("ValidateRulesActivity", new ValidateActivityModel { NormalizedJson = normalizeResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.RuleValidate);
             _caseLogging.LogOrchestratorStep(caseId, "VALIDATE_COMPLETE", $"Validation completed: {validateResult.Length} chars");
 
-            // Step 9: Red Team (CORE COMPLETION BEFORE OPTIONAL RENDERING)
+            // Step 8: Red Team (CORE COMPLETION BEFORE OPTIONAL RENDERING)
             status = status with
             {
                 CurrentStep = CaseGenerationSteps.RedTeam,
-                Progress = 0.9,
+                Progress = 0.8,
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_START", "Performing security analysis and red team review");
 
-            var redTeamResult = await context.CallActivityAsync<string>("RedTeamActivity", new RedTeamActivityModel { ValidatedJson = validateResult, CaseId = caseId });
+            var redTeamResult = await context.CallActivityAsync<string>("RedTeamActivity", new RedTeamActivityModel { ValidatedJson = normalizeResult, CaseId = caseId });
             
             // Save RedTeam analysis separately to logs container (not as case.json)
             await context.CallActivityAsync("SaveRedTeamAnalysisActivity", new SaveRedTeamAnalysisActivityModel { 
@@ -301,11 +287,11 @@ public class CaseGeneratorOrchestrator
                 logger.LogInformation("Rendering files requested - starting optional rendering phase for case {CaseId}", caseId);
                 _caseLogging.LogOrchestratorStep(caseId, "RENDER_PHASE_START", "Starting optional file rendering phase");
 
-                // Step 9.5: RenderDocuments (optional - fan-out JSON→MD→PDF)
+                // Step 8.5: RenderDocuments (optional - fan-out JSON→MD→PDF)
                 status = status with
                 {
                     CurrentStep = CaseGenerationSteps.RenderDocs,
-                    Progress = 0.92,
+                    Progress = 0.85,
                     CompletedSteps = completedSteps.ToArray()
                 };
                 context.SetCustomStatus(status);
@@ -345,11 +331,11 @@ public class CaseGeneratorOrchestrator
                 completedSteps.Add(CaseGenerationSteps.RenderDocs);
                 _caseLogging.LogOrchestratorStep(caseId, "RENDER_DOCS_COMPLETE", $"Rendered {renderResults.Length} documents");
 
-                // Step 9.7: RenderImages (optional - fan-out for actual image generation)
+                // Step 8.7: RenderImages (optional - fan-out for actual image generation)
                 status = status with
                 {
                     CurrentStep = CaseGenerationSteps.RenderImages,
-                    Progress = 0.95,
+                    Progress = 0.9,
                     CompletedSteps = completedSteps.ToArray()
                 };
                 context.SetCustomStatus(status);
@@ -430,17 +416,17 @@ public class CaseGeneratorOrchestrator
                 _caseLogging.LogOrchestratorStep(caseId, "RENDER_PHASE_SKIPPED", "File rendering skipped (renderFiles=false)");
             }
 
-            // Step 10: Package (FINAL - with or without rendered files)
+            // Step 9: Package (FINAL - with or without rendered files)
             status = status with
             {
                 CurrentStep = CaseGenerationSteps.Package,
-                Progress = 0.98,
+                Progress = 0.95,
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "PACKAGE_START", "Creating final case package and delivery artifacts");
 
-            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = validateResult, CaseId = caseId });
+            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = normalizeResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.Package);
             _caseLogging.LogOrchestratorStep(caseId, "PACKAGE_COMPLETE", "Final packaging completed successfully");
 

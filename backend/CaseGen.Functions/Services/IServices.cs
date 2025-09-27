@@ -12,8 +12,7 @@ public interface ICaseGenerationService
     Task<string> RenderDocumentFromJsonAsync(string docId, string documentJson, string caseId, CancellationToken cancellationToken = default);
     Task<string> RenderMediaFromJsonAsync(MediaSpec spec, string caseId, CancellationToken cancellationToken = default);
     Task<NormalizationResult> NormalizeCaseDeterministicAsync(NormalizationInput input, CancellationToken cancellationToken = default);
-    Task<string> IndexCaseAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default);
-    Task<string> ValidateRulesAsync(string indexedJson, string caseId, CancellationToken cancellationToken = default);
+    Task<string> ValidateRulesAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default);
     Task<string> RedTeamCaseAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default);
     Task SaveRedTeamAnalysisAsync(string caseId, string redTeamAnalysis, CancellationToken cancellationToken = default);
     Task<CaseGenerationOutput> PackageCaseAsync(string finalJson, string caseId, CancellationToken cancellationToken = default);

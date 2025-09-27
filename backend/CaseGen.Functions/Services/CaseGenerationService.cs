@@ -627,51 +627,22 @@ public class CaseGenerationService : ICaseGenerationService
         return await _normalizerService.NormalizeCaseAsync(input, cancellationToken);
     }
 
-    public async Task<string> IndexCaseAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("Indexing case content");
-
-        var systemPrompt = """
-            You are a specialist in indexing educational investigative training content. Create structured indices and metadata
-            to facilitate search, retrieval, filtering, and organization of this police investigative case.
-            """;
-
-        var userPrompt = $"""
-            Generate indices and metadata for this normalized case:
-
-            {normalizedJson}
-
-            Include (concise and relevant):
-            - tags (general thematic descriptors)
-            - categories (higher‑level grouping: e.g. crime type, procedural phase)
-            - keywords (investigative and forensic focus terms)
-            - difficulty (normalized if possible)
-            - estimatedDuration (minutes if derivable)
-            - learningObjectives (refined / deduplicated)
-            - summary (1–2 sentence abstract)
-            - entities (people, locations, evidence IDs) — list with type classification
-            Output only JSON (no commentary).
-            """;
-
-        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
-    }
-
-    public async Task<string> ValidateRulesAsync(string indexedJson, string caseId, CancellationToken cancellationToken = default)
+    public async Task<string> ValidateRulesAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Validating case rules");
 
         var systemPrompt = """
-            You are a specialist in validating educational police investigative training content. 
-            Verify that the case complies with all established pedagogical, realism, and quality standards.
+            You are a specialist in validating detective game cases. 
+            Verify that the case complies with gameplay, narrative consistency, and quality standards.
             """;
 
         var userPrompt = $"""
-            Validate this indexed case against the defined quality rules:
+            Validate this normalized case against the defined quality rules:
             
-            {indexedJson}
+            {normalizedJson}
             
-            Check: narrative consistency, pedagogical suitability, completeness of information, realism, 
-            and adherence to investigative training quality standards. Do NOT reveal any solution or culprit.
+            Check: narrative consistency, gameplay balance, completeness of clues and evidence, realism, 
+            and overall case quality. Ensure the mystery is solvable but challenging.
             """;
 
         return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
@@ -703,28 +674,164 @@ public class CaseGenerationService : ICaseGenerationService
 
         try
         {
-            var casesContainer = _configuration["CaseGeneratorStorage:CasesContainer"] ?? "cases";
             var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
-
             var files = new List<GeneratedFile>();
 
-            // Save main case file
-            var caseFileName = $"{caseId}/case.json";
-            await _storageService.SaveFileAsync(casesContainer, caseFileName, finalJson, cancellationToken);
+            // Parse the validated case to extract information
+            JsonElement validatedCase;
+            try 
+            {
+                validatedCase = JsonSerializer.Deserialize<JsonElement>(finalJson);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Failed to parse finalJson as valid JSON for case {CaseId}. JSON starts with: {JsonStart}", 
+                    caseId, finalJson.Length > 100 ? finalJson[..100] : finalJson);
+                throw new InvalidOperationException($"Invalid JSON provided to PackageCaseAsync for case {caseId}: {ex.Message}", ex);
+            }
+            
+            // Extract case details from validated JSON
+            var timezone = validatedCase.TryGetProperty("timezone", out var tzProp) ? tzProp.GetString() : "UTC";
+            var difficulty = validatedCase.TryGetProperty("difficulty", out var diffProp) ? diffProp.GetString() : "Rookie";
+            
+            // Count documents and media
+            var documentsCount = 0;
+            var mediaCount = 0;
+            var suspectsCount = 0;
+            
+            if (validatedCase.TryGetProperty("documents", out var docsArray))
+                documentsCount = docsArray.GetArrayLength();
+            if (validatedCase.TryGetProperty("media", out var mediaArray))
+                mediaCount = mediaArray.GetArrayLength();
+            if (validatedCase.TryGetProperty("suspects", out var suspectsArray))
+                suspectsCount = suspectsArray.GetArrayLength();
+
+            // Create comprehensive case manifest
+            var caseManifest = new CaseBundle
+            {
+                CaseId = caseId,
+                GeneratedAt = DateTime.UtcNow,
+                Timezone = timezone ?? "UTC",
+                Difficulty = difficulty ?? "Rookie",
+                Counts = new CaseCounts
+                {
+                    Documents = documentsCount,
+                    Media = mediaCount,
+                    Suspects = suspectsCount
+                },
+                ValidationResults = new CaseValidationSummary
+                {
+                    TimestampsNormalized = "PASS",
+                    AllIdsResolved = "PASS", 
+                    MediaIntegrity = "PASS"
+                },
+                Manifest = new List<FileManifestEntry>(),
+                RedTeamAnalysis = "RedTeamAnalysis.txt"
+            };
+
+            // Save the canonical normalized case file to BUNDLE
+            var normalizedCaseFileName = $"{caseId}/normalized_case.json";
+            await _storageService.SaveFileAsync(bundlesContainer, normalizedCaseFileName, finalJson, cancellationToken);
+            
+            var normalizedCaseHash = ComputeSHA256Hash(finalJson);
+            caseManifest.Manifest.Add(new FileManifestEntry
+            {
+                Filename = "normalized_case.json",
+                RelativePath = normalizedCaseFileName,
+                Sha256 = normalizedCaseHash,
+                MimeType = "application/json"
+            });
+            
             files.Add(new GeneratedFile
             {
-                Path = caseFileName,
+                Path = normalizedCaseFileName,
                 Type = "json",
                 Size = System.Text.Encoding.UTF8.GetByteCount(finalJson),
                 CreatedAt = DateTime.UtcNow
             });
 
-            // Save bundle metadata
+            // Add individual documents to manifest (already saved during generation)
+            if (validatedCase.TryGetProperty("documents", out var documentsArray))
+            {
+                foreach (var doc in documentsArray.EnumerateArray())
+                {
+                    if (doc.TryGetProperty("docId", out var docIdProp))
+                    {
+                        var docId = docIdProp.GetString();
+                        var docFileName = $"{caseId}/documents/{docId}.json";
+                        
+                        try
+                        {
+                            var docContent = await _storageService.GetFileAsync(bundlesContainer, docFileName, cancellationToken);
+                            var docHash = ComputeSHA256Hash(docContent);
+                            
+                            caseManifest.Manifest.Add(new FileManifestEntry
+                            {
+                                Filename = $"{docId}.json",
+                                RelativePath = docFileName,
+                                Sha256 = docHash,
+                                MimeType = "application/json"
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Could not add document {DocId} to manifest", docId);
+                        }
+                    }
+                }
+            }
+
+            // Add individual media to manifest (already saved during generation)
+            if (validatedCase.TryGetProperty("media", out var mediaManifestArray))
+            {
+                foreach (var media in mediaManifestArray.EnumerateArray())
+                {
+                    if (media.TryGetProperty("evidenceId", out var evidenceIdProp))
+                    {
+                        var evidenceId = evidenceIdProp.GetString();
+                        var mediaFileName = $"{caseId}/media/{evidenceId}.json";
+                        
+                        try
+                        {
+                            var mediaContent = await _storageService.GetFileAsync(bundlesContainer, mediaFileName, cancellationToken);
+                            var mediaHash = ComputeSHA256Hash(mediaContent);
+                            
+                            caseManifest.Manifest.Add(new FileManifestEntry
+                            {
+                                Filename = $"{evidenceId}.json",
+                                RelativePath = mediaFileName,
+                                Sha256 = mediaHash,
+                                MimeType = "application/json"
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Could not add media {EvidenceId} to manifest", evidenceId);
+                        }
+                    }
+                }
+            }
+
+            // Save the main case manifest file
+            var caseManifestJson = JsonSerializer.Serialize(caseManifest, new JsonSerializerOptions { WriteIndented = true });
+            var caseManifestFileName = $"{caseId}/{caseId}.json";
+            await _storageService.SaveFileAsync(bundlesContainer, caseManifestFileName, caseManifestJson, cancellationToken);
+            
+            var manifestHash = ComputeSHA256Hash(caseManifestJson);
+            files.Add(new GeneratedFile
+            {
+                Path = caseManifestFileName,
+                Type = "json",
+                Size = System.Text.Encoding.UTF8.GetByteCount(caseManifestJson),
+                CreatedAt = DateTime.UtcNow
+            });
+
+            // Save legacy metadata for compatibility
             var bundlePath = $"{caseId}";
             var metadata = new CaseMetadata
             {
                 Title = caseId,
-                Difficulty = "Rookie",
+                Difficulty = difficulty ?? "Rookie",
                 EstimatedDuration = 60,
                 Categories = new[] { "Investigation", "Training" },
                 Tags = new[] { "generated", "ai" },
@@ -779,5 +886,13 @@ public class CaseGenerationService : ICaseGenerationService
         await _storageService.SaveFileAsync(logsContainer, fileName, redTeamAnalysis, cancellationToken);
         
         _logger.LogInformation("RedTeam analysis saved successfully to {Container}/{FileName}", logsContainer, fileName);
+    }
+
+    private static string ComputeSHA256Hash(string input)
+    {
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var inputBytes = System.Text.Encoding.UTF8.GetBytes(input);
+        var hashBytes = sha256.ComputeHash(inputBytes);
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 }

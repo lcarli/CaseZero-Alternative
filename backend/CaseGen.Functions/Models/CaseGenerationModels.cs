@@ -22,15 +22,9 @@ public record ExpandActivityModel
     public required string CaseId { get; init; }
 }
 
-public record IndexActivityModel
-{
-    public required string NormalizedJson { get; init; }
-    public required string CaseId { get; init; }
-}
-
 public record ValidateActivityModel
 {
-    public required string IndexedJson { get; init; }
+    public required string NormalizedJson { get; init; }
     public required string CaseId { get; init; }
 }
 
@@ -242,14 +236,13 @@ public static class CaseGenerationSteps
     public const string RenderDocs = "RenderDocs";
     public const string RenderImages = "RenderImages";
     public const string Normalize = "Normalize";
-    public const string Index = "Index";
     public const string RuleValidate = "RuleValidate";
     public const string RedTeam = "RedTeam";
     public const string Package = "Package";
     
     public static readonly string[] AllSteps = {
         Plan, Expand, Design, GenDocs, GenMedia, RenderDocs, RenderImages,
-        Normalize, Index, RuleValidate, RedTeam, Package
+        Normalize, RuleValidate, RedTeam, Package
     };
 }
 
@@ -640,4 +633,38 @@ public record ValidationResult
     public required string Status { get; init; } // "PASS", "FAIL", "WARN"
     public required string Description { get; init; }
     public string? Details { get; init; }
+}
+
+public record CaseBundle
+{
+    public required string CaseId { get; init; }
+    public DateTime GeneratedAt { get; init; }
+    public required string Timezone { get; init; }
+    public required string Difficulty { get; init; }
+    public required CaseCounts Counts { get; init; }
+    public required CaseValidationSummary ValidationResults { get; init; }
+    public required List<FileManifestEntry> Manifest { get; init; }
+    public required string RedTeamAnalysis { get; init; }
+}
+
+public record CaseCounts
+{
+    public int Documents { get; init; }
+    public int Media { get; init; }
+    public int Suspects { get; init; }
+}
+
+public record CaseValidationSummary
+{
+    public required string TimestampsNormalized { get; init; }
+    public required string AllIdsResolved { get; init; }
+    public required string MediaIntegrity { get; init; }
+}
+
+public record FileManifestEntry
+{
+    public required string Filename { get; init; }
+    public required string RelativePath { get; init; }
+    public required string Sha256 { get; init; }
+    public required string MimeType { get; init; }
 }

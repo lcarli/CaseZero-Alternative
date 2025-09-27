@@ -113,13 +113,8 @@ public class NormalizerService : INormalizerService
             // Serialize the normalized bundle to JSON string
             var normalizedJson = JsonSerializer.Serialize(normalizedBundle, new JsonSerializerOptions { WriteIndented = true });
 
-            // Save the complete normalized case (not just the log) to logs and cases containers
+            // Save the complete normalized case to logs only (the canonical file will be saved in PackageActivity)
             await _caseLogging.LogStepResponseAsync(input.CaseId, "normalized_case", normalizedJson);
-            
-            // Also save to cases container for direct access
-            var casesContainer = "cases";
-            var normalizedFileName = $"{input.CaseId}/Normalized.json";
-            await _storageService.SaveFileAsync(casesContainer, normalizedFileName, normalizedJson);
 
             return new NormalizationResult
             {
