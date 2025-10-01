@@ -757,12 +757,42 @@ public class NormalizerService : INormalizerService
     private NormalizedDocument[] NormalizeTimestamps(NormalizedDocument[] documents, string? timezone, List<LogEntry> logEntries)
     {
         var normalizedTimezone = timezone ?? "UTC";
+        var inconsistentTimestamps = new List<string>();
         
         foreach (var doc in documents)
         {
-            // Ensure timestamps are in ISO-8601 format
-            doc.CreatedAt ??= DateTime.UtcNow;
+            // Validate and normalize timestamps
+            if (doc.CreatedAt == null)
+            {
+                inconsistentTimestamps.Add($"Document {doc.DocId}: missing CreatedAt timestamp");
+                doc.CreatedAt = DateTime.UtcNow;
+            }
+            
+            // Ensure consistent timezone format
+            var createdAtStr = doc.CreatedAt?.ToString("yyyy-MM-ddTHH:mm:ss.fffK");
+            if (!string.IsNullOrEmpty(createdAtStr) && !createdAtStr.Contains("+") && !createdAtStr.Contains("-") && !createdAtStr.EndsWith("Z"))
+            {
+                inconsistentTimestamps.Add($"Document {doc.DocId}: timestamp missing timezone offset");
+            }
+            
             doc.ModifiedAt ??= doc.CreatedAt;
+            
+            // Note: Detailed content timestamp validation would require parsing the actual document JSON content
+            // For now, we focus on the core document timestamp properties
+        }
+
+        if (inconsistentTimestamps.Any())
+        {
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "WARNING",
+                Message = $"Found {inconsistentTimestamps.Count} timestamp inconsistencies",
+                Details = new Dictionary<string, object>
+                {
+                    ["inconsistencies"] = inconsistentTimestamps
+                }
+            });
         }
 
         logEntries.Add(new LogEntry
@@ -773,7 +803,8 @@ public class NormalizerService : INormalizerService
             Details = new Dictionary<string, object>
             {
                 ["timezone"] = normalizedTimezone,
-                ["documentCount"] = documents.Length
+                ["documentCount"] = documents.Length,
+                ["inconsistenciesFound"] = inconsistentTimestamps.Count
             }
         });
 
@@ -783,10 +814,40 @@ public class NormalizerService : INormalizerService
     private NormalizedMedia[] NormalizeMediaTimestamps(NormalizedMedia[] media, string? timezone, List<LogEntry> logEntries)
     {
         var normalizedTimezone = timezone ?? "UTC";
+        var inconsistentTimestamps = new List<string>();
         
         foreach (var item in media)
         {
-            item.CreatedAt ??= DateTime.UtcNow;
+            // Validate and normalize media timestamps
+            if (item.CreatedAt == null)
+            {
+                inconsistentTimestamps.Add($"Media {item.EvidenceId}: missing CreatedAt timestamp");
+                item.CreatedAt = DateTime.UtcNow;
+            }
+            
+            // Ensure consistent timezone format for media
+            var createdAtStr = item.CreatedAt?.ToString("yyyy-MM-ddTHH:mm:ss.fffK");
+            if (!string.IsNullOrEmpty(createdAtStr) && !createdAtStr.Contains("+") && !createdAtStr.Contains("-") && !createdAtStr.EndsWith("Z"))
+            {
+                inconsistentTimestamps.Add($"Media {item.EvidenceId}: timestamp missing timezone offset");
+            }
+            
+            // Note: Additional timestamp validation for media collection times would require
+            // checking metadata or expanded case timeline information
+        }
+
+        if (inconsistentTimestamps.Any())
+        {
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "WARNING",
+                Message = $"Found {inconsistentTimestamps.Count} media timestamp inconsistencies",
+                Details = new Dictionary<string, object>
+                {
+                    ["inconsistencies"] = inconsistentTimestamps
+                }
+            });
         }
 
         logEntries.Add(new LogEntry
@@ -797,7 +858,8 @@ public class NormalizerService : INormalizerService
             Details = new Dictionary<string, object>
             {
                 ["timezone"] = normalizedTimezone,
-                ["mediaCount"] = media.Length
+                ["mediaCount"] = media.Length,
+                ["inconsistenciesFound"] = inconsistentTimestamps.Count
             }
         });
 

@@ -48,6 +48,83 @@ public record CheckCaseCleanActivityModel
     public required string CaseId { get; init; }
 }
 
+// Hierarchical RedTeam Analysis Models
+public record RedTeamGlobalActivityModel
+{
+    public required string ValidatedJson { get; init; }
+    public required string CaseId { get; init; }
+}
+
+public record RedTeamFocusedActivityModel
+{
+    public required string ValidatedJson { get; init; }
+    public required string CaseId { get; init; }
+    public required string GlobalAnalysis { get; init; }
+    public required string[] FocusAreas { get; init; } // Specific documents/sections to analyze
+}
+
+public record GlobalRedTeamAnalysis
+{
+    public required List<MacroIssue> MacroIssues { get; init; }
+    public required string[] CriticalDocuments { get; init; } // Documents that need focused analysis
+    public required string[] FocusAreas { get; init; } // Specific areas to examine in detail
+    public required string OverallAssessment { get; init; }
+    public required bool RequiresDetailedAnalysis { get; init; }
+}
+
+public record MacroIssue
+{
+    public required string Type { get; init; } // "CrossDocumentInconsistency", "ChronologicalGap", "NarrativeContradiction"
+    public required string Severity { get; init; } // "Critical", "Major", "Minor"
+    public required string[] AffectedDocuments { get; init; }
+    public required string Description { get; init; }
+    public required string[] RequiredFocusAreas { get; init; } // What needs detailed analysis
+}
+
+public record PreciseIssue
+{
+    public required string Priority { get; init; } // "High", "Medium", "Low"
+    public required string Type { get; init; } // "TimestampConflict", "PostCreationReference", etc.
+    public required IssueLocation Location { get; init; }
+    public required string Problem { get; init; }
+    public required IssueFix Fix { get; init; }
+}
+
+public record IssueLocation
+{
+    public required string DocId { get; init; }
+    public string? Field { get; init; } // e.g., "Metadata.CompilationTime", "Content"
+    public string? Section { get; init; } // e.g., "Immediate Actions Taken", "Log Metadata"
+    public string? LinePattern { get; init; } // Text pattern to find exact location
+    public string? CurrentValue { get; init; } // Current problematic value
+}
+
+public record IssueFix
+{
+    public required string Action { get; init; } // "UpdateTimestamp", "ReplaceText", "MoveToAddendum", "RemoveReference"
+    public string? NewValue { get; init; } // New value to set
+    public string? OldText { get; init; } // Text to be replaced (for ReplaceText)
+    public string? NewText { get; init; } // Replacement text
+    public string? NewSection { get; init; } // For moves/additions
+    public string? Reason { get; init; } // Why this fix is needed
+}
+
+public record StructuredRedTeamAnalysis
+{
+    public required List<PreciseIssue> Issues { get; init; }
+    public required string Summary { get; init; }
+    public required int HighPriorityCount { get; init; }
+    public required int MediumPriorityCount { get; init; }
+    public required int LowPriorityCount { get; init; }
+}
+
+public record RedTeamChunkSpec
+{
+    public required string[] DocIds { get; init; }
+    public required string[] EvidenceIds { get; init; }
+    public int EstimatedBytes { get; init; }
+}
+
 public record NormalizeActivityModel
 {
     public required string[] Documents { get; init; }

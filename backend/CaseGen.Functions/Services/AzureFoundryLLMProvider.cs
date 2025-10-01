@@ -49,7 +49,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
         {
             var requestOptions = new ChatCompletionOptions()
             {
-                MaxOutputTokenCount = 10000
+                MaxOutputTokenCount = 30000
             };
 
             // Enable the new max_completion_tokens property

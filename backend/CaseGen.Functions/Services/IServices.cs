@@ -14,6 +14,8 @@ public interface ICaseGenerationService
     Task<NormalizationResult> NormalizeCaseDeterministicAsync(NormalizationInput input, CancellationToken cancellationToken = default);
     Task<string> ValidateRulesAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default);
     Task<string> RedTeamCaseAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default);
+    Task<string> RedTeamGlobalAnalysisAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default);
+    Task<string> RedTeamFocusedAnalysisAsync(string validatedJson, string caseId, string globalAnalysis, string[] focusAreas, CancellationToken cancellationToken = default);
     Task<string> FixCaseAsync(string redTeamAnalysis, string currentJson, string caseId, int iterationNumber = 1, CancellationToken cancellationToken = default);
     Task<bool> IsCaseCleanAsync(string redTeamAnalysis, string caseId, CancellationToken cancellationToken = default);
     Task SaveRedTeamAnalysisAsync(string caseId, string redTeamAnalysis, CancellationToken cancellationToken = default);

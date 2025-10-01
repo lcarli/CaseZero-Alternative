@@ -4,11 +4,16 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Text;
 using System;
+using System.Text.RegularExpressions;
 
 namespace CaseGen.Functions.Services;
 
 public class CaseGenerationService : ICaseGenerationService
 {
+    // RedTeam chunked processing constants
+    private const int DefaultMaxBytesPerCall = 60_000;
+    private const int MaxParallelCalls = 3;
+    
     private readonly ILLMService _llmService;
     private readonly IStorageService _storageService;
     private readonly ISchemaValidationService _schemaValidationService;
@@ -18,6 +23,7 @@ public class CaseGenerationService : ICaseGenerationService
     private readonly INormalizerService _normalizerService;
     private readonly IPdfRenderingService _pdfRenderingService;
     private readonly IImagesService _imagesService;
+    private readonly IPrecisionEditor _precisionEditor;
     private readonly ILogger<CaseGenerationService> _logger;
 
     public CaseGenerationService(
@@ -29,6 +35,7 @@ public class CaseGenerationService : ICaseGenerationService
         INormalizerService normalizerService,
         IPdfRenderingService pdfRenderingService,
         IImagesService imagesService,
+        IPrecisionEditor precisionEditor,
         IConfiguration configuration,
         ILogger<CaseGenerationService> logger)
     {
@@ -40,6 +47,7 @@ public class CaseGenerationService : ICaseGenerationService
         _normalizerService = normalizerService;
         _pdfRenderingService = pdfRenderingService;
         _imagesService = imagesService;
+        _precisionEditor = precisionEditor;
         _configuration = configuration;
         _logger = logger;
     }
@@ -75,8 +83,12 @@ public class CaseGenerationService : ICaseGenerationService
             - If a real city is needed, limit to City/State only; prefer abstract locations (e.g., ""neighborhood bakery"").
             - All names must be plausible and fictitious.
 
-            TIME/LANGUAGE:
-            - All timestamps MUST be ISO-8601 with offset (target timezone: {request.Timezone}).
+            TEMPORAL CONSISTENCY (CRITICAL):
+            - ALL timestamps MUST use ISO-8601 with timezone offset: {request.Timezone}
+            - Establish a clear timeline baseline that will be consistently used across ALL documents and evidence
+            - All timeline events must be chronologically ordered and logically spaced
+            - NO conflicting or overlapping timestamps - each event must have a unique, consistent time
+            - Document creation times, evidence collection times, and incident timestamps must align logically
 
             EXPANSION READINESS (NON-NEGOTIABLE):
             - mainElements[] must already anticipate the minimum entities that will exist later (e.g., ""witness statement"", ""key control log"", ""CCTV collage"", ""receipt"", etc.).
@@ -100,7 +112,7 @@ public class CaseGenerationService : ICaseGenerationService
             - learningObjectives[] directly tied to actions the player will perform
             - mainElements[] that pre-declare the core sources to be expanded (witness statements, logs, receipts, cctv snapshot collage, forensics inspection, etc.)
             - estimatedDuration aligned with difficulty
-            - timeline[] canonical events with ISO-8601 + offset (use {request.Timezone})
+            - timeline[] canonical events with ISO-8601 + offset (use {request.Timezone}) - MUST be chronologically ordered with NO overlaps or conflicts
             - minDetectiveRank = {requestedDiff}
             - profileApplied with numeric ranges actually used
             - goldenTruth.facts with minSupports ≥ 2 and heterogeneous sources (do not reveal culprit/solution)
@@ -147,9 +159,16 @@ public class CaseGenerationService : ICaseGenerationService
             - Detective2/Sergeant+: cross-correlations, some gating prerequisites
             - Lieutenant/Captain/Commander: specialized analyses, layered dependencies
 
+            TEMPORAL CONSISTENCY (MANDATORY):
+            - PRESERVE all timeline events from Plan with exact same timestamps
+            - ALL new timestamps MUST use the same timezone offset as established in Plan
+            - Evidence collection times MUST logically follow incident times
+            - Witness interview times MUST be chronologically consistent
+            - Document creation dates MUST align with when they would realistically be created
+            - NO timestamp conflicts - each event gets a unique, logical time slot
+            
             STRICT CONSISTENCY:
             - Reuse names/roles introduced in Plan verbatim; DO NOT invent new real-world brands/addresses.
-            - All timestamps MUST be ISO-8601 with offset.
             - Every evidence/witness/suspect introduced here must be usable later in Design (docs or media).";
 
         var userPrompt = $@"
@@ -222,6 +241,14 @@ public class CaseGenerationService : ICaseGenerationService
             - Do not invent real addresses or real brands/companies (use abstract locations or City/State).
             - Allowed document types: police_report, interview, memo_admin, forensics_report, evidence_log, witness_statement
             - Allowed media types: photo, document_scan, diagram (audio/video => deferred=true)
+
+            TEMPORAL SPECIFICATIONS (CRITICAL):
+            - ALL document dateCreated and evidence collectedAt timestamps MUST be consistent with Expand timeline
+            - Use the EXACT same timezone offset established in Expand for ALL timestamps
+            - Document creation dates must logically follow the incident timeline (e.g., police reports after incident, interviews after initial report)
+            - Evidence collection times must be realistic (not before incident, not weeks later without justification)
+            - Interview timestamps must be chronologically ordered and consistent with case progression
+            - NO overlapping or conflicting timestamps - each document/evidence gets a unique time slot
 
             MANDATORY CONSISTENCY:
             - Names (suspects/witnesses) and evidence must match 1:1 with Expand (same text/semantics).
@@ -423,11 +450,17 @@ public class CaseGenerationService : ICaseGenerationService
             - Maintain consistency with Plan / Expand / Design.
             - **Use exactly the provided 'sections' titles and in the exact order. Do NOT add or rename sections.**
             - Follow exactly the word count range (lengthTarget).
-            - Use ISO-8601 timestamps with offset whenever citing times.
             - If type == forensics_report, include the ""Chain of Custody"" section.
             - Whenever citing evidence, reference existing evidenceId/docId (do not invent).
             - Do not mention gating in the content (gating is game metadata).
             - No real PII, brands, or real addresses.
+
+            TEMPORAL CONSISTENCY (CRITICAL):
+            - ALL timestamps MUST use ISO-8601 format with the same timezone offset from Plan/Design
+            - Document creation date MUST match the dateCreated specified in Design for this document
+            - All referenced times (incident times, collection times, interview times) MUST be consistent with established timeline
+            - Chain of Custody timestamps MUST be chronologically ordered and realistic
+            - NO conflicting or overlapping timestamps with other documents or evidence
 
             OUTPUT JSON:
             {
@@ -512,6 +545,12 @@ public class CaseGenerationService : ICaseGenerationService
             - Content 100% fictitious. Forbid real names, brands/logos, faces/biometrics, real license plates, official badges.
             - No graphic/violent content. Avoid people when the scene allows.
             - Do NOT write the evidence name or caseId inside the image.
+
+            TEMPORAL CONSISTENCY (MANDATORY):
+            - ALL timestamps in media MUST use the same timezone offset established in Plan/Design
+            - CCTV timestamps MUST match the collectedAt time specified in Design for this evidence
+            - Document scan dates MUST be consistent with when the document would realistically exist in the case timeline
+            - NO conflicting timestamps - each piece of evidence has exactly one collection time that must be respected
 
             STRICT CONSISTENCY (NON-NEGOTIABLE)
             - Reflect ONLY the narrative elements already present in Plan/Expand/Design; do not invent new entities, locations, vehicles, or timestamps.
@@ -634,6 +673,14 @@ public class CaseGenerationService : ICaseGenerationService
         var systemPrompt = """
             You are a specialist in validating detective game cases. 
             Verify that the case complies with gameplay, narrative consistency, and quality standards.
+            
+            Pay special attention to TEMPORAL CONSISTENCY:
+            - All timestamps must use consistent timezone offset throughout the case
+            - Document creation dates must logically follow incident timeline  
+            - Evidence collection times must be realistic and chronologically sound
+            - Interview timestamps must be properly sequenced
+            - No overlapping or conflicting timestamps between documents/evidence
+            - Chain of custody timestamps must be chronologically ordered
             """;
 
         var userPrompt = $"""
@@ -641,8 +688,15 @@ public class CaseGenerationService : ICaseGenerationService
             
             {normalizedJson}
             
-            Check: narrative consistency, gameplay balance, completeness of clues and evidence, realism, 
-            and overall case quality. Ensure the mystery is solvable but challenging.
+            Check: 
+            1. TEMPORAL CONSISTENCY: Verify all timestamps use consistent timezone, are chronologically logical, and have no conflicts
+            2. Narrative consistency and logical flow
+            3. Gameplay balance and challenge level
+            4. Completeness of clues and evidence
+            5. Realism and authenticity
+            6. Overall case quality and solvability
+            
+            Flag any timestamp inconsistencies, timezone mismatches, or chronological errors as critical issues.
             """;
 
         return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
@@ -650,28 +704,760 @@ public class CaseGenerationService : ICaseGenerationService
 
     public async Task<string> RedTeamCaseAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Red teaming case for quality assurance");
+        return await RedTeamCaseChunkedAsync(validatedJson, caseId, cancellationToken);
+    }
+
+    public async Task<string> RedTeamGlobalAnalysisAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("REDTEAM GLOBAL: Starting macro analysis for case {CaseId}", caseId);
+        
+        if (string.IsNullOrWhiteSpace(validatedJson))
+        {
+            _logger.LogError("REDTEAM GLOBAL: Empty or null validatedJson provided for case {CaseId}", caseId);
+            return CreateFallbackGlobalAnalysis("Global analysis failed - empty input JSON provided.");
+        }
+
+        // Log input size for monitoring
+        _logger.LogInformation("REDTEAM GLOBAL: Input JSON size: {Size} bytes for case {CaseId}", 
+            validatedJson.Length, caseId);
 
         var systemPrompt = """
-            You are a red team specialist for police investigative training content. Perform a critical analysis
-            of the case, identifying weaknesses, inconsistencies, and opportunities for improvement.
+            You are a senior forensic case analyst conducting a high-level strategic assessment of a complete forensic case.
+            Your goal is to identify MACRO-LEVEL issues that affect the case's overall integrity and coherence.
+
+            Focus on:
+            1. CROSS-DOCUMENT INCONSISTENCIES: Contradictions between different documents
+            2. CHRONOLOGICAL PROBLEMS: Timeline gaps, impossible sequences, temporal contradictions
+            3. NARRATIVE COHERENCE: Story elements that don't align across the case
+            4. REFERENCE INTEGRITY: Missing or broken cross-references between documents
+            5. STRUCTURAL COMPLETENESS: Missing critical elements or documents
+
+            Do NOT focus on:
+            - Minor formatting issues
+            - Small textual errors
+            - Document-specific content problems
+            - Individual timestamp corrections
+
+            Provide a strategic assessment that identifies which areas need detailed focused analysis.
+            """;
+
+        var jsonStructure = """
+            {
+                "macroIssues": [
+                    {
+                        "type": "CrossDocumentInconsistency|ChronologicalGap|NarrativeContradiction|ReferenceIntegrity|StructuralCompleteness",
+                        "severity": "Critical|Major|Minor",
+                        "affectedDocuments": ["doc_id_1", "doc_id_2"],
+                        "description": "Clear description of the macro issue",
+                        "requiredFocusAreas": ["specific_section_1", "specific_field_2"]
+                    }
+                ],
+                "criticalDocuments": ["doc_ids_needing_detailed_analysis"],
+                "focusAreas": ["specific_areas_to_examine_in_detail"],
+                "overallAssessment": "Strategic assessment of case quality",
+                "requiresDetailedAnalysis": true/false
+            }
             """;
 
         var userPrompt = $"""
-            Perform a red team analysis of this validated case:
-            
+            Analyze this complete forensic case for macro-level issues. Return your analysis as valid JSON:
+
             {validatedJson}
-            
-            Identify: logical issues, inconsistencies, narrative weaknesses, potential improvements, and quality risks.
+
+            Required JSON structure:
+            {jsonStructure}
             """;
 
-        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+        try
+        {
+            var result = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+            
+            if (string.IsNullOrWhiteSpace(result))
+            {
+                _logger.LogWarning("REDTEAM GLOBAL: Empty response received for case {CaseId}", caseId);
+                return CreateFallbackGlobalAnalysis("Global analysis failed - empty response received from LLM.");
+            }
+
+            // Clean and validate JSON
+            var cleanedResult = CleanRedTeamJsonResponse(result);
+            
+            // Try to parse to validate structure
+            try
+            {
+                var analysis = JsonSerializer.Deserialize<GlobalRedTeamAnalysis>(cleanedResult);
+                if (analysis != null)
+                {
+                    _logger.LogInformation("REDTEAM GLOBAL: Completed - {MacroIssueCount} macro issues found", 
+                        analysis.MacroIssues.Count);
+                    return cleanedResult;
+                }
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogWarning(ex, "REDTEAM GLOBAL: Invalid JSON structure returned for case {CaseId}", caseId);
+            }
+
+            return cleanedResult; // Return even if parsing failed - let downstream handle it
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "REDTEAM GLOBAL: Exception during analysis for case {CaseId}", caseId);
+            return CreateFallbackGlobalAnalysis($"Global analysis failed with exception: {ex.Message}");
+        }
+    }
+
+    public async Task<string> RedTeamFocusedAnalysisAsync(string validatedJson, string caseId, string globalAnalysis, string[] focusAreas, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("REDTEAM FOCUSED: Starting detailed analysis for case {CaseId} on {FocusAreaCount} areas", 
+            caseId, focusAreas.Length);
+        
+        if (string.IsNullOrWhiteSpace(validatedJson))
+        {
+            _logger.LogError("REDTEAM FOCUSED: Empty or null validatedJson provided for case {CaseId}", caseId);
+            return CreateFallbackStructuredAnalysis("Focused analysis failed - empty input JSON provided.");
+        }
+
+        // Use existing chunked analysis but with focused prompting
+        return await RedTeamCaseChunkedAsync(validatedJson, caseId, cancellationToken, globalAnalysis, focusAreas);
+    }
+
+    public async Task<string> RedTeamCaseChunkedAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default)
+    {
+        return await RedTeamCaseChunkedAsync(validatedJson, caseId, cancellationToken, null, null);
+    }
+
+    public async Task<string> RedTeamCaseChunkedAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default, string? globalAnalysis = null, string[]? focusAreas = null)
+    {
+        var analysisType = globalAnalysis != null ? "FOCUSED" : "STANDARD";
+        _logger.LogInformation("PRECISION REDTEAM CHUNKED: Starting structured {AnalysisType} analysis for case {CaseId}", analysisType, caseId);
+        
+        // Input validation
+        if (string.IsNullOrWhiteSpace(validatedJson))
+        {
+            _logger.LogError("PRECISION REDTEAM CHUNKED: Empty or null validatedJson provided for case {CaseId}", caseId);
+            return CreateFallbackStructuredAnalysis("RedTeam analysis failed - empty input JSON provided.");
+        }
+
+        var inputSize = System.Text.Encoding.UTF8.GetByteCount(validatedJson);
+        _logger.LogInformation("PRECISION REDTEAM CHUNKED: Input JSON size: {InputSize} bytes for case {CaseId}", inputSize, caseId);
+
+        JsonDocument doc;
+        try
+        {
+            doc = JsonDocument.Parse(validatedJson);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "PRECISION REDTEAM CHUNKED: Invalid input JSON for case {CaseId}", caseId);
+            return CreateFallbackStructuredAnalysis($"RedTeam analysis failed - invalid input JSON: {ex.Message}");
+        }
+
+        using (doc)
+        {
+            // Step 1: Build skeleton and indexes
+            var (skeletonJson, docMap, mediaMap) = BuildSkeletonAndIndexes(doc.RootElement);
+            _logger.LogInformation("PRECISION REDTEAM CHUNKED: Built skeleton and indexes - {DocCount} docs, {MediaCount} media", 
+                docMap.Count, mediaMap.Count);
+
+            // Step 2: Read configuration
+            var maxBytesPerCall = _configuration.GetValue("CaseGenerator:RedTeam:MaxBytesPerCall", DefaultMaxBytesPerCall);
+            _logger.LogInformation("PRECISION REDTEAM CHUNKED: Using maxBytesPerCall={MaxBytes}", maxBytesPerCall);
+
+            // Step 3: Plan chunks
+            var chunks = PlanChunks(docMap, mediaMap, maxBytesPerCall, skeletonJson);
+            _logger.LogInformation("PRECISION REDTEAM CHUNKED: Planned {ChunkCount} chunks", chunks.Count);
+
+            // Step 4: Process chunks with limited parallelism
+            var semaphore = new SemaphoreSlim(MaxParallelCalls, MaxParallelCalls);
+            var tasks = chunks.Select(async chunk =>
+            {
+                await semaphore.WaitAsync(cancellationToken);
+                try
+                {
+                    return await RunRedTeamOnChunkAsync(chunk, skeletonJson, docMap, mediaMap, caseId, cancellationToken, globalAnalysis, focusAreas);
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+
+            var analyses = await Task.WhenAll(tasks);
+            _logger.LogInformation("PRECISION REDTEAM CHUNKED: Processed all {ChunkCount} chunks", chunks.Count);
+
+            // Step 5: Merge analyses
+            var mergedAnalysis = MergeAnalyses(analyses);
+            _logger.LogInformation("PRECISION REDTEAM CHUNKED: Merged analysis - {IssueCount} total issues", 
+                mergedAnalysis.Issues.Count);
+
+            // Step 6: Serialize and return
+            var result = JsonSerializer.Serialize(mergedAnalysis, new JsonSerializerOptions { WriteIndented = true });
+            _logger.LogInformation("PRECISION REDTEAM CHUNKED: Completed analysis for case {CaseId}: {ResultLength} chars", 
+                caseId, result.Length);
+            
+            return result;
+        }
+    }
+
+    #region RedTeam Chunked Processing Helpers
+
+    private (string skeletonJson, Dictionary<string, JsonElement> docMap, Dictionary<string, JsonElement> mediaMap) 
+        BuildSkeletonAndIndexes(JsonElement root)
+    {
+        var docMap = new Dictionary<string, JsonElement>();
+        var mediaMap = new Dictionary<string, JsonElement>();
+        var timestamps = new HashSet<string>();
+
+        // Extract timezone and difficulty
+        var timezone = root.TryGetProperty("timezone", out var tzProp) ? tzProp.GetString() : "UTC";
+        var difficulty = root.TryGetProperty("difficulty", out var diffProp) ? diffProp.GetString() : "Rookie";
+
+        // Build document map and collect timestamps
+        if (root.TryGetProperty("documents", out var docsArray))
+        {
+            foreach (var doc in docsArray.EnumerateArray())
+            {
+                if (doc.TryGetProperty("docId", out var docIdProp))
+                {
+                    var docId = docIdProp.GetString();
+                    if (!string.IsNullOrEmpty(docId))
+                    {
+                        docMap[docId] = doc;
+                        
+                        // Collect timestamps from document
+                        if (doc.TryGetProperty("createdAt", out var createdProp))
+                        {
+                            var created = createdProp.GetString();
+                            if (IsTimestamp(created)) timestamps.Add(created!);
+                        }
+                        if (doc.TryGetProperty("modifiedAt", out var modifiedProp))
+                        {
+                            var modified = modifiedProp.GetString();
+                            if (IsTimestamp(modified)) timestamps.Add(modified!);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Build media map and collect timestamps
+        if (root.TryGetProperty("media", out var mediaArray))
+        {
+            foreach (var media in mediaArray.EnumerateArray())
+            {
+                if (media.TryGetProperty("evidenceId", out var evidenceIdProp))
+                {
+                    var evidenceId = evidenceIdProp.GetString();
+                    if (!string.IsNullOrEmpty(evidenceId))
+                    {
+                        mediaMap[evidenceId] = media;
+                        
+                        // Collect timestamps from media
+                        if (media.TryGetProperty("collectedAt", out var collectedProp))
+                        {
+                            var collected = collectedProp.GetString();
+                            if (IsTimestamp(collected)) timestamps.Add(collected!);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Build skeleton
+        var skeleton = new
+        {
+            timezone = timezone,
+            difficulty = difficulty,
+            indexes = new
+            {
+                docIds = docMap.Keys.ToArray(),
+                evidenceIds = mediaMap.Keys.ToArray()
+            },
+            temporalLedger = timestamps.Take(50).ToArray() // Limit to prevent growth
+        };
+
+        var skeletonJson = JsonSerializer.Serialize(skeleton, new JsonSerializerOptions { WriteIndented = true });
+        return (skeletonJson, docMap, mediaMap);
+    }
+
+    private bool IsTimestamp(string? s)
+    {
+        if (string.IsNullOrEmpty(s)) return false;
+        
+        // Simple ISO-8601 validation with timezone
+        var isoPattern = @"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,7})?(?:Z|[+-]\d{2}:\d{2})$";
+        return Regex.IsMatch(s, isoPattern);
+    }
+
+    private List<RedTeamChunkSpec> PlanChunks(
+        Dictionary<string, JsonElement> docMap, 
+        Dictionary<string, JsonElement> mediaMap, 
+        int maxBytesPerCall, 
+        string skeletonJson)
+    {
+        var chunks = new List<RedTeamChunkSpec>();
+        var skeletonBytes = Encoding.UTF8.GetByteCount(skeletonJson);
+        var availableBytes = maxBytesPerCall - skeletonBytes - 1000; // Reserve for prompt overhead
+
+        if (availableBytes <= 0)
+        {
+            _logger.LogWarning("CHUNKING: Skeleton too large, using minimal chunks");
+            availableBytes = 5000; // Fallback
+        }
+
+        var currentDocIds = new List<string>();
+        var currentEvidenceIds = new List<string>();
+        var currentBytes = 0;
+
+        // Add documents to chunks
+        foreach (var (docId, docElement) in docMap)
+        {
+            var docBytes = Encoding.UTF8.GetByteCount(docElement.GetRawText());
+            
+            if (currentBytes + docBytes > availableBytes && currentDocIds.Count > 0)
+            {
+                // Create chunk and reset
+                chunks.Add(new RedTeamChunkSpec
+                {
+                    DocIds = currentDocIds.ToArray(),
+                    EvidenceIds = currentEvidenceIds.ToArray(),
+                    EstimatedBytes = currentBytes + skeletonBytes
+                });
+                
+                currentDocIds.Clear();
+                currentEvidenceIds.Clear();
+                currentBytes = 0;
+            }
+            
+            currentDocIds.Add(docId);
+            currentBytes += docBytes;
+        }
+
+        // Add media to current or new chunks
+        foreach (var (evidenceId, mediaElement) in mediaMap)
+        {
+            var mediaBytes = Encoding.UTF8.GetByteCount(mediaElement.GetRawText());
+            
+            if (currentBytes + mediaBytes > availableBytes && (currentDocIds.Count > 0 || currentEvidenceIds.Count > 0))
+            {
+                // Create chunk and reset
+                chunks.Add(new RedTeamChunkSpec
+                {
+                    DocIds = currentDocIds.ToArray(),
+                    EvidenceIds = currentEvidenceIds.ToArray(),
+                    EstimatedBytes = currentBytes + skeletonBytes
+                });
+                
+                currentDocIds.Clear();
+                currentEvidenceIds.Clear();
+                currentBytes = 0;
+            }
+            
+            currentEvidenceIds.Add(evidenceId);
+            currentBytes += mediaBytes;
+        }
+
+        // Add final chunk if needed
+        if (currentDocIds.Count > 0 || currentEvidenceIds.Count > 0)
+        {
+            chunks.Add(new RedTeamChunkSpec
+            {
+                DocIds = currentDocIds.ToArray(),
+                EvidenceIds = currentEvidenceIds.ToArray(),
+                EstimatedBytes = currentBytes + skeletonBytes
+            });
+        }
+
+        // Ensure at least one chunk exists
+        if (chunks.Count == 0)
+        {
+            chunks.Add(new RedTeamChunkSpec
+            {
+                DocIds = Array.Empty<string>(),
+                EvidenceIds = Array.Empty<string>(),
+                EstimatedBytes = skeletonBytes
+            });
+        }
+
+        return chunks;
+    }
+
+    private async Task<StructuredRedTeamAnalysis> RunRedTeamOnChunkAsync(
+        RedTeamChunkSpec chunk,
+        string skeletonJson,
+        Dictionary<string, JsonElement> docMap,
+        Dictionary<string, JsonElement> mediaMap,
+        string caseId,
+        CancellationToken cancellationToken,
+        string? globalAnalysis = null,
+        string[]? focusAreas = null)
+    {
+        _logger.LogInformation("REDTEAM CHUNK: Processing {DocCount} docs, {MediaCount} media ({EstimatedBytes} bytes)",
+            chunk.DocIds.Length, chunk.EvidenceIds.Length, chunk.EstimatedBytes);
+
+        // Build scoped JSON with skeleton + chunk data
+        var scopedData = new
+        {
+            skeleton = JsonSerializer.Deserialize<object>(skeletonJson),
+            documents = chunk.DocIds.Select(id => docMap.TryGetValue(id, out var doc) ? doc : (JsonElement?)null)
+                                   .Where(d => d.HasValue)
+                                   .Select(d => JsonSerializer.Deserialize<object>(d!.Value.GetRawText()))
+                                   .ToArray(),
+            media = chunk.EvidenceIds.Select(id => mediaMap.TryGetValue(id, out var media) ? media : (JsonElement?)null)
+                                     .Where(m => m.HasValue)
+                                     .Select(m => JsonSerializer.Deserialize<object>(m!.Value.GetRawText()))
+                                     .ToArray()
+        };
+
+        var scopedJson = JsonSerializer.Serialize(scopedData, new JsonSerializerOptions { WriteIndented = true });
+
+        // Build context-aware system prompt
+        var contextualPrompt = globalAnalysis != null 
+            ? $"""
+            You are a precision red team specialist for police investigative training content.
+            Analyze ONLY the documents and media provided in this specific chunk scope.
+            
+            GLOBAL CONTEXT PROVIDED:
+            You have access to macro-level analysis that identified these key issues:
+            {globalAnalysis}
+            
+            FOCUSED ANALYSIS AREAS:
+            {(focusAreas?.Length > 0 ? string.Join(", ", focusAreas) : "Standard analysis")}
+            
+            CRITICAL MISSION:
+            - Use the global context to inform your detailed analysis
+            - Focus especially on areas identified in the global analysis
+            - Identify problems with SURGICAL PRECISION within the provided scope only
+            - Specify EXACT document IDs, field paths, and problematic values
+            - Provide SPECIFIC fix instructions for each issue
+            - Prioritize issues that relate to the macro-level problems identified
+            """
+            : """
+            You are a precision red team specialist for police investigative training content. 
+            Analyze ONLY the documents and media provided in this specific chunk scope.
+            
+            CRITICAL MISSION:
+            - Identify problems with SURGICAL PRECISION within the provided scope only
+            - Specify EXACT document IDs, field paths, and problematic values
+            - Provide SPECIFIC fix instructions for each issue
+            - Focus on temporal inconsistencies as highest priority
+            """;
+
+        var systemPrompt = $"""
+            {contextualPrompt}
+            
+            CRITICAL JSON FORMAT REQUIREMENTS:
+            - ALL string fields must be valid JSON strings (no arrays in string fields)
+            - CurrentValue must be a single string, not an array
+            - If you need to reference multiple values, use comma-separated strings
+            - Do not use arrays where strings are expected
+            
+            OUTPUT FORMAT: Return ONLY valid JSON matching the StructuredRedTeamAnalysis format.
+            
+            PRIORITY GUIDELINES:
+            - High: Timestamp conflicts, chronological impossibilities
+            - Medium: Timeline gaps, missing context
+            - Low: Minor wording, style improvements
+            """;
+
+        var userPrompt = $"""
+            Analyze this chunk scope and identify specific problems with exact locations:
+            
+            CHUNK SCOPE JSON:
+            {scopedJson}
+            
+            FIND AND SPECIFY (within this scope only):
+            1. EXACT document IDs where problems occur
+            2. SPECIFIC fields or text patterns that are problematic  
+            3. CURRENT values that need to be changed
+            4. PRECISE fix instructions (new timestamps, replacement text, etc.)
+            
+            Focus especially on:
+            - Evidence compilation times vs collection times
+            - Report creation times vs referenced events
+            - Chronological order conflicts
+            - Timeline consistency within this chunk
+            
+            Return structured JSON analysis with surgical precision.
+            """;
+
+        string? result = null;
+        try
+        {
+            result = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+            
+            if (string.IsNullOrWhiteSpace(result))
+            {
+                _logger.LogWarning("REDTEAM CHUNK: Empty response for chunk, returning empty analysis");
+                return new StructuredRedTeamAnalysis
+                {
+                    Issues = new List<PreciseIssue>(),
+                    Summary = "Empty response for chunk",
+                    HighPriorityCount = 0,
+                    MediumPriorityCount = 0,
+                    LowPriorityCount = 0
+                };
+            }
+
+            // Try to clean and fix the JSON before deserializing
+            var cleanedResult = CleanRedTeamJsonResponse(result);
+            
+            var analysis = JsonSerializer.Deserialize<StructuredRedTeamAnalysis>(cleanedResult);
+            if (analysis != null)
+            {
+                _logger.LogInformation("REDTEAM CHUNK: Completed - {IssueCount} issues found", analysis.Issues.Count);
+                return analysis;
+            }
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "REDTEAM CHUNK: Invalid JSON response, returning empty analysis. Response preview: {Preview}", 
+                result?.Length > 500 ? result[..500] + "..." : result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "REDTEAM CHUNK: Exception during processing, returning empty analysis");
+        }
+
+        return new StructuredRedTeamAnalysis
+        {
+            Issues = new List<PreciseIssue>(),
+            Summary = "Chunk processing failed",
+            HighPriorityCount = 0,
+            MediumPriorityCount = 0,
+            LowPriorityCount = 0
+        };
+    }
+
+    private StructuredRedTeamAnalysis MergeAnalyses(IEnumerable<StructuredRedTeamAnalysis> analyses)
+    {
+        var allIssues = new List<PreciseIssue>();
+        var summaries = new List<string>();
+        int totalHigh = 0, totalMedium = 0, totalLow = 0;
+
+        foreach (var analysis in analyses)
+        {
+            allIssues.AddRange(analysis.Issues);
+            if (!string.IsNullOrWhiteSpace(analysis.Summary))
+            {
+                summaries.Add(analysis.Summary);
+            }
+            totalHigh += analysis.HighPriorityCount;
+            totalMedium += analysis.MediumPriorityCount;
+            totalLow += analysis.LowPriorityCount;
+        }
+
+        // Dedupe issues by key combination
+        var deduped = allIssues
+            .GroupBy(issue => new 
+            { 
+                issue.Location.DocId, 
+                issue.Location.Field, 
+                issue.Location.Section, 
+                issue.Location.LinePattern 
+            })
+            .Select(g => g.First())
+            .ToList();
+
+        // Recalculate counts from deduped issues
+        var actualHigh = deduped.Count(i => i.Priority == "High");
+        var actualMedium = deduped.Count(i => i.Priority == "Medium");
+        var actualLow = deduped.Count(i => i.Priority == "Low");
+
+        var mergedSummary = summaries.Count > 0 
+            ? $"Merged analysis from {summaries.Count} chunks: {string.Join("; ", summaries.Take(3))}"
+            : "No issues found in any chunks";
+
+        return new StructuredRedTeamAnalysis
+        {
+            Issues = deduped,
+            Summary = mergedSummary,
+            HighPriorityCount = actualHigh,
+            MediumPriorityCount = actualMedium,
+            LowPriorityCount = actualLow
+        };
+    }
+
+    private string CleanRedTeamJsonResponse(string jsonResponse)
+    {
+        try
+        {
+            // Parse as JsonDocument to inspect and fix structural issues
+            using var doc = JsonDocument.Parse(jsonResponse);
+            
+            // Check if we have the expected structure
+            if (!doc.RootElement.TryGetProperty("Issues", out var issuesArray))
+            {
+                _logger.LogWarning("REDTEAM CHUNK: Response missing 'Issues' property");
+                return jsonResponse; // Return as-is if basic structure is missing
+            }
+
+            // Create a mutable structure to fix issues
+            var mutableResponse = JsonSerializer.Deserialize<Dictionary<string, object>>(jsonResponse)!;
+            
+            if (mutableResponse.TryGetValue("Issues", out var issuesObj) && issuesObj is JsonElement issuesElement)
+            {
+                var fixedIssues = new List<object>();
+                
+                foreach (var issue in issuesElement.EnumerateArray())
+                {
+                    var fixedIssue = FixIssueStructure(issue);
+                    if (fixedIssue != null)
+                    {
+                        fixedIssues.Add(fixedIssue);
+                    }
+                }
+                
+                mutableResponse["Issues"] = fixedIssues;
+            }
+
+            // Serialize back to clean JSON
+            var cleanedJson = JsonSerializer.Serialize(mutableResponse, new JsonSerializerOptions { WriteIndented = false });
+            return cleanedJson;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "REDTEAM CHUNK: Failed to clean JSON response, returning original");
+            return jsonResponse;
+        }
+    }
+
+    private object? FixIssueStructure(JsonElement issueElement)
+    {
+        try
+        {
+            var issueDict = new Dictionary<string, object>();
+            
+            // Copy basic properties
+            if (issueElement.TryGetProperty("Priority", out var priority))
+                issueDict["Priority"] = priority.GetString() ?? "Low";
+            
+            if (issueElement.TryGetProperty("Type", out var type))
+                issueDict["Type"] = type.GetString() ?? "Unknown";
+            
+            if (issueElement.TryGetProperty("Problem", out var problem))
+                issueDict["Problem"] = problem.GetString() ?? "Unknown issue";
+
+            // Fix Location structure
+            if (issueElement.TryGetProperty("Location", out var location))
+            {
+                var locationDict = new Dictionary<string, object?>();
+                
+                if (location.TryGetProperty("DocId", out var docId))
+                    locationDict["DocId"] = docId.GetString() ?? "";
+                
+                if (location.TryGetProperty("Field", out var field))
+                    locationDict["Field"] = field.GetString();
+                
+                if (location.TryGetProperty("Section", out var section))
+                    locationDict["Section"] = section.GetString();
+                
+                if (location.TryGetProperty("LinePattern", out var linePattern))
+                    locationDict["LinePattern"] = linePattern.GetString();
+                
+                // Fix CurrentValue - convert arrays to strings
+                if (location.TryGetProperty("CurrentValue", out var currentValue))
+                {
+                    if (currentValue.ValueKind == JsonValueKind.Array)
+                    {
+                        // Convert array to comma-separated string
+                        var arrayValues = new List<string>();
+                        foreach (var item in currentValue.EnumerateArray())
+                        {
+                            if (item.ValueKind == JsonValueKind.String)
+                                arrayValues.Add(item.GetString() ?? "");
+                        }
+                        locationDict["CurrentValue"] = string.Join(", ", arrayValues);
+                    }
+                    else if (currentValue.ValueKind == JsonValueKind.String)
+                    {
+                        locationDict["CurrentValue"] = currentValue.GetString();
+                    }
+                    else
+                    {
+                        locationDict["CurrentValue"] = currentValue.GetRawText();
+                    }
+                }
+                
+                issueDict["Location"] = locationDict;
+            }
+
+            // Fix Fix structure
+            if (issueElement.TryGetProperty("Fix", out var fix))
+            {
+                var fixDict = new Dictionary<string, object?>();
+                
+                if (fix.TryGetProperty("Action", out var action))
+                    fixDict["Action"] = action.GetString() ?? "ReplaceText";
+                
+                if (fix.TryGetProperty("NewValue", out var newValue))
+                    fixDict["NewValue"] = newValue.GetString();
+                
+                if (fix.TryGetProperty("OldText", out var oldText))
+                    fixDict["OldText"] = oldText.GetString();
+                
+                if (fix.TryGetProperty("NewText", out var newText))
+                    fixDict["NewText"] = newText.GetString();
+                
+                if (fix.TryGetProperty("Reason", out var reason))
+                    fixDict["Reason"] = reason.GetString();
+                
+                issueDict["Fix"] = fixDict;
+            }
+
+            return issueDict;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "REDTEAM CHUNK: Failed to fix issue structure, skipping issue");
+            return null;
+        }
+    }
+
+    #endregion
+
+    private string CreateFallbackStructuredAnalysis(string errorMessage)
+    {
+        _logger.LogWarning("PRECISION REDTEAM: Creating fallback analysis due to: {ErrorMessage}", errorMessage);
+        
+        var fallback = new StructuredRedTeamAnalysis
+        {
+            Issues = new List<PreciseIssue>(),
+            Summary = $"FALLBACK ANALYSIS: {errorMessage} - No specific issues identified due to service failure.",
+            HighPriorityCount = 0,
+            MediumPriorityCount = 0,
+            LowPriorityCount = 0
+        };
+        
+        var serializedFallback = JsonSerializer.Serialize(fallback, new JsonSerializerOptions { WriteIndented = true });
+        _logger.LogInformation("PRECISION REDTEAM: Generated fallback analysis: {FallbackLength} characters", serializedFallback.Length);
+        
+        return serializedFallback;
+    }
+
+    private string CreateFallbackGlobalAnalysis(string errorMessage)
+    {
+        _logger.LogWarning("REDTEAM GLOBAL: Creating fallback global analysis due to: {ErrorMessage}", errorMessage);
+        
+        var fallback = new GlobalRedTeamAnalysis
+        {
+            MacroIssues = new List<MacroIssue>(),
+            CriticalDocuments = Array.Empty<string>(),
+            FocusAreas = Array.Empty<string>(),
+            OverallAssessment = $"FALLBACK GLOBAL ANALYSIS: {errorMessage} - Unable to perform macro-level assessment due to service failure.",
+            RequiresDetailedAnalysis = false // Safe default when analysis fails
+        };
+        
+        var serializedFallback = JsonSerializer.Serialize(fallback, new JsonSerializerOptions { WriteIndented = true });
+        _logger.LogInformation("REDTEAM GLOBAL: Generated fallback global analysis: {FallbackLength} characters", serializedFallback.Length);
+        
+        return serializedFallback;
     }
 
     public async Task<string> FixCaseAsync(string redTeamAnalysis, string currentJson, string caseId, int iterationNumber = 1, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Fixing case issues based on red team analysis - iteration {Iteration}", iterationNumber);
-        _logger.LogInformation("Current JSON length: {JsonLength} chars", currentJson?.Length ?? 0);
+        _logger.LogInformation("SURGICAL FIX: Starting precision corrections - iteration {Iteration}", iterationNumber);
+        _logger.LogInformation("SURGICAL FIX: Current JSON length: {JsonLength} chars", currentJson?.Length ?? 0);
 
         // Validate input JSON
         if (string.IsNullOrWhiteSpace(currentJson))
@@ -679,68 +1465,97 @@ public class CaseGenerationService : ICaseGenerationService
             throw new ArgumentException("Current case JSON cannot be null or empty", nameof(currentJson));
         }
 
-        // Try to validate JSON structure
+        // Validate JSON structure
         try
         {
             using var doc = JsonDocument.Parse(currentJson);
-            _logger.LogInformation("JSON validation successful for case {CaseId}", caseId);
+            _logger.LogInformation("SURGICAL FIX: JSON validation successful for case {CaseId}", caseId);
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Invalid JSON provided to FixCaseAsync for case {CaseId}", caseId);
+            _logger.LogError(ex, "SURGICAL FIX: Invalid JSON provided to FixCaseAsync for case {CaseId}", caseId);
             throw new ArgumentException($"Invalid JSON structure: {ex.Message}", nameof(currentJson));
         }
 
-        var systemPrompt = """
-            You are an expert case correction agent for police investigative training content. 
+        // Parse structured RedTeam analysis
+        StructuredRedTeamAnalysis analysis;
+        try
+        {
+            analysis = JsonSerializer.Deserialize<StructuredRedTeamAnalysis>(redTeamAnalysis)!;
+            _logger.LogInformation("SURGICAL FIX: Parsed {IssueCount} issues ({HighPriority} high, {MediumPriority} medium, {LowPriority} low)", 
+                analysis.Issues.Count, analysis.HighPriorityCount, analysis.MediumPriorityCount, analysis.LowPriorityCount);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "SURGICAL FIX: Failed to parse structured RedTeam analysis, falling back to LLM approach");
+            return await FallbackToLLMFix(redTeamAnalysis, currentJson, caseId, iterationNumber, cancellationToken);
+        }
 
-            CRITICAL INSTRUCTIONS:
-            1. The user will provide you with a COMPLETE case JSON that needs corrections
-            2. You MUST return a COMPLETE corrected JSON (not a summary or status message)
-            3. Apply only the specific fixes mentioned in the red team analysis
-            4. Preserve ALL existing structure, IDs, timestamps, and relationships
-            5. Do NOT return error messages or status objects - return the corrected case JSON
-            
-            FORMATTING REQUIREMENTS:
-            - Return valid JSON only (no markdown, no explanations)
-            - Maintain the exact same JSON structure as input
-            - Preserve all field names and data types
-            - Keep all existing IDs and timestamps unchanged
-            - Make surgical corrections only where issues are identified
-            
-            Your response must be a valid JSON that can be parsed directly.
+        // If no issues found, return original
+        if (analysis.Issues.Count == 0)
+        {
+            _logger.LogInformation("SURGICAL FIX: No issues to fix for case {CaseId}", caseId);
+            return currentJson;
+        }
+
+        // Apply precision corrections using injected PrecisionEditor
+        var correctedJson = await _precisionEditor.ApplyPreciseFixesAsync(currentJson, analysis, caseId, cancellationToken);
+
+        // Validate final result
+        try
+        {
+            using var finalDoc = JsonDocument.Parse(correctedJson);
+            _logger.LogInformation("SURGICAL FIX: Completed for case {CaseId}, iteration {Iteration}: {ResultLength} chars", 
+                caseId, iterationNumber, correctedJson.Length);
+            return correctedJson;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "SURGICAL FIX: Final validation failed for case {CaseId}, returning original", caseId);
+            return currentJson;
+        }
+    }
+
+    private async Task<string> FallbackToLLMFix(string redTeamAnalysis, string currentJson, string caseId, int iterationNumber, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("FALLBACK FIX: Using LLM approach for case {CaseId}", caseId);
+
+        var systemPrompt = """
+            You are an expert case correction agent. Apply specific corrections mentioned in the analysis.
+            Return complete corrected JSON only (no markdown, no explanations).
+            Make minimal, surgical changes based solely on the analysis.
             """;
 
         var userPrompt = $"""
-            Fix the following case JSON by addressing the issues in the red team analysis.
+            Apply corrections from this analysis:
             
-            RED TEAM ANALYSIS:
             {redTeamAnalysis}
             
-            CASE JSON TO CORRECT:
+            To this case JSON:
             {currentJson}
             
-            Return the corrected case JSON with fixes applied. This is iteration #{iterationNumber}.
+            Return corrected complete JSON (iteration #{iterationNumber}).
             """;
 
         var result = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
         
-        // Validate the result is valid JSON
+        if (string.IsNullOrWhiteSpace(result))
+        {
+            _logger.LogError("FALLBACK FIX: Empty response for case {CaseId}", caseId);
+            return currentJson;
+        }
+        
         try
         {
             using var doc = JsonDocument.Parse(result);
-            _logger.LogInformation("Fix result validation successful for case {CaseId}, iteration {Iteration}", caseId, iterationNumber);
+            _logger.LogInformation("FALLBACK FIX: Successful for case {CaseId}: {ResultLength} chars", caseId, result.Length);
+            return result;
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "FixAgent returned invalid JSON for case {CaseId}, iteration {Iteration}", caseId, iterationNumber);
-            
-            // Fallback: return original JSON if fix failed
-            _logger.LogWarning("Returning original JSON as fallback due to fix failure");
+            _logger.LogError(ex, "FALLBACK FIX: Invalid JSON for case {CaseId}, returning original", caseId);
             return currentJson;
         }
-
-        return result;
     }
 
     public async Task<bool> IsCaseCleanAsync(string redTeamAnalysis, string caseId, CancellationToken cancellationToken = default)
@@ -777,11 +1592,25 @@ public class CaseGenerationService : ICaseGenerationService
 
         var result = await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
         
+        // Validate the result is not empty
+        if (string.IsNullOrWhiteSpace(result))
+        {
+            _logger.LogError("Quality assessment returned empty response for case {CaseId} - defaulting to NEEDS_FIX for safety", caseId);
+            return false; // Default to needs fix if we can't assess
+        }
+        
         // Parse the LLM response
         var cleanResult = result.Trim().ToUpperInvariant();
         var isClean = cleanResult.Contains("CLEAN") && !cleanResult.Contains("NEEDS_FIX");
         
-        _logger.LogInformation("Case quality assessment: {Result} (isClean: {IsClean})", cleanResult, isClean);
+        // Additional safety check - if response is too short or unclear, default to needs fix
+        if (cleanResult.Length < 4)
+        {
+            _logger.LogWarning("Quality assessment response too short ({Length} chars): '{Response}' - defaulting to NEEDS_FIX", cleanResult.Length, result);
+            return false;
+        }
+        
+        _logger.LogInformation("Case quality assessment: '{Result}' (isClean: {IsClean})", cleanResult, isClean);
         return isClean;
     }
 

@@ -119,10 +119,24 @@ public class CaseGeneratorActivities
         return await _caseGenerationService.ValidateRulesAsync(model.NormalizedJson, model.CaseId);
     }
 
+    [Function("RedTeamGlobalActivity")]
+    public async Task<string> RedTeamGlobalActivity([ActivityTrigger] RedTeamGlobalActivityModel model)
+    {
+        _logger.LogInformation("Global red team analysis - examining complete case context");
+        return await _caseGenerationService.RedTeamGlobalAnalysisAsync(model.ValidatedJson, model.CaseId);
+    }
+
+    [Function("RedTeamFocusedActivity")]
+    public async Task<string> RedTeamFocusedActivity([ActivityTrigger] RedTeamFocusedActivityModel model)
+    {
+        _logger.LogInformation("Focused red team analysis - examining specific areas: {FocusAreas}", string.Join(", ", model.FocusAreas));
+        return await _caseGenerationService.RedTeamFocusedAnalysisAsync(model.ValidatedJson, model.CaseId, model.GlobalAnalysis, model.FocusAreas);
+    }
+
     [Function("RedTeamActivity")]
     public async Task<string> RedTeamActivity([ActivityTrigger] RedTeamActivityModel model)
     {
-        _logger.LogInformation("Red teaming case");
+        _logger.LogInformation("Red teaming case (legacy - consider using hierarchical approach)");
         return await _caseGenerationService.RedTeamCaseAsync(model.ValidatedJson, model.CaseId);
     }
 

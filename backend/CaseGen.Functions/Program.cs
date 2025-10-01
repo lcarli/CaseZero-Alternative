@@ -22,6 +22,7 @@ builder.Services
     .AddScoped<IPdfRenderingService, PdfRenderingService>()
     .AddScoped<IImagesService, ImagesService>()
     .AddSingleton<IJsonSchemaProvider, FileJsonSchemaProvider>()
+    .AddScoped<IPrecisionEditor, PrecisionEditor>()
     .AddScoped<ILLMService, LLMService>()
     // Configure LLM Provider - using Mock for now, Azure Foundry when stable
     .AddScoped<ILLMProvider>(serviceProvider =>

@@ -1,0 +1,321 @@
+### Test RedTeam and Fix functionality with EXACT data from attachments
+POST http://localhost:7071/api/TestRedTeamFix
+Content-Type: application/json
+
+{
+  "normalizedCase": {
+    "caseId": "CASE-20250927-0fee909f",
+    "version": "1.0",
+    "createdAt": "2025-09-27T13:11:10.0184156Z",
+    "timezone": "America/Toronto",
+    "difficulty": "Rookie",
+    "documents": [
+      {
+        "docId": "doc_cashbox_missing_police_report_001",
+        "type": "police_report",
+        "title": "Initial Incident Report: Missing Cash Box from Front Desk Drawer",
+        "sections": [
+          "Incident Date/Time and Report Creation: The incident was logged by venue security at 2025-03-14T19:20:00-04:00. This police-style report was created at 2025-03-14T19:28:00-04:00 in the venue security office, City/State.",
+          "Summary of Incident: The cash box labeled 'Tickets' was reported missing from the front desk drawer. The drawer lock showed no damage. The cash box was last visually confirmed present at 2025-03-14T18:35:00-04:00 in a phone photo. At approximately 2025-03-14T18:42:00-04:00, the front desk was briefly unattended when Maya Green stepped into the lobby. At 2025-03-14T18:38:00-04:00, Colin Price signed out the spare front desk drawer key. At 2025-03-14T18:55:00-04:00, Maya Green opened the drawer and reported the cash box missing.",
+          "Timeline of Key Events: 16:50 Manager prepares front desk; 17:15 cash counted and cash box locked in drawer; 18:10 roster confirmed with Maya Green and Colin Price; 18:35 front desk phone photo shows cash box present; 18:38 spare drawer key signed out by Colin Price; 18:42 Maya Green leaves desk to greet arrivals; ~18:46 corridor CCTV captures movement past front desk area; 18:55 cash box reported missing; 19:20 incident logged; 19:40 CCTV stills exported; 19:55 inspection completed.",
+          "Persons Involved: Witness/Suspect Maya Green (volunteer coordinator); Witness/Suspect Colin Price (evening attendant); Witness Manager (manager). Reliability per witness statements: Manager—High; Maya Green—Moderate; Colin Price—Moderate.",
+          "Evidence Referenced by ID: ev_frontdeskphoto_001 (front desk phone photo; collected 2025-03-14T19:22:00-04:00); ev_keysignout_002 (key cabinet sign-out entry; collected 2025-03-14T19:25:00-04:00); ev_shiftroster_003 (shift roster 2025-03-14; collected 2025-03-14T19:24:00-04:00); ev_cctvstills_004 (corridor CCTV stills; collected 2025-03-14T19:40:00-04:00); ev_drawerinspect_005 (drawer/key cabinet inspection notes and photos; collected 2025-03-14T19:55:00-04:00).",
+          "Immediate Actions Taken: Secured front desk area; confirmed key control status in the key cabinet; initiated evidence collection and documentation; scheduled witness statements; coordinated with on-site management for CCTV export and inspection.",
+          "Reporting Unit: Venue Security Desk, City/State. Report author: Security Coordinator on duty. No conclusions are drawn at this stage; further review will rely on forensics and witness interviews."
+        ],
+        "lengthTarget": [450, 500],
+        "gated": false,
+        "gatingRule": null,
+        "createdAt": "2025-09-27T13:11:10.005889Z",
+        "modifiedAt": "2025-09-27T13:11:10.005889Z",
+        "content": "Incident Date/Time and Report Creation: The incident was logged by venue security at 2025-03-14T19:20:00-04:00. This police-style report was created at 2025-03-14T19:28:00-04:00 in the venue security office, City/State.\nReport Number: doc_cashbox_missing_police_report_001\nDate/Time: 2025-03-14T19:28:00-04:00\nUnit / Responsible Officer: Venue Security Desk, City/State — Security Coordinator on duty\n\nObjective incident summary: A cash box labeled \"Tickets\" was reported missing from the front desk drawer. The drawer lock exhibited no damage. The last visual confirmation of the cash box was a phone photo at 2025-03-14T18:35:00-04:00 (ev_frontdeskphoto_001). The desk was briefly unattended around 2025-03-14T18:42:00-04:00 when Maya Green greeted arrivals. The spare drawer key was signed out at 2025-03-14T18:38:00-04:00 by Colin Price (ev_keysignout_002). At 2025-03-14T18:55:00-04:00, the drawer was opened and the cash box was found missing.\n\n## Incident Date/Time and Report Creation: The incident was logged by venue security at 2025-03-14T19:20:00-04:00. This police-style report was created at 2025-03-14T19:28:00-04:00 in the venue security office, City/State.\n- Incident logged: 2025-03-14T19:20:00-04:00\n- Report created: 2025-03-14T19:28:00-04:00, venue security office, City/State\n\n\nSummary of Incident: The cash box labeled 'Tickets' was reported missing from the front desk drawer. The drawer lock showed no damage. The cash box was last visually confirmed present at 2025-03-14T18:35:00-04:00 in a phone photo. At approximately 2025-03-14T18:42:00-04:00, the front desk was briefly unattended when Maya Green stepped into the lobby. At 2025-03-14T18:38:00-04:00, Colin Price signed out the spare front desk drawer key. At 2025-03-14T18:55:00-04:00, Maya Green opened the drawer and reported the cash box missing.\n## Summary of Incident: The cash box labeled 'Tickets' was reported missing from the front desk drawer. The drawer lock showed no damage. The cash box was last visually confirmed present at 2025-03-14T18:35:00-04:00 in a phone photo. At approximately 2025-03-14T18:42:00-04:00, the front desk was briefly unattended when Maya Green stepped into the lobby. At 2025-03-14T18:38:00-04:00, Colin Price signed out the spare front desk drawer key. At 2025-03-14T18:55:00-04:00, Maya Green opened the drawer and reported the cash box missing.\n- Cash box last seen in ev_frontdeskphoto_001 (2025-03-14T18:35:00-04:00)\n- Spare key sign-out confirmed in ev_keysignout_002 (2025-03-14T18:38:00-04:00)\n- Desk unattended approximately 2025-03-14T18:42:00-04:00\n- Missing discovered at 2025-03-14T18:55:00-04:00\n- Drawer lock showed no damage per later inspection (ev_drawerinspect_005)\n\n\nTimeline of Key Events: 16:50 Manager prepares front desk; 17:15 cash counted and cash box locked in drawer; 18:10 roster confirmed with Maya Green and Colin Price; 18:35 front desk phone photo shows cash box present; 18:38 spare drawer key signed out by Colin Price; 18:42 Maya Green leaves desk to greet arrivals; ~18:46 corridor CCTV captures movement past front desk area; 18:55 cash box reported missing; 19:20 incident logged; 19:40 CCTV stills exported; 19:55 inspection completed.\n## Timeline of Key Events: 16:50 Manager prepares front desk; 17:15 cash counted and cash box locked in drawer; 18:10 roster confirmed with Maya Green and Colin Price; 18:35 front desk phone photo shows cash box present; 18:38 spare drawer key signed out by Colin Price; 18:42 Maya Green leaves desk to greet arrivals; ~18:46 corridor CCTV captures movement past front desk area; 18:55 cash box reported missing; 19:20 incident logged; 19:40 CCTV stills exported; 19:55 inspection completed.\n- 2025-03-14T16:50:00-04:00: Manager prepares front desk\n- 2025-03-14T17:15:00-04:00: Cash counted; box locked in drawer\n- 2025-03-14T18:10:00-04:00: Roster confirmed (ev_shiftroster_003)\n- 2025-03-14T18:35:00-04:00: Phone photo shows cash box present (ev_frontdeskphoto_001)\n- 2025-03-14T18:38:00-04:00: Spare drawer key signed out by Colin Price (ev_keysignout_002)\n- 2025-03-14T18:42:00-04:00: Maya Green leaves desk to greet arrivals\n- 2025-03-14T18:45:52-04:00 to 2025-03-14T18:46:21-04:00: Corridor CCTV captures movement (ev_cctvstills_004)\n- 2025-03-14T18:55:00-04:00: Cash box reported missing\n- 2025-03-14T19:20:00-04:00: Incident logged\n- 2025-03-14T19:40:00-04:00: CCTV stills exported (ev_cctvstills_004)\n- 2025-03-14T19:55:00-04:00: Drawer/key cabinet inspection completed (ev_drawerinspect_005)\n\n\nPersons Involved: Witness/Suspect Maya Green (volunteer coordinator); Witness/Suspect Colin Price (evening attendant); Witness Manager (manager). Reliability per witness statements: Manager—High; Maya Green—Moderate; Colin Price—Moderate.\n## Persons Involved: Witness/Suspect Maya Green (volunteer coordinator); Witness/Suspect Colin Price (evening attendant); Witness Manager (manager). Reliability per witness statements: Manager—High; Maya Green—Moderate; Colin Price—Moderate.\n- Maya Green — role: volunteer coordinator; status: witness/suspect; reliability: Moderate\n- Colin Price — role: evening attendant; status: witness/suspect; reliability: Moderate\n- Manager — role: manager; status: witness; reliability: High\n\n\nEvidence Referenced by ID: ev_frontdeskphoto_001 (front desk phone photo; collected 2025-03-14T19:22:00-04:00); ev_keysignout_002 (key cabinet sign-out entry; collected 2025-03-14T19:25:00-04:00); ev_shiftroster_003 (shift roster 2025-03-14; collected 2025-03-14T19:24:00-04:00); ev_cctvstills_004 (corridor CCTV stills; collected 2025-03-14T19:40:00-04:00); ev_drawerinspect_005 (drawer/key cabinet inspection notes and photos; collected 2025-03-14T19:55:00-04:00).\n## Evidence Referenced by ID: ev_frontdeskphoto_001 (front desk phone photo; collected 2025-03-14T19:22:00-04:00); ev_keysignout_002 (key cabinet sign-out entry; collected 2025-03-14T19:25:00-04:00); ev_shiftroster_003 (shift roster 2025-03-14; collected 2025-03-14T19:24:00-04:00); ev_cctvstills_004 (corridor CCTV stills; collected 2025-03-14T19:40:00-04:00); ev_drawerinspect_005 (drawer/key cabinet inspection notes and photos; collected 2025-03-14T19:55:00-04:00).\n- ev_frontdeskphoto_001: Phone photo confirming cash box present at 18:35; collected 2025-03-14T19:22:00-04:00\n- ev_keysignout_002: Sign-out entry for spare drawer key at 18:38; collected 2025-03-14T19:25:00-04:00\n- ev_shiftroster_003: Shift roster confirming staffing at 18:10; collected 2025-03-14T19:24:00-04:00\n- ev_cctvstills_004: Corridor CCTV stills at 18:45:52 / 18:46:10 / 18:46:21; collected 2025-03-14T19:40:00-04:00\n- ev_drawerinspect_005: Inspection notes/photos; lock intact; collected 2025-03-14T19:55:00-04:00\n\n\nImmediate Actions Taken: Secured front desk area; confirmed key control status in the key cabinet; initiated evidence collection and documentation; scheduled witness statements; coordinated with on-site management for CCTV export and inspection.\n## Immediate Actions Taken: Secured front desk area; confirmed key control status in the key cabinet; initiated evidence collection and documentation; scheduled witness statements; coordinated with on-site management for CCTV export and inspection.\n- Secured the front desk and limited access\n- Verified key cabinet entries (ev_keysignout_002); spare slot observed empty during inspection (ev_drawerinspect_005)\n- Collected and archived available evidence (ev_frontdeskphoto_001, ev_shiftroster_003, ev_cctvstills_004)\n- Scheduled and conducted witness statements\n- Coordinated CCTV export and physical inspection with management\n\n\nReporting Unit: Venue Security Desk, City/State. Report author: Security Coordinator on duty. No conclusions are drawn at this stage; further review will rely on forensics and witness interviews.\n## Reporting Unit: Venue Security Desk, City/State. Report author: Security Coordinator on duty. No conclusions are drawn at this stage; further review will rely on forensics and witness interviews.\nThis initial report documents the incident and evidence collected to date. Further analysis will reference ev_drawerinspect_005 and ev_cctvstills_004 alongside witness statements. No determinations of responsibility are made in this report.",
+        "metadata": {
+          "sourcePrompt": "Create a professional police incident report documenting the missing cash box from the front desk drawer. Include: incident date/time, report number, summary of what happened, timeline of key events, persons involved, evidence referenced by ID, immediate actions taken, and reporting unit. Use formal police report language and structure. Reference the evidence IDs: ev_frontdeskphoto_001, ev_keysignout_002, ev_shiftroster_003, ev_cctvstills_004, ev_drawerinspect_005. Mention the venue security context and that this is an initial report with no conclusions drawn.",
+          "model": "gpt-4o",
+          "temperature": 0.7,
+          "maxTokens": 1500,
+          "generatedAt": "2025-09-27T13:11:10.0058914Z",
+          "tokensUsed": 1242,
+          "relevantEvidence": [
+            "ev_frontdeskphoto_001",
+            "ev_keysignout_002",
+            "ev_shiftroster_003",
+            "ev_cctvstills_004",
+            "ev_drawerinspect_005"
+          ],
+          "relevantPersons": [
+            "Maya Green",
+            "Colin Price",
+            "Manager"
+          ],
+          "keyTimestamps": [
+            "2025-03-14T18:35:00-04:00",
+            "2025-03-14T18:38:00-04:00",
+            "2025-03-14T18:42:00-04:00",
+            "2025-03-14T18:55:00-04:00",
+            "2025-03-14T19:20:00-04:00",
+            "2025-03-14T19:28:00-04:00"
+          ],
+          "validationNotes": [
+            "All referenced evidence IDs are present in case",
+            "Timeline is chronologically consistent",
+            "No conclusions drawn as requested"
+          ]
+        }
+      },
+      {
+        "docId": "doc_cashbox_missing_evidence_log_002",
+        "type": "evidence_log",
+        "title": "Evidence Log: Front Desk Cash Box Incident",
+        "sections": [
+          "Log Metadata: Compiled at 2025-03-14T19:32:00-04:00 by venue security staff in the security office, City/State. All timestamps use -04:00.",
+          "Entry 1: ev_frontdeskphoto_001 — Type: digital — Description: Phone photo of front desk setup showing cash box labeled 'Tickets' — Location: front desk area — CollectedAt: 2025-03-14T19:22:00-04:00 — Collected by: Manager; secured by Security.",
+          "Entry 2: ev_keysignout_002 — Type: document — Description: Key cabinet sign-out sheet for 'Spare front desk drawer key' signed by 'Colin Price' at 2025-03-14T18:38:00-04:00 — Location: key cabinet — CollectedAt: 2025-03-14T19:25:00-04:00 — Collected by: Security; scan prepared.",
+          "Entry 3: ev_shiftroster_003 — Type: document — Description: Shift roster for 2025-03-14 confirming duty for 'Maya Green' and 'Colin Price' from 18:00 onward — Location: office — CollectedAt: 2025-03-14T19:24:00-04:00 — Collected by: Security; kept on file.",
+          "Entry 4: ev_cctvstills_004 — Type: digital — Description: CCTV snapshot collage with metadata times 2025-03-14T18:45:52-04:00, 2025-03-14T18:46:10-04:00, 2025-03-14T18:46:21-04:00 — Location: security office — CollectedAt: 2025-03-14T19:40:00-04:00 — Exported by: Manager; archived by Security.",
+          "Entry 5: ev_drawerinspect_005 — Type: physical/digital — Description: Drawer inspection notes and photos; lock intact; no toolmarks; spare key slot observed empty — Location: front desk and key cabinet — CollectedAt: 2025-03-14T19:55:00-04:00 — Collected by: Security and Manager.",
+          "Handling Notes: All items were labeled and stored in the security office with evidence IDs as listed. Refer to doc_cashbox_missing_forensics_003 for technical examination and Chain of Custody details where applicable."
+        ],
+        "lengthTarget": [450, 500],
+        "gated": false,
+        "gatingRule": null,
+        "createdAt": "2025-09-27T13:11:10.0060559Z",
+        "modifiedAt": "2025-09-27T13:11:10.0060559Z",
+        "content": "Log Metadata: Compiled at 2025-03-14T19:32:00-04:00 by venue security staff in the security office, City/State. All timestamps use -04:00.\nCompiled at 2025-03-14T19:32:00-04:00 by venue security staff in the security office, City/State. All timestamps in this log use -04:00. Items were labeled on receipt and stored within controlled access cabinets or the digital archive. Entries reflect collection sources and custody notes as recorded.\n\nEntry 1: ev_frontdeskphoto_001 — Type: digital — Description: Phone photo of front desk setup showing cash box labeled 'Tickets' — Location: front desk area — CollectedAt: 2025-03-14T19:22:00-04:00 — Collected by: Manager; secured by Security.\n| ItemId | Collected At | Collected By | Description | Storage | Transfers |\n|---|---|---|---|---|---|\n| ev_frontdeskphoto_001 | 2025-03-14T19:22:00-04:00 | Manager; secured by Security | Phone photo of front desk setup showing cash box labeled 'Tickets' | Security office digital archive | Received from Manager; labeled and filed under ev_frontdeskphoto_001 |\n\n- Brief notes: Confirms visual presence of the cash box on the desk earlier (see media timestamp 2025-03-14T18:35:00-04:00). No faces present; scene appears uncluttered under fluorescent lighting.\n\nEntry 2: ev_keysignout_002 — Type: document — Description: Key cabinet sign-out sheet for 'Spare front desk drawer key' signed by 'Colin Price' at 2025-03-14T18:38:00-04:00 — Location: key cabinet — CollectedAt: 2025-03-14T19:25:00-04:00 — Collected by: Security; scan prepared.\n| ItemId | Collected At | Collected By | Description | Storage | Transfers |\n|---|---|---|---|---|---|\n| ev_keysignout_002 | 2025-03-14T19:25:00-04:00 | Security | Key cabinet sign-out sheet for spare front desk drawer key signed at 2025-03-14T18:38:00-04:00 | Security office digital archive | Scanned by Security; indexed under ev_keysignout_002 |\n\n- Brief notes: Confirms access to spare drawer key at 18:38. Form is an internal venue sheet; handwriting legible; no alterations observed.\n\nEntry 3: ev_shiftroster_003 — Type: document — Description: Shift roster for 2025-03-14 confirming duty for 'Maya Green' and 'Colin Price' from 18:00 onward — Location: office — CollectedAt: 2025-03-14T19:24:00-04:00 — Collected by: Security; kept on file.\n| ItemId | Collected At | Collected By | Description | Storage | Transfers |\n|---|---|---|---|---|---|\n| ev_shiftroster_003 | 2025-03-14T19:24:00-04:00 | Security | Shift roster for 2025-03-14 confirming duty for Maya Green and Colin Price from 18:00 onward | Security office administrative file | Filed for reference; no external transfers |\n\n- Brief notes: Supports staffing and access context at the time of incident. Roster aligns with Manager's statement.\n\nEntry 4: ev_cctvstills_004 — Type: digital — Description: CCTV snapshot collage with metadata times 2025-03-14T18:45:52-04:00, 2025-03-14T18:46:10-04:00, 2025-03-14T18:46:21-04:00 — Location: security office — CollectedAt: 2025-03-14T19:40:00-04:00 — Exported by: Manager; archived by Security.\n| ItemId | Collected At | Collected By | Description | Storage | Transfers |\n|---|---|---|---|---|---|\n| ev_cctvstills_004 | 2025-03-14T19:40:00-04:00 | Manager (export); archived by Security | Collage of corridor CCTV stills at 18:45:52, 18:46:10, 18:46:21 (-04:00), movement blurred, no faces | Security office digital archive | Exported by Manager; archived and labeled by Security |\n\n- Brief notes: Provides corridor activity near the front desk timeframe; no identifiable subjects; medium contrast per export.\n\nEntry 5: ev_drawerinspect_005 — Type: physical/digital — Description: Drawer inspection notes and photos; lock intact; no toolmarks; spare key slot observed empty — Location: front desk and key cabinet — CollectedAt: 2025-03-14T19:55:00-04:00 — Collected by: Security and Manager.\n| ItemId | Collected At | Collected By | Description | Storage | Transfers |\n|---|---|---|---|---|---|\n| ev_drawerinspect_005 | 2025-03-14T19:55:00-04:00 | Security and Manager | Drawer/key cabinet inspection notes and photos; lock intact; no toolmarks; spare key slot empty | Security office evidence shelf (physical) and digital archive (photos) | Jointly collected; packaged, labeled, and retained by Security |\n\n- Brief notes: Visual findings indicate normal keyed access; macro photos include scale; consistent with operational condition at inspection.\n\nHandling Notes: All items were labeled and stored in the security office with evidence IDs as listed. Refer to doc_cashbox_missing_forensics_003 for technical examination and Chain of Custody details where applicable.\nAll evidence items were entered into the venue security inventory under their IDs and retained in controlled storage (physical shelf or digital archive). For technical examination details and custody progression, see doc_cashbox_missing_forensics_003. No conclusions are drawn within this log.",
+        "metadata": {
+          "sourcePrompt": "Create a comprehensive evidence log for the missing cash box incident. Document all evidence items collected with their IDs, types, descriptions, collection times, and who collected them. Include: ev_frontdeskphoto_001 (phone photo), ev_keysignout_002 (key sign-out sheet), ev_shiftroster_003 (shift roster), ev_cctvstills_004 (CCTV stills), ev_drawerinspect_005 (inspection notes/photos). Use a professional forensic log format with metadata and chain of custody notes.",
+          "model": "gpt-4o",
+          "temperature": 0.7,
+          "maxTokens": 2000,
+          "generatedAt": "2025-09-27T13:11:10.0060584Z",
+          "tokensUsed": 1687,
+          "relevantEvidence": [
+            "ev_frontdeskphoto_001",
+            "ev_keysignout_002",
+            "ev_shiftroster_003",
+            "ev_cctvstills_004",
+            "ev_drawerinspect_005"
+          ],
+          "relevantPersons": [
+            "Maya Green",
+            "Colin Price",
+            "Manager",
+            "Security"
+          ],
+          "keyTimestamps": [
+            "2025-03-14T19:22:00-04:00",
+            "2025-03-14T19:25:00-04:00",
+            "2025-03-14T19:24:00-04:00",
+            "2025-03-14T19:40:00-04:00",
+            "2025-03-14T19:55:00-04:00",
+            "2025-03-14T19:32:00-04:00"
+          ],
+          "validationNotes": [
+            "All evidence IDs present and accounted for",
+            "Chain of custody documented for each item",
+            "Collection times are chronologically consistent"
+          ]
+        }
+      },
+      {
+        "docId": "doc_cashbox_missing_forensics_003",
+        "type": "forensics_report",
+        "title": "Forensic Inspection: Front Desk Drawer and Key Cabinet",
+        "sections": [
+          "Report Metadata: Examination conducted 2025-03-14T19:55:00-04:00 to 2025-03-14T20:40:00-04:00; report compiled at 2025-03-14T20:42:00-04:00 by the security technical lead, City/State.",
+          "Scope and Methodology: Visual and macro inspection of the front desk drawer lock, keyway, outer face, and slides; inspection of key cabinet slots for the front desk spare key; photographic documentation (ev_drawerinspect_005); comparison against operational condition; no destructive testing performed.",
+          "Observations: The drawer lock is intact with no visible pry marks, scratches, or toolmarks around the keyway. Drawer opens/closes smoothly. Key cabinet spare slot for the front desk drawer was observed empty at time of inspection. No foreign debris or scraping detected. The condition suggests normal keyed access rather than forced entry. Findings are consistent with photographs timestamped 2025-03-14T19:55:00-04:00 (ev_drawerinspect_005).",
+          "Chain of Custody (Cadeia de Custódia): Item ev_drawerinspect_005 collected at 2025-03-14T19:55:00-04:00 at the front desk and key cabinet by Security (with Manager present). At 2025-03-14T20:02:00-04:00, digital images and notes were labeled and packaged in the security office. At 2025-03-14T20:12:00-04:00, custody was signed by the security technical lead for analysis. At 2025-03-14T20:40:00-04:00, analysis concluded and materials were re-sealed; remains stored in the security office evidence shelf.",
+          "Analysis: Lack of damage indicates access via key rather than tampering. The empty spare key slot observed aligns with the sign-out record (ev_keysignout_002). No residue or trace evidence was recovered. Further analysis is limited by the absence of identifiable subjects in CCTV (ev_cctvstills_004).",
+          "Conclusions and Limitations: No physical evidence of forced entry was observed. The report does not determine responsibility and should be read alongside witness statements and administrative records."
+        ],
+        "lengthTarget": [450, 500],
+        "gated": false,
+        "gatingRule": null,
+        "createdAt": "2025-09-27T13:11:10.006131Z",
+        "modifiedAt": "2025-09-27T13:11:10.006131Z",
+        "content": "Report Metadata: Examination conducted 2025-03-14T19:55:00-04:00 to 2025-03-14T20:40:00-04:00; report compiled at 2025-03-14T20:42:00-04:00 by the security technical lead, City/State.\nLaboratory: Venue Security Technical Office, City/State\nExaminer: Security Technical Lead\nDate: 2025-03-14\nTime: Examination 2025-03-14T19:55:00-04:00 to 2025-03-14T20:40:00-04:00; Report compiled 2025-03-14T20:42:00-04:00\n\nReferences: case_cashbox_missing_001; doc_cashbox_missing_police_report_001; doc_cashbox_missing_evidence_log_002\nPurpose: Document the condition of the front desk drawer lock and the key cabinet spare slot in relation to the reported missing cash box. Photographic record referenced as ev_drawerinspect_005.\n\nScope and Methodology: Visual and macro inspection of the front desk drawer lock, keyway, outer face, and slides; inspection of key cabinet slots for the front desk spare key; photographic documentation (ev_drawerinspect_005); comparison against operational condition; no destructive testing performed.\nMethodology (procedures):\n- Performed non-destructive visual and macro examination of the drawer lock face, keyway, bezel, adjacent wood laminate, and internal slides.\n- Used raking light and a hand lens to detect toolmarks, pry damage, or scraping.\n- Verified lock function (insert/turn/remove house key; open/close cycles) without altering components.\n- Inspected the key cabinet spare slot identifier for the front desk drawer key; noted occupancy status.\n- Captured close-up photographs with scale for measurements of any marks (ev_drawerinspect_005).\n- Cross-checked timeline and access records against doc_cashbox_missing_evidence_log_002.\n\nInstruments: LED raking light, 10× hand lens, metric ruler for scale, digital camera used for ev_drawerinspect_005.\nControls: No solvents or lubricants applied; environment remained as found.\n\nObservations: The drawer lock is intact with no visible pry marks, scratches, or toolmarks around the keyway. Drawer opens/closes smoothly. Key cabinet spare slot for the front desk drawer was observed empty at time of inspection. No foreign debris or scraping detected. The condition suggests normal keyed access rather than forced entry. Findings are consistent with photographs timestamped 2025-03-14T19:55:00-04:00 (ev_drawerinspect_005).\nResults:\n- Lock face and bezel show uniform, shallow wear consistent with normal handling; no radial gashes, torsion marks, or uplift of the bezel detected.\n- Keyway edges display smooth machining with no burrs or fresh scoring; macro images in ev_drawerinspect_005 confirm absence of tool-induced striations.\n- Drawer slides operate smoothly; no binding or misalignment consistent with prying.\n- No metal shavings, paint transfer, or foreign debris present around the lock or drawer interior.\n- The key cabinet spare slot labeled for the front desk drawer was empty at the time of inspection; this observation matches the description in ev_drawerinspect_005 and aligns with the sign-out entry in ev_keysignout_002 (doc_cashbox_missing_evidence_log_002).\n- CCTV corridor stills (ev_cctvstills_004) around 2025-03-14T18:45:52-04:00 to 2025-03-14T18:46:21-04:00 show movement but no identifiable subjects; these do not depict the lock or key use and provide no physical trace correlation.\n\nThese observations are consistent with normal keyed operation and not consistent with forced entry or tool attack.\n\nChain of Custody (Cadeia de Custódia): Item ev_drawerinspect_005 collected at 2025-03-14T19:55:00-04:00 at the front desk and key cabinet by Security (with Manager present). At 2025-03-14T20:02:00-04:00, digital images and notes were labeled and packaged in the security office. At 2025-03-14T20:12:00-04:00, custody was signed by the security technical lead for analysis. At 2025-03-14T20:40:00-04:00, analysis concluded and materials were re-sealed; remains stored in the security office evidence shelf.\nChain of Custody (ISO-8601, ordered):\n- 2025-03-14T19:55:00-04:00 — Collection: Security, with Manager present, captured inspection photographs and notes at the front desk and key cabinet (ev_drawerinspect_005).\n- 2025-03-14T20:02:00-04:00 — Packaging/Labeling: Security labeled digital files with evidence ID ev_drawerinspect_005 and packaged media in the security office; entry noted in doc_cashbox_missing_evidence_log_002.\n- 2025-03-14T20:12:00-04:00 — Transfer for Analysis: Custody signed to Security Technical Lead for examination; access limited to examiner.\n- 2025-03-14T20:40:00-04:00 — Analysis Concluded/Re-seal: Examiner completed non-destructive examination, re-sealed media, and returned ev_drawerinspect_005 to the security office evidence shelf.\n\nCustody remained continuous; no gaps or overlapping intervals recorded.\n\nAnalysis: Lack of damage indicates access via key rather than tampering. The empty spare key slot observed aligns with the sign-out record (ev_keysignout_002). No residue or trace evidence was recovered. Further analysis is limited by the absence of identifiable subjects in CCTV (ev_cctvstills_004).\nInterpretation:\n- The absence of pry indicators, torque deformation, or keyed-bypass artifacts supports normal keyed access.\n- The empty spare key slot at inspection is consistent with ev_keysignout_002 showing a sign-out at 2025-03-14T18:38:00-04:00. This is an access factor but does not establish misuse.\n- No residue (metal, plastic, adhesive) or latent trace was recovered; therefore, no material comparison can be conducted.\n- CCTV stills (ev_cctvstills_004) provide temporal context but lack subject identification and do not depict the drawer or lock in use.\n\nCorrelation: Findings align with the condition documented in ev_drawerinspect_005 and the administrative timeline in doc_cashbox_missing_police_report_001.\n\nConclusions and Limitations: No physical evidence of forced entry was observed. The report does not determine responsibility and should be read alongside witness statements and administrative records.\nConclusions:\n- Physical condition of the drawer lock and keyway is consistent with authorized key operation; forced entry is not supported by observed evidence.\n- The inspection confirms the spare key slot was empty at the time of examination.\n\nLimitations:\n- No fingerprints, DNA, or residue were collected during this non-destructive survey; identification of actors is beyond the scope of this report.\n- CCTV stills (ev_cctvstills_004) lack clarity for subject attribution.\n- This report should be read with witness statements (doc_cashbox_missing_witness_maya_004, doc_cashbox_missing_witness_colin_005, doc_cashbox_missing_witness_manager_006) and the evidence log (doc_cashbox_missing_evidence_log_002). No responsibility determinations are made herein.",
+        "metadata": {
+          "sourcePrompt": "Create a detailed forensic inspection report for the front desk drawer and key cabinet. Focus on examining for signs of forced entry, tampering, or unusual wear patterns. Include methodology, instruments used, detailed observations, chain of custody for ev_drawerinspect_005, analysis of findings, and professional conclusions. Reference the case timeline and cross-reference with evidence log entries.",
+          "model": "gpt-4o",
+          "temperature": 0.7,
+          "maxTokens": 2500,
+          "generatedAt": "2025-09-27T13:11:10.0061335Z",
+          "tokensUsed": 2187,
+          "relevantEvidence": [
+            "ev_drawerinspect_005",
+            "ev_keysignout_002",
+            "ev_cctvstills_004"
+          ],
+          "relevantPersons": [
+            "Security Technical Lead",
+            "Security",
+            "Manager"
+          ],
+          "keyTimestamps": [
+            "2025-03-14T19:55:00-04:00",
+            "2025-03-14T20:02:00-04:00",
+            "2025-03-14T20:12:00-04:00",
+            "2025-03-14T20:40:00-04:00",
+            "2025-03-14T20:42:00-04:00"
+          ],
+          "validationNotes": [
+            "Chain of custody is complete and chronologically consistent",
+            "All evidence references are valid",
+            "Technical methodology is appropriate for security context"
+          ]
+        }
+      },
+      {
+        "docId": "doc_cashbox_missing_witness_maya_004",
+        "type": "witness_statement",
+        "title": "Witness Statement: Maya Green",
+        "sections": [
+          "Statement Metadata: Taken at 2025-03-14T20:05:00-04:00 in the office area, City/State. Witness reliability: Moderate.",
+          "Narrative: I was at the front desk until about 6:42 PM (2025-03-14T18:42:00-04:00) when I stepped into the lobby to greet arrivals and direct them toward the exhibit. I did not take the cash box, and I did not open the drawer while I was greeting people. I came back a few minutes before 6:55 PM and noticed the drawer closed but not locked. When I opened it at 2025-03-14T18:55:00-04:00, the cash box wasn't there.",
+          "Additional Details: I saw Colin sign out the spare drawer key earlier at 6:38 PM (ev_keysignout_002). The front desk setup looked normal earlier in the evening, and I recall the cash box labeled 'Tickets' on the desk surface in the manager's photo (ev_frontdeskphoto_001).",
+          "Acknowledgment: I understand this statement will be used in the incident documentation. I have read and confirm the above is accurate to the best of my recollection."
+        ],
+        "lengthTarget": [450, 500],
+        "gated": false,
+        "gatingRule": null,
+        "createdAt": "2025-09-27T13:11:10.0061519Z",
+        "modifiedAt": "2025-09-27T13:11:10.0061519Z",
+        "content": "Statement Metadata: Taken at 2025-03-14T20:05:00-04:00 in the office area, City/State. Witness reliability: Moderate.\nI am Maya Green, volunteer coordinator on duty. This statement was recorded at 2025-03-14T20:05:00-04:00 in the office area, City/State. I am providing a factual account of my actions and observations related to the missing cash box from the front desk drawer.\n\nNarrative: I was at the front desk until about 6:42 PM (2025-03-14T18:42:00-04:00) when I stepped into the lobby to greet arrivals and direct them toward the exhibit. I did not take the cash box, and I did not open the drawer while I was greeting people. I came back a few minutes before 6:55 PM and noticed the drawer closed but not locked. When I opened it at 2025-03-14T18:55:00-04:00, the cash box wasn't there.\nI was stationed at the front desk from the start of the evening shift. At approximately 2025-03-14T18:42:00-04:00 I stepped into the lobby to greet arrivals and direct them toward the exhibit. I did not take the cash box, and I did not open the drawer while I was away from the desk. Prior to leaving, the desk appeared orderly. I returned a few minutes before 2025-03-14T18:55:00-04:00 and noticed the drawer was closed but did not feel locked. At 2025-03-14T18:55:00-04:00 I opened the drawer and saw that the cash box was not inside. I checked the immediate desk surface and under the counter and did not locate it. I informed staff nearby and then notified the manager that the cash box was missing.\n\nAdditional Details: I saw Colin sign out the spare drawer key earlier at 6:38 PM (ev_keysignout_002). The front desk setup looked normal earlier in the evening, and I recall the cash box labeled 'Tickets' on the desk surface in the manager's photo (ev_frontdeskphoto_001).\nEarlier in the evening I observed Colin Price sign out the spare front desk drawer key at 2025-03-14T18:38:00-04:00; this corresponds with the key cabinet record (ev_keysignout_002). The front desk setup looked normal before I left the area, and I recall the cash box labeled \"Tickets\" visible on the desk surface in the manager's phone photo taken at 2025-03-14T18:35:00-04:00 (ev_frontdeskphoto_001). My recollection of timing aligns with the general flow of guests through the corridor during that period. I did not see anyone open the drawer while I was greeting guests.\n\nAcknowledgment: I understand this statement will be used in the incident documentation. I have read and confirm the above is accurate to the best of my recollection.\nI understand this statement will be used in the incident documentation. I have read the statement above and confirm it is accurate to the best of my recollection. I am available for follow-up questions and will cooperate with any additional review.",
+        "metadata": {
+          "sourcePrompt": "Create a witness statement for Maya Green, the volunteer coordinator who discovered the missing cash box. Include her timeline of actions, what she observed, when she left and returned to the desk, her discovery of the missing cash box, and any relevant details about seeing Colin with the spare key. Use first-person narrative format typical of witness statements.",
+          "model": "gpt-4o",
+          "temperature": 0.7,
+          "maxTokens": 1500,
+          "generatedAt": "2025-09-27T13:11:10.0061543Z",
+          "tokensUsed": 1156,
+          "relevantEvidence": [
+            "ev_keysignout_002",
+            "ev_frontdeskphoto_001"
+          ],
+          "relevantPersons": [
+            "Maya Green",
+            "Colin Price",
+            "Manager"
+          ],
+          "keyTimestamps": [
+            "2025-03-14T18:42:00-04:00",
+            "2025-03-14T18:55:00-04:00",
+            "2025-03-14T18:38:00-04:00",
+            "2025-03-14T18:35:00-04:00",
+            "2025-03-14T20:05:00-04:00"
+          ],
+          "validationNotes": [
+            "Timeline is consistent with case chronology",
+            "Evidence references are accurate",
+            "Statement format follows standard witness statement structure"
+          ]
+        }
+      },
+      {
+        "docId": "doc_cashbox_missing_witness_colin_005",
+        "type": "witness_statement",
+        "title": "Witness Statement: Colin Price",
+        "sections": [
+          "Statement Metadata: Taken at 2025-03-14T20:15:00-04:00 in the office area, City/State. Witness reliability: Moderate.",
+          "Narrative: I signed out the spare front desk drawer key at 6:38 PM (2025-03-14T18:38:00-04:00) to check supplies for the evening event. I opened the drawer, verified we had enough tickets and materials, then locked it and clipped the key to my belt. I did not remove or take the cash box. When Maya reported it missing around 6:55 PM, the key was still with me and had not been returned to the cabinet.",
+          "Additional Details: The drawer appeared normal when I accessed it, and I recall the cash box being present at that time. I was working in the venue during the timeframe when Maya stepped away from the desk. I did not see anyone else access the front desk drawer during the evening.",
+          "Acknowledgment: I understand this statement is part of the incident record and confirm the accuracy of my account to the best of my recollection."
+        ],
+        "lengthTarget": [450, 500],
+        "gated": false,
+        "gatingRule": null,
+        "createdAt": "2025-09-27T13:11:10.0061727Z",
+        "modifiedAt": "2025-09-27T13:11:10.0061727Z",
+        "content": "Statement Metadata: Taken at 2025-03-14T20:15:00-04:00 in the office area, City/State. Witness reliability: Moderate.\nI am Colin Price, evening attendant on duty. This statement was recorded at 2025-03-14T20:15:00-04:00 in the office area, City/State. I am providing a factual account of my actions and observations related to the missing cash box from the front desk drawer.\n\nNarrative: I signed out the spare front desk drawer key at 6:38 PM (2025-03-14T18:38:00-04:00) to check supplies for the evening event. I opened the drawer, verified we had enough tickets and materials, then locked it and clipped the key to my belt. I did not remove or take the cash box. When Maya reported it missing around 6:55 PM, the key was still with me and had not been returned to the cabinet.\nI signed out the spare front desk drawer key at 2025-03-14T18:38:00-04:00 using the standard key cabinet procedure (ev_keysignout_002). My purpose was to check supplies for the evening event and ensure we had adequate tickets and informational materials. I accessed the drawer, conducted a brief inventory of supplies, and observed that everything appeared in order. After completing the check, I locked the drawer using the spare key and secured the key by clipping it to my belt as per venue protocol. I did not remove the cash box or any other items from the drawer. When Maya Green reported the cash box missing at approximately 2025-03-14T18:55:00-04:00, the spare key was still in my possession and had not been returned to the key cabinet.\n\nAdditional Details: The drawer appeared normal when I accessed it, and I recall the cash box being present at that time. I was working in the venue during the timeframe when Maya stepped away from the desk. I did not see anyone else access the front desk drawer during the evening.\nWhen I opened the drawer at 2025-03-14T18:38:00-04:00, the cash box labeled \\\"Tickets\\\" was present and appeared undisturbed. The drawer mechanism functioned normally, and I observed no signs of tampering or unusual conditions. During the period from approximately 2025-03-14T18:42:00-04:00 when Maya Green stepped away from the front desk to greet arrivals, I was working in various areas of the venue as part of my evening attendant duties. While I maintained general awareness of the front desk area, I did not observe anyone accessing the front desk drawer during the evening other than Maya Green upon her return. I did not return the spare key to the cabinet before the incident was reported.\n\nAcknowledgment: I understand this statement is part of the incident record and confirm the accuracy of my account to the best of my recollection.\nI understand this statement is part of the incident record and will be used in the documentation and investigation of this incident. I have read the statement above and confirm it accurately reflects my actions and observations to the best of my recollection. I am available for any follow-up questions and will cooperate fully with any additional investigation.",
+        "metadata": {
+          "sourcePrompt": "Create a witness statement for Colin Price, the evening attendant who signed out the spare drawer key. Include his purpose for accessing the drawer, what he observed, his actions with the key, and his whereabouts during the incident timeframe. Use first-person narrative format and address the key custody issue.",
+          "model": "gpt-4o",
+          "temperature": 0.7,
+          "maxTokens": 1500,
+          "generatedAt": "2025-09-27T13:11:10.0061751Z",
+          "tokensUsed": 1298,
+          "relevantEvidence": [
+            "ev_keysignout_002"
+          ],
+          "relevantPersons": [
+            "Colin Price",
+            "Maya Green"
+          ],
+          "keyTimestamps": [
+            "2025-03-14T18:38:00-04:00",
+            "2025-03-14T18:42:00-04:00",
+            "2025-03-14T18:55:00-04:00",
+            "2025-03-14T20:15:00-04:00"
+          ],
+          "validationNotes": [
+            "Key custody timeline is documented",
+            "Timeline aligns with other witness statements",
+            "Evidence references are accurate"
+          ]
+        }
+      }
+    ],
+    "media": [
+      {
+        "evidenceId": "ev_frontdeskphoto_001",
+        "kind": "image",
+        "title": "Front Desk Setup Photo",
+        "prompt": "Phone photo showing the front desk area with cash box labeled 'Tickets' visible on the desk surface",
+        "constraints": {
+          "timestamp": "2025-03-14T18:35:00-04:00",
+          "location": "Front desk area",
+          "collectedAt": "2025-03-14T19:22:00-04:00",
+          "collectedBy": "Manager",
+          "fileFormat": "JPEG"
+        },
+        "deferred": false,
+        "createdAt": "2025-09-27T13:11:10.0182851Z",
+        "metadata": {
+          "cameraInfo": "iPhone 12",
+          "resolution": "4032x3024",
+          "gps": "Disabled",
+          "originalFilename": "IMG_2847.jpg",
+          "fileSize": "2.1MB"
+        }
+      }
+    ],
+    "gatingGraph": {
+      "nodes": [
+        {
+          "id": "doc_cashbox_missing_police_report_001",
+          "type": "police_report",
+          "gated": false,
+          "unlockAction": null
+        },
+        {
+          "id": "doc_cashbox_missing_evidence_log_002",
+          "type": "evidence_log",
+          "gated": false,
+          "unlockAction": null
+        }
+      ],
+      "edges": [],
+      "hasCycles": false,
+      "cycleDescription": []
+    },
+    "metadata": {
+      "generatedBy": "NormalizerService",
+      "pipeline": "Plan→Expand→Design→GenerateDocuments/GenerateMedia→Normalize",
+      "generatedAt": "2025-09-27T13:11:10.0185516Z",
+      "validationResults": {
+        "isValid": true,
+        "documentCount": 5,
+        "mediaCount": 1,
+        "gatedCount": 0
+      },
+      "appliedRules": [
+        "TimestampConsistency",
+        "EvidenceIDValidation",
+        "CrossReferenceValidation",
+        "ContentLengthValidation"
+      ]
+    }
+  },
+  "expectedRedTeamAnalysis": "Comprehensive red team analysis focused on temporal integrity, timeline logic, and chain-of-custody\n\nExecutive summary\n- Overall the case uses a consistent timezone (America/Toronto, -04:00 on 2025-03-14, which is correct for EDT). Most timestamps align and are plausible. \n- However, there are two high-priority temporal conflicts that need immediate correction: the evidence log compilation time occurring before later-listed evidence collection events, and the initial police report listing actions/results that occur after the report's creation time.\n- There are also medium-priority timeline clarity gaps (cash box movement in and out of the drawer between 17:15 and 18:55, and drawer lock state contradictions) that should be addressed to improve investigative coherence and training value.\n- Chain-of-custody for ev_drawerinspect_005 is well-ordered; other items are generally sound for a rookie difficulty, but custody chronology for the spare key itself is not documented and should be added.\n\nHigh-priority timestamp conflicts (require immediate correction)\n- Evidence log compiled time precedes later entries:\n  - Document: doc_cashbox_missing_evidence_log_002. Metadata states \"Compiled at 2025-03-14T19:32:00-04:00.\"\n  - Entries within the same log show collection times after 19:32:\n    - Entry 4 (ev_cctvstills_004) CollectedAt 2025-03-14T19:40:00-04:00.\n    - Entry 5 (ev_drawerinspect_005) CollectedAt 2025-03-14T19:55:00-04:00.\n  - Conflict: A log \"compiled at 19:32\" cannot contain entries that were collected at 19:40 and 19:55 unless the compilation time is updated or clearly versioned.\n  - Immediate fix options:\n    - Update log metadata to reflect incremental updates, e.g., \"Initialized 2025-03-14T19:32:00-04:00; updated through 2025-03-14T19:55:00-04:00.\"\n    - Alternatively, set the compiled time to at least 2025-03-14T20:00:00-04:00 (or later) to reflect inclusion of post-19:32 entries.\n    - Add a versioning note: \"v1 compiled 19:32; v2 updated 19:40; v3 updated 19:55.\"\n\n- Initial police report references post-creation actions/outcomes:\n  - Document: doc_cashbox_missing_police_report_001. Report created at 2025-03-14T19:28:00-04:00.\n  - \"Immediate Actions Taken\" section includes: \"Verified key cabinet entries (ev_keysignout_002); spare slot observed empty during inspection (ev_drawerinspect_005).\"\n  - ev_drawerinspect_005 was collected at 2025-03-14T19:55:00-04:00, after the report creation time.\n  - Also, it states \"scheduled and conducted witness statements,\" while witness statements occur at 20:05 (Maya), 20:15 (Colin), and 20:25 (Manager)—all after report creation.\n  - Immediate fix options:\n    - In the initial report, restrict \"Immediate Actions Taken\" to actions completed by 19:28 and note that subsequent actions will be documented in an addendum or later report.\n    - Add a report addendum (created ≥20:30) capturing outcomes from 19:55 inspection and 20:05+ statements, or adjust the initial report's creation time if it was indeed compiled later."
+}
