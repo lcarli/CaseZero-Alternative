@@ -28,11 +28,7 @@ public record ValidateActivityModel
     public required string CaseId { get; init; }
 }
 
-public record RedTeamActivityModel
-{
-    public required string ValidatedJson { get; init; }
-    public required string CaseId { get; init; }
-}
+
 
 public record FixActivityModel
 {

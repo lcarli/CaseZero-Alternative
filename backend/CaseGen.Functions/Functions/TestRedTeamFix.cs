@@ -58,22 +58,50 @@ namespace CaseGen.Functions.Functions
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                 });
 
-                // Execute RedTeam analysis
-                _logger.LogInformation("Executing RedTeam analysis...");
-                var redTeamResult = await _caseGenerationService.RedTeamCaseAsync(normalizedCaseJson, testRequest.NormalizedCase.CaseId);
+                // Execute Global RedTeam analysis (hierarchical approach)
+                _logger.LogInformation("Executing Global RedTeam analysis...");
+                var globalAnalysisResult = await _caseGenerationService.RedTeamGlobalAnalysisAsync(normalizedCaseJson, testRequest.NormalizedCase.CaseId);
 
-                if (string.IsNullOrEmpty(redTeamResult))
+                if (string.IsNullOrEmpty(globalAnalysisResult))
                 {
-                    return new ObjectResult(new { Error = "RedTeam analysis returned empty result" })
+                    return new ObjectResult(new { Error = "Global RedTeam analysis returned empty result" })
                     {
                         StatusCode = 500
                     };
                 }
 
-                _logger.LogInformation("RedTeam analysis completed. Result length: {Length}", redTeamResult.Length);
+                _logger.LogInformation("Global RedTeam analysis completed. Result length: {Length}", globalAnalysisResult.Length);
 
-                // Execute Fix based on RedTeam analysis
-                _logger.LogInformation("Executing Fix based on RedTeam analysis...");
+                // Parse global analysis to determine if focused analysis is needed
+                var globalAnalysis = JsonSerializer.Deserialize<GlobalRedTeamAnalysis>(globalAnalysisResult);
+                string redTeamResult = globalAnalysisResult; // Default to global analysis
+
+                if (globalAnalysis?.RequiresDetailedAnalysis == true && globalAnalysis.FocusAreas.Length > 0)
+                {
+                    // Execute Focused RedTeam analysis
+                    _logger.LogInformation("Executing Focused RedTeam analysis on {Count} areas: {Areas}", 
+                        globalAnalysis.FocusAreas.Length, string.Join(", ", globalAnalysis.FocusAreas));
+                    
+                    var focusedAnalysisResult = await _caseGenerationService.RedTeamFocusedAnalysisAsync(
+                        normalizedCaseJson, testRequest.NormalizedCase.CaseId, globalAnalysisResult, globalAnalysis.FocusAreas);
+
+                    if (!string.IsNullOrEmpty(focusedAnalysisResult))
+                    {
+                        redTeamResult = focusedAnalysisResult; // Use focused analysis as final result
+                        _logger.LogInformation("Focused RedTeam analysis completed. Result length: {Length}", focusedAnalysisResult.Length);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Focused analysis returned empty, using global analysis");
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("Global analysis indicates no detailed analysis required");
+                }
+
+                // Execute Fix based on final RedTeam analysis
+                _logger.LogInformation("Executing Fix based on final RedTeam analysis...");
                 var fixResultJson = await _caseGenerationService.FixCaseAsync(redTeamResult, normalizedCaseJson, testRequest.NormalizedCase.CaseId);
 
                 if (string.IsNullOrEmpty(fixResultJson))
@@ -103,7 +131,10 @@ namespace CaseGen.Functions.Functions
                 // Return both results
                 var response = new TestRedTeamFixResponse
                 {
-                    RedTeamAnalysis = redTeamResult,
+                    GlobalAnalysis = globalAnalysisResult,
+                    FinalRedTeamAnalysis = redTeamResult,
+                    UsedHierarchicalAnalysis = globalAnalysis?.RequiresDetailedAnalysis == true && globalAnalysis.FocusAreas.Length > 0,
+                    FocusAreasAnalyzed = globalAnalysis?.FocusAreas ?? Array.Empty<string>(),
                     FixedCase = fixResult,
                     ExecutedAt = DateTime.UtcNow,
                     OriginalCaseId = testRequest.NormalizedCase.CaseId
@@ -135,7 +166,10 @@ namespace CaseGen.Functions.Functions
 
     public class TestRedTeamFixResponse
     {
-        public string RedTeamAnalysis { get; set; } = string.Empty;
+        public string GlobalAnalysis { get; set; } = string.Empty;
+        public string FinalRedTeamAnalysis { get; set; } = string.Empty;
+        public bool UsedHierarchicalAnalysis { get; set; }
+        public string[] FocusAreasAnalyzed { get; set; } = Array.Empty<string>();
         public NormalizedCaseBundle FixedCase { get; set; } = null!;
         public DateTime ExecutedAt { get; set; }
         public string OriginalCaseId { get; set; } = string.Empty;

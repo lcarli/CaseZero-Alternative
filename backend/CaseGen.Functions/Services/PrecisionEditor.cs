@@ -84,6 +84,12 @@ public class PrecisionEditor : IPrecisionEditor
                         case "RemoveReference":
                             fixApplied = RemoveReference(mutableJson, issue);
                             break;
+                        case "AddMediaAttachment":
+                            fixApplied = await AddMediaAttachment(mutableJson, issue, caseId, cancellationToken);
+                            break;
+                        case "GenerateMissingDocument":
+                            fixApplied = await GenerateMissingDocument(mutableJson, issue, caseId, cancellationToken);
+                            break;
                         default:
                             _logger.LogWarning("PRECISION EDITOR: Unknown fix action '{Action}' for issue in {DocId}", 
                                 issue.Fix.Action, issue.Location.DocId);
@@ -608,6 +614,218 @@ public class PrecisionEditor : IPrecisionEditor
         }
 
         return parts;
+    }
+
+    private async Task<bool> AddMediaAttachment(Dictionary<string, object> json, PreciseIssue issue, string caseId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Extract evidence ID from the issue (usually in LinePattern or CurrentValue)
+            var evidenceId = ExtractEvidenceId(issue);
+            if (string.IsNullOrEmpty(evidenceId))
+            {
+                _logger.LogWarning("PRECISION EDITOR: Cannot extract evidenceId from issue for AddMediaAttachment");
+                return false;
+            }
+
+            // Check if media already exists
+            if (json.TryGetValue("media", out var mediaObj) && mediaObj is JsonElement mediaElement)
+            {
+                var mediaArray = mediaElement.EnumerateArray().ToList();
+                if (mediaArray.Any(m => m.TryGetProperty("evidenceId", out var idProp) && idProp.GetString() == evidenceId))
+                {
+                    _logger.LogInformation("PRECISION EDITOR: Media {EvidenceId} already exists, skipping", evidenceId);
+                    return true; // Already exists, consider it fixed
+                }
+            }
+
+            // Create new media metadata based on evidenceId pattern
+            var newMedia = CreateMediaMetadata(evidenceId, caseId);
+            
+            // Add to media array
+            var mediaList = new List<object>();
+            if (json.TryGetValue("media", out var existingMedia) && existingMedia is JsonElement existingElement)
+            {
+                mediaList.AddRange(existingElement.EnumerateArray().Select(m => JsonSerializer.Deserialize<object>(m.GetRawText())!));
+            }
+            
+            mediaList.Add(newMedia);
+            json["media"] = mediaList;
+
+            _logger.LogInformation("PRECISION EDITOR: Added media attachment for {EvidenceId}", evidenceId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PRECISION EDITOR: Error adding media attachment for issue in {DocId}", issue.Location.DocId);
+            return false;
+        }
+    }
+
+    private async Task<bool> GenerateMissingDocument(Dictionary<string, object> json, PreciseIssue issue, string caseId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Extract document ID from the issue
+            var docId = issue.Location.DocId;
+            if (string.IsNullOrEmpty(docId) || docId == "CHUNK_SCOPE")
+            {
+                _logger.LogWarning("PRECISION EDITOR: Invalid docId for GenerateMissingDocument: {DocId}", docId);
+                return false;
+            }
+
+            // Check if document already exists
+            if (json.TryGetValue("documents", out var docsObj) && docsObj is JsonElement docsElement)
+            {
+                var docsArray = docsElement.EnumerateArray().ToList();
+                if (docsArray.Any(d => d.TryGetProperty("docId", out var idProp) && idProp.GetString() == docId))
+                {
+                    _logger.LogInformation("PRECISION EDITOR: Document {DocId} already exists, skipping", docId);
+                    return true; // Already exists, consider it fixed
+                }
+            }
+
+            // Create new document metadata based on docId pattern
+            var newDocument = CreateDocumentMetadata(docId, caseId);
+            
+            // Add to documents array
+            var docsList = new List<object>();
+            if (json.TryGetValue("documents", out var existingDocs) && existingDocs is JsonElement existingElement)
+            {
+                docsList.AddRange(existingElement.EnumerateArray().Select(d => JsonSerializer.Deserialize<object>(d.GetRawText())!));
+            }
+            
+            docsList.Add(newDocument);
+            json["documents"] = docsList;
+
+            _logger.LogInformation("PRECISION EDITOR: Added missing document {DocId}", docId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "PRECISION EDITOR: Error generating missing document for {DocId}", issue.Location.DocId);
+            return false;
+        }
+    }
+
+    private string ExtractEvidenceId(PreciseIssue issue)
+    {
+        // Try different sources for evidence ID
+        var candidates = new[] {
+            issue.Location.LinePattern,
+            issue.Location.CurrentValue,
+            issue.Fix.NewValue,
+            issue.Problem
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (string.IsNullOrEmpty(candidate)) continue;
+
+            // Look for pattern like "ev_something_123"
+            var match = System.Text.RegularExpressions.Regex.Match(candidate, @"ev_[\w_]+\d+");
+            if (match.Success)
+            {
+                return match.Value;
+            }
+
+            // Look for evidenceId: pattern
+            match = System.Text.RegularExpressions.Regex.Match(candidate, @"evidenceId[:\s]+([^,\s\]]+)");
+            if (match.Success)
+            {
+                return match.Groups[1].Value.Trim('"');
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private object CreateMediaMetadata(string evidenceId, string caseId)
+    {
+        // Determine media type and properties based on evidence ID pattern
+        var mediaType = evidenceId switch
+        {
+            var id when id.Contains("photo") || id.Contains("image") => "photo",
+            var id when id.Contains("cctv") || id.Contains("still") => "photo",
+            var id when id.Contains("scan") || id.Contains("receipt") => "scan",
+            var id when id.Contains("video") => "video",
+            var id when id.Contains("audio") => "audio",
+            _ => "document_scan"
+        };
+
+        var title = evidenceId.Replace("_", " ").Replace("ev ", "Evidence: ");
+        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ");
+
+        return new
+        {
+            evidenceId = evidenceId,
+            kind = mediaType,
+            title = title,
+            description = $"Generated metadata for {evidenceId}",
+            mediaFile = $"{evidenceId}.jpg", // Will be created during render phase
+            createdAt = timestamp,
+            metadata = new
+            {
+                generatedBy = "PrecisionEditor.AddMediaAttachment",
+                caseId = caseId,
+                autoGenerated = true,
+                needsRender = true
+            }
+        };
+    }
+
+    private object CreateDocumentMetadata(string docId, string caseId)
+    {
+        // Extract document type and person from docId pattern
+        var parts = docId.Split('_');
+        var docType = parts.Length > 3 ? parts[2] : "document";
+        var personName = parts.Length > 4 ? parts[3] : "Unknown";
+
+        var title = docType switch
+        {
+            "witness" => $"Witness Statement: {FormatPersonName(personName)}",
+            "interview" => $"Interview: {FormatPersonName(personName)}",
+            "memo" => $"Administrative Memo: {FormatPersonName(personName)}",
+            "report" => $"Report: {FormatPersonName(personName)}",
+            _ => $"Document: {FormatPersonName(personName)}"
+        };
+
+        var sections = docType switch
+        {
+            "witness" => new[] { "Statement Metadata", "Narrative", "Signature" },
+            "interview" => new[] { "Interview Metadata", "Transcript", "Summary" },
+            "memo" => new[] { "Memo Header", "Content", "Actions Required" },
+            _ => new[] { "Header", "Content", "Summary" }
+        };
+
+        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ");
+
+        return new
+        {
+            docId = docId,
+            type = docType,
+            title = title,
+            sections = sections,
+            content = $"[Generated metadata for {docId} - content to be rendered]",
+            dateCreated = timestamp,
+            metadata = new
+            {
+                generatedBy = "PrecisionEditor.GenerateMissingDocument",
+                caseId = caseId,
+                autoGenerated = true,
+                needsRender = true,
+                sourcePrompt = $"Generate missing {docType} document for {personName}",
+                model = "generated-metadata",
+                temperature = 0.7,
+                maxTokens = 1500,
+                generatedAt = timestamp
+            }
+        };
+    }
+
+    private string FormatPersonName(string name)
+    {
+        return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(name.Replace("_", " "));
     }
 
     private class FieldPathPart

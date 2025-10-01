@@ -702,6 +702,7 @@ public class CaseGenerationService : ICaseGenerationService
         return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
     }
 
+    [Obsolete("Use RedTeamGlobalAnalysisAsync and RedTeamFocusedAnalysisAsync for hierarchical analysis instead")]
     public async Task<string> RedTeamCaseAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default)
     {
         return await RedTeamCaseChunkedAsync(validatedJson, caseId, cancellationToken);
@@ -743,19 +744,19 @@ public class CaseGenerationService : ICaseGenerationService
 
         var jsonStructure = """
             {
-                "macroIssues": [
+                "MacroIssues": [
                     {
-                        "type": "CrossDocumentInconsistency|ChronologicalGap|NarrativeContradiction|ReferenceIntegrity|StructuralCompleteness",
-                        "severity": "Critical|Major|Minor",
-                        "affectedDocuments": ["doc_id_1", "doc_id_2"],
-                        "description": "Clear description of the macro issue",
-                        "requiredFocusAreas": ["specific_section_1", "specific_field_2"]
+                        "Type": "CrossDocumentInconsistency|ChronologicalGap|NarrativeContradiction|ReferenceIntegrity|StructuralCompleteness",
+                        "Severity": "Critical|Major|Minor",
+                        "AffectedDocuments": ["doc_id_1", "doc_id_2"],
+                        "Description": "Clear description of the macro issue",
+                        "RequiredFocusAreas": ["specific_section_1", "specific_field_2"]
                     }
                 ],
-                "criticalDocuments": ["doc_ids_needing_detailed_analysis"],
-                "focusAreas": ["specific_areas_to_examine_in_detail"],
-                "overallAssessment": "Strategic assessment of case quality",
-                "requiresDetailedAnalysis": true/false
+                "CriticalDocuments": ["doc_ids_needing_detailed_analysis"],
+                "FocusAreas": ["specific_areas_to_examine_in_detail"],
+                "OverallAssessment": "Strategic assessment of case quality",
+                "RequiresDetailedAnalysis": true
             }
             """;
 
@@ -1143,8 +1144,8 @@ public class CaseGenerationService : ICaseGenerationService
             - Focus on temporal inconsistencies as highest priority
             """;
 
-        var systemPrompt = $"""
-            {contextualPrompt}
+        var systemPrompt = $$$"""
+            {{{contextualPrompt}}}
             
             CRITICAL JSON FORMAT REQUIREMENTS:
             - ALL string fields must be valid JSON strings (no arrays in string fields)
@@ -1152,7 +1153,34 @@ public class CaseGenerationService : ICaseGenerationService
             - If you need to reference multiple values, use comma-separated strings
             - Do not use arrays where strings are expected
             
-            OUTPUT FORMAT: Return ONLY valid JSON matching the StructuredRedTeamAnalysis format.
+            OUTPUT FORMAT: Return ONLY valid JSON matching this EXACT structure:
+            {{
+                "Issues": [
+                    {{
+                        "Priority": "High|Medium|Low",
+                        "Type": "TimestampConflict|PostCreationReference|ChronologicalGap|etc",
+                        "Problem": "Clear description of the problem",
+                        "Location": {{
+                            "DocId": "document_id",
+                            "Field": "field_path",
+                            "Section": "section_name",
+                            "LinePattern": "text_pattern_to_find",
+                            "CurrentValue": "current_problematic_value"
+                        }},
+                        "Fix": {{
+                            "Action": "UpdateTimestamp|ReplaceText|MoveToAddendum|RemoveReference|AddMediaAttachment|GenerateMissingDocument",
+                            "NewValue": "new_value_to_set",
+                            "OldText": "text_to_replace",
+                            "NewText": "replacement_text", 
+                            "Reason": "explanation_why_fix_needed"
+                        }}
+                    }}
+                ],
+                "Summary": "Brief summary of all issues found",
+                "HighPriorityCount": 0,
+                "MediumPriorityCount": 0,
+                "LowPriorityCount": 0
+            }}
             
             PRIORITY GUIDELINES:
             - High: Timestamp conflicts, chronological impossibilities

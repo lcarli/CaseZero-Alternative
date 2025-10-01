@@ -133,12 +133,7 @@ public class CaseGeneratorActivities
         return await _caseGenerationService.RedTeamFocusedAnalysisAsync(model.ValidatedJson, model.CaseId, model.GlobalAnalysis, model.FocusAreas);
     }
 
-    [Function("RedTeamActivity")]
-    public async Task<string> RedTeamActivity([ActivityTrigger] RedTeamActivityModel model)
-    {
-        _logger.LogInformation("Red teaming case (legacy - consider using hierarchical approach)");
-        return await _caseGenerationService.RedTeamCaseAsync(model.ValidatedJson, model.CaseId);
-    }
+
 
     [Function("FixActivity")]
     public async Task<string> FixActivity([ActivityTrigger] FixActivityModel model)

@@ -50,6 +50,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
             var requestOptions = new ChatCompletionOptions()
             {
                 MaxOutputTokenCount = 30000
+                // Note: This Azure Foundry model only supports default temperature (1.0)
             };
 
             // Enable the new max_completion_tokens property
@@ -91,6 +92,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
             var requestOptions = new ChatCompletionOptions()
             {
                 MaxOutputTokenCount = 30000
+                // Note: This Azure Foundry model only supports default temperature (1.0)
             };
 
             // Enable the new max_completion_tokens property
@@ -242,6 +244,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
             var translateOptions = new ChatCompletionOptions()
             {
                 MaxOutputTokenCount = 10000
+                // Note: This Azure Foundry model only supports default temperature (1.0)
             };
 #pragma warning disable AOAI001
             translateOptions.SetNewMaxCompletionTokensPropertyEnabled(true);
