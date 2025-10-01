@@ -756,3 +756,25 @@ public record FileManifestEntry
     public required string Sha256 { get; init; }
     public required string MimeType { get; init; }
 }
+
+public record LLMUsage
+{
+    public int? PromptTokens { get; init; }
+    public int? CompletionTokens { get; init; }
+    public int? TotalTokens { get; init; }
+}
+
+public record LLMResponse
+{
+    public required string Content { get; init; }
+    public LLMUsage? Usage { get; init; }
+}
+
+public record RedTeamCacheEntry
+{
+    public required string ContentHash { get; init; }
+    public required string Analysis { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public required string AnalysisType { get; init; } // "Global" or "Focused"
+    public string[]? FocusAreas { get; init; } // For focused analysis
+}

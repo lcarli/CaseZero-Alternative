@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using CaseGen.Functions.Models;
 
 namespace CaseGen.Functions.Services;
 
@@ -12,20 +13,48 @@ public class MockLLMProvider : ILLMProvider
         _logger = logger;
     }
 
-    public async Task<string> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
+    public async Task<LLMResponse> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
     {
         // Simulate processing time
         await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
         
-        return GenerateMockResponse(systemPrompt, userPrompt);
+        var content = GenerateMockResponse(systemPrompt, userPrompt);
+        
+        // Mock token usage for testing
+        var mockUsage = new LLMUsage
+        {
+            PromptTokens = (systemPrompt.Length + userPrompt.Length) / 4, // Rough approximation
+            CompletionTokens = content.Length / 4,
+            TotalTokens = ((systemPrompt.Length + userPrompt.Length) / 4) + (content.Length / 4)
+        };
+        
+        return new LLMResponse
+        {
+            Content = content,
+            Usage = mockUsage
+        };
     }
 
-    public async Task<string> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default)
+    public async Task<LLMResponse> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default)
     {
         // Simulate processing time
         await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
         
-        return GenerateMockStructuredResponse(systemPrompt, userPrompt, jsonSchema);
+        var content = GenerateMockStructuredResponse(systemPrompt, userPrompt, jsonSchema);
+        
+        // Mock token usage for testing
+        var mockUsage = new LLMUsage
+        {
+            PromptTokens = (systemPrompt.Length + userPrompt.Length + jsonSchema.Length) / 4,
+            CompletionTokens = content.Length / 4,
+            TotalTokens = ((systemPrompt.Length + userPrompt.Length + jsonSchema.Length) / 4) + (content.Length / 4)
+        };
+        
+        return new LLMResponse
+        {
+            Content = content,
+            Usage = mockUsage
+        };
     }
 
     private string GenerateMockResponse(string systemPrompt, string userPrompt)

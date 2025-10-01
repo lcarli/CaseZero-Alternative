@@ -1,3 +1,5 @@
+using CaseGen.Functions.Models;
+
 namespace CaseGen.Functions.Services;
 
 public class LLMService : ILLMService
@@ -30,14 +32,16 @@ public class LLMService : ILLMService
 
             var response = await _llmProvider.GenerateTextAsync(systemPrompt, userPrompt, cancellationToken);
 
-            // Log the interaction details to blob storage
+            // Log the interaction details to blob storage with token usage
+            var totalTokens = response.Usage?.TotalTokens;
             await _caseLogging.LogLLMInteractionAsync(caseId, _llmProvider.GetType().Name,
-                "TextGeneration", userPrompt, response, null, cancellationToken);
+                "TextGeneration", userPrompt, response.Content, totalTokens, cancellationToken);
 
             // Clean console log for completion
-            _caseLogging.LogOrchestratorStep(caseId, "LLM_TEXT_COMPLETE", $"Generated {response.Length} chars");
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_TEXT_COMPLETE", 
+                $"Generated {response.Content.Length} chars, tokens: {totalTokens?.ToString() ?? "unknown"}");
 
-            return response;
+            return response.Content;
         }
         catch (Exception ex)
         {
@@ -78,14 +82,16 @@ public class LLMService : ILLMService
 
             var response = await _llmProvider.GenerateStructuredResponseAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
 
-            // Log the interaction details to blob storage
+            // Log the interaction details to blob storage with token usage
+            var totalTokens = response.Usage?.TotalTokens;
             await _caseLogging.LogLLMInteractionAsync(caseId, _llmProvider.GetType().Name,
-                "StructuredGeneration", userPrompt, response, null, cancellationToken);
+                "StructuredGeneration", userPrompt, response.Content, totalTokens, cancellationToken);
 
             // Clean console log for completion
-            _caseLogging.LogOrchestratorStep(caseId, "LLM_STRUCTURED_COMPLETE", $"Generated structured response ({response.Length} chars)");
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_STRUCTURED_COMPLETE", 
+                $"Generated structured response ({response.Content.Length} chars), tokens: {totalTokens?.ToString() ?? "unknown"}");
 
-            return response;
+            return response.Content;
         }
         catch (Exception ex)
         {

@@ -24,6 +24,7 @@ builder.Services
     .AddSingleton<IJsonSchemaProvider, FileJsonSchemaProvider>()
     .AddScoped<IPrecisionEditor, PrecisionEditor>()
     .AddScoped<ILLMService, LLMService>()
+    .AddSingleton<IRedTeamCacheService, RedTeamCacheService>()
     // Configure LLM Provider - using Mock for now, Azure Foundry when stable
     .AddScoped<ILLMProvider>(serviceProvider =>
     {

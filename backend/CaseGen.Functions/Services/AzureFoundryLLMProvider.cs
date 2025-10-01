@@ -6,6 +6,7 @@ using OpenAI.Images;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using CaseGen.Functions.Models;
 
 namespace CaseGen.Functions.Services;
 
@@ -43,7 +44,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
             endpoint, deploymentName, imageDeploymentName);
     }
 
-    public async Task<string> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
+    public async Task<LLMResponse> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -68,7 +69,19 @@ public class AzureFoundryLLMProvider : ILLMProvider
 
             var content = response.Value.Content[0].Text;
 
-            return content ?? "";
+            // Extract usage information
+            var usage = response.Value.Usage != null ? new LLMUsage
+            {
+                PromptTokens = response.Value.Usage.InputTokenCount,
+                CompletionTokens = response.Value.Usage.OutputTokenCount,
+                TotalTokens = response.Value.Usage.TotalTokenCount
+            } : null;
+
+            return new LLMResponse
+            {
+                Content = content ?? "",
+                Usage = usage
+            };
         }
         catch (Exception ex)
         {
@@ -77,7 +90,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
         }
     }
 
-    public async Task<string> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default)
+    public async Task<LLMResponse> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -110,20 +123,33 @@ public class AzureFoundryLLMProvider : ILLMProvider
 
             var content = response.Value.Content[0].Text;
 
+            // Extract usage information
+            var usage = response.Value.Usage != null ? new LLMUsage
+            {
+                PromptTokens = response.Value.Usage.InputTokenCount,
+                CompletionTokens = response.Value.Usage.OutputTokenCount,
+                TotalTokens = response.Value.Usage.TotalTokenCount
+            } : null;
+
             // Validate JSON and normalize
+            string normalizedContent;
             try
             {
                 System.Text.Json.JsonDocument.Parse(content ?? "{}");
-                var normalized = NormalizePlanJson(content ?? "{}");
-                return normalized;
+                normalizedContent = NormalizePlanJson(content ?? "{}");
             }
             catch (System.Text.Json.JsonException)
             {
                 var cleanedContent = ExtractJsonFromResponse(content ?? "");
                 System.Text.Json.JsonDocument.Parse(cleanedContent);
-                var normalized = NormalizePlanJson(cleanedContent);
-                return normalized;
+                normalizedContent = NormalizePlanJson(cleanedContent);
             }
+
+            return new LLMResponse
+            {
+                Content = normalizedContent,
+                Usage = usage
+            };
 
         }
         catch (Exception ex)

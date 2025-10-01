@@ -24,6 +24,7 @@ public class CaseGenerationService : ICaseGenerationService
     private readonly IPdfRenderingService _pdfRenderingService;
     private readonly IImagesService _imagesService;
     private readonly IPrecisionEditor _precisionEditor;
+    private readonly IRedTeamCacheService _redTeamCache;
     private readonly ILogger<CaseGenerationService> _logger;
 
     public CaseGenerationService(
@@ -36,6 +37,7 @@ public class CaseGenerationService : ICaseGenerationService
         IPdfRenderingService pdfRenderingService,
         IImagesService imagesService,
         IPrecisionEditor precisionEditor,
+        IRedTeamCacheService redTeamCache,
         IConfiguration configuration,
         ILogger<CaseGenerationService> logger)
     {
@@ -48,6 +50,7 @@ public class CaseGenerationService : ICaseGenerationService
         _pdfRenderingService = pdfRenderingService;
         _imagesService = imagesService;
         _precisionEditor = precisionEditor;
+        _redTeamCache = redTeamCache;
         _configuration = configuration;
         _logger = logger;
     }
@@ -718,6 +721,17 @@ public class CaseGenerationService : ICaseGenerationService
             return CreateFallbackGlobalAnalysis("Global analysis failed - empty input JSON provided.");
         }
 
+        // Check cache first
+        var contentHash = _redTeamCache.ComputeContentHash(validatedJson);
+        var cachedAnalysis = await _redTeamCache.GetCachedAnalysisAsync(contentHash, "Global", null, cancellationToken);
+        
+        if (cachedAnalysis != null)
+        {
+            _logger.LogInformation("REDTEAM GLOBAL: Using cached analysis for case {CaseId} (hash: {Hash})", 
+                caseId, contentHash[..8]);
+            return cachedAnalysis;
+        }
+
         // Log input size for monitoring
         _logger.LogInformation("REDTEAM GLOBAL: Input JSON size: {Size} bytes for case {CaseId}", 
             validatedJson.Length, caseId);
@@ -790,6 +804,10 @@ public class CaseGenerationService : ICaseGenerationService
                 {
                     _logger.LogInformation("REDTEAM GLOBAL: Completed - {MacroIssueCount} macro issues found", 
                         analysis.MacroIssues.Count);
+                    
+                    // Cache the successful analysis
+                    await _redTeamCache.CacheAnalysisAsync(contentHash, cleanedResult, "Global", null, cancellationToken);
+                    
                     return cleanedResult;
                 }
             }
@@ -798,7 +816,10 @@ public class CaseGenerationService : ICaseGenerationService
                 _logger.LogWarning(ex, "REDTEAM GLOBAL: Invalid JSON structure returned for case {CaseId}", caseId);
             }
 
-            return cleanedResult; // Return even if parsing failed - let downstream handle it
+            // Cache even if parsing failed - let downstream handle it, but avoid re-processing
+            await _redTeamCache.CacheAnalysisAsync(contentHash, cleanedResult, "Global", null, cancellationToken);
+            
+            return cleanedResult;
         }
         catch (Exception ex)
         {
@@ -818,8 +839,27 @@ public class CaseGenerationService : ICaseGenerationService
             return CreateFallbackStructuredAnalysis("Focused analysis failed - empty input JSON provided.");
         }
 
+        // Check cache first - for focused analysis, we include focus areas in the cache key
+        var contentHash = _redTeamCache.ComputeContentHash(validatedJson + globalAnalysis);
+        var cachedAnalysis = await _redTeamCache.GetCachedAnalysisAsync(contentHash, "Focused", focusAreas, cancellationToken);
+        
+        if (cachedAnalysis != null)
+        {
+            _logger.LogInformation("REDTEAM FOCUSED: Using cached analysis for case {CaseId} (hash: {Hash})", 
+                caseId, contentHash[..8]);
+            return cachedAnalysis;
+        }
+
         // Use existing chunked analysis but with focused prompting
-        return await RedTeamCaseChunkedAsync(validatedJson, caseId, cancellationToken, globalAnalysis, focusAreas);
+        var result = await RedTeamCaseChunkedAsync(validatedJson, caseId, cancellationToken, globalAnalysis, focusAreas);
+        
+        // Cache the result if successful
+        if (!string.IsNullOrWhiteSpace(result))
+        {
+            await _redTeamCache.CacheAnalysisAsync(contentHash, result, "Focused", focusAreas, cancellationToken);
+        }
+        
+        return result;
     }
 
     public async Task<string> RedTeamCaseChunkedAsync(string validatedJson, string caseId, CancellationToken cancellationToken = default)

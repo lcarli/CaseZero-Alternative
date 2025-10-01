@@ -47,8 +47,8 @@ public interface ILLMService
 
 public interface ILLMProvider
 {
-    Task<string> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
-    Task<string> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default);
+    Task<LLMResponse> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
+    Task<LLMResponse> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default);
     Task<byte[]> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default);
 }
 
@@ -61,6 +61,14 @@ public interface IPdfRenderingService
 {
     Task<string> RenderDocumentFromJsonAsync(string docId, string documentJson, string caseId, CancellationToken cancellationToken = default);
     Task<byte[]> GenerateTestPdfAsync(string title, string markdownContent, string documentType = "general", CancellationToken cancellationToken = default);
+}
+
+public interface IRedTeamCacheService
+{
+    Task<string?> GetCachedAnalysisAsync(string contentHash, string analysisType, string[]? focusAreas = null, CancellationToken cancellationToken = default);
+    Task CacheAnalysisAsync(string contentHash, string analysis, string analysisType, string[]? focusAreas = null, CancellationToken cancellationToken = default);
+    string ComputeContentHash(string content);
+    Task ClearExpiredEntriesAsync(TimeSpan maxAge, CancellationToken cancellationToken = default);
 }
 
 public interface IImagesService
