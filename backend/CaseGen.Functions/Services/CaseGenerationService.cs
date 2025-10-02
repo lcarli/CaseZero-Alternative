@@ -1708,17 +1708,53 @@ public class CaseGenerationService : ICaseGenerationService
             var timezone = validatedCase.TryGetProperty("timezone", out var tzProp) ? tzProp.GetString() : "UTC";
             var difficulty = validatedCase.TryGetProperty("difficulty", out var diffProp) ? diffProp.GetString() : "Rookie";
             
-            // Count documents and media
+            // Debug: Log the top-level properties of the JSON
+            var topLevelProperties = new List<string>();
+            foreach (var property in validatedCase.EnumerateObject())
+            {
+                topLevelProperties.Add(property.Name);
+            }
+            _logger.LogInformation("PACKAGE: Top-level JSON properties for case {CaseId}: {Properties}", 
+                caseId, string.Join(", ", topLevelProperties));
+            
+            // Debug: Log sample structure to understand the JSON format
+            var jsonSample = finalJson.Length > 1000 ? finalJson[..1000] + "..." : finalJson;
+            _logger.LogDebug("PACKAGE: JSON sample for case {CaseId}: {JsonSample}", caseId, jsonSample);
+            
+            // Count documents and media with detailed logging
             var documentsCount = 0;
             var mediaCount = 0;
             var suspectsCount = 0;
             
             if (validatedCase.TryGetProperty("documents", out var docsArray))
+            {
                 documentsCount = docsArray.GetArrayLength();
+                _logger.LogInformation("PACKAGE: Found {DocumentsCount} documents in case {CaseId}", documentsCount, caseId);
+            }
+            else
+            {
+                _logger.LogWarning("PACKAGE: No 'documents' property found in case {CaseId}", caseId);
+            }
+            
             if (validatedCase.TryGetProperty("media", out var mediaArray))
+            {
                 mediaCount = mediaArray.GetArrayLength();
+                _logger.LogInformation("PACKAGE: Found {MediaCount} media items in case {CaseId}", mediaCount, caseId);
+            }
+            else
+            {
+                _logger.LogWarning("PACKAGE: No 'media' property found in case {CaseId}", caseId);
+            }
+            
             if (validatedCase.TryGetProperty("suspects", out var suspectsArray))
+            {
                 suspectsCount = suspectsArray.GetArrayLength();
+                _logger.LogInformation("PACKAGE: Found {SuspectsCount} suspects in case {CaseId}", suspectsCount, caseId);
+            }
+            else
+            {
+                _logger.LogWarning("PACKAGE: No 'suspects' property found in case {CaseId}", caseId);
+            }
 
             // Create comprehensive case manifest
             var caseManifest = new CaseBundle
@@ -1764,9 +1800,11 @@ public class CaseGenerationService : ICaseGenerationService
                 CreatedAt = DateTime.UtcNow
             });
 
-            // Add individual documents to manifest (already saved during generation)
+            // Add individual documents to manifest (try to read from storage)
             if (validatedCase.TryGetProperty("documents", out var documentsArray))
             {
+                _logger.LogInformation("PACKAGE: Processing {DocumentCount} documents for manifest", documentsArray.GetArrayLength());
+                
                 foreach (var doc in documentsArray.EnumerateArray())
                 {
                     if (doc.TryGetProperty("docId", out var docIdProp))
@@ -1786,18 +1824,37 @@ public class CaseGenerationService : ICaseGenerationService
                                 Sha256 = docHash,
                                 MimeType = "application/json"
                             });
+                            
+                            _logger.LogDebug("PACKAGE: Added document {DocId} to manifest (hash: {Hash})", docId, docHash[..8]);
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogWarning(ex, "Could not add document {DocId} to manifest", docId);
+                            _logger.LogWarning(ex, "PACKAGE: Could not read document {DocId} from storage at {Path} - creating metadata-only entry", 
+                                docId, docFileName);
+                            
+                            // Create a metadata-only entry using the document content from the main JSON
+                            var docJsonContent = doc.GetRawText();
+                            var docHash = ComputeSHA256Hash(docJsonContent);
+                            
+                            caseManifest.Manifest.Add(new FileManifestEntry
+                            {
+                                Filename = $"{docId}.json",
+                                RelativePath = docFileName,
+                                Sha256 = docHash,
+                                MimeType = "application/json"
+                            });
+                            
+                            _logger.LogInformation("PACKAGE: Created metadata-only entry for document {DocId}", docId);
                         }
                     }
                 }
             }
 
-            // Add individual media to manifest (already saved during generation)
+            // Add individual media to manifest (try to read from storage)
             if (validatedCase.TryGetProperty("media", out var mediaManifestArray))
             {
+                _logger.LogInformation("PACKAGE: Processing {MediaCount} media items for manifest", mediaManifestArray.GetArrayLength());
+                
                 foreach (var media in mediaManifestArray.EnumerateArray())
                 {
                     if (media.TryGetProperty("evidenceId", out var evidenceIdProp))
@@ -1817,21 +1874,49 @@ public class CaseGenerationService : ICaseGenerationService
                                 Sha256 = mediaHash,
                                 MimeType = "application/json"
                             });
+                            
+                            _logger.LogDebug("PACKAGE: Added media {EvidenceId} to manifest (hash: {Hash})", evidenceId, mediaHash[..8]);
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogWarning(ex, "Could not add media {EvidenceId} to manifest", evidenceId);
+                            _logger.LogWarning(ex, "PACKAGE: Could not read media {EvidenceId} from storage at {Path} - creating metadata-only entry", 
+                                evidenceId, mediaFileName);
+                            
+                            // Create a metadata-only entry using the media content from the main JSON
+                            var mediaJsonContent = media.GetRawText();
+                            var mediaHash = ComputeSHA256Hash(mediaJsonContent);
+                            
+                            caseManifest.Manifest.Add(new FileManifestEntry
+                            {
+                                Filename = $"{evidenceId}.json",
+                                RelativePath = mediaFileName,
+                                Sha256 = mediaHash,
+                                MimeType = "application/json"
+                            });
+                            
+                            _logger.LogInformation("PACKAGE: Created metadata-only entry for media {EvidenceId}", evidenceId);
                         }
                     }
                 }
             }
 
-            // Save the main case manifest file
-            var caseManifestJson = JsonSerializer.Serialize(caseManifest, new JsonSerializerOptions { WriteIndented = true });
+            // Add the main manifest file to itself (for completeness)
+            var tempManifestJson = JsonSerializer.Serialize(caseManifest, new JsonSerializerOptions { WriteIndented = true });
             var caseManifestFileName = $"{caseId}/{caseId}.json";
+            var manifestHash = ComputeSHA256Hash(tempManifestJson);
+            
+            caseManifest.Manifest.Add(new FileManifestEntry
+            {
+                Filename = $"{caseId}.json",
+                RelativePath = caseManifestFileName,
+                Sha256 = manifestHash,
+                MimeType = "application/json"
+            });
+            
+            // Now serialize with the complete manifest
+            var caseManifestJson = JsonSerializer.Serialize(caseManifest, new JsonSerializerOptions { WriteIndented = true });
             await _storageService.SaveFileAsync(bundlesContainer, caseManifestFileName, caseManifestJson, cancellationToken);
             
-            var manifestHash = ComputeSHA256Hash(caseManifestJson);
             files.Add(new GeneratedFile
             {
                 Path = caseManifestFileName,
@@ -1855,6 +1940,17 @@ public class CaseGenerationService : ICaseGenerationService
             var metadataJson = JsonSerializer.Serialize(metadata, new JsonSerializerOptions { WriteIndented = true });
             var metadataFileName = $"{caseId}/metadata.json";
             await _storageService.SaveFileAsync(bundlesContainer, metadataFileName, metadataJson, cancellationToken);
+            
+            // Add metadata.json to manifest
+            var metadataHash = ComputeSHA256Hash(metadataJson);
+            caseManifest.Manifest.Add(new FileManifestEntry
+            {
+                Filename = "metadata.json",
+                RelativePath = metadataFileName,
+                Sha256 = metadataHash,
+                MimeType = "application/json"
+            });
+            
             files.Add(new GeneratedFile
             {
                 Path = metadataFileName,

@@ -41,7 +41,7 @@ POST http://localhost:7071/api/StartCaseGeneration
 POST http://localhost:7071/api/StartCaseGeneration
 
 {
-  "difficulty": "Rookie",
+  "difficulty": "Sergeant",
   "renderFiles": false
 }
 
