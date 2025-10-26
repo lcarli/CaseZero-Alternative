@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://casegen.functions/schemas/v1/design-media-type.schema.json",
+  "title": "DesignMediaType",
+  "description": "Design specification for media items by type (photos, document scans, diagrams). Generated per media type with only relevant context loaded to minimize token usage.",
+  "type": "object",
+  "required": [
+    "mediaType",
+    "specifications"
+  ],
+  "properties": {
+    "mediaType": {
+      "type": "string",
+      "description": "Type of media being designed",
+      "enum": [
+        "crime_scene_photo",
+        "mugshot",
+        "evidence_photo",
+        "document_scan",
+        "diagram",
+        "forensic_photo",
+        "surveillance_photo"
+      ]
+    },
+    "specifications": {
+      "type": "array",
+      "description": "List of media specifications for this type. May contain multiple instances (e.g., multiple crime scene photos from different angles)",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "evidenceId",
+          "kind",
+          "title",
+          "prompt"
+        ],
+        "properties": {
+          "evidenceId": {
+            "type": "string",
+            "description": "Unique evidence identifier in format 'ev_<slug>_<nnn>' (e.g., 'ev_crime_scene_001', 'ev_mugshot_s001')",
+            "pattern": "^ev_[a-z_]+_[0-9]{3}$"
+          },
+          "kind": {
+            "type": "string",
+            "description": "Media kind/format",
+            "enum": [
+              "photo",
+              "document_scan",
+              "diagram",
+              "audio",
+              "video"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "Media title in English (e.g., 'Crime Scene Overview', 'Suspect Mugshot - John Doe')"
+          },
+          "collectedAt": {
+            "type": "string",
+            "description": "ISO-8601 timestamp with timezone offset when media was collected/created. MUST be consistent with Expand timeline and use the SAME timezone offset. Must be chronologically logical (e.g., crime scene photos during investigation, mugshots after arrest).",
+            "format": "date-time"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Detailed prompt for image generation. Should describe visual elements, composition, lighting, mood, and any visible evidence or subjects. Include specific details from context (e.g., suspect appearance, evidence characteristics)."
+          },
+          "constraints": {
+            "type": "object",
+            "description": "Technical constraints for media generation (e.g., lighting conditions, perspective, scale markers)",
+            "properties": {
+              "lighting": {
+                "type": "string",
+                "description": "Lighting condition (e.g., 'natural daylight', 'forensic flash', 'dim interior', 'raking light')"
+              },
+              "perspective": {
+                "type": "string",
+                "description": "Camera perspective (e.g., 'eye-level', 'overhead', 'close-up', 'wide-angle')"
+              },
+              "scale": {
+                "type": "boolean",
+                "description": "Whether scale marker/ruler should be visible in image",
+                "default": false
+              },
+              "quality": {
+                "type": "string",
+                "description": "Image quality indicator (e.g., 'professional', 'security-camera', 'smartphone', 'forensic-quality')",
+                "default": "professional"
+              },
+              "colorMode": {
+                "type": "string",
+                "description": "Color mode (e.g., 'color', 'black-and-white', 'infrared')",
+                "default": "color"
+              },
+              "annotation": {
+                "type": "boolean",
+                "description": "Whether image should include annotations or markers",
+                "default": false
+              }
+            },
+            "additionalProperties": false
+          },
+          "deferred": {
+            "type": "boolean",
+            "description": "Whether this media generation should be deferred (e.g., audio/video not yet supported by generation pipeline)",
+            "default": false
+          },
+          "subjectId": {
+            "type": "string",
+            "description": "ID of primary subject (suspect/witness) for mugshots and portraits. Should match suspect/witness IDs from Expand context (e.g., 'S001', 'W001')."
+          },
+          "relatedEvidenceIds": {
+            "type": "array",
+            "description": "List of evidence IDs visible or related in this media. For crime scene photos, list all evidence visible in frame. For forensic photos, list evidence being analyzed.",
+            "items": {
+              "type": "string",
+              "pattern": "^(EV[0-9]{3}|ev_[a-z_]+_[0-9]{3})$"
+            }
+          },
+          "locationId": {
+            "type": "string",
+            "description": "Location identifier from timeline where media was captured (e.g., 'crime_scene', 'evidence_room', 'interrogation_room')"
+          },
+          "capturedBy": {
+            "type": "string",
+            "description": "Role/name of person who captured the media (e.g., 'CSI Technician', 'Detective Smith', 'Booking Officer')"
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Investigative purpose of this media (e.g., 'document crime scene', 'identify suspect', 'analyze evidence detail', 'establish timeline')"
+          }
+        }
+      }
+    },
+    "contextUsed": {
+      "type": "object",
+      "description": "Metadata about which context was loaded for this design (for debugging/validation)",
+      "properties": {
+        "planCore": {
+          "type": "boolean",
+          "description": "Whether plan/core context was loaded",
+          "default": true
+        },
+        "timeline": {
+          "type": "boolean",
+          "description": "Whether expand/timeline context was loaded"
+        },
+        "suspects": {
+          "type": "array",
+          "description": "List of suspect IDs whose expanded context was loaded",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "description": "List of evidence IDs whose expanded context was loaded",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

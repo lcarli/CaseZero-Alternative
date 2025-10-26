@@ -22,6 +22,46 @@ public class CaseGeneratorActivities
         _logger = logger;
     }
 
+    // ========== Phase 2: Hierarchical Plan Activities ==========
+
+    [Function("PlanCoreActivity")]
+    public async Task<string> PlanCoreActivity([ActivityTrigger] PlanCoreActivityModel model)
+    {
+        _logger.LogInformation("PLAN-CORE: Generating core structure for case {CaseId}", model.CaseId);
+        var result = await _caseGenerationService.PlanCoreAsync(model.Request, model.CaseId);
+        await _caseLogging.LogStepResponseAsync(model.CaseId, "plan-core", result);
+        return result;
+    }
+
+    [Function("PlanSuspectsActivity")]
+    public async Task<string> PlanSuspectsActivity([ActivityTrigger] PlanSuspectsActivityModel model)
+    {
+        _logger.LogInformation("PLAN-SUSPECTS: Generating suspects for case {CaseId}", model.CaseId);
+        var result = await _caseGenerationService.PlanSuspectsAsync(model.CaseId);
+        await _caseLogging.LogStepResponseAsync(model.CaseId, "plan-suspects", result);
+        return result;
+    }
+
+    [Function("PlanTimelineActivity")]
+    public async Task<string> PlanTimelineActivity([ActivityTrigger] PlanTimelineActivityModel model)
+    {
+        _logger.LogInformation("PLAN-TIMELINE: Generating timeline for case {CaseId}", model.CaseId);
+        var result = await _caseGenerationService.PlanTimelineAsync(model.CaseId);
+        await _caseLogging.LogStepResponseAsync(model.CaseId, "plan-timeline", result);
+        return result;
+    }
+
+    [Function("PlanEvidenceActivity")]
+    public async Task<string> PlanEvidenceActivity([ActivityTrigger] PlanEvidenceActivityModel model)
+    {
+        _logger.LogInformation("PLAN-EVIDENCE: Generating evidence plan for case {CaseId}", model.CaseId);
+        var result = await _caseGenerationService.PlanEvidenceAsync(model.CaseId);
+        await _caseLogging.LogStepResponseAsync(model.CaseId, "plan-evidence", result);
+        return result;
+    }
+
+    // ========== Original Monolithic Plan Activity ==========
+
     [Function("PlanActivity")]
     public async Task<string> PlanActivity([ActivityTrigger] PlanActivityModel model)
     {
@@ -33,6 +73,76 @@ public class CaseGeneratorActivities
         
         return planResult;
     }
+
+    // ========== Phase 3: Hierarchical Expand Activities ==========
+
+    [Function("ExpandSuspectActivity")]
+    public async Task<string> ExpandSuspectActivity([ActivityTrigger] ExpandSuspectActivityModel model)
+    {
+        _logger.LogInformation("EXPAND-SUSPECT: Expanding suspect {SuspectId} for case {CaseId}", model.SuspectId, model.CaseId);
+        var result = await _caseGenerationService.ExpandSuspectAsync(model.CaseId, model.SuspectId);
+        await _caseLogging.LogStepResponseAsync(model.CaseId, $"expand-suspect-{model.SuspectId}", result);
+        return result;
+    }
+
+    [Function("ExpandEvidenceActivity")]
+    public async Task<string> ExpandEvidenceActivity([ActivityTrigger] ExpandEvidenceActivityModel model)
+    {
+        _logger.LogInformation("EXPAND-EVIDENCE: Expanding evidence {EvidenceId} for case {CaseId}", model.EvidenceId, model.CaseId);
+        var result = await _caseGenerationService.ExpandEvidenceAsync(model.CaseId, model.EvidenceId);
+        await _caseLogging.LogStepResponseAsync(model.CaseId, $"expand-evidence-{model.EvidenceId}", result);
+        return result;
+    }
+
+    [Function("ExpandTimelineActivity")]
+    public async Task<string> ExpandTimelineActivity([ActivityTrigger] ExpandTimelineActivityModel model)
+    {
+        _logger.LogInformation("EXPAND-TIMELINE: Expanding timeline for case {CaseId}", model.CaseId);
+        var result = await _caseGenerationService.ExpandTimelineAsync(model.CaseId);
+        await _caseLogging.LogStepResponseAsync(model.CaseId, "expand-timeline", result);
+        return result;
+    }
+
+    [Function("SynthesizeRelationsActivity")]
+    public async Task<string> SynthesizeRelationsActivity([ActivityTrigger] SynthesizeRelationsActivityModel model)
+    {
+        _logger.LogInformation("SYNTHESIZE-RELATIONS: Synthesizing relationships for case {CaseId}", model.CaseId);
+        var result = await _caseGenerationService.SynthesizeRelationsAsync(model.CaseId);
+        await _caseLogging.LogStepResponseAsync(model.CaseId, "synthesize-relations", result);
+        return result;
+    }
+
+    // ========== Helper Activities ==========
+
+    [Function("LoadContextActivity")]
+    public async Task<string> LoadContextActivity([ActivityTrigger] LoadContextActivityModel model)
+    {
+        _logger.LogInformation("LOAD-CONTEXT: Loading {Path} for case {CaseId}", model.Path, model.CaseId);
+        var result = await _caseGenerationService.LoadContextAsync(model.CaseId, model.Path);
+        return result;
+    }
+
+    // ========== Phase 4: Design Activities by Type ==========
+
+    [Function("DesignDocumentTypeActivity")]
+    public async Task<string> DesignDocumentTypeActivity([ActivityTrigger] DesignDocumentTypeActivityModel model)
+    {
+        _logger.LogInformation("DESIGN-DOC-TYPE: type={DocType} caseId={CaseId}", model.DocType, model.CaseId);
+        var result = await _caseGenerationService.DesignDocumentTypeAsync(model.CaseId, model.DocType);
+        await _caseLogging.LogStepResponseAsync(model.CaseId, $"design-document-{model.DocType}", result);
+        return result;
+    }
+
+    [Function("DesignMediaTypeActivity")]
+    public async Task<string> DesignMediaTypeActivity([ActivityTrigger] DesignMediaTypeActivityModel model)
+    {
+        _logger.LogInformation("DESIGN-MEDIA-TYPE: type={MediaType} caseId={CaseId}", model.MediaType, model.CaseId);
+        var result = await _caseGenerationService.DesignMediaTypeAsync(model.CaseId, model.MediaType);
+        await _caseLogging.LogStepResponseAsync(model.CaseId, $"design-media-{model.MediaType}", result);
+        return result;
+    }
+
+    // ========== Original Monolithic Expand Activity ==========
 
     [Function("ExpandActivity")]
     public async Task<string> ExpandActivity([ActivityTrigger] ExpandActivityModel model)
@@ -62,14 +172,28 @@ public class CaseGeneratorActivities
     public async Task<string> GenerateDocumentItemActivity([ActivityTrigger] GenerateDocumentItemInput input)
     {
         _logger.LogInformation("Activity: GenerateDocumentItem [{DocId}]", input.Spec.DocId);
-        return await _caseGenerationService.GenerateDocumentFromSpecAsync(input.Spec, input.DesignJson, input.CaseId, input.PlanJson, input.ExpandedJson, input.DifficultyOverride);
+        // Phase 5: Pass minimal context - service will load via ContextManager
+        return await _caseGenerationService.GenerateDocumentFromSpecAsync(
+            input.Spec, 
+            designJson: string.Empty, // Will be loaded by service from design/documents/{type}
+            input.CaseId, 
+            planJson: null, 
+            expandJson: null, 
+            input.DifficultyOverride);
     }
 
     [Function("GenerateMediaItemActivity")]
     public async Task<string> GenerateMediaItemActivity([ActivityTrigger] GenerateMediaItemInput input)
     {
         _logger.LogInformation("Activity: GenerateMediaItem [{EvidenceId}]", input.Spec.EvidenceId);
-        return await _caseGenerationService.GenerateMediaFromSpecAsync(input.Spec, input.DesignJson, input.CaseId, input.PlanJson, input.ExpandedJson, input.DifficultyOverride);
+        // Phase 5: Pass minimal context - service will load via ContextManager
+        return await _caseGenerationService.GenerateMediaFromSpecAsync(
+            input.Spec, 
+            designJson: string.Empty, // Will be loaded by service from design/media/{type}
+            input.CaseId, 
+            planJson: null, 
+            expandJson: null, 
+            input.DifficultyOverride);
     }
 
     [Function("RenderDocumentItemActivity")]

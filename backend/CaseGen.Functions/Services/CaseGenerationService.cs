@@ -25,6 +25,7 @@ public class CaseGenerationService : ICaseGenerationService
     private readonly IImagesService _imagesService;
     private readonly IPrecisionEditor _precisionEditor;
     private readonly IRedTeamCacheService _redTeamCache;
+    private readonly IContextManager _contextManager;
     private readonly ILogger<CaseGenerationService> _logger;
 
     public CaseGenerationService(
@@ -38,6 +39,7 @@ public class CaseGenerationService : ICaseGenerationService
         IImagesService imagesService,
         IPrecisionEditor precisionEditor,
         IRedTeamCacheService redTeamCache,
+        IContextManager contextManager,
         IConfiguration configuration,
         ILogger<CaseGenerationService> logger)
     {
@@ -51,9 +53,247 @@ public class CaseGenerationService : ICaseGenerationService
         _imagesService = imagesService;
         _precisionEditor = precisionEditor;
         _redTeamCache = redTeamCache;
+        _contextManager = contextManager;
         _configuration = configuration;
         _logger = logger;
     }
+
+    // ========== Phase 2: Hierarchical Plan Methods ==========
+
+    public async Task<string> PlanCoreAsync(CaseGenerationRequest request, string caseId, CancellationToken cancellationToken = default)
+    {
+        var actualDifficulty = request.Difficulty ?? DifficultyLevels.AllLevels[Random.Shared.Next(DifficultyLevels.AllLevels.Length)];
+        var difficultyProfile = DifficultyLevels.GetProfile(actualDifficulty);
+
+        _logger.LogInformation("PLAN-CORE: Generating core case structure for {CaseId}, difficulty={Difficulty}", caseId, actualDifficulty);
+
+        var systemPrompt = $@"
+You are a master architect of investigative cold cases. Generate the CORE STRUCTURE of a case plan.
+
+DIFFICULTY PROFILE: {actualDifficulty}
+Description: {difficultyProfile?.Description}
+
+COMPLEXITY GUIDELINES:
+- Suspects: {difficultyProfile?.Suspects.Min}-{difficultyProfile?.Suspects.Max}
+- Documents: {difficultyProfile?.Documents.Min}-{difficultyProfile?.Documents.Max}
+- Evidence items: {difficultyProfile?.Evidences.Min}-{difficultyProfile?.Evidences.Max}
+- False leads: {difficultyProfile?.RedHerrings}
+- Gated documents: {difficultyProfile?.GatedDocuments}
+- Forensics complexity: {difficultyProfile?.ForensicsComplexity}
+- Estimated duration: {difficultyProfile?.EstimatedDurationMinutes.Min}-{difficultyProfile?.EstimatedDurationMinutes.Max} minutes
+
+GEOGRAPHY/NAMING POLICY:
+- No real street names, numbers, coordinates, or real brands/companies
+- If a real city is needed, limit to City/State only; prefer abstract locations
+- All names must be plausible and fictitious
+
+OUTPUT: ONLY valid JSON conforming to PlanCore schema. No comments or extra text.";
+
+        var userPrompt = $@"
+Generate the CORE STRUCTURE for a new investigative case.
+
+INPUT:
+- Difficulty: {actualDifficulty}
+- Timezone: {request.Timezone}
+- Generate images (metadata only): {request.GenerateImages}
+
+MANDATORY CONTENT (PlanCore schema):
+- caseId: ""{caseId}""
+- title: Strong, specific, engaging case title
+- location: Plausible abstract location (no real addresses)
+- incidentType: Coherent with difficulty
+- difficulty: ""{actualDifficulty}""
+- timezone: ""{request.Timezone}""
+- estimatedDuration: Based on difficulty profile
+- overview: Clear investigative scope without revealing solution
+- learningObjectives[]: Concrete, observable, testable objectives
+- minDetectiveRank: ""{actualDifficulty}""
+- profileApplied: Numeric ranges from difficulty profile
+
+OUTPUT FORMAT: ONLY JSON valid by PlanCore schema.";
+
+        var jsonSchema = _schemaProvider.GetSchema("PlanCore");
+        var result = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+        
+        // Save to context storage
+        await _contextManager.SaveContextAsync(caseId, "plan/core", result, cancellationToken);
+        
+        return result;
+    }
+
+    public async Task<string> PlanSuspectsAsync(string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("PLAN-SUSPECTS: Generating suspect profiles for {CaseId}", caseId);
+
+        // Load core plan from context
+        var coreSnapshot = await _contextManager.BuildSnapshotAsync(caseId, new[] { "@plan/core" }, cancellationToken);
+        var corePlan = coreSnapshot.Items["plan/core"] as string ?? throw new InvalidOperationException("Core plan not found");
+
+        var coreData = JsonDocument.Parse(corePlan);
+        var difficulty = coreData.RootElement.GetProperty("difficulty").GetString();
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+
+        var systemPrompt = $@"
+You are a specialist in developing suspect profiles for investigative cases.
+
+DIFFICULTY: {difficulty}
+SUSPECT RANGE: {difficultyProfile.Suspects.Min}-{difficultyProfile.Suspects.Max}
+
+Generate an initial list of suspects with:
+- Unique IDs (S001, S002, etc.)
+- Plausible fictitious names
+- Clear roles/relationships to the case
+- Initial motivations that will be expanded later
+
+IMPORTANT: Do NOT reveal the culprit. Create plausible suspects where investigation is needed.
+
+OUTPUT: ONLY valid JSON conforming to PlanSuspects schema.";
+
+        var userPrompt = $@"
+Based on this core case plan, generate the initial suspect list:
+
+{corePlan}
+
+Generate between {difficultyProfile.Suspects.Min} and {difficultyProfile.Suspects.Max} suspects.
+Each suspect must have: id (S001 format), name, role, initialMotivation.
+
+OUTPUT FORMAT: ONLY JSON valid by PlanSuspects schema.";
+
+        var jsonSchema = _schemaProvider.GetSchema("PlanSuspects");
+        var result = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+        
+        // Save to context storage
+        await _contextManager.SaveContextAsync(caseId, "plan/suspects", result, cancellationToken);
+        
+        return result;
+    }
+
+    public async Task<string> PlanTimelineAsync(string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("PLAN-TIMELINE: Generating timeline for {CaseId}", caseId);
+
+        // Load core plan and suspects from context
+        var snapshot = await _contextManager.BuildSnapshotAsync(caseId, new[] { "@plan/core", "@plan/suspects" }, cancellationToken);
+        var corePlan = snapshot.Items["plan/core"] as string ?? throw new InvalidOperationException("Core plan not found");
+        var suspects = snapshot.Items["plan/suspects"] as string ?? throw new InvalidOperationException("Suspects not found");
+
+        var coreData = JsonDocument.Parse(corePlan);
+        var timezone = coreData.RootElement.GetProperty("timezone").GetString();
+
+        var systemPrompt = $@"
+You are a timeline architect for investigative cases.
+
+TIMEZONE: {timezone}
+
+Create a chronologically ordered timeline of events with:
+- Unique event IDs (E001, E002, etc.)
+- ISO-8601 timestamps with timezone offset ({timezone})
+- Brief but specific event titles
+- Locations (can be abstract)
+- References to involved suspects
+
+TEMPORAL CONSISTENCY (CRITICAL):
+- ALL timestamps MUST use ISO-8601 with timezone offset
+- Events must be chronologically ordered
+- NO overlapping or conflicting timestamps
+- Each event gets a unique, logical time slot
+
+OUTPUT: ONLY valid JSON conforming to PlanTimeline schema.";
+
+        var userPrompt = $@"
+Based on this case core and suspects, generate a chronological timeline:
+
+CORE PLAN:
+{corePlan}
+
+SUSPECTS:
+{suspects}
+
+Create 5-10 key events that:
+- Use timezone {timezone}
+- Reference suspect IDs where relevant
+- Are chronologically ordered
+- Have realistic time spacing
+
+OUTPUT FORMAT: ONLY JSON valid by PlanTimeline schema.";
+
+        var jsonSchema = _schemaProvider.GetSchema("PlanTimeline");
+        var result = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+        
+        // Save to context storage
+        await _contextManager.SaveContextAsync(caseId, "plan/timeline", result, cancellationToken);
+        
+        return result;
+    }
+
+    public async Task<string> PlanEvidenceAsync(string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("PLAN-EVIDENCE: Generating evidence plan for {CaseId}", caseId);
+
+        // Load all previous plan components from context
+        var snapshot = await _contextManager.BuildSnapshotAsync(caseId, 
+            new[] { "@plan/core", "@plan/suspects", "@plan/timeline" }, 
+            cancellationToken);
+        
+        var corePlan = snapshot.Items["plan/core"] as string ?? throw new InvalidOperationException("Core plan not found");
+        var suspects = snapshot.Items["plan/suspects"] as string ?? throw new InvalidOperationException("Suspects not found");
+        var timeline = snapshot.Items["plan/timeline"] as string ?? throw new InvalidOperationException("Timeline not found");
+
+        var coreData = JsonDocument.Parse(corePlan);
+        var difficulty = coreData.RootElement.GetProperty("difficulty").GetString();
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+
+        var systemPrompt = $@"
+You are an evidence architect for investigative cases.
+
+DIFFICULTY: {difficulty}
+EVIDENCE RANGE: {difficultyProfile.Evidences.Min}-{difficultyProfile.Evidences.Max}
+FALSE LEADS: {difficultyProfile.RedHerrings}
+
+Generate:
+1) mainElements[]: Core evidence types that will be developed
+   - Examples: witness statements, logs, receipts, CCTV snapshots, forensic reports, etc.
+   - Must align with difficulty level
+
+2) goldenTruth.facts[]: Sealed true facts that MUST be supported by evidence
+   - Each fact needs minSupports ≥ 2
+   - Should reference suspects/events
+   - Do NOT reveal the culprit
+   - Must be verifiable through heterogeneous sources
+
+OUTPUT: ONLY valid JSON conforming to PlanEvidence schema.";
+
+        var userPrompt = $@"
+Based on this case structure, generate the evidence plan:
+
+CORE PLAN:
+{corePlan}
+
+SUSPECTS:
+{suspects}
+
+TIMELINE:
+{timeline}
+
+Generate:
+- mainElements: {difficultyProfile.Evidences.Min}-{difficultyProfile.Evidences.Max} evidence types
+- goldenTruth.facts: 3-7 key facts that must be proven
+  - Each with minSupports: 2-4
+  - Reference suspect/event IDs where relevant
+  - heterogeneous: true for varied sources
+
+OUTPUT FORMAT: ONLY JSON valid by PlanEvidence schema.";
+
+        var jsonSchema = _schemaProvider.GetSchema("PlanEvidence");
+        var result = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+        
+        // Save to context storage
+        await _contextManager.SaveContextAsync(caseId, "plan/evidence", result, cancellationToken);
+        
+        return result;
+    }
+
+    // ========== Original Monolithic Plan Method ==========
 
     public async Task<string> PlanCaseAsync(CaseGenerationRequest request, string caseId, CancellationToken cancellationToken = default)
     {
@@ -131,6 +371,1004 @@ public class CaseGenerationService : ICaseGenerationService
         var jsonSchema = _schemaProvider.GetSchema("Plan");
         return await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
     }
+
+    // ========== Phase 3: Hierarchical Expand Methods ==========
+
+    public async Task<string> ExpandSuspectAsync(string caseId, string suspectId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("EXPAND-SUSPECT: Expanding suspect {SuspectId} for case {CaseId}", suspectId, caseId);
+
+        // Load context: core plan + specific suspect from plan
+        var snapshot = await _contextManager.BuildSnapshotAsync(caseId, 
+            new[] { "@plan/core", "@plan/suspects" }, 
+            cancellationToken);
+        
+        var corePlan = snapshot.Items["plan/core"] as string ?? throw new InvalidOperationException("Core plan not found");
+        var suspectsJson = snapshot.Items["plan/suspects"] as string ?? throw new InvalidOperationException("Suspects not found");
+
+        // Extract the specific suspect
+        var suspectsData = JsonDocument.Parse(suspectsJson);
+        var suspects = suspectsData.RootElement.GetProperty("suspects");
+        JsonElement targetSuspect = default;
+        
+        foreach (var suspect in suspects.EnumerateArray())
+        {
+            if (suspect.GetProperty("id").GetString() == suspectId)
+            {
+                targetSuspect = suspect;
+                break;
+            }
+        }
+
+        if (targetSuspect.ValueKind == JsonValueKind.Undefined)
+        {
+            throw new InvalidOperationException($"Suspect {suspectId} not found in plan");
+        }
+
+        var coreData = JsonDocument.Parse(corePlan);
+        var difficulty = coreData.RootElement.GetProperty("difficulty").GetString();
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+
+        var systemPrompt = $@"
+You are an expert in developing detailed suspect profiles for investigative cases.
+
+DIFFICULTY: {difficulty}
+COMPLEXITY FACTORS: {string.Join(", ", difficultyProfile.ComplexityFactors)}
+
+Expand this suspect's profile with rich, investigatively-relevant details:
+- Background: Occupation, history, personality traits, past events
+- Motive: Detailed potential reasons for involvement
+- Alibi: Specific times, locations, corroborating factors
+- Behavior: Demeanor, cooperation level, inconsistencies
+- Relationships: Connections to other persons in the case
+- Evidence Links: How evidence might connect to this suspect
+
+IMPORTANT:
+- Maintain EXACT name and role from Plan
+- Do NOT reveal if this is the culprit
+- Create plausible complexity appropriate to difficulty level
+- All details must be investigatively useful
+
+OUTPUT: ONLY valid JSON conforming to ExpandSuspect schema.";
+
+        var suspectName = targetSuspect.GetProperty("name").GetString();
+        var suspectRole = targetSuspect.GetProperty("role").GetString();
+        var initialMotivation = targetSuspect.GetProperty("initialMotivation").GetString();
+
+        var userPrompt = $@"
+Expand the profile for this suspect:
+
+CASE CONTEXT:
+{corePlan}
+
+SUSPECT (from Plan):
+- ID: {suspectId}
+- Name: {suspectName}
+- Role: {suspectRole}
+- Initial Motivation: {initialMotivation}
+
+Generate a detailed ExpandSuspect profile with:
+- suspectId: ""{suspectId}""
+- name: ""{suspectName}"" (EXACT match)
+- role: ""{suspectRole}"" (EXACT match)
+- background: Detailed 2-3 sentence background
+- motive: Expanded motivation with specific details
+- alibi: Detailed alibi with times/locations
+- behavior: demeanor, cooperationLevel, optional inconsistencies[]
+- relationships: [] (if applicable to other suspects/witnesses)
+- evidenceLinks: [] (potential connections)
+- suspicionLevel: ""low"", ""moderate"", ""high"", or ""very high""
+
+OUTPUT FORMAT: ONLY JSON valid by ExpandSuspect schema.";
+
+        var jsonSchema = _schemaProvider.GetSchema("ExpandSuspect");
+        var result = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+        
+        // Save to context storage with suspect-specific path
+        await _contextManager.SaveContextAsync(caseId, $"expand/suspects/{suspectId}", result, cancellationToken);
+        
+        return result;
+    }
+
+    public async Task<string> ExpandEvidenceAsync(string caseId, string evidenceId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("EXPAND-EVIDENCE: Expanding evidence {EvidenceId} for case {CaseId}", evidenceId, caseId);
+        
+        // Load minimal context: core + evidence list
+        var snapshot = await _contextManager.BuildSnapshotAsync(
+            caseId,
+            new[] { "@plan/core", "@plan/evidence" },
+            cancellationToken
+        );
+
+        var corePlan = snapshot.Items["plan/core"] as string ?? throw new InvalidOperationException("Core plan not found");
+        var evidenceJson = snapshot.Items["plan/evidence"] as string ?? throw new InvalidOperationException("Evidence plan not found");
+
+        // Parse core for difficulty
+        var coreData = JsonDocument.Parse(corePlan);
+        var difficulty = coreData.RootElement.GetProperty("difficulty").GetString();
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+        
+        // Parse evidence data
+        var evidenceData = JsonDocument.Parse(evidenceJson);
+        var mainElements = evidenceData.RootElement.GetProperty("mainElements");
+        
+        // Find the evidence by matching the evidenceId pattern (EV001, EV002, etc.)
+        // Since mainElements is just an array of strings, we need to use index-based matching
+        // EV001 = index 0, EV002 = index 1, etc.
+        var evidenceIndex = int.Parse(evidenceId.Substring(2)) - 1; // "EV001" -> 0
+        if (evidenceIndex < 0 || evidenceIndex >= mainElements.GetArrayLength())
+        {
+            throw new InvalidOperationException($"Evidence ID {evidenceId} is out of range");
+        }
+        
+        var evidenceType = mainElements[evidenceIndex].GetString();
+        
+        // Load goldenTruth for context
+        var goldenTruth = evidenceData.RootElement.GetProperty("goldenTruth");
+        var factsJson = JsonSerializer.Serialize(goldenTruth.GetProperty("facts"));
+
+        var systemPrompt = $@"
+You are an expert case designer creating detailed evidence for a {difficulty}-level detective case.
+
+DIFFICULTY: {difficulty}
+COMPLEXITY FACTORS: {string.Join(", ", difficultyProfile.ComplexityFactors)}
+
+Create a comprehensive expansion for evidence item {evidenceId} (type: {evidenceType}).
+
+REQUIREMENTS:
+1. Generate detailed physical description and discovery context
+2. Include complete chain of custody with realistic timestamps
+3. Add forensic analysis if appropriate for evidence type
+4. Link to relevant suspects and events using IDs (S001, E001, etc.)
+5. Reference golden truth facts this evidence supports (FACT001, etc.)
+6. Assess significance and investigative value
+7. Consider player discovery mechanics
+
+IMPORTANT:
+- All timestamps must use ISO-8601 format with timezone offset
+- Chain of custody must be complete and realistic
+- Evidence significance should match difficulty level
+- Do NOT reveal the solution directly
+
+OUTPUT: ONLY valid JSON conforming to ExpandEvidence schema.";
+
+        var userPrompt = $@"
+Expand this evidence item:
+
+CASE CONTEXT:
+{corePlan}
+
+EVIDENCE TO EXPAND:
+- ID: {evidenceId}
+- Type: {evidenceType}
+
+GOLDEN TRUTH FACTS (for reference):
+{factsJson}
+
+Generate the detailed evidence expansion with:
+- Complete discovery context
+- Physical details
+- Chain of custody
+- Forensic analysis (if applicable)
+- Relationships to suspects/events/facts
+- Significance assessment
+- Player visibility settings";
+
+        var jsonSchema = _schemaProvider.GetSchema("ExpandEvidence");
+        var result = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+
+        // Save to hierarchical path: expand/evidence/{evidenceId}
+        await _contextManager.SaveContextAsync(
+            caseId,
+            $"expand/evidence/{evidenceId}",
+            result,
+            cancellationToken
+        );
+
+        _logger.LogInformation("EXPAND-EVIDENCE: Completed evidence {EvidenceId}", evidenceId);
+        return result;
+    }
+
+    public async Task<string> ExpandTimelineAsync(string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("EXPAND-TIMELINE: Expanding timeline for case {CaseId}", caseId);
+        
+        // Load comprehensive context: core, timeline, suspects, evidence
+        var snapshot = await _contextManager.BuildSnapshotAsync(
+            caseId,
+            new[] { "@plan/core", "@plan/timeline", "@plan/suspects", "@plan/evidence" },
+            cancellationToken
+        );
+
+        var corePlan = snapshot.Items["plan/core"] as string ?? throw new InvalidOperationException("Core plan not found");
+        var timelineJson = snapshot.Items["plan/timeline"] as string ?? throw new InvalidOperationException("Timeline not found");
+        var suspectsJson = snapshot.Items["plan/suspects"] as string ?? throw new InvalidOperationException("Suspects not found");
+        var evidenceJson = snapshot.Items["plan/evidence"] as string ?? throw new InvalidOperationException("Evidence not found");
+
+        // Parse core for difficulty
+        var coreData = JsonDocument.Parse(corePlan);
+        var difficulty = coreData.RootElement.GetProperty("difficulty").GetString();
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+
+        // Parse timeline data
+        var timelineData = JsonDocument.Parse(timelineJson);
+        var timelineEvents = timelineData.RootElement.GetProperty("timeline");
+        var eventsJson = JsonSerializer.Serialize(timelineEvents);
+
+        // Parse suspects data
+        var suspectsData = JsonDocument.Parse(suspectsJson);
+        var suspects = suspectsData.RootElement.GetProperty("suspects");
+        var suspectsListJson = JsonSerializer.Serialize(suspects);
+
+        // Parse evidence data
+        var evidenceData = JsonDocument.Parse(evidenceJson);
+        var mainElements = evidenceData.RootElement.GetProperty("mainElements");
+        var goldenTruth = evidenceData.RootElement.GetProperty("goldenTruth");
+        var factsJson = JsonSerializer.Serialize(goldenTruth.GetProperty("facts"));
+
+        var systemPrompt = $@"
+You are an expert case designer creating a detailed timeline expansion for a {difficulty}-level detective case.
+
+DIFFICULTY: {difficulty}
+COMPLEXITY FACTORS: {string.Join(", ", difficultyProfile.ComplexityFactors)}
+
+Expand the macro timeline into detailed events with:
+
+1. COMPREHENSIVE DESCRIPTIONS:
+   - Detailed description of what happened (100+ words per event)
+   - Location details (type, context)
+   - Chronological sequence of actions within each event
+
+2. PARTICIPANT DETAILS:
+   - All involved suspects with their roles and actions
+   - What each participant did, observed, and knows
+   - Conflicting accounts and inconsistencies
+
+3. EVIDENCE LINKAGE:
+   - Which evidence items were generated during each event
+   - How evidence was created or left behind
+   - Cross-references to evidence IDs (EV001, etc.)
+
+4. WITNESS ACCOUNTS:
+   - What witnesses claim to have seen/heard
+   - Reliability levels and contradictions
+   - Discrepancies between accounts
+
+5. INVESTIGATIVE CONTEXT:
+   - Significance level (critical, important, moderate, minor)
+   - Investigative leads that emerge
+   - Links to golden truth facts (FACT001, etc.)
+   - Relationships between events
+
+6. PLAYER DISCOVERY:
+   - Initial knowledge level (full, partial, none)
+   - How players discover event details
+   - Required detective rank for full access
+
+IMPORTANT:
+- Maintain EXACT event IDs, timestamps, and titles from PlanTimeline
+- Use exact suspect IDs (S001, S002, etc.) and names from plan
+- Create realistic inconsistencies and contradictions appropriate to difficulty
+- Do NOT reveal the solution directly
+- All timestamps must match PlanTimeline exactly
+
+OUTPUT: ONLY valid JSON conforming to ExpandTimeline schema.";
+
+        var userPrompt = $@"
+Expand the timeline for this case:
+
+CASE CONTEXT:
+{corePlan}
+
+TIMELINE TO EXPAND:
+{eventsJson}
+
+SUSPECTS (for cross-reference):
+{suspectsListJson}
+
+GOLDEN TRUTH FACTS (for reference):
+{factsJson}
+
+Generate the detailed timeline expansion with:
+- Each event from PlanTimeline expanded with full details
+- Participant actions and observations
+- Evidence linkage (EV001, etc.)
+- Witness accounts with reliability and contradictions
+- Significance assessment and investigative leads
+- Event relationships and inconsistencies
+- Player discovery mechanics
+- Timeline metadata (duration, key turning points, narrative structure)";
+
+        var jsonSchema = _schemaProvider.GetSchema("ExpandTimeline");
+        var result = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+
+        // Save to context storage
+        await _contextManager.SaveContextAsync(caseId, "expand/timeline", result, cancellationToken);
+
+        _logger.LogInformation("EXPAND-TIMELINE: Completed timeline expansion");
+        return result;
+    }
+
+    public async Task<string> SynthesizeRelationsAsync(string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("SYNTHESIZE-RELATIONS: Synthesizing relationships for case {CaseId}", caseId);
+        
+        // Load all Plan contexts (core, suspects, timeline, evidence) and expanded timeline
+        // Note: In Phase 3 Task 3.5, we'll update Orchestrator to pass expanded suspects/evidence
+        // For now, we synthesize based on Plan data + expanded timeline
+        var snapshot = await _contextManager.BuildSnapshotAsync(
+            caseId,
+            new[] { "@plan/core", "@plan/suspects", "@plan/timeline", "@plan/evidence", "@expand/timeline" },
+            cancellationToken
+        );
+
+        var corePlan = snapshot.Items["plan/core"] as string ?? throw new InvalidOperationException("Core plan not found");
+        var suspectsJson = snapshot.Items["plan/suspects"] as string ?? throw new InvalidOperationException("Suspects not found");
+        var timelineJson = snapshot.Items["plan/timeline"] as string ?? throw new InvalidOperationException("Timeline not found");
+        var evidenceJson = snapshot.Items["plan/evidence"] as string ?? throw new InvalidOperationException("Evidence not found");
+        var expandedTimelineJson = snapshot.Items["expand/timeline"] as string ?? throw new InvalidOperationException("Expanded timeline not found");
+
+        // Parse core for difficulty
+        var coreData = JsonDocument.Parse(corePlan);
+        var difficulty = coreData.RootElement.GetProperty("difficulty").GetString();
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+
+        // Parse suspects data
+        var suspectsData = JsonDocument.Parse(suspectsJson);
+        var suspects = suspectsData.RootElement.GetProperty("suspects");
+        var suspectsListJson = JsonSerializer.Serialize(suspects);
+
+        // Parse timeline data
+        var timelineData = JsonDocument.Parse(timelineJson);
+        var timelineEvents = timelineData.RootElement.GetProperty("timeline");
+        var basicTimelineJson = JsonSerializer.Serialize(timelineEvents);
+
+        // Parse evidence data
+        var evidenceData = JsonDocument.Parse(evidenceJson);
+        var mainElements = evidenceData.RootElement.GetProperty("mainElements");
+        var goldenTruth = evidenceData.RootElement.GetProperty("goldenTruth");
+        var factsJson = JsonSerializer.Serialize(goldenTruth.GetProperty("facts"));
+
+        var systemPrompt = $@"
+You are an expert case designer creating a comprehensive relationship synthesis for a {difficulty}-level detective case.
+
+DIFFICULTY: {difficulty}
+COMPLEXITY FACTORS: {string.Join(", ", difficultyProfile.ComplexityFactors)}
+
+Synthesize ALL relationships across the case:
+
+1. SUSPECT RELATIONS:
+   - Map connections between all suspects (colleague, friend, rival, family, alibi_for, etc.)
+   - Strength of connections (strong, moderate, weak)
+   - Shared events where suspects were together
+   - Contradictions in their accounts about each other
+
+2. EVIDENCE CONNECTIONS:
+   - How each evidence item links to suspects (owned_by, seen_with, implicates, exonerates)
+   - Connection strength (definitive, strong, suggestive, weak)
+   - Which events generated each evidence
+   - Which golden truth facts each evidence supports
+
+3. EVENT LINKAGES:
+   - Causal relationships (caused_by, led_to, prerequisite_for)
+   - Temporal relationships (concurrent_with)
+   - Logical relationships (contradicts, supports)
+   - Evidence supporting each linkage
+
+4. CONTRADICTION MATRIX:
+   - All contradictions across witness accounts, alibis, timeline, evidence
+   - Severity levels (critical, important, moderate, minor)
+   - Sources of conflicts (suspect IDs, evidence IDs)
+   - Potential resolutions
+
+5. ALIBI NETWORK:
+   - Each suspect's alibi claims with timeframes
+   - Corroboration status (verified, partially_verified, unverified, contradicted)
+   - Who/what corroborates or contradicts each alibi
+   - Related events during alibi timeframes
+
+6. MOTIVE ANALYSIS:
+   - Motive strength for each suspect (very_strong to none)
+   - Specific motive factors (financial gain, revenge, protection, etc.)
+   - Evidence supporting each motive
+   - Interconnected motives between suspects
+
+7. INVESTIGATIVE PATHS:
+   - Multiple investigative approaches players can take
+   - Key elements (suspects, evidence, events) in each path
+   - Difficulty levels and what each path reveals
+
+IMPORTANT:
+- Use exact IDs from plan (S001, EV001, E001, FACT001)
+- Create realistic interconnections appropriate to difficulty
+- Generate meaningful contradictions that require investigation
+- Map alibi networks with proper corroboration/contradiction
+- Do NOT reveal the solution directly
+- All relationships must be investigatively useful
+
+OUTPUT: ONLY valid JSON conforming to SynthesizeRelations schema.";
+
+        var userPrompt = $@"
+Synthesize comprehensive relationships for this case:
+
+CASE CONTEXT:
+{corePlan}
+
+SUSPECTS (with IDs):
+{suspectsListJson}
+
+TIMELINE (basic events):
+{basicTimelineJson}
+
+EXPANDED TIMELINE (detailed events):
+{expandedTimelineJson}
+
+GOLDEN TRUTH FACTS:
+{factsJson}
+
+Generate the complete relationship synthesis with:
+- Suspect relations network with connections, shared events, contradictions
+- Evidence connections to suspects, events, and facts
+- Event linkages with causal/temporal/logical relationships
+- Contradiction matrix across all sources
+- Alibi network with corroboration status
+- Motive analysis for all suspects
+- Multiple investigative paths with difficulty levels";
+
+        var jsonSchema = _schemaProvider.GetSchema("SynthesizeRelations");
+        var result = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+
+        // Save to context storage
+        await _contextManager.SaveContextAsync(caseId, "expand/relations", result, cancellationToken);
+
+        _logger.LogInformation("SYNTHESIZE-RELATIONS: Completed relationship synthesis");
+        return result;
+    }
+
+    // ========== Helper Methods ==========
+
+    public async Task<string> LoadContextAsync(string caseId, string path, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("LOAD-CONTEXT: Loading {Path} for case {CaseId}", path, caseId);
+        
+        var snapshot = await _contextManager.BuildSnapshotAsync(
+            caseId,
+            new[] { $"@{path}" },
+            cancellationToken
+        );
+        
+        var result = snapshot.Items[path] as string ?? throw new InvalidOperationException($"Context {path} not found");
+        return result;
+    }
+
+    // ========== Phase 4: Design by Document Type ==========
+
+    public async Task<string> DesignDocumentTypeAsync(string caseId, string docType, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("DESIGN-DOC-TYPE: type={DocType} caseId={CaseId}", docType, caseId);
+        
+        // Step 1: Determine which contexts to load based on document type
+        var contextPaths = new List<string> { "plan/core" }; // Always need core
+        
+        switch (docType.ToLowerInvariant())
+        {
+            case "police_report":
+            case "evidence_log":
+                // Police reports and evidence logs need timeline context
+                contextPaths.Add("expand/timeline");
+                break;
+                
+            case "interview":
+            case "witness_statement":
+                // Interviews/witness statements need suspects context
+                contextPaths.Add("plan/suspects");
+                contextPaths.Add("expand/timeline"); // Also helpful for temporal context
+                break;
+                
+            case "forensics_report":
+                // Forensic reports need evidence context
+                contextPaths.Add("plan/evidence");
+                contextPaths.Add("expand/timeline");
+                break;
+                
+            case "memo_admin":
+                // Administrative memos may reference various elements
+                contextPaths.Add("plan/suspects");
+                contextPaths.Add("plan/evidence");
+                contextPaths.Add("expand/timeline");
+                break;
+                
+            default:
+                throw new ArgumentException($"Unknown document type: {docType}");
+        }
+        
+        // Step 2: Load all required contexts in parallel
+        var contextTasks = contextPaths.Select(async path =>
+        {
+            try
+            {
+                var content = await LoadContextAsync(caseId, path, cancellationToken);
+                return (path, content);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed to load context {Path}: {Error}", path, ex.Message);
+                return (path, (string?)null);
+            }
+        }).ToList();
+        
+        var contextResults = await Task.WhenAll(contextTasks);
+        var contexts = contextResults
+            .Where(r => r.Item2 != null)
+            .ToDictionary(r => r.Item1, r => r.Item2!);
+        
+        if (!contexts.ContainsKey("plan/core"))
+        {
+            throw new InvalidOperationException("Failed to load required plan/core context");
+        }
+        
+        // Step 3: Load difficulty profile from plan/core
+        string difficulty = "Rookie";
+        try
+        {
+            using var coreDoc = JsonDocument.Parse(contexts["plan/core"]);
+            if (coreDoc.RootElement.TryGetProperty("difficulty", out var diffProp))
+            {
+                difficulty = diffProp.GetString() ?? "Rookie";
+            }
+        }
+        catch { /* use default */ }
+        
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+        
+        // Step 4: Build context-aware prompt based on document type
+        var systemPrompt = $@"
+You are an investigative case designer specializing in {docType} documents.
+
+TASK: Create a detailed specification for ONE OR MORE {docType} document(s) based on the provided context.
+
+OUTPUT FORMAT (JSON conforming to DesignDocumentType schema):
+{{
+  ""docType"": ""{docType}"",
+  ""specifications"": [
+    {{
+      ""docId"": ""doc_<slug>_<nnn>"",
+      ""type"": ""{docType}"",
+      ""title"": ""Document Title in English"",
+      ""dateCreated"": ""ISO-8601 timestamp with timezone offset (MUST match timezone from Expand timeline)"",
+      ""sections"": [""Section 1"", ""Section 2"", ...],
+      ""lengthTarget"": {{ ""min"": 200, ""max"": 500 }},
+      ""gated"": false,
+      ""gatingRule"": {{ ... }} (only if gated=true),
+      ""subjectId"": ""S001"" (for interviews/witness_statements),
+      ""evidenceReferences"": [""EV001"", ...],
+      ""timelineReferences"": [""event_001"", ...]
+    }}
+  ],
+  ""contextUsed"": {{
+    ""planCore"": true,
+    ""timeline"": true/false,
+    ""suspects"": [...],
+    ""evidence"": [...]
+  }}
+}}
+
+CRITICAL RULES:
+- All text in English
+- IDs must be unique and follow pattern conventions
+- dateCreated MUST use the SAME timezone offset as Expand timeline
+- dateCreated must be chronologically consistent with case timeline
+- For forensics_report: ""Chain of Custody"" section is MANDATORY
+- Gating rules (gated=true) only allowed for forensics_report at difficulty levels with gatedDocuments > 0
+- Evidence/timeline references must match actual IDs from loaded contexts
+- For interviews/witness_statements: include subjectId matching suspect/witness ID from context
+
+DOCUMENT TYPE SPECIFIC RULES:
+{GetDocTypeSpecificRules(docType, difficultyProfile)}
+
+CONSISTENCY REQUIREMENTS:
+- Names (suspects/witnesses) must match EXACTLY with context
+- Evidence IDs must match existing evidence from context
+- Timeline references must match event IDs from expand/timeline
+- Do not invent information not present in context
+- Do not reveal solution or final guilt determination";
+
+        var userPrompt = $@"
+Design {docType} specification(s) for this case.
+
+DIFFICULTY: {difficulty}
+
+LOADED CONTEXTS:
+{string.Join("\n\n", contexts.Select(kvp => $"=== {kvp.Key.ToUpperInvariant()} ===\n{kvp.Value}"))}
+
+QUANTITY GUIDANCE:
+- Create appropriate number of {docType} documents based on context
+- For interviews/witness_statements: one per relevant suspect/witness
+- For forensics_report: {difficultyProfile.GatedDocuments} gated report(s) required
+- For police_report/evidence_log: typically 1-2 documents
+- For memo_admin: 1-3 documents as needed
+
+Generate the specification now.";
+
+        // Step 5: Call LLM with schema validation
+        var jsonSchema = _schemaProvider.GetSchema("DesignDocumentType");
+        
+        const int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var response = await _llmService.GenerateStructuredAsync(
+                    caseId, 
+                    systemPrompt, 
+                    userPrompt, 
+                    jsonSchema, 
+                    cancellationToken
+                );
+                
+                // Validate response structure
+                using var doc = JsonDocument.Parse(response);
+                if (!doc.RootElement.TryGetProperty("docType", out _) ||
+                    !doc.RootElement.TryGetProperty("specifications", out _))
+                {
+                    throw new InvalidOperationException("Response missing required properties");
+                }
+                
+                // Step 6: Save to context storage
+                var savePath = $"design/documents/{docType}";
+                await _contextManager.SaveContextAsync(caseId, savePath, response, cancellationToken);
+                
+                _logger.LogInformation("DESIGN-DOC-TYPE-COMPLETE: type={DocType} path={Path}", docType, savePath);
+                return response;
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                _logger.LogWarning("DESIGN-DOC-TYPE-RETRY: attempt={Attempt} error={Error}", attempt, ex.Message);
+                // Retry
+            }
+        }
+        
+        throw new InvalidOperationException($"Failed to design {docType} after {maxRetries} attempts");
+    }
+    
+    private string GetDocTypeSpecificRules(string docType, DifficultyProfile profile)
+    {
+        return docType.ToLowerInvariant() switch
+        {
+            "police_report" => @"
+- Include Report Number, Officer details, Date/Time
+- Sections: Incident Summary, Scene Description, Evidence Collected, Witness Statements, Actions Taken
+- lengthTarget: {min: 300, max: 600}
+- Reference at least 2 evidence IDs and 2 timeline events
+- Objective tone, no speculation about guilt",
+
+            "interview" => @"
+- Format as Q&A transcript with Interviewer/Interviewee labels
+- Include interview date/time, location, subject identification
+- Sections: Introduction, Background Questions, Incident Questions, Alibi Verification, Closing
+- lengthTarget: {min: 400, max: 800}
+- Must include subjectId matching suspect from context
+- Reference at least 1 evidence ID or timeline event relevant to subject's statements",
+
+            "forensics_report" => $@"
+- Include Laboratory ID, Examiner details, Date/Time
+- Sections: Evidence Description, Methodology, Results, Interpretation, **Chain of Custody** (MANDATORY), Limitations
+- lengthTarget: {{min: 400, max: 800}}
+- gated: {(profile.GatedDocuments > 0 ? "true for forensics reports" : "false (gating not allowed at this difficulty)")}
+- {(profile.GatedDocuments > 0 ? "gatingRule: { \"action\": \"requires_evidence\", \"evidenceId\": \"<valid-evidence-id>\" }" : "")}
+- Chain of Custody must list temporal sequence of evidence handling
+- Reference at least 2 evidence IDs",
+
+            "evidence_log" => @"
+- Cataloging format with structured entries
+- Sections: Log Header, Evidence Entries (each with ID/description/location/time/officer), Summary
+- lengthTarget: {min: 250, max: 500}
+- List all major evidence items from context
+- Include collection timestamps consistent with timeline",
+
+            "witness_statement" => @"
+- Written statement format (first person from witness perspective)
+- Include witness identification, statement date/time, location
+- Sections: Witness Information, Account of Events, Additional Information, Signature Block
+- lengthTarget: {min: 300, max: 600}
+- Must include subjectId matching witness from context
+- Reference timeline events witnessed by this person",
+
+            "memo_admin" => @"
+- Bureaucratic memo format
+- Include To/From/Subject/Date header
+- Sections vary but typically: Purpose, Summary, Action Items, Attachments
+- lengthTarget: {min: 200, max: 400}
+- Reference document/evidence IDs when discussing case progression
+- Neutral administrative tone",
+
+            _ => "Follow standard document conventions for this type"
+        };
+    }
+
+    public async Task<string> DesignMediaTypeAsync(string caseId, string mediaType, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("DESIGN-MEDIA-TYPE: type={MediaType} caseId={CaseId}", mediaType, caseId);
+        
+        // Step 1: Determine which contexts to load based on media type
+        var contextPaths = new List<string> { "plan/core" }; // Always need core
+        
+        switch (mediaType.ToLowerInvariant())
+        {
+            case "crime_scene_photo":
+            case "surveillance_photo":
+                // Crime scene and surveillance photos need timeline and location context
+                contextPaths.Add("expand/timeline");
+                contextPaths.Add("plan/evidence");
+                break;
+                
+            case "mugshot":
+                // Mugshots need suspect context
+                contextPaths.Add("plan/suspects");
+                break;
+                
+            case "evidence_photo":
+            case "forensic_photo":
+            case "document_scan":
+                // Evidence-related media needs evidence context
+                contextPaths.Add("plan/evidence");
+                contextPaths.Add("expand/timeline");
+                break;
+                
+            case "diagram":
+                // Diagrams may need various contexts depending on what's being diagrammed
+                contextPaths.Add("expand/timeline");
+                contextPaths.Add("plan/suspects");
+                contextPaths.Add("plan/evidence");
+                break;
+                
+            default:
+                throw new ArgumentException($"Unknown media type: {mediaType}");
+        }
+        
+        // Step 2: Load all required contexts in parallel
+        var contextTasks = contextPaths.Select(async path =>
+        {
+            try
+            {
+                var content = await LoadContextAsync(caseId, path, cancellationToken);
+                return (path, content);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed to load context {Path}: {Error}", path, ex.Message);
+                return (path, (string?)null);
+            }
+        }).ToList();
+        
+        var contextResults = await Task.WhenAll(contextTasks);
+        var contexts = contextResults
+            .Where(r => r.Item2 != null)
+            .ToDictionary(r => r.Item1, r => r.Item2!);
+        
+        if (!contexts.ContainsKey("plan/core"))
+        {
+            throw new InvalidOperationException("Failed to load required plan/core context");
+        }
+        
+        // Step 3: Load difficulty profile from plan/core
+        string difficulty = "Rookie";
+        try
+        {
+            using var coreDoc = JsonDocument.Parse(contexts["plan/core"]);
+            if (coreDoc.RootElement.TryGetProperty("difficulty", out var diffProp))
+            {
+                difficulty = diffProp.GetString() ?? "Rookie";
+            }
+        }
+        catch { /* use default */ }
+        
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+        
+        // Step 4: Build context-aware prompt based on media type
+        var systemPrompt = $@"
+You are a forensic media specialist designing specifications for {mediaType} generation.
+
+TASK: Create detailed specifications for ONE OR MORE {mediaType} items based on the provided context.
+
+OUTPUT FORMAT (JSON conforming to DesignMediaType schema):
+{{
+  ""mediaType"": ""{mediaType}"",
+  ""specifications"": [
+    {{
+      ""evidenceId"": ""ev_<slug>_<nnn>"",
+      ""kind"": ""photo"" | ""document_scan"" | ""diagram"" | ""audio"" | ""video"",
+      ""title"": ""Media Title in English"",
+      ""collectedAt"": ""ISO-8601 timestamp with timezone offset (MUST match timezone from Expand timeline)"",
+      ""prompt"": ""Detailed visual description for image generation..."",
+      ""constraints"": {{
+        ""lighting"": ""natural daylight"" | ""forensic flash"" | ""dim interior"" | ""raking light"",
+        ""perspective"": ""eye-level"" | ""overhead"" | ""close-up"" | ""wide-angle"",
+        ""scale"": true/false,
+        ""quality"": ""professional"" | ""security-camera"" | ""smartphone"" | ""forensic-quality"",
+        ""colorMode"": ""color"" | ""black-and-white"" | ""infrared"",
+        ""annotation"": true/false
+      }},
+      ""deferred"": false,
+      ""subjectId"": ""S001"" (for mugshots),
+      ""relatedEvidenceIds"": [""EV001"", ...],
+      ""locationId"": ""crime_scene"" | ""evidence_room"" | ...,
+      ""capturedBy"": ""CSI Technician"" | ""Detective"" | ...,
+      ""purpose"": ""document crime scene"" | ""identify suspect"" | ...
+    }}
+  ],
+  ""contextUsed"": {{
+    ""planCore"": true,
+    ""timeline"": true/false,
+    ""suspects"": [...],
+    ""evidence"": [...]
+  }}
+}}
+
+CRITICAL RULES:
+- All text in English
+- IDs must be unique and follow pattern conventions (ev_<slug>_<nnn>)
+- collectedAt MUST use the SAME timezone offset as Expand timeline
+- collectedAt must be chronologically consistent with case timeline
+- Prompts must be detailed and specific, describing visual elements in detail
+- For mugshots: include subjectId matching suspect from context
+- For crime scene photos: list all visible evidence in relatedEvidenceIds
+- For audio/video: set deferred=true (not yet supported by generation pipeline)
+- Constraints must be realistic for the media type and investigative context
+
+MEDIA TYPE SPECIFIC RULES:
+{GetMediaTypeSpecificRules(mediaType, difficultyProfile)}
+
+CONSISTENCY REQUIREMENTS:
+- Subject appearances (for mugshots) must match suspect descriptions from context EXACTLY
+- Evidence characteristics must match evidence descriptions from context EXACTLY
+- Locations must match locations from timeline
+- Collection times must be realistic (not before incident, during investigation window)
+- Do not invent information not present in context
+- Prompts should be detailed enough for image generation (composition, lighting, mood, specific details)";
+
+        var userPrompt = $@"
+Design {mediaType} specification(s) for this case.
+
+DIFFICULTY: {difficulty}
+
+LOADED CONTEXTS:
+{string.Join("\n\n", contexts.Select(kvp => $"=== {kvp.Key.ToUpperInvariant()} ===\n{kvp.Value}"))}
+
+QUANTITY GUIDANCE:
+- Create appropriate number of {mediaType} items based on context
+- For mugshots: one per suspect who gets arrested/booked
+- For crime_scene_photo: {difficultyProfile.Evidences.Item1}-{difficultyProfile.Evidences.Item2} photos covering different angles/details
+- For evidence_photo: one per significant physical evidence item
+- For forensic_photo: close-ups of critical evidence details
+- For document_scan: one per paper document/record mentioned
+- For diagram: 1-2 diagrams (timeline diagram, scene layout, relationship map)
+
+Generate the specification now.";
+
+        // Step 5: Call LLM with schema validation
+        var jsonSchema = _schemaProvider.GetSchema("DesignMediaType");
+        
+        const int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var response = await _llmService.GenerateStructuredAsync(
+                    caseId, 
+                    systemPrompt, 
+                    userPrompt, 
+                    jsonSchema, 
+                    cancellationToken
+                );
+                
+                // Validate response structure
+                using var doc = JsonDocument.Parse(response);
+                if (!doc.RootElement.TryGetProperty("mediaType", out _) ||
+                    !doc.RootElement.TryGetProperty("specifications", out _))
+                {
+                    throw new InvalidOperationException("Response missing required properties");
+                }
+                
+                // Step 6: Save to context storage
+                var savePath = $"design/media/{mediaType}";
+                await _contextManager.SaveContextAsync(caseId, savePath, response, cancellationToken);
+                
+                _logger.LogInformation("DESIGN-MEDIA-TYPE-COMPLETE: type={MediaType} path={Path}", mediaType, savePath);
+                return response;
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                _logger.LogWarning("DESIGN-MEDIA-TYPE-RETRY: attempt={Attempt} error={Error}", attempt, ex.Message);
+                // Retry
+            }
+        }
+        
+        throw new InvalidOperationException($"Failed to design {mediaType} after {maxRetries} attempts");
+    }
+    
+    private string GetMediaTypeSpecificRules(string mediaType, DifficultyProfile profile)
+    {
+        return mediaType.ToLowerInvariant() switch
+        {
+            "crime_scene_photo" => $@"
+- kind: ""photo""
+- Multiple angles: overview, mid-range, close-ups
+- Show evidence items in context (use relatedEvidenceIds for all visible items)
+- constraints: {{ ""lighting"": ""forensic flash"", ""perspective"": ""eye-level"" or ""overhead"", ""scale"": true for close-ups, ""quality"": ""forensic-quality"" }}
+- Prompt should describe: room layout, visible evidence, lighting conditions, any disturbances
+- Include locationId from timeline (e.g., ""crime_scene"", ""victim_residence"")
+- capturedBy: ""CSI Technician"" or ""Forensic Photographer""
+- Typical count: {profile.Evidences.Item1}-{profile.Evidences.Item2} photos",
+
+            "mugshot" => @"
+- kind: ""photo""
+- Standard booking photo format (front and profile views)
+- Must include subjectId matching suspect from context
+- constraints: { ""lighting"": ""even frontal lighting"", ""perspective"": ""eye-level"", ""colorMode"": ""color"", ""quality"": ""professional"" }
+- Prompt must match suspect's physical description from context EXACTLY (age, ethnicity, build, distinguishing features)
+- Include booking information context
+- locationId: ""booking_station"" or ""police_station""
+- capturedBy: ""Booking Officer""
+- One per arrested suspect",
+
+            "evidence_photo" => $@"
+- kind: ""photo""
+- Close-up detail shots of physical evidence
+- constraints: {{ ""lighting"": ""raking light"" for texture, ""scale"": true (ruler visible), ""quality"": ""forensic-quality"", ""annotation"": false }}
+- Prompt should describe evidence appearance matching context (color, texture, dimensions, condition, any markings)
+- Include relatedEvidenceIds (typically just this item, unless showing relationship to other evidence)
+- locationId: ""evidence_room"" or ""lab""
+- capturedBy: ""Forensic Technician""
+- Typical count: {profile.Evidences.Item1}-{profile.Evidences.Item2} items",
+
+            "forensic_photo" => @"
+- kind: ""photo""
+- Highly detailed forensic analysis shots (fingerprints, bloodstain patterns, tool marks, etc.)
+- constraints: { ""lighting"": ""specialized (UV/IR if needed)"", ""scale"": true, ""quality"": ""forensic-quality"", ""annotation"": true (may include markers) }
+- Prompt should describe forensic feature in technical detail
+- Include relatedEvidenceIds
+- locationId: ""forensic_lab""
+- capturedBy: ""Forensic Examiner""
+- Purpose: specific forensic analysis (e.g., ""analyze fingerprint ridge detail"", ""document bloodstain pattern"")",
+
+            "document_scan" => @"
+- kind: ""document_scan""
+- Digital scan of paper documents, forms, records
+- constraints: { ""quality"": ""high-resolution scan"", ""colorMode"": ""color"" or ""black-and-white"" depending on original }
+- Prompt should describe document type, visible text headers, stamps, signatures, overall condition
+- Do NOT reproduce full text content in prompt (that's for document generation step)
+- locationId: based on where document was obtained
+- capturedBy: ""Records Officer"" or ""Detective""
+- Examples: police forms, medical records, receipts, notes",
+
+            "surveillance_photo" => @"
+- kind: ""photo""
+- Security camera or surveillance footage stills
+- constraints: { ""quality"": ""security-camera"" (lower quality), ""lighting"": ""variable"" (often dim), ""colorMode"": ""color"" or ""black-and-white"" }
+- Prompt should describe: camera angle (overhead, wide), visible subjects/activity, timestamp overlay
+- Include relatedEvidenceIds if suspects visible
+- locationId: surveillance location from timeline
+- capturedBy: ""Security Camera"" or ""Surveillance System""
+- Purpose: establish timeline, identify suspects",
+
+            "diagram" => @"
+- kind: ""diagram""
+- Schematic representations (timeline diagram, crime scene layout, relationship map)
+- constraints: { ""colorMode"": ""color"", ""annotation"": true }
+- Prompt should describe: diagram type, elements to include, labels, connections/relationships
+- For timeline: chronological sequence of events
+- For scene layout: overhead view with evidence positions
+- For relationship map: connections between suspects/witnesses/victims
+- capturedBy: ""Investigator"" or ""Analyst""
+- Typically 1-2 diagrams per case",
+
+            _ => "Follow standard forensic media conventions for this type"
+        };
+    }
+
+    // ========== Original Monolithic Expand Method ==========
 
     public async Task<string> ExpandCaseAsync(string planJson, string caseId, CancellationToken cancellationToken = default)
     {
@@ -327,6 +1565,23 @@ public class CaseGenerationService : ICaseGenerationService
     {
         _logger.LogInformation("Gen Doc[{DocId}] type={Type} title={Title}", spec.DocId, spec.Type, spec.Title);
 
+        // Phase 5: Load context selectively via ContextManager instead of receiving full JSONs
+        // For document generation, we primarily need the design context for this doc type
+        string actualDesignJson = designJson;
+        if (string.IsNullOrWhiteSpace(designJson))
+        {
+            try
+            {
+                // Load design context for this document type from hierarchical storage
+                actualDesignJson = await LoadContextAsync(caseId, $"design/documents/{spec.Type}", cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed to load design context for {DocType}: {Error}", spec.Type, ex.Message);
+                actualDesignJson = "{}";
+            }
+        }
+
         // Derive difficulty (Plan > override > Rookie)
         string difficulty = "Rookie";
         if (!string.IsNullOrWhiteSpace(difficultyOverride)) difficulty = difficultyOverride;
@@ -339,6 +1594,20 @@ public class CaseGenerationService : ICaseGenerationService
                     difficulty = d.GetString() ?? difficulty;
             }
             catch { /* ignore */ }
+        }
+        else
+        {
+            // Try to load difficulty from plan/core if not provided
+            try
+            {
+                var coreContext = await LoadContextAsync(caseId, "plan/core", cancellationToken);
+                using var coreDoc = JsonDocument.Parse(coreContext);
+                if (coreDoc.RootElement.TryGetProperty("difficulty", out var d))
+                {
+                    difficulty = d.GetString() ?? difficulty;
+                }
+            }
+            catch { /* use default */ }
         }
 
         // Type-specific directives (augmented with minimum referencing rules)
@@ -440,9 +1709,8 @@ public class CaseGenerationService : ICaseGenerationService
                 """
         };
 
-        var designCtx = designJson ?? "{}";
-        var planCtx = planJson ?? "{}";
-        var expandCtx = expandJson ?? "{}";
+        // Phase 5: Use loaded design context (already contains all necessary type-specific info)
+        var designCtx = actualDesignJson ?? "{}";
 
         var systemPrompt = @"
             You are a police / forensic technical writer. Generate ONLY JSON containing the document body.
@@ -450,7 +1718,7 @@ public class CaseGenerationService : ICaseGenerationService
             GENERAL RULES (MANDATORY):
             - Write all text in english.
             - Never reveal the solution or culprit.
-            - Maintain consistency with Plan / Expand / Design.
+            - Maintain consistency with Design specifications.
             - **Use exactly the provided 'sections' titles and in the exact order. Do NOT add or rename sections.**
             - Follow exactly the word count range (lengthTarget).
             - If type == forensics_report, include the ""Chain of Custody"" section.
@@ -459,7 +1727,7 @@ public class CaseGenerationService : ICaseGenerationService
             - No real PII, brands, or real addresses.
 
             TEMPORAL CONSISTENCY (CRITICAL):
-            - ALL timestamps MUST use ISO-8601 format with the same timezone offset from Plan/Design
+            - ALL timestamps MUST use ISO-8601 format with the same timezone offset from Design
             - Document creation date MUST match the dateCreated specified in Design for this document
             - All referenced times (incident times, collection times, interview times) MUST be consistent with established timeline
             - Chain of Custody timestamps MUST be chronologically ordered and realistic
@@ -538,6 +1806,22 @@ public class CaseGenerationService : ICaseGenerationService
     {
         _logger.LogInformation("Gen Media[{EvidenceId}] kind={Kind} title={Title}", spec.EvidenceId, spec.Kind, spec.Title);
 
+        // Phase 5: Load context selectively via ContextManager instead of receiving full JSONs
+        string actualDesignJson = designJson;
+        if (string.IsNullOrWhiteSpace(designJson))
+        {
+            try
+            {
+                // Load design context for this media type from hierarchical storage
+                actualDesignJson = await LoadContextAsync(caseId, $"design/media/{spec.Kind}", cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed to load design context for {MediaKind}: {Error}", spec.Kind, ex.Message);
+                actualDesignJson = "{}";
+            }
+        }
+
         var systemPrompt = @"
             You are a generator of FORENSIC specifications for a single static media asset.
             Output: ONLY valid JSON with { evidenceId, kind, title, prompt, constraints }.
@@ -603,9 +1887,10 @@ public class CaseGenerationService : ICaseGenerationService
             - Does constraints include angle_deg and exactly one of camera_height_m or distance_m, plus aspect_ratio, resolution_px, seed (7 digits), deferred=false?
             - Is this a single image (no sequence)?";
 
+        // Phase 5: Use loaded design context
         var userPrompt = $@"
             CONTEXT (only the minimal, relevant parts — do NOT restate everything)
-            {designJson}
+            {actualDesignJson}
 
             EVIDENCE SPECIFICATION
             - evidenceId: {spec.EvidenceId}

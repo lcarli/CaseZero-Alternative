@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PlanCore",
+  "description": "Core case planning: basic structure, metadata, and learning objectives",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "caseId",
+    "title",
+    "location",
+    "incidentType",
+    "difficulty",
+    "timezone",
+    "estimatedDuration",
+    "overview",
+    "learningObjectives",
+    "minDetectiveRank",
+    "profileApplied"
+  ],
+  "properties": {
+    "caseId": {
+      "type": "string",
+      "description": "Unique case identifier"
+    },
+    "title": {
+      "type": "string",
+      "description": "Case title in English, specific and engaging"
+    },
+    "location": {
+      "type": "string",
+      "description": "Plausible location; can be abstract (e.g., 'shopping center') or city/state without address"
+    },
+    "incidentType": {
+      "type": "string",
+      "description": "Type of crime appropriate to the difficulty level"
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["Rookie", "Detective", "Detective2", "Sergeant", "Lieutenant", "Captain", "Commander"],
+      "description": "Applied difficulty level"
+    },
+    "timezone": {
+      "type": "string",
+      "pattern": "^[A-Za-z_]+\\/[A-Za-z_]+$",
+      "description": "IANA timezone for all timestamps (e.g., America/Toronto)"
+    },
+    "estimatedDuration": {
+      "type": "number",
+      "minimum": 10,
+      "description": "Estimated gameplay duration in minutes"
+    },
+    "overview": {
+      "type": "string",
+      "description": "Engaging case summary that sets investigative scope without revealing solution"
+    },
+    "learningObjectives": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "description": "Concrete, observable learning objectives aligned to the difficulty level"
+    },
+    "minDetectiveRank": {
+      "type": "string",
+      "enum": ["Rookie", "Detective", "Detective2", "Sergeant", "Lieutenant", "Captain", "Commander"],
+      "description": "Minimum player rank required for this case"
+    },
+    "profileApplied": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Summary of complexity ranges from the difficulty profile",
+      "required": [
+        "suspects",
+        "documents",
+        "evidences",
+        "gatingSteps",
+        "falseLeads",
+        "interpretiveComplexity"
+      ],
+      "properties": {
+        "suspects": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Min-max range for suspects"
+        },
+        "documents": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Min-max range for documents"
+        },
+        "evidences": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Min-max range for evidence items"
+        },
+        "gatingSteps": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Min-max range for gated documents"
+        },
+        "falseLeads": {
+          "type": "array",
+          "items": { "type": "integer" },
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Min-max range for false leads/red herrings"
+        },
+        "interpretiveComplexity": {
+          "type": "string",
+          "description": "Level of interpretive complexity required"
+        }
+      }
+    }
+  }
+}

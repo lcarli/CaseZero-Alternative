@@ -5,7 +5,28 @@ namespace CaseGen.Functions.Services;
 public interface ICaseGenerationService
 {
     Task<string> PlanCaseAsync(CaseGenerationRequest request, string caseId, CancellationToken cancellationToken = default);
+    
+    // Phase 2: Hierarchical Plan methods
+    Task<string> PlanCoreAsync(CaseGenerationRequest request, string caseId, CancellationToken cancellationToken = default);
+    Task<string> PlanSuspectsAsync(string caseId, CancellationToken cancellationToken = default);
+    Task<string> PlanTimelineAsync(string caseId, CancellationToken cancellationToken = default);
+    Task<string> PlanEvidenceAsync(string caseId, CancellationToken cancellationToken = default);
+    
     Task<string> ExpandCaseAsync(string planJson, string caseId, CancellationToken cancellationToken = default);
+    
+    // Phase 3: Hierarchical Expand methods
+    Task<string> ExpandSuspectAsync(string caseId, string suspectId, CancellationToken cancellationToken = default);
+    Task<string> ExpandEvidenceAsync(string caseId, string evidenceId, CancellationToken cancellationToken = default);
+    Task<string> ExpandTimelineAsync(string caseId, CancellationToken cancellationToken = default);
+    Task<string> SynthesizeRelationsAsync(string caseId, CancellationToken cancellationToken = default);
+    
+    // Helper methods
+    Task<string> LoadContextAsync(string caseId, string path, CancellationToken cancellationToken = default);
+    
+    // Phase 4: Design by document/media type
+    Task<string> DesignDocumentTypeAsync(string caseId, string docType, CancellationToken cancellationToken = default);
+    Task<string> DesignMediaTypeAsync(string caseId, string mediaType, CancellationToken cancellationToken = default);
+    
     Task<string> DesignCaseAsync(string planJson, string expandedJson, string caseId, string? difficulty = null, CancellationToken cancellationToken = default);
     Task<string> GenerateDocumentFromSpecAsync(DocumentSpec spec, string designJson, string caseId, string? planJson = null, string? expandJson = null, string? difficultyOverride = null, CancellationToken ct = default);
     Task<string> GenerateMediaFromSpecAsync(MediaSpec spec, string designJson, string caseId, string? planJson = null, string? expandJson = null, string? difficultyOverride = null, CancellationToken ct = default);

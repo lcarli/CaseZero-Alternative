@@ -117,16 +117,44 @@ public class CaseGeneratorOrchestrator
             logger.LogInformation("Starting case generation orchestration for case {CaseId}", caseId);
             _caseLogging.LogOrchestratorStep(caseId, "WORKFLOW_START", "Beginning case generation workflow");
 
-            // Step 1: Plan
-            status = status with { CurrentStep = CaseGenerationSteps.Plan, Progress = 0.1 };
+            // Step 1: Plan (Hierarchical - 4 sub-activities)
+            status = status with { CurrentStep = CaseGenerationSteps.Plan, Progress = 0.05 };
             context.SetCustomStatus(status);
-            _caseLogging.LogOrchestratorStep(caseId, "PLAN_START", "Creating initial case plan");
+            _caseLogging.LogOrchestratorStep(caseId, "PLAN_START", "Creating hierarchical case plan");
 
-            var planResult = await context.CallActivityAsync<string>("PlanActivity", new PlanActivityModel { Request = request, CaseId = caseId });
+            // 1.1: Generate core case structure
+            await context.CallActivityAsync<string>("PlanCoreActivity", 
+                new PlanCoreActivityModel { Request = request, CaseId = caseId });
+            _caseLogging.LogOrchestratorStep(caseId, "PLAN_CORE_COMPLETE", "Core structure generated");
+
+            // 1.2: Generate suspects based on core
+            status = status with { Progress = 0.08 };
+            context.SetCustomStatus(status);
+            await context.CallActivityAsync<string>("PlanSuspectsActivity", 
+                new PlanSuspectsActivityModel { CorePlanRef = "@plan/core", CaseId = caseId });
+            _caseLogging.LogOrchestratorStep(caseId, "PLAN_SUSPECTS_COMPLETE", "Suspects generated");
+
+            // 1.3: Generate timeline based on core + suspects
+            status = status with { Progress = 0.09 };
+            context.SetCustomStatus(status);
+            await context.CallActivityAsync<string>("PlanTimelineActivity", 
+                new PlanTimelineActivityModel { CorePlanRef = "@plan/core", SuspectsRef = "@plan/suspects", CaseId = caseId });
+            _caseLogging.LogOrchestratorStep(caseId, "PLAN_TIMELINE_COMPLETE", "Timeline generated");
+
+            // 1.4: Generate evidence plan based on all previous
+            status = status with { Progress = 0.1 };
+            context.SetCustomStatus(status);
+            var planEvidenceResult = await context.CallActivityAsync<string>("PlanEvidenceActivity", 
+                new PlanEvidenceActivityModel { CorePlanRef = "@plan/core", SuspectsRef = "@plan/suspects", TimelineRef = "@plan/timeline", CaseId = caseId });
+            
+            // For now, use evidence result as "planResult" to maintain compatibility with Expand
+            // TODO Phase 2: Modify ExpandActivity to load from context instead of receiving full JSON
+            var planResult = planEvidenceResult;
+            
             completedSteps.Add(CaseGenerationSteps.Plan);
-            _caseLogging.LogOrchestratorStep(caseId, "PLAN_COMPLETE", $"Plan generated: {planResult.Length} chars");
+            _caseLogging.LogOrchestratorStep(caseId, "PLAN_COMPLETE", "Hierarchical plan completed");
 
-            // Step 2: Expand
+            // Step 2: Expand (Hierarchical with fan-out parallelization)
             status = status with
             {
                 CurrentStep = CaseGenerationSteps.Expand,
@@ -134,13 +162,80 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
-            _caseLogging.LogOrchestratorStep(caseId, "EXPAND_START", "Expanding plan into detailed content");
+            _caseLogging.LogOrchestratorStep(caseId, "EXPAND_START", "Expanding plan with hierarchical fan-out");
 
-            var expandResult = await context.CallActivityAsync<string>("ExpandActivity", new ExpandActivityModel { PlanJson = planResult, CaseId = caseId });
+            // Load plan suspects and evidence to determine what to expand
+            // Note: Using activity to load since orchestrator can't directly access ContextManager
+            var loadSuspectsResult = await context.CallActivityAsync<string>("LoadContextActivity",
+                new LoadContextActivityModel { CaseId = caseId, Path = "plan/suspects" });
+            var loadEvidenceResult = await context.CallActivityAsync<string>("LoadContextActivity",
+                new LoadContextActivityModel { CaseId = caseId, Path = "plan/evidence" });
+
+            // Parse to extract IDs for fan-out
+            var suspectsData = JsonDocument.Parse(loadSuspectsResult);
+            var suspects = suspectsData.RootElement.GetProperty("suspects");
+            var suspectIds = new List<string>();
+            foreach (var suspect in suspects.EnumerateArray())
+            {
+                suspectIds.Add(suspect.GetProperty("id").GetString()!);
+            }
+
+            var evidenceData = JsonDocument.Parse(loadEvidenceResult);
+            var mainElements = evidenceData.RootElement.GetProperty("mainElements");
+            var evidenceIds = new List<string>();
+            for (int i = 0; i < mainElements.GetArrayLength(); i++)
+            {
+                evidenceIds.Add($"EV{(i + 1):D3}"); // EV001, EV002, etc.
+            }
+
+            // Fan-out: Expand all suspects in parallel
+            _caseLogging.LogOrchestratorStep(caseId, "EXPAND_SUSPECTS_START", $"Expanding {suspectIds.Count} suspects in parallel");
+            var suspectTasks = suspectIds.Select(suspectId =>
+                context.CallActivityAsync<string>("ExpandSuspectActivity",
+                    new ExpandSuspectActivityModel { CaseId = caseId, SuspectId = suspectId })
+            ).ToList();
+            await Task.WhenAll(suspectTasks);
+            
+            status = status with { Progress = 0.22 };
+            context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "EXPAND_SUSPECTS_COMPLETE", $"Completed {suspectIds.Count} suspects");
+
+            // Fan-out: Expand all evidence in parallel
+            _caseLogging.LogOrchestratorStep(caseId, "EXPAND_EVIDENCE_START", $"Expanding {evidenceIds.Count} evidence items in parallel");
+            var evidenceTasks = evidenceIds.Select(evidenceId =>
+                context.CallActivityAsync<string>("ExpandEvidenceActivity",
+                    new ExpandEvidenceActivityModel { CaseId = caseId, EvidenceId = evidenceId })
+            ).ToList();
+            await Task.WhenAll(evidenceTasks);
+            
+            status = status with { Progress = 0.24 };
+            context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "EXPAND_EVIDENCE_COMPLETE", $"Completed {evidenceIds.Count} evidence items");
+
+            // Sequential: Expand timeline (needs all suspects/evidence context)
+            _caseLogging.LogOrchestratorStep(caseId, "EXPAND_TIMELINE_START", "Expanding timeline with cross-references");
+            var expandTimelineResult = await context.CallActivityAsync<string>("ExpandTimelineActivity",
+                new ExpandTimelineActivityModel { CaseId = caseId });
+            
+            status = status with { Progress = 0.26 };
+            context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "EXPAND_TIMELINE_COMPLETE", "Timeline expanded");
+
+            // Sequential: Synthesize relations (needs timeline + all suspects/evidence)
+            _caseLogging.LogOrchestratorStep(caseId, "SYNTHESIZE_RELATIONS_START", "Synthesizing relationship graph");
+            var synthesizeResult = await context.CallActivityAsync<string>("SynthesizeRelationsActivity",
+                new SynthesizeRelationsActivityModel { CaseId = caseId });
+            
+            status = status with { Progress = 0.28 };
+            context.SetCustomStatus(status);
+            
             completedSteps.Add(CaseGenerationSteps.Expand);
-            _caseLogging.LogOrchestratorStep(caseId, "EXPAND_COMPLETE", $"Content expanded: {expandResult.Length} chars");
+            _caseLogging.LogOrchestratorStep(caseId, "EXPAND_COMPLETE", $"Hierarchical expand completed: {suspectIds.Count} suspects, {evidenceIds.Count} evidence, timeline, relations");
+            
+            // Use synthesize result as "expandResult" for backward compatibility with Design step
+            var expandResult = synthesizeResult;
 
-            // Step 3: Design
+            // Step 3: Design (Phase 4 - hierarchical by type)
             status = status with
             {
                 CurrentStep = CaseGenerationSteps.Design,
@@ -148,11 +243,118 @@ public class CaseGeneratorOrchestrator
                 CompletedSteps = completedSteps.ToArray()
             };
             context.SetCustomStatus(status);
-            _caseLogging.LogOrchestratorStep(caseId, "DESIGN_START", "Creating document and media specifications");
+            _caseLogging.LogOrchestratorStep(caseId, "DESIGN_START", "Creating document and media specifications by type");
 
-            var designResult = await context.CallActivityAsync<string>("DesignActivity", new DesignActivityModel { PlanJson = planResult, ExpandedJson = expandResult, CaseId = caseId, Difficulty = request.Difficulty });
+            // Define document types to design
+            var docTypes = new[] 
+            { 
+                "police_report", 
+                "interview", 
+                "forensics_report", 
+                "evidence_log", 
+                "witness_statement", 
+                "memo_admin" 
+            };
+            
+            // Define media types to design
+            var mediaTypes = new[] 
+            { 
+                "crime_scene_photo", 
+                "mugshot", 
+                "evidence_photo", 
+                "forensic_photo" 
+            };
+            
+            // Fan-out: Design all document types in parallel
+            _caseLogging.LogOrchestratorStep(caseId, "DESIGN_DOCUMENTS_START", $"Designing {docTypes.Length} document types in parallel");
+            var designDocTasks = docTypes.Select(docType =>
+                context.CallActivityAsync<string>("DesignDocumentTypeActivity", 
+                    new DesignDocumentTypeActivityModel { CaseId = caseId, DocType = docType })
+            ).ToList();
+            
+            status = status with { Progress = 0.31 };
+            context.SetCustomStatus(status);
+            
+            var designDocResults = await Task.WhenAll(designDocTasks);
+            _caseLogging.LogOrchestratorStep(caseId, "DESIGN_DOCUMENTS_COMPLETE", $"Completed {designDocResults.Length} document type designs");
+            
+            // Fan-out: Design all media types in parallel
+            _caseLogging.LogOrchestratorStep(caseId, "DESIGN_MEDIA_START", $"Designing {mediaTypes.Length} media types in parallel");
+            var designMediaTasks = mediaTypes.Select(mediaType =>
+                context.CallActivityAsync<string>("DesignMediaTypeActivity", 
+                    new DesignMediaTypeActivityModel { CaseId = caseId, MediaType = mediaType })
+            ).ToList();
+            
+            status = status with { Progress = 0.32 };
+            context.SetCustomStatus(status);
+            
+            var designMediaResults = await Task.WhenAll(designMediaTasks);
+            _caseLogging.LogOrchestratorStep(caseId, "DESIGN_MEDIA_COMPLETE", $"Completed {designMediaResults.Length} media type designs");
+            
+            // Aggregate all design results into DocumentAndMediaSpecs
+            var allDocSpecs = new List<DocumentSpec>();
+            var allMediaSpecs = new List<MediaSpec>();
+            
+            // Parse document type results
+            foreach (var docResult in designDocResults)
+            {
+                try
+                {
+                    using var docTypeDoc = JsonDocument.Parse(docResult);
+                    if (docTypeDoc.RootElement.TryGetProperty("specifications", out var docSpecifications) && 
+                        docSpecifications.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var spec in docSpecifications.EnumerateArray())
+                        {
+                            var docSpec = JsonSerializer.Deserialize<DocumentSpec>(spec.GetRawText(), 
+                                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            if (docSpec != null) allDocSpecs.Add(docSpec);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _caseLogging.LogOrchestratorStep(caseId, "DESIGN_DOC_PARSE_ERROR", $"Failed to parse doc result: {ex.Message}");
+                }
+            }
+            
+            // Parse media type results
+            foreach (var mediaDesignResult in designMediaResults)
+            {
+                try
+                {
+                    using var mediaTypeDoc = JsonDocument.Parse(mediaDesignResult);
+                    if (mediaTypeDoc.RootElement.TryGetProperty("specifications", out var mediaSpecifications) && 
+                        mediaSpecifications.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var spec in mediaSpecifications.EnumerateArray())
+                        {
+                            var mediaSpec = JsonSerializer.Deserialize<MediaSpec>(spec.GetRawText(), 
+                                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            if (mediaSpec != null) allMediaSpecs.Add(mediaSpec);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _caseLogging.LogOrchestratorStep(caseId, "DESIGN_MEDIA_PARSE_ERROR", $"Failed to parse media result: {ex.Message}");
+                }
+            }
+            
+            // Create aggregated design result
+            var designResult = JsonSerializer.Serialize(new DocumentAndMediaSpecs
+            {
+                DocumentSpecs = allDocSpecs.ToArray(),
+                MediaSpecs = allMediaSpecs.ToArray(),
+                CaseId = caseId,
+                Version = "v2-hierarchical"
+            }, new JsonSerializerOptions { WriteIndented = true });
+            
+            status = status with { Progress = 0.33 };
+            context.SetCustomStatus(status);
+            
             completedSteps.Add(CaseGenerationSteps.Design);
-            _caseLogging.LogOrchestratorStep(caseId, "DESIGN_COMPLETE", $"Design created: {designResult.Length} chars");
+            _caseLogging.LogOrchestratorStep(caseId, "DESIGN_COMPLETE", $"Design aggregated: {allDocSpecs.Count} documents, {allMediaSpecs.Count} media items");
 
             // Step 4: Generate Documents
             var specs = JsonSerializer.Deserialize<DocumentAndMediaSpecs>(designResult, new JsonSerializerOptions
@@ -169,15 +371,13 @@ public class CaseGeneratorOrchestrator
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "GENDOCS_START", $"Generating {specs.DocumentSpecs.Length} documents");
 
+            // Phase 5: Pass only minimal context references - service will load via ContextManager
             var documentTasks = new List<Task<string>>();
             foreach (var docSpec in specs.DocumentSpecs)
             {
                 var input = new GenerateDocumentItemInput 
                 { 
                     CaseId = caseId, 
-                    PlanJson = planResult, 
-                    ExpandedJson = expandResult, 
-                    DesignJson = designResult, 
                     Spec = docSpec, 
                     DifficultyOverride = request.Difficulty 
                 };
@@ -198,15 +398,13 @@ public class CaseGeneratorOrchestrator
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "GENMEDIA_START", $"Generating {specs.MediaSpecs.Length} media items");
 
+            // Phase 5: Pass only minimal context references - service will load via ContextManager
             var mediaTasks = new List<Task<string>>();
             foreach (var mediaSpec in specs.MediaSpecs)
             {
                 var input = new GenerateMediaItemInput 
                 { 
                     CaseId = caseId, 
-                    PlanJson = planResult, 
-                    ExpandedJson = expandResult, 
-                    DesignJson = designResult, 
                     Spec = mediaSpec, 
                     DifficultyOverride = request.Difficulty 
                 };
@@ -227,21 +425,42 @@ public class CaseGeneratorOrchestrator
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "NORMALIZE_START", $"Normalizing case data and creating manifest (core game content)");
 
-            var normalizeResult = await context.CallActivityAsync<string>("NormalizeActivity", new NormalizeActivityModel 
+            // Step 6.1: Normalize Entities (suspects, evidence, witnesses)
+            var entitiesResult = await context.CallActivityAsync<string>("NormalizeEntitiesActivity", new NormalizeEntitiesActivityModel 
             { 
-                Documents = documentsResult, 
-                Media = mediaResult, 
-                CaseId = caseId,
-                Difficulty = request.Difficulty,
-                Timezone = request.Timezone,
-                PlanJson = planResult,
-                ExpandedJson = expandResult,
-                DesignJson = designResult,
-                RenderedDocs = Array.Empty<RenderedDocument>(), // No rendered files yet
-                RenderedMedia = Array.Empty<RenderedMedia>()    // No rendered files yet
+                CaseId = caseId
             });
+            status = status with { Progress = 0.62 };
+            context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "NORMALIZE_ENTITIES_COMPLETE", $"Normalized entities: {entitiesResult}");
+
+            // Step 6.2: Normalize Documents (with entity references)
+            var documentIds = documentsResult.Select(docJson => 
+            {
+                using var jsonDoc = JsonDocument.Parse(docJson);
+                return jsonDoc.RootElement.GetProperty("id").GetString() ?? string.Empty;
+            }).Where(id => !string.IsNullOrEmpty(id)).ToArray();
+            
+            var docsResult = await context.CallActivityAsync<string>("NormalizeDocumentsActivity", new NormalizeDocumentsActivityModel 
+            { 
+                CaseId = caseId,
+                DocIds = documentIds
+            });
+            status = status with { Progress = 0.64 };
+            context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "NORMALIZE_DOCUMENTS_COMPLETE", $"Normalized documents: {docsResult}");
+
+            // Step 6.3: Create Manifest (index with references)
+            var manifestResult = await context.CallActivityAsync<string>("NormalizeManifestActivity", new NormalizeManifestActivityModel 
+            { 
+                CaseId = caseId
+            });
+            status = status with { Progress = 0.66 };
+            context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "NORMALIZE_MANIFEST_COMPLETE", $"Created manifest: {manifestResult.Length} chars");
+
             completedSteps.Add(CaseGenerationSteps.Normalize);
-            _caseLogging.LogOrchestratorStep(caseId, "NORMALIZE_COMPLETE", $"Normalization completed: {normalizeResult.Length} chars");
+            _caseLogging.LogOrchestratorStep(caseId, "NORMALIZE_COMPLETE", "All normalization steps completed");
 
             // Step 7: Rule Validate (simplified - no index needed)
             status = status with
@@ -253,116 +472,215 @@ public class CaseGeneratorOrchestrator
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "VALIDATE_START", "Validating case against business rules");
 
-            var validateResult = await context.CallActivityAsync<string>("ValidateRulesActivity", new ValidateActivityModel { NormalizedJson = normalizeResult, CaseId = caseId });
+            var validateResult = await context.CallActivityAsync<string>("ValidateRulesActivity", new ValidateActivityModel { NormalizedJson = manifestResult, CaseId = caseId });
             completedSteps.Add(CaseGenerationSteps.RuleValidate);
             _caseLogging.LogOrchestratorStep(caseId, "VALIDATE_COMPLETE", $"Validation completed: {validateResult.Length} chars");
 
-            // Step 8: Hierarchical Quality Assurance Loop (Global → Focused → Fix → repeat until clean)
+            // Step 8: Granular Quality Assurance Loop (Scan → DeepDive → Fix → Verify → repeat)
             const int maxIterations = 3;
-            var currentCaseJson = normalizeResult;
             var iteration = 1;
-            string globalAnalysisResult = string.Empty;
-            string finalRedTeamResult = string.Empty;
+            var allIssuesFound = new List<string>(); // Track all issues across iterations
 
-            _caseLogging.LogOrchestratorStep(caseId, "QA_LOOP_START", $"Starting hierarchical quality assurance loop (max {maxIterations} iterations). Initial JSON length: {currentCaseJson?.Length ?? 0}");
-            
-            // Validate initial JSON
-            if (string.IsNullOrWhiteSpace(currentCaseJson))
-            {
-                logger.LogError("Normalize result is empty for case {CaseId}", caseId);
-                throw new InvalidOperationException($"Cannot start QA loop: normalize result is empty for case {caseId}");
-            }
+            _caseLogging.LogOrchestratorStep(caseId, "QA_LOOP_START", $"Starting granular quality assurance pipeline (max {maxIterations} iterations)");
 
             while (iteration <= maxIterations)
             {
-                // Step 8.1: Global Strategic Analysis
+                // Step 8.1: Scan for Issues (lightweight ~5KB)
                 status = status with
                 {
                     CurrentStep = CaseGenerationSteps.RedTeam,
-                    Progress = 0.75 + (iteration - 1) * 0.05, // 0.75, 0.8, 0.85
+                    Progress = 0.7 + (iteration - 1) * 0.025, // 0.7, 0.725, 0.75
                     CompletedSteps = completedSteps.ToArray()
                 };
                 context.SetCustomStatus(status);
-                _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_GLOBAL_START", $"Global strategic analysis - iteration {iteration}");
+                _caseLogging.LogOrchestratorStep(caseId, "QA_SCAN_START", $"Scanning for issues - iteration {iteration}");
 
-                globalAnalysisResult = await context.CallActivityAsync<string>("RedTeamGlobalActivity", new RedTeamGlobalActivityModel { ValidatedJson = currentCaseJson, CaseId = caseId }) ?? string.Empty;
-                _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_GLOBAL_COMPLETE", $"Global analysis {iteration} completed: {globalAnalysisResult.Length} chars");
+                var scanResultJson = await context.CallActivityAsync<string>(
+                    "QA_ScanIssuesActivity", 
+                    new QA_ScanIssuesActivityModel { CaseId = caseId }
+                );
 
-                // Parse global analysis to determine if focused analysis is needed
-                var globalAnalysis = string.IsNullOrEmpty(globalAnalysisResult) ? null : JsonSerializer.Deserialize<GlobalRedTeamAnalysis>(globalAnalysisResult);
-                var requiresDetailedAnalysis = globalAnalysis?.RequiresDetailedAnalysis ?? false;
-                var focusAreas = globalAnalysis?.FocusAreas ?? Array.Empty<string>();
-
-                // Step 8.2: Focused Tactical Analysis (conditional)
-                string? focusedAnalysisResult = null;
-                if (requiresDetailedAnalysis && focusAreas.Length > 0)
+                // Parse scan result
+                List<QaScanIssue> issues;
+                try
                 {
-                    _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_FOCUSED_START", $"Focused tactical analysis on {focusAreas.Length} areas - iteration {iteration}");
-                    
-                    focusedAnalysisResult = await context.CallActivityAsync<string>("RedTeamFocusedActivity", new RedTeamFocusedActivityModel 
-                    { 
-                        ValidatedJson = currentCaseJson, 
-                        CaseId = caseId,
-                        GlobalAnalysis = globalAnalysisResult,
-                        FocusAreas = focusAreas
-                    }) ?? string.Empty;
-                    
-                    _caseLogging.LogOrchestratorStep(caseId, "REDTEAM_FOCUSED_COMPLETE", $"Focused analysis {iteration} completed: {focusedAnalysisResult?.Length ?? 0} chars");
+                    var scanResult = JsonSerializer.Deserialize<JsonElement>(scanResultJson);
+                    var issuesArray = scanResult.GetProperty("issues");
+                    issues = JsonSerializer.Deserialize<List<QaScanIssue>>(issuesArray.GetRawText()) ?? new List<QaScanIssue>();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to parse scan result, assuming no issues");
+                    issues = new List<QaScanIssue>();
                 }
 
-                // Combine analyses for final assessment
-                finalRedTeamResult = focusedAnalysisResult ?? globalAnalysisResult;
+                _caseLogging.LogOrchestratorStep(caseId, "QA_SCAN_COMPLETE", $"Scan iteration {iteration} found {issues.Count} issue(s)");
 
-                // Check if case is clean
-                var isCaseClean = await context.CallActivityAsync<bool>("CheckCaseCleanActivity", new CheckCaseCleanActivityModel { RedTeamAnalysis = finalRedTeamResult, CaseId = caseId });
-                
-                if (isCaseClean || iteration == maxIterations)
+                // Break if no issues found
+                if (issues.Count == 0)
                 {
-                    var reasonPhrase = isCaseClean ? "clean" : $"at max iterations ({maxIterations})";
-                    _caseLogging.LogOrchestratorStep(caseId, "QA_LOOP_COMPLETE", $"Hierarchical quality assurance completed after {iteration} iteration(s). Case is {reasonPhrase}");
+                    _caseLogging.LogOrchestratorStep(caseId, "QA_LOOP_COMPLETE", $"Quality assurance completed - no issues found after {iteration} iteration(s)");
                     break;
                 }
 
-                // Step 8.3: Apply Surgical Fixes
+                // Track issues
+                allIssuesFound.AddRange(issues.Select(i => i.Area));
+
+                // Step 8.2: Deep Dive Analysis (parallel, ~15KB each)
                 status = status with
                 {
-                    CurrentStep = CaseGenerationSteps.Fix,
-                    Progress = 0.75 + (iteration - 1) * 0.05 + 0.025, // 0.775, 0.825, 0.875
+                    Progress = 0.7 + (iteration - 1) * 0.025 + 0.0083, // +0.0083
                     CompletedSteps = completedSteps.ToArray()
                 };
                 context.SetCustomStatus(status);
-                _caseLogging.LogOrchestratorStep(caseId, "FIX_START", $"Applying surgical corrections - iteration {iteration}. Input JSON length: {currentCaseJson?.Length ?? 0}");
+                _caseLogging.LogOrchestratorStep(caseId, "QA_DEEPDIVE_START", $"Deep dive analysis on {issues.Count} issue(s) - iteration {iteration}");
 
-                var fixedCaseJson = await context.CallActivityAsync<string>("FixActivity", new FixActivityModel 
-                { 
-                    RedTeamAnalysis = finalRedTeamResult,
-                    CurrentJson = currentCaseJson, 
-                    CaseId = caseId, 
-                    IterationNumber = iteration 
-                }) ?? string.Empty;
+                var deepDiveTasks = issues.Select(issue => 
+                    context.CallActivityAsync<string>(
+                        "QA_DeepDiveActivity",
+                        new QA_DeepDiveActivityModel 
+                        { 
+                            CaseId = caseId, 
+                            IssueArea = issue.Area 
+                        }
+                    )
+                ).ToArray();
 
-                // Validate the fix didn't break the JSON
-                if (string.IsNullOrWhiteSpace(fixedCaseJson))
+                var deepDiveResultsJson = await Task.WhenAll(deepDiveTasks);
+                _caseLogging.LogOrchestratorStep(caseId, "QA_DEEPDIVE_COMPLETE", $"Deep dive completed for {deepDiveResultsJson.Length} issue(s) - iteration {iteration}");
+
+                // Parse deep dive results
+                var deepDiveResults = new List<(string EntityId, string ProblemDetails, string SuggestedFix)>();
+                foreach (var resultJson in deepDiveResultsJson)
                 {
-                    _caseLogging.LogOrchestratorStep(caseId, "FIX_ERROR", $"Fix iteration {iteration} returned empty result - keeping original");
+                    try
+                    {
+                        var result = JsonSerializer.Deserialize<JsonElement>(resultJson);
+                        var entityId = result.TryGetProperty("affectedEntities", out var entities) && entities.GetArrayLength() > 0
+                            ? entities[0].GetString() ?? ""
+                            : "";
+                        var problemDetails = result.TryGetProperty("problemDetails", out var pd) ? pd.GetString() ?? "" : "";
+                        var suggestedFix = result.TryGetProperty("suggestedFix", out var sf) ? sf.GetString() ?? "" : "";
+                        
+                        if (!string.IsNullOrEmpty(entityId))
+                        {
+                            deepDiveResults.Add((entityId, problemDetails, suggestedFix));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to parse deep dive result");
+                    }
                 }
-                else
+
+                // Step 8.3: Apply Fixes (parallel, ~20KB each)
+                status = status with
                 {
-                    currentCaseJson = fixedCaseJson;
-                    _caseLogging.LogOrchestratorStep(caseId, "FIX_COMPLETE", $"Surgical corrections applied - iteration {iteration}: {currentCaseJson.Length} chars");
+                    CurrentStep = CaseGenerationSteps.Fix,
+                    Progress = 0.7 + (iteration - 1) * 0.025 + 0.0167, // +0.0167
+                    CompletedSteps = completedSteps.ToArray()
+                };
+                context.SetCustomStatus(status);
+                _caseLogging.LogOrchestratorStep(caseId, "QA_FIX_START", $"Applying fixes for {deepDiveResults.Count} issue(s) - iteration {iteration}");
+
+                var fixTasks = deepDiveResults
+                    .Select(analysis => 
+                        context.CallActivityAsync<string>(
+                            "FixEntityActivity",
+                            new FixEntityActivityModel 
+                            { 
+                                CaseId = caseId, 
+                                EntityId = analysis.EntityId,
+                                IssueDescription = $"{analysis.ProblemDetails} | Fix: {analysis.SuggestedFix}"
+                            }
+                        )
+                    ).ToArray();
+
+                var fixResultsJson = await Task.WhenAll(fixTasks);
+                
+                // Count successful fixes
+                var successfulFixes = 0;
+                foreach (var fixJson in fixResultsJson)
+                {
+                    try
+                    {
+                        var fixResult = JsonSerializer.Deserialize<JsonElement>(fixJson);
+                        if (fixResult.TryGetProperty("success", out var success) && success.GetBoolean())
+                        {
+                            successfulFixes++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to parse fix result");
+                    }
                 }
                 
+                _caseLogging.LogOrchestratorStep(caseId, "QA_FIX_COMPLETE", $"Fixes applied: {successfulFixes}/{fixResultsJson.Length} successful - iteration {iteration}");
+
+                // Step 8.4: Verify Case is Clean (~1KB)
+                status = status with
+                {
+                    Progress = 0.7 + (iteration - 1) * 0.025 + 0.025, // +0.025 total per iteration
+                    CompletedSteps = completedSteps.ToArray()
+                };
+                context.SetCustomStatus(status);
+                _caseLogging.LogOrchestratorStep(caseId, "QA_VERIFY_START", $"Verifying case quality - iteration {iteration}");
+
+                var verifyResultJson = await context.CallActivityAsync<string>(
+                    "CheckCaseCleanActivityV2",
+                    new CheckCaseCleanActivityV2Model 
+                    { 
+                        CaseId = caseId,
+                        IssueAreas = issues.Select(i => i.Area).ToArray()
+                    }
+                );
+
+                // Parse verification result
+                bool isClean = false;
+                string[] remainingIssues = Array.Empty<string>();
+                try
+                {
+                    var verifyResult = JsonSerializer.Deserialize<JsonElement>(verifyResultJson);
+                    isClean = verifyResult.TryGetProperty("isClean", out var ic) && ic.GetBoolean();
+                    if (verifyResult.TryGetProperty("remainingIssues", out var ri))
+                    {
+                        remainingIssues = JsonSerializer.Deserialize<string[]>(ri.GetRawText()) ?? Array.Empty<string>();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to parse verification result, assuming not clean");
+                }
+
+                _caseLogging.LogOrchestratorStep(caseId, "QA_VERIFY_COMPLETE", 
+                    $"Verification iteration {iteration}: isClean={isClean}, remaining={remainingIssues.Length}");
+
+                // Break if clean or max iterations
+                if (isClean)
+                {
+                    _caseLogging.LogOrchestratorStep(caseId, "QA_LOOP_COMPLETE", 
+                        $"Quality assurance completed - case is clean after {iteration} iteration(s)");
+                    break;
+                }
+
+                if (iteration == maxIterations)
+                {
+                    _caseLogging.LogOrchestratorStep(caseId, "QA_LOOP_MAX_ITERATIONS", 
+                        $"Quality assurance stopped at max iterations ({maxIterations}). Remaining issues: {string.Join(", ", remainingIssues)}");
+                    break;
+                }
+
                 iteration++;
             }
 
-            // Save final RedTeam analysis to logs container
-            await context.CallActivityAsync("SaveRedTeamAnalysisActivity", new SaveRedTeamAnalysisActivityModel { 
-                CaseId = caseId, 
-                RedTeamAnalysis = finalRedTeamResult
-            });
-            
             completedSteps.Add(CaseGenerationSteps.RedTeam);
             if (iteration > 1) completedSteps.Add(CaseGenerationSteps.Fix);
+            
+            _caseLogging.LogOrchestratorStep(caseId, "QA_FINAL", $"Quality assurance complete after {iteration} iteration(s). Total issues addressed: {allIssuesFound.Count}");
+
+            // Reload manifest for packaging (QA modified entities, need fresh manifest)
+            var finalManifest = await context.CallActivityAsync<string>("NormalizeManifestActivity", new NormalizeManifestActivityModel { CaseId = caseId });
             
             _caseLogging.LogOrchestratorStep(caseId, "QA_FINAL", $"Final case ready for packaging after {iteration - 1} iteration(s)");
 
@@ -514,7 +832,7 @@ public class CaseGeneratorOrchestrator
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "PACKAGE_START", "Creating final case package and delivery artifacts");
 
-            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = currentCaseJson, CaseId = caseId }) ?? throw new InvalidOperationException("PackageActivity returned null");
+            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = finalManifest, CaseId = caseId }) ?? throw new InvalidOperationException("PackageActivity returned null");
             completedSteps.Add(CaseGenerationSteps.Package);
             _caseLogging.LogOrchestratorStep(caseId, "PACKAGE_COMPLETE", "Final packaging completed successfully");
 

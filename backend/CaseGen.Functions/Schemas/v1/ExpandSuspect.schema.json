@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExpandSuspect",
+  "description": "Detailed expansion of a single suspect profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["suspectId", "name", "role", "background", "motive", "alibi", "behavior"],
+  "properties": {
+    "suspectId": {
+      "type": "string",
+      "pattern": "^S[0-9]{3}$",
+      "description": "Suspect identifier from Plan (e.g., S001)"
+    },
+    "name": {
+      "type": "string",
+      "description": "Full name (must match Plan exactly)"
+    },
+    "role": {
+      "type": "string",
+      "description": "Role or relationship to case/victim (must match Plan exactly)"
+    },
+    "background": {
+      "type": "string",
+      "description": "Detailed background: occupation, history, personality traits, relevant past events"
+    },
+    "motive": {
+      "type": "string",
+      "description": "Detailed potential motive for involvement in the case"
+    },
+    "alibi": {
+      "type": "string",
+      "description": "Detailed alibi with specific times, locations, and corroborating factors"
+    },
+    "behavior": {
+      "type": "object",
+      "description": "Behavioral characteristics relevant to investigation",
+      "additionalProperties": false,
+      "required": ["demeanor", "cooperationLevel"],
+      "properties": {
+        "demeanor": {
+          "type": "string",
+          "description": "General demeanor during investigation (nervous, calm, evasive, helpful, etc.)"
+        },
+        "cooperationLevel": {
+          "type": "string",
+          "enum": ["fully cooperative", "somewhat cooperative", "uncooperative", "evasive", "hostile"],
+          "description": "Level of cooperation with investigation"
+        },
+        "inconsistencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Notable inconsistencies in their statements or behavior"
+        }
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "description": "Relationships to other suspects, witnesses, or victim",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["personId", "relationship", "nature"],
+        "properties": {
+          "personId": {
+            "type": "string",
+            "pattern": "^(S|W)[0-9]{3}$",
+            "description": "ID of related person (S001 for suspect, W001 for witness)"
+          },
+          "relationship": {
+            "type": "string",
+            "description": "Type of relationship (colleague, friend, enemy, family, etc.)"
+          },
+          "nature": {
+            "type": "string",
+            "description": "Nature of the relationship and its relevance to the case"
+          }
+        }
+      }
+    },
+    "evidenceLinks": {
+      "type": "array",
+      "description": "Evidence items that potentially connect to this suspect",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evidenceRef", "connection"],
+        "properties": {
+          "evidenceRef": {
+            "type": "string",
+            "description": "Reference to evidence (will be defined in PlanEvidence)"
+          },
+          "connection": {
+            "type": "string",
+            "description": "How this evidence connects to the suspect"
+          },
+          "strength": {
+            "type": "string",
+            "enum": ["weak", "moderate", "strong"],
+            "description": "Strength of the connection"
+          }
+        }
+      }
+    },
+    "suspicionLevel": {
+      "type": "string",
+      "enum": ["low", "moderate", "high", "very high"],
+      "description": "Initial suspicion level based on available information"
+    }
+  }
+}

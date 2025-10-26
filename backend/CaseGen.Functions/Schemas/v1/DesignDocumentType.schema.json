@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://casegen.functions/schemas/v1/design-document-type.schema.json",
+  "title": "DesignDocumentType",
+  "description": "Design specification for a single document type, including structure, gating rules, and temporal constraints. To be generated per document type (e.g., police_report, interview, forensic_report) with only relevant context loaded.",
+  "type": "object",
+  "required": [
+    "docType",
+    "specifications"
+  ],
+  "properties": {
+    "docType": {
+      "type": "string",
+      "description": "Type of document being designed",
+      "enum": [
+        "police_report",
+        "interview",
+        "memo_admin",
+        "forensics_report",
+        "evidence_log",
+        "witness_statement"
+      ]
+    },
+    "specifications": {
+      "type": "array",
+      "description": "List of document specifications for this type. May contain multiple instances (e.g., multiple interviews for different suspects)",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "docId",
+          "type",
+          "title",
+          "sections",
+          "lengthTarget"
+        ],
+        "properties": {
+          "docId": {
+            "type": "string",
+            "description": "Unique document identifier in format 'doc_<slug>_<nnn>' (e.g., 'doc_police_001', 'doc_interview_s001')",
+            "pattern": "^doc_[a-z_]+_[0-9]{3}$"
+          },
+          "type": {
+            "type": "string",
+            "description": "Document type matching docType at parent level",
+            "enum": [
+              "police_report",
+              "interview",
+              "memo_admin",
+              "forensics_report",
+              "evidence_log",
+              "witness_statement"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "Document title in English (e.g., 'Initial Police Report', 'Interview with John Doe')"
+          },
+          "dateCreated": {
+            "type": "string",
+            "description": "ISO-8601 timestamp with timezone offset when document was created. MUST be consistent with Expand timeline and use the SAME timezone offset. Must be chronologically logical (e.g., police reports after incident, interviews after initial report).",
+            "format": "date-time"
+          },
+          "sections": {
+            "type": "array",
+            "description": "List of section titles to be included in the document content. Use H2 markdown headings (##). For forensics_report, 'Chain of Custody' is mandatory.",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "lengthTarget": {
+            "type": "object",
+            "description": "Target length range for document content generation",
+            "required": [
+              "min",
+              "max"
+            ],
+            "properties": {
+              "min": {
+                "type": "integer",
+                "description": "Minimum word count",
+                "minimum": 50
+              },
+              "max": {
+                "type": "integer",
+                "description": "Maximum word count",
+                "minimum": 50
+              }
+            }
+          },
+          "gated": {
+            "type": "boolean",
+            "description": "Whether this document is gated (requires evidence submission to unlock). Only applicable for forensics_report at difficulty levels with gatedDocuments > 0.",
+            "default": false
+          },
+          "gatingRule": {
+            "type": "object",
+            "description": "Gating rule specification. Required when gated=true. Defines which evidence must be submitted to unlock this document.",
+            "required": [
+              "action",
+              "evidenceId"
+            ],
+            "properties": {
+              "action": {
+                "type": "string",
+                "description": "Action required to unlock the document",
+                "enum": [
+                  "requires_evidence",
+                  "submit_evidence"
+                ]
+              },
+              "evidenceId": {
+                "type": "string",
+                "description": "Evidence ID from mediaSpecs that must be submitted/discovered to unlock this document. Must match an existing evidenceId in the evidence catalog.",
+                "pattern": "^ev_[a-z_]+_[0-9]{3}$"
+              },
+              "notes": {
+                "type": "string",
+                "description": "Optional notes about the gating logic or player guidance"
+              }
+            }
+          },
+          "subjectId": {
+            "type": "string",
+            "description": "ID of primary subject (suspect/witness) for interviews and witness statements. Should match suspect/witness IDs from Expand context (e.g., 'S001', 'W001')."
+          },
+          "evidenceReferences": {
+            "type": "array",
+            "description": "List of evidence IDs referenced in this document. Should match evidenceIds from Expand context and mediaSpecs catalog.",
+            "items": {
+              "type": "string",
+              "pattern": "^(EV[0-9]{3}|ev_[a-z_]+_[0-9]{3})$"
+            }
+          },
+          "timelineReferences": {
+            "type": "array",
+            "description": "List of timeline event IDs referenced in this document. Should match event IDs from Expand timeline context.",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "contextUsed": {
+      "type": "object",
+      "description": "Metadata about which context was loaded for this design (for debugging/validation)",
+      "properties": {
+        "planCore": {
+          "type": "boolean",
+          "description": "Whether plan/core context was loaded",
+          "default": true
+        },
+        "timeline": {
+          "type": "boolean",
+          "description": "Whether expand/timeline context was loaded"
+        },
+        "suspects": {
+          "type": "array",
+          "description": "List of suspect IDs whose expanded context was loaded",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "description": "List of evidence IDs whose expanded context was loaded",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
