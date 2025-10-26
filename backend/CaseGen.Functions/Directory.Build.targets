@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <!-- Detectar se estamos no macOS -->
+    <IsMacOS Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">true</IsMacOS>
+    
+    <!-- Impedir o import do arquivo targets problemático apenas no macOS -->
+    <_ExtensionsMetadataGeneratorTargetsImported Condition="'$(IsMacOS)' == 'true'">true</_ExtensionsMetadataGeneratorTargetsImported>
+  </PropertyGroup>
+  
+  <!-- Criar target vazia para substituir a que falha - apenas no macOS -->
+  <Target Name="_GenerateFunctionsExtensionsMetadataPostBuild" 
+          AfterTargets="Build"
+          Condition="'$(IsMacOS)' == 'true'">
+    <Message Text="✓ Geração de metadados ignorada para macOS Silicon (ARM64)" Importance="high" />
+  </Target>
+  
+  <Target Name="_GenerateFunctionsExtensionsMetadataPostPublish" 
+          AfterTargets="Publish"
+          Condition="'$(IsMacOS)' == 'true'">
+    <Message Text="✓ Geração de metadados ignorada para macOS Silicon (ARM64)" Importance="high" />
+  </Target>
+</Project>
