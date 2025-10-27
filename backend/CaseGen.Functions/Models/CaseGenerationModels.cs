@@ -505,7 +505,44 @@ public record MediaSpec
 
     [JsonPropertyName("constraints")]
     public Dictionary<string, object>? Constraints { get; init; }
+    
+    [JsonPropertyName("visualReferenceIds")]
+    public string[]? VisualReferenceIds { get; init; }
+    
     public bool Deferred { get; init; } = false;
+}
+
+public record VisualReference
+{
+    [JsonPropertyName("referenceId")]
+    public required string ReferenceId { get; init; }
+    
+    [JsonPropertyName("category")]
+    public required string Category { get; init; } // "evidence", "suspect", "location"
+    
+    [JsonPropertyName("detailedDescription")]
+    public required string DetailedDescription { get; init; }
+    
+    [JsonPropertyName("colorPalette")]
+    public string[]? ColorPalette { get; init; }
+    
+    [JsonPropertyName("distinctiveFeatures")]
+    public string[]? DistinctiveFeatures { get; init; }
+    
+    [JsonPropertyName("imageUrl")]
+    public string? ImageUrl { get; init; }
+}
+
+public record VisualConsistencyRegistry
+{
+    [JsonPropertyName("caseId")]
+    public required string CaseId { get; init; }
+    
+    [JsonPropertyName("references")]
+    public required Dictionary<string, VisualReference> References { get; init; }
+    
+    [JsonPropertyName("generatedAt")]
+    public DateTime GeneratedAt { get; init; } = DateTime.UtcNow;
 }
 
 public record DocumentAndMediaSpecs

@@ -42,6 +42,41 @@ Content-Type: application/json
   "caseId": "CASE-20251027-9e3f82ea"
 }
 
+### TEST 4 - Design Visual Registry (1-2 minutos)
+# Cria registry de elementos visuais para consistência
+# Analisa evidências e suspeitos do caso existente
+# Requer: Caso com plan/* e expand/* no blob storage
+
+POST http://localhost:7071/api/DesignVisualRegistryStep
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20251027-b442dc10"
+}
+
+### TEST 5 - Generate Master References (3-5 minutos)
+# Gera imagens de referência isoladas para cada elemento
+# Requer: visual-registry.json criado pelo TEST 4
+
+POST http://localhost:7071/api/GenerateMasterReferencesStep
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20251027-b442dc10"
+}
+
+### TEST 6 - Gerar Imagens COM Consistência Visual (15-20 minutos)
+# Gera todas as imagens usando as referências visuais
+# Requer: Master references criados pelo TEST 5
+# IMPORTANTE: Execute TEST 4 → TEST 5 → TEST 6 nesta ordem!
+
+POST http://localhost:7071/api/TestGenerateImages
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20251027-b442dc10"
+}
+
 
 ################################################################################
 # 📦 GERAÇÃO DE CASO COMPLETO

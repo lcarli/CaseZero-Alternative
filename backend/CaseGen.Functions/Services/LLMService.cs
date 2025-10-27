@@ -158,4 +158,56 @@ public class LLMService : ILLMService
             throw;
         }
     }
+
+    public async Task<byte[]> GenerateImageWithReferenceAsync(string caseId, string prompt, byte[] referenceImage, byte[]? maskImage = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Clean console log for workflow tracking
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_IMAGE_REF_START", 
+                $"Starting image generation with reference ({prompt.Length} chars, ref: {referenceImage.Length} bytes)");
+
+            // Detailed logging to blob storage
+            await _caseLogging.LogDetailedAsync(caseId, "LLMService", "INFO",
+                "Starting LLM image generation with reference",
+                new { 
+                    PromptLength = prompt.Length,
+                    ReferenceImageSize = referenceImage.Length,
+                    HasMask = maskImage != null,
+                    MaskImageSize = maskImage?.Length,
+                    Provider = _llmProvider.GetType().Name
+                },
+                cancellationToken);
+
+            var imageBytes = await _llmProvider.GenerateImageWithReferenceAsync(prompt, referenceImage, maskImage, cancellationToken);
+
+            // Log the interaction details to blob storage
+            await _caseLogging.LogLLMInteractionAsync(caseId, _llmProvider.GetType().Name,
+                "ImageGenerationWithReference", prompt, $"Generated image: {imageBytes.Length} bytes (from reference: {referenceImage.Length} bytes)", null, cancellationToken);
+
+            // Clean console log for completion
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_IMAGE_REF_COMPLETE", 
+                $"Generated image with reference ({imageBytes.Length:N0} bytes)");
+
+            return imageBytes;
+        }
+        catch (Exception ex)
+        {
+            // Error logging to both console and blob storage
+            _caseLogging.LogOrchestratorStep(caseId, "LLM_IMAGE_REF_ERROR", $"Image generation with reference failed: {ex.Message}");
+            
+            await _caseLogging.LogDetailedAsync(caseId, "LLMService", "ERROR",
+                "Failed to generate LLM image with reference",
+                new { 
+                    Error = ex.Message, 
+                    StackTrace = ex.StackTrace,
+                    Provider = _llmProvider.GetType().Name,
+                    PromptLength = prompt?.Length ?? 0,
+                    ReferenceImageSize = referenceImage?.Length ?? 0
+                },
+                cancellationToken);
+
+            throw;
+        }
+    }
 }

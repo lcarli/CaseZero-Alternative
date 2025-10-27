@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using CaseGen.Functions.Models;
 using CaseGen.Functions.Services;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Net;
 
 namespace CaseGen.Functions.Functions;
@@ -96,6 +97,86 @@ public class CaseGenerationStepsFunction
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to execute expand step");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
+    [Function("DesignVisualRegistryStep")]
+    public async Task<HttpResponseData> DesignVisualRegistryStep(
+        [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
+    {
+        try
+        {
+            var requestBody = await req.ReadAsStringAsync();
+            var request = JsonSerializer.Deserialize<VisualRegistryStepRequest>(requestBody ?? "{}");
+
+            if (request == null || string.IsNullOrEmpty(request.CaseId))
+            {
+                var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await errorResponse.WriteStringAsync("Invalid request body. Required: caseId");
+                return errorResponse;
+            }
+
+            _logger.LogInformation("Starting design visual registry step for case {CaseId}", request.CaseId);
+
+            var registryResult = await _caseGenerationService.DesignVisualConsistencyRegistryAsync(request.CaseId);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                caseId = request.CaseId,
+                step = "designVisualRegistry",
+                result = JsonSerializer.Deserialize<object>(registryResult),
+                raw = registryResult
+            });
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to execute design visual registry step");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
+    [Function("GenerateMasterReferencesStep")]
+    public async Task<HttpResponseData> GenerateMasterReferencesStep(
+        [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
+    {
+        try
+        {
+            var requestBody = await req.ReadAsStringAsync();
+            var request = JsonSerializer.Deserialize<MasterReferencesStepRequest>(requestBody ?? "{}");
+
+            if (request == null || string.IsNullOrEmpty(request.CaseId))
+            {
+                var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await errorResponse.WriteStringAsync("Invalid request body. Required: caseId");
+                return errorResponse;
+            }
+
+            _logger.LogInformation("Starting generate master references step for case {CaseId}", request.CaseId);
+
+            var generatedCount = await _caseGenerationService.GenerateMasterReferencesAsync(request.CaseId);
+
+            var response = req.CreateResponse(HttpStatusCode.OK);
+            await response.WriteAsJsonAsync(new
+            {
+                caseId = request.CaseId,
+                step = "generateMasterReferences",
+                generatedCount,
+                message = $"Successfully generated {generatedCount} master reference images"
+            });
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to execute generate master references step");
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             await errorResponse.WriteStringAsync($"Error: {ex.Message}");
             return errorResponse;
@@ -304,6 +385,10 @@ public class CaseGenerationStepsFunction
 
 // Request models for the step endpoints
 public record ExpandStepRequest(string CaseId, string PlanJson);
+
+public record VisualRegistryStepRequest([property: JsonPropertyName("caseId")] string CaseId);
+
+public record MasterReferencesStepRequest([property: JsonPropertyName("caseId")] string CaseId);
 
 public record DesignStepRequest(string CaseId, string PlanJson, string ExpandedJson, string? Difficulty = null);
 

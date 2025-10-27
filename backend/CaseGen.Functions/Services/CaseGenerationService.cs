@@ -838,8 +838,43 @@ Generate the complete relationship synthesis with:
             cancellationToken
         );
         
-        var result = snapshot.Items[path] as string ?? throw new InvalidOperationException($"Context {path} not found");
-        return result;
+        // BuildSnapshotAsync is called with @path but returns the key WITHOUT the @ prefix
+        // So we need to check for the key without @
+        if (!snapshot.Items.ContainsKey(path))
+        {
+            _logger.LogError("Snapshot keys available: {Keys}", string.Join(", ", snapshot.Items.Keys));
+            throw new InvalidOperationException($"Context {path} not found in snapshot");
+        }
+        
+        var item = snapshot.Items[path];
+        
+        // ContextManager returns deserialized objects, so we need to serialize them to JSON strings
+        if (item == null)
+        {
+            throw new InvalidOperationException($"Context {path} has invalid format (null)");
+        }
+        
+        _logger.LogInformation("LOAD-CONTEXT-DEBUG: path={Path}, itemType={Type}", path, item.GetType().FullName);
+        
+        // If it's already a string, return as-is
+        if (item is string str)
+        {
+            _logger.LogInformation("LOAD-CONTEXT-DEBUG: Returning as string");
+            return str;
+        }
+        
+        // If it's a JsonElement, get the raw JSON text (don't serialize again!)
+        if (item is System.Text.Json.JsonElement jsonElement)
+        {
+            var rawJson = jsonElement.GetRawText();
+            _logger.LogInformation("LOAD-CONTEXT-DEBUG: Extracted raw JSON from JsonElement, length={Length}", rawJson.Length);
+            return rawJson;
+        }
+        
+        // For other object types, serialize to JSON string
+        var json = System.Text.Json.JsonSerializer.Serialize(item);
+        _logger.LogInformation("LOAD-CONTEXT-DEBUG: Serialized object to JSON, length={Length}", json.Length);
+        return json;
     }
 
     // ========== Phase 4: Design by Document Type ==========
@@ -1127,7 +1162,7 @@ Generate the specification now.";
                 throw new ArgumentException($"Unknown media type: {mediaType}");
         }
         
-        // Step 2: Load all required contexts in parallel
+        // Step 2: Load all required contexts in parallel (including visual registry)
         var contextTasks = contextPaths.Select(async path =>
         {
             try
@@ -1141,6 +1176,21 @@ Generate the specification now.";
                 return (path, (string?)null);
             }
         }).ToList();
+
+        // Also try to load visual registry (optional)
+        contextTasks.Add(Task.Run(async () =>
+        {
+            try
+            {
+                var registryContent = await LoadContextAsync(caseId, "visual-registry", cancellationToken);
+                return ("visual-registry", registryContent);
+            }
+            catch
+            {
+                // Visual registry is optional - case might not have one yet
+                return ("visual-registry", (string?)null);
+            }
+        }));
         
         var contextResults = await Task.WhenAll(contextTasks);
         var contexts = contextResults
@@ -1150,6 +1200,44 @@ Generate the specification now.";
         if (!contexts.ContainsKey("plan/core"))
         {
             throw new InvalidOperationException("Failed to load required plan/core context");
+        }
+
+        // Step 2b: Extract visual references summary if registry exists
+        var visualReferencesSummary = "";
+        var availableReferences = new Dictionary<string, string>(); // referenceId -> category
+        
+        if (contexts.ContainsKey("visual-registry"))
+        {
+            try
+            {
+                using var registryDoc = JsonDocument.Parse(contexts["visual-registry"]);
+                var referencesElement = registryDoc.RootElement.GetProperty("references");
+                
+                var summaryBuilder = new StringBuilder();
+                summaryBuilder.AppendLine("AVAILABLE VISUAL REFERENCES (for consistency):");
+                summaryBuilder.AppendLine();
+                
+                foreach (var refProperty in referencesElement.EnumerateObject())
+                {
+                    var refId = refProperty.Name;
+                    var refObj = refProperty.Value;
+                    var category = refObj.GetProperty("category").GetString() ?? "";
+                    var description = refObj.GetProperty("detailedDescription").GetString() ?? "";
+                    
+                    availableReferences[refId] = category;
+                    
+                    // Include abbreviated description in summary
+                    var shortDesc = description.Length > 150 ? description.Substring(0, 150) + "..." : description;
+                    summaryBuilder.AppendLine($"- {refId} ({category}): {shortDesc}");
+                }
+                
+                visualReferencesSummary = summaryBuilder.ToString();
+                _logger.LogInformation("DESIGN-MEDIA-TYPE: Loaded {Count} visual references for consistency", availableReferences.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed to parse visual registry: {Error}", ex.Message);
+            }
         }
         
         // Step 3: Load difficulty profile from plan/core
@@ -1195,7 +1283,8 @@ OUTPUT FORMAT (JSON conforming to DesignMediaType schema):
       ""relatedEvidenceIds"": [""EV001"", ...],
       ""locationId"": ""crime_scene"" | ""evidence_room"" | ...,
       ""capturedBy"": ""CSI Technician"" | ""Detective"" | ...,
-      ""purpose"": ""document crime scene"" | ""identify suspect"" | ...
+      ""purpose"": ""document crime scene"" | ""identify suspect"" | ...,
+      ""visualReferenceIds"": [""evidence_backpack"", ""suspect_001""] (OPTIONAL - see VISUAL CONSISTENCY section below)
     }}
   ],
   ""contextUsed"": {{
@@ -1216,6 +1305,23 @@ CRITICAL RULES:
 - For crime scene photos: list all visible evidence in relatedEvidenceIds
 - For audio/video: set deferred=true (not yet supported by generation pipeline)
 - Constraints must be realistic for the media type and investigative context
+
+VISUAL CONSISTENCY (NEW - CRITICAL):
+{(string.IsNullOrEmpty(visualReferencesSummary) ? @"
+- No visual references available for this case (registry not generated yet)
+- Do NOT include visualReferenceIds field in specifications" : $@"
+- Visual references are AVAILABLE for maintaining consistency across images
+- When a MediaSpec shows an evidence item or suspect that has a reference, include visualReferenceIds array
+- Reference IDs MUST match exactly from the available references list below
+- Use visualReferenceIds when:
+  * Crime scene photo shows evidence items with references
+  * Evidence photo depicts an item with a reference
+  * Mugshot shows a suspect with a reference
+  * Multiple photos need to show the same object/person consistently
+- Example: If crime scene photo shows backpack and knife, and both have references: ""visualReferenceIds"": [""evidence_backpack"", ""evidence_knife""]
+- If no matching references exist for visible items, OMIT visualReferenceIds field entirely
+
+{visualReferencesSummary}")}
 
 MEDIA TYPE SPECIFIC RULES:
 {GetMediaTypeSpecificRules(mediaType, difficultyProfile)}
@@ -1269,6 +1375,39 @@ Generate the specification now.";
                     !doc.RootElement.TryGetProperty("specifications", out _))
                 {
                     throw new InvalidOperationException("Response missing required properties");
+                }
+
+                // Step 5b: Validate visualReferenceIds if present
+                if (availableReferences.Count > 0)
+                {
+                    var specs = doc.RootElement.GetProperty("specifications");
+                    var totalSpecs = 0;
+                    var specsWithRefs = 0;
+                    var invalidRefs = new List<string>();
+
+                    foreach (var spec in specs.EnumerateArray())
+                    {
+                        totalSpecs++;
+                        
+                        if (spec.TryGetProperty("visualReferenceIds", out var refIdsElement))
+                        {
+                            specsWithRefs++;
+                            
+                            foreach (var refId in refIdsElement.EnumerateArray())
+                            {
+                                var refIdStr = refId.GetString();
+                                if (!string.IsNullOrEmpty(refIdStr) && !availableReferences.ContainsKey(refIdStr))
+                                {
+                                    invalidRefs.Add(refIdStr);
+                                    _logger.LogWarning("DESIGN-MEDIA-TYPE-INVALID-REF: MediaSpec references unknown visualReferenceId={RefId}",
+                                        refIdStr);
+                                }
+                            }
+                        }
+                    }
+
+                    _logger.LogInformation("DESIGN-MEDIA-TYPE-REFS-VALIDATED: {SpecsWithRefs}/{TotalSpecs} specs use visual references, invalidRefs={InvalidCount}",
+                        specsWithRefs, totalSpecs, invalidRefs.Count);
                 }
                 
                 // Step 6: Save to context storage
@@ -1441,6 +1580,480 @@ Generate the specification now.";
         var jsonSchema = _schemaProvider.GetSchema("Expand");
 
         return await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+    }
+
+    /// <summary>
+    /// Analyzes the case context and creates a visual consistency registry
+    /// identifying all elements (evidence, suspects) that need consistent visual representation
+    /// across multiple generated images.
+    /// </summary>
+    public async Task<string> DesignVisualConsistencyRegistryAsync(string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("DESIGN-VISUAL-REGISTRY: Starting visual consistency analysis for caseId={CaseId}", caseId);
+
+        // Step 1: Try to load contexts - with fallback to old structure
+        var contexts = new Dictionary<string, string>();
+        
+        // Try new structure first: plan/core, plan/evidence, plan/suspects, expand/evidence, expand/suspects
+        // Fallback to old structure: case.json for core info
+        
+        // Core context (required)
+        try
+        {
+            contexts["plan/core"] = await LoadContextAsync(caseId, "plan/core", cancellationToken);
+        }
+        catch
+        {
+            try
+            {
+                // Fallback: try to get case.json from cases folder
+                var caseJson = await _storageService.GetFileAsync("cases", $"{caseId}/case.json", cancellationToken);
+                contexts["plan/core"] = caseJson;
+                _logger.LogInformation("Using fallback case.json for core context");
+            }
+            catch
+            {
+                throw new InvalidOperationException($"Failed to load core context for case {caseId}. Case may not exist or has invalid structure.");
+            }
+        }
+
+        // Evidence context (optional)
+        try
+        {
+            contexts["plan/evidence"] = await LoadContextAsync(caseId, "plan/evidence", cancellationToken);
+        }
+        catch
+        {
+            try
+            {
+                contexts["expand/evidence"] = await LoadContextAsync(caseId, "expand/evidence", cancellationToken);
+            }
+            catch
+            {
+                _logger.LogWarning("No evidence context found for case {CaseId}", caseId);
+            }
+        }
+
+        // Suspects context (optional)
+        try
+        {
+            contexts["plan/suspects"] = await LoadContextAsync(caseId, "plan/suspects", cancellationToken);
+        }
+        catch
+        {
+            try
+            {
+                contexts["expand/suspects"] = await LoadContextAsync(caseId, "expand/suspects", cancellationToken);
+            }
+            catch
+            {
+                _logger.LogWarning("No suspects context found for case {CaseId}", caseId);
+            }
+        }
+
+        if (contexts.Count == 0 || !contexts.ContainsKey("plan/core"))
+        {
+            throw new InvalidOperationException("Failed to load required contexts for visual registry");
+        }
+
+        _logger.LogInformation("Loaded {Count} contexts for visual analysis", contexts.Count);
+
+        // Step 2: Build comprehensive context for analysis
+        var contextBuilder = new StringBuilder();
+        contextBuilder.AppendLine("=== CASE CONTEXT FOR VISUAL CONSISTENCY ANALYSIS ===\n");
+        
+        foreach (var (path, content) in contexts)
+        {
+            contextBuilder.AppendLine($"--- {path.ToUpper()} ---");
+            contextBuilder.AppendLine(content);
+            contextBuilder.AppendLine();
+        }
+
+        // Step 3: Create system prompt for visual registry generation
+        var systemPrompt = @"
+You are a forensic visual consistency specialist. Your task is to analyze a criminal case and identify ALL elements that will need consistent visual representation across multiple generated images.
+
+OBJECTIVE: Create a Visual Consistency Registry containing detailed physical descriptions of:
+1. Physical Evidence Items (weapons, clothing, objects, documents)
+2. Suspects (physical appearance for mugshots and scene photos)
+3. Key Locations (if they appear in multiple images)
+
+FOR EACH ELEMENT, PROVIDE:
+- referenceId: Unique identifier (e.g., ""evidence_backpack"", ""suspect_001"", ""location_warehouse"")
+- category: ""physical_evidence"" | ""suspect"" | ""location""
+- detailedDescription: Comprehensive physical description including:
+  * Exact dimensions (height, width, depth in inches or cm)
+  * Materials and textures (fabric type, metal finish, surface characteristics)
+  * Primary and secondary colors with specificity
+  * Wear patterns, damage, unique marks, distinctive features
+  * Any text, logos, brands, serial numbers visible
+  * For suspects: age, build, height, hair (color, style, length), eye color, facial features, distinctive marks
+  * For locations: layout, flooring, walls, lighting, architectural features
+- colorPalette: Array of 3-5 primary colors in hex format (e.g., [""#1B3A6B"", ""#FFFFFF"", ""#8B4513""])
+- distinctiveFeatures: Array of 3-5 unique identifiers that make this element recognizable (e.g., ""Bent left zipper pull"", ""Scar above right eyebrow"")
+
+CRITERIA FOR INCLUSION:
+- Include ANY evidence item that appears in 2+ photos/documents
+- Include ALL suspects (for mugshots and potential scene appearance)
+- Include locations if they appear in multiple crime scene photos
+- EXCLUDE: Generic items without distinctive features, items appearing only once
+
+OUTPUT FORMAT: JSON conforming to VisualConsistencyRegistry schema.
+";
+
+        var userPrompt = $@"
+Analyze the following case context and create a Visual Consistency Registry for all elements requiring consistent visual representation:
+
+{contextBuilder}
+
+INSTRUCTIONS:
+1. Review ALL evidence items - identify which items will appear in multiple images (crime scene photos, evidence photos, close-ups)
+2. For EACH suspect, create a detailed physical description suitable for generating consistent mugshots and scene appearances
+3. For key locations appearing in multiple photos, describe architectural and spatial features
+4. Provide EXHAUSTIVE physical details - these descriptions will be used to generate master reference images
+5. Be specific with measurements, colors (use hex codes), materials, and unique identifiers
+
+EXAMPLE REGISTRY ENTRY:
+{{
+  ""referenceId"": ""evidence_backpack"",
+  ""category"": ""physical_evidence"",
+  ""detailedDescription"": ""Navy blue Nike backpack, dimensions 18×12×6 inches. Main compartment with double YKK zipper pulls (silver tone, left pull slightly bent at 15-degree angle). Front pocket features embroidered white swoosh logo (3 inches wide, centered). Padded black webbing shoulder straps (1.5 inch width, right strap shows fraying at top attachment point exposing white inner threads). Bottom panel has irregular dark brown stain (approximately 2 inches diameter, oil-based appearance). Fabric shows general wear with slight fading on sun-exposed surfaces. Two side mesh pockets (elastic degraded on left pocket)."",
+  ""colorPalette"": [""#1B3A6B"", ""#FFFFFF"", ""#000000"", ""#4A4A4A""],
+  ""distinctiveFeatures"": [
+    ""Bent left zipper pull (15-degree angle)"",
+    ""Frayed right shoulder strap at top"",
+    ""Dark brown stain on bottom (2in diameter)"",
+    ""White Nike swoosh logo (3in wide)"",
+    ""Degraded left mesh pocket elastic""
+  ]
+}}
+
+OUTPUT: ONLY valid JSON conforming to VisualConsistencyRegistry schema.
+";
+
+        // Step 4: Call LLM with schema validation
+        var jsonSchema = _schemaProvider.GetSchema("VisualConsistencyRegistry");
+        
+        const int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var response = await _llmService.GenerateStructuredAsync(
+                    caseId,
+                    systemPrompt,
+                    userPrompt,
+                    jsonSchema,
+                    cancellationToken
+                );
+
+                // Validate response structure
+                using var doc = JsonDocument.Parse(response);
+                if (!doc.RootElement.TryGetProperty("caseId", out _) ||
+                    !doc.RootElement.TryGetProperty("references", out _))
+                {
+                    throw new InvalidOperationException("Response missing required properties");
+                }
+
+                // Step 5: Save to context storage
+                // IMPORTANT: Parse the JSON string into an object before saving to avoid double-encoding
+                // SaveContextAsync will serialize it again, so we need to give it an object, not a JSON string
+                var savePath = "visual-registry";
+                var registryObject = JsonSerializer.Deserialize<object>(response);
+                await _contextManager.SaveContextAsync(caseId, savePath, registryObject, cancellationToken);
+
+                // Count references (it's an object/dictionary, not an array)
+                var referencesCount = 0;
+                if (doc.RootElement.TryGetProperty("references", out var referencesElement) &&
+                    referencesElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    referencesCount = referencesElement.EnumerateObject().Count();
+                }
+
+                _logger.LogInformation("DESIGN-VISUAL-REGISTRY-COMPLETE: path={Path}, references={Count}",
+                    savePath,
+                    referencesCount);
+
+                return response;
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                _logger.LogWarning("DESIGN-VISUAL-REGISTRY-RETRY: attempt={Attempt} error={Error}", attempt, ex.Message);
+                // Retry
+            }
+        }
+
+        throw new InvalidOperationException($"Failed to design visual consistency registry after {maxRetries} attempts");
+    }
+
+    /// <summary>
+    /// Generates master reference images for all elements in the visual consistency registry.
+    /// These isolated, high-quality images serve as references for maintaining visual consistency
+    /// across multiple generated images in the case.
+    /// </summary>
+    public async Task<int> GenerateMasterReferencesAsync(string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("GENERATE-MASTER-REFS: Starting master reference generation for caseId={CaseId}", caseId);
+
+        // Step 1: Load the visual registry
+        string registryJson;
+        try
+        {
+            registryJson = await LoadContextAsync(caseId, "visual-registry", cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "GENERATE-MASTER-REFS-ERROR: Failed to load visual registry for caseId={CaseId}", caseId);
+            throw new InvalidOperationException("Visual consistency registry not found. Run DesignVisualConsistencyRegistryAsync first.", ex);
+        }
+
+        // Debug: Check what we got
+        _logger.LogInformation("GENERATE-MASTER-REFS-DEBUG: registryJson length={Length}, first 200 chars: {Preview}", 
+            registryJson.Length, 
+            registryJson.Length > 200 ? registryJson.Substring(0, 200) : registryJson);
+
+        // Step 2: Parse registry and extract references
+        using var registryDoc = JsonDocument.Parse(registryJson);
+        
+        _logger.LogInformation("GENERATE-MASTER-REFS-DEBUG: Root element type={Type}", 
+            registryDoc.RootElement.ValueKind);
+        
+        var referencesElement = registryDoc.RootElement.GetProperty("references");
+        
+        if (referencesElement.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidOperationException("Invalid visual registry format: 'references' must be an object");
+        }
+
+        var referencesList = new List<(string referenceId, string category, string description, string[] colorPalette)>();
+        
+        foreach (var refProperty in referencesElement.EnumerateObject())
+        {
+            var refId = refProperty.Name;
+            var refObj = refProperty.Value;
+            
+            var category = refObj.GetProperty("category").GetString() ?? "physical_evidence";
+            var description = refObj.GetProperty("detailedDescription").GetString() ?? "";
+            
+            var colorPaletteArray = refObj.GetProperty("colorPalette")
+                .EnumerateArray()
+                .Select(c => c.GetString() ?? "")
+                .ToArray();
+            
+            referencesList.Add((refId, category, description, colorPaletteArray));
+        }
+
+        _logger.LogInformation("GENERATE-MASTER-REFS: Found {Count} references to generate", referencesList.Count);
+
+        // Step 3: Generate master reference image for each element
+        var generatedCount = 0;
+        var updatedReferences = new Dictionary<string, JsonElement>();
+
+        foreach (var (referenceId, category, description, colorPalette) in referencesList)
+        {
+            try
+            {
+                _logger.LogInformation("GENERATE-MASTER-REF: Generating reference for {ReferenceId} (category={Category})", 
+                    referenceId, category);
+
+                var startTime = DateTime.UtcNow;
+
+                // Build optimized prompt for isolated reference image
+                var prompt = BuildMasterReferencePrompt(referenceId, category, description, colorPalette);
+
+                // Generate image using ImagesService (text-only for now, no reference needed)
+                var imageUrl = await _imagesService.GenerateAsync(
+                    caseId,
+                    new MediaSpec 
+                    { 
+                        EvidenceId = $"ref_{referenceId}",
+                        Title = $"Master Reference - {referenceId}",
+                        Prompt = prompt,
+                        Kind = "photo"
+                    },
+                    cancellationToken);
+
+                // Extract blob path from Azurite URL
+                // URL format: http://127.0.0.1:10000/devstoreaccount1/bundles/CASE-xxx/media/ref_xxx.generated-image.png
+                // Extract: CASE-xxx/media/ref_xxx.generated-image.png
+                var blobPath = imageUrl.Split(new[] { "/bundles/" }, StringSplitOptions.None).Last();
+                
+                // Load the generated image bytes from bundles storage
+                var imageBytes = await _storageService.GetFileBytesAsync("bundles", blobPath, cancellationToken);
+                
+                if (imageBytes == null || imageBytes.Length == 0)
+                {
+                    throw new InvalidOperationException($"Failed to load generated image for reference {referenceId} from path {blobPath}");
+                }
+
+                // Save reference image to case-context container for visual consistency system
+                var referenceFileName = $"{referenceId}.png";
+                var referencePath = $"case-context/{caseId}/references/{referenceFileName}";
+                
+                await _storageService.SaveFileBytesAsync(
+                    "case-context",
+                    $"{caseId}/references/{referenceFileName}",
+                    imageBytes,
+                    cancellationToken);
+
+                var duration = DateTime.UtcNow - startTime;
+
+                _logger.LogInformation("GENERATE-MASTER-REF-COMPLETE: referenceId={ReferenceId}, size={Size}bytes, duration={Duration}ms, path={Path}",
+                    referenceId, imageBytes.Length, duration.TotalMilliseconds, referencePath);
+
+                // Update the reference object with imageUrl
+                var originalRef = referencesElement.GetProperty(referenceId);
+                var updatedRef = UpdateReferenceWithImageUrl(originalRef, referencePath);
+                updatedReferences[referenceId] = updatedRef;
+
+                generatedCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GENERATE-MASTER-REF-ERROR: Failed to generate reference for {ReferenceId}", referenceId);
+                // Continue with other references even if one fails
+                updatedReferences[referenceId] = referencesElement.GetProperty(referenceId);
+            }
+        }
+
+        // Step 4: Update the visual registry with imageUrl for all generated references
+        var updatedRegistry = UpdateRegistryWithImageUrls(registryDoc.RootElement, updatedReferences);
+        
+        // Save updated registry back to storage
+        await _contextManager.SaveContextAsync(caseId, "visual-registry", updatedRegistry, cancellationToken);
+
+        _logger.LogInformation("GENERATE-MASTER-REFS-COMPLETE: Generated {GeneratedCount}/{TotalCount} master references for caseId={CaseId}",
+            generatedCount, referencesList.Count, caseId);
+
+        return generatedCount;
+    }
+
+    private string BuildMasterReferencePrompt(string referenceId, string category, string description, string[] colorPalette)
+    {
+        var promptBuilder = new StringBuilder();
+
+        promptBuilder.AppendLine("MASTER REFERENCE IMAGE - ISOLATED STUDIO PHOTOGRAPHY");
+        promptBuilder.AppendLine();
+        promptBuilder.AppendLine($"Subject ID: {referenceId}");
+        promptBuilder.AppendLine($"Category: {category}");
+        promptBuilder.AppendLine();
+
+        switch (category)
+        {
+            case "physical_evidence":
+                promptBuilder.AppendLine("PHOTOGRAPHY SETUP:");
+                promptBuilder.AppendLine("- Clean white background (seamless paper backdrop)");
+                promptBuilder.AppendLine("- Professional studio lighting (soft diffused light, no harsh shadows)");
+                promptBuilder.AppendLine("- Object centered in frame, oriented for optimal visibility");
+                promptBuilder.AppendLine("- Straight-on angle (parallel to camera plane)");
+                promptBuilder.AppendLine("- Forensic scale ruler visible at bottom for size reference");
+                promptBuilder.AppendLine("- High resolution, maximum detail capture");
+                promptBuilder.AppendLine();
+                promptBuilder.AppendLine("SUBJECT DESCRIPTION:");
+                promptBuilder.AppendLine(description);
+                break;
+
+            case "suspect":
+                promptBuilder.AppendLine("PHOTOGRAPHY SETUP:");
+                promptBuilder.AppendLine("- Neutral gray background (police lineup backdrop)");
+                promptBuilder.AppendLine("- Even frontal lighting (no dramatic shadows)");
+                promptBuilder.AppendLine("- Subject centered, facing camera directly (mugshot front view)");
+                promptBuilder.AppendLine("- Head and shoulders composition (standard mugshot framing)");
+                promptBuilder.AppendLine("- Neutral expression, looking at camera");
+                promptBuilder.AppendLine("- High clarity for facial feature identification");
+                promptBuilder.AppendLine();
+                promptBuilder.AppendLine("SUBJECT DESCRIPTION:");
+                promptBuilder.AppendLine(description);
+                break;
+
+            case "location":
+                promptBuilder.AppendLine("PHOTOGRAPHY SETUP:");
+                promptBuilder.AppendLine("- Wide-angle establishing shot");
+                promptBuilder.AppendLine("- Even lighting showing spatial layout clearly");
+                promptBuilder.AppendLine("- Camera positioned to capture key architectural features");
+                promptBuilder.AppendLine("- Empty scene (no people or temporary objects)");
+                promptBuilder.AppendLine("- Focus on permanent structural elements");
+                promptBuilder.AppendLine();
+                promptBuilder.AppendLine("LOCATION DESCRIPTION:");
+                promptBuilder.AppendLine(description);
+                break;
+        }
+
+        promptBuilder.AppendLine();
+        promptBuilder.AppendLine("COLOR PALETTE (for accuracy):");
+        foreach (var color in colorPalette)
+        {
+            promptBuilder.AppendLine($"  - {color}");
+        }
+
+        promptBuilder.AppendLine();
+        promptBuilder.AppendLine("CRITICAL REQUIREMENTS:");
+        promptBuilder.AppendLine("- ALL distinctive features from description MUST be clearly visible");
+        promptBuilder.AppendLine("- Colors MUST match the specified palette accurately");
+        promptBuilder.AppendLine("- Maximum detail and clarity for use as reference image");
+        promptBuilder.AppendLine("- No context, no storytelling - pure documentation");
+        promptBuilder.AppendLine("- This image will be used as visual reference for other images");
+
+        return promptBuilder.ToString();
+    }
+
+    private JsonElement UpdateReferenceWithImageUrl(JsonElement originalRef, string imageUrl)
+    {
+        // Create a mutable dictionary from the original reference
+        var refDict = new Dictionary<string, object?>();
+        
+        foreach (var prop in originalRef.EnumerateObject())
+        {
+            refDict[prop.Name] = prop.Value.ValueKind switch
+            {
+                JsonValueKind.String => prop.Value.GetString(),
+                JsonValueKind.Number => prop.Value.GetDouble(),
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.Array => prop.Value.EnumerateArray().Select(e => e.GetString()).ToArray(),
+                _ => null
+            };
+        }
+
+        // Add or update imageUrl
+        refDict["imageUrl"] = imageUrl;
+
+        // Serialize back to JSON and parse to JsonElement
+        var json = JsonSerializer.Serialize(refDict);
+        return JsonDocument.Parse(json).RootElement.Clone();
+    }
+
+    private string UpdateRegistryWithImageUrls(JsonElement originalRegistry, Dictionary<string, JsonElement> updatedReferences)
+    {
+        var registryDict = new Dictionary<string, object?>();
+
+        // Copy all top-level properties
+        foreach (var prop in originalRegistry.EnumerateObject())
+        {
+            if (prop.Name == "references")
+            {
+                // Replace references with updated versions
+                var refsDict = new Dictionary<string, JsonElement>();
+                foreach (var (key, value) in updatedReferences)
+                {
+                    refsDict[key] = value;
+                }
+                registryDict["references"] = refsDict;
+            }
+            else
+            {
+                registryDict[prop.Name] = prop.Value.ValueKind switch
+                {
+                    JsonValueKind.String => prop.Value.GetString(),
+                    JsonValueKind.Number => prop.Value.GetDouble(),
+                    JsonValueKind.True => true,
+                    JsonValueKind.False => false,
+                    _ => null
+                };
+            }
+        }
+
+        return JsonSerializer.Serialize(registryDict, new JsonSerializerOptions { WriteIndented = true });
     }
 
     public async Task<string> DesignCaseAsync(string planJson, string expandedJson, string caseId, string? difficulty = null, CancellationToken cancellationToken = default)
