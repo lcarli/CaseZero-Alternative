@@ -41,40 +41,51 @@ public class NormalizeEntitiesActivity
 
         try
         {
-            // Load all suspects from expand/suspects/ using QueryContextAsync
-            var suspectsQuery = await _contextManager.QueryContextAsync<object>(
+            // Load all suspects from expand/suspects/ - query as string then parse to JsonElement
+            var suspectsQueryRaw = await _contextManager.QueryContextAsync<string>(
                 caseId, 
                 "expand/suspects/*");
             
-            var suspectsList = suspectsQuery.ToList();
+            var suspectsList = suspectsQueryRaw
+                .Select(s => new 
+                {
+                    Path = s.Path,
+                    Data = JsonDocument.Parse(s.Data).RootElement
+                })
+                .ToList();
+            
+            _logger.LogInformation("Found {Count} suspects to normalize", suspectsList.Count);
 
-            // Load all evidence from expand/evidence/ using QueryContextAsync
-            var evidenceQuery = await _contextManager.QueryContextAsync<object>(
+            // Load all evidence from expand/evidence/ - query as string then parse to JsonElement
+            var evidenceQueryRaw = await _contextManager.QueryContextAsync<string>(
                 caseId, 
                 "expand/evidence/*");
             
-            var evidenceList = evidenceQuery.ToList();
+            var evidenceList = evidenceQueryRaw
+                .Select(e => new 
+                {
+                    Path = e.Path,
+                    Data = JsonDocument.Parse(e.Data).RootElement
+                })
+                .ToList();
+            
+            _logger.LogInformation("Found {Count} evidence items to normalize", evidenceList.Count);
 
             // Normalize and save suspects
             foreach (var suspectResult in suspectsList)
             {
                 try
                 {
-                    // Convert object back to JSON
-                    var suspectJson = JsonSerializer.Serialize(suspectResult.Data);
-                    var suspectElement = JsonDocument.Parse(suspectJson).RootElement;
+                    // suspectResult.Data is a JsonElement
+                    var suspectElement = suspectResult.Data;
                     
                     var suspectId = suspectElement.GetProperty("suspectId").GetString();
                     if (string.IsNullOrEmpty(suspectId))
                         continue;
 
-                    // Save to entities/suspects/{id}.json
-                    var normalizedJson = JsonSerializer.Serialize(suspectElement, new JsonSerializerOptions
-                    {
-                        WriteIndented = true
-                    });
-                    
-                    await _contextManager.SaveContextAsync(caseId, $"entities/suspects/{suspectId}.json", normalizedJson);
+                    // SaveContextAsync will serialize the JsonElement properly (without double-encoding)
+                    // Pass the JsonElement directly - don't serialize to string first
+                    await _contextManager.SaveContextAsync(caseId, $"entities/suspects/{suspectId}", suspectElement);
                     normalizedCount = normalizedCount with { Suspects = normalizedCount.Suspects + 1 };
                     
                     _logger.LogInformation("Normalized suspect {SuspectId}", suspectId);
@@ -90,21 +101,16 @@ public class NormalizeEntitiesActivity
             {
                 try
                 {
-                    // Convert object back to JSON
-                    var evidenceJson = JsonSerializer.Serialize(evidenceResult.Data);
-                    var evidenceElement = JsonDocument.Parse(evidenceJson).RootElement;
+                    // evidenceResult.Data is a JsonElement
+                    var evidenceElement = evidenceResult.Data;
                     
                     var evidenceId = evidenceElement.GetProperty("evidenceId").GetString();
                     if (string.IsNullOrEmpty(evidenceId))
                         continue;
 
-                    // Save to entities/evidence/{id}.json
-                    var normalizedJson = JsonSerializer.Serialize(evidenceElement, new JsonSerializerOptions
-                    {
-                        WriteIndented = true
-                    });
-                    
-                    await _contextManager.SaveContextAsync(caseId, $"entities/evidence/{evidenceId}.json", normalizedJson);
+                    // SaveContextAsync will serialize the JsonElement properly (without double-encoding)
+                    // Pass the JsonElement directly - don't serialize to string first
+                    await _contextManager.SaveContextAsync(caseId, $"entities/evidence/{evidenceId}", evidenceElement);
                     normalizedCount = normalizedCount with { Evidence = normalizedCount.Evidence + 1 };
                     
                     _logger.LogInformation("Normalized evidence {EvidenceId}", evidenceId);

@@ -162,22 +162,29 @@ public class ContextManager : IContextManager
             var normalizedPattern = NormalizePath(queryPattern);
             var prefix = GetBlobPrefix(caseId, normalizedPattern);
             
-            _logger.LogDebug("Querying context with pattern {Pattern} for case {CaseId}", normalizedPattern, caseId);
+            _logger.LogInformation("QueryContextAsync: pattern={Pattern}, normalizedPattern={NormalizedPattern}, prefix={Prefix}, caseId={CaseId}", 
+                queryPattern, normalizedPattern, prefix, caseId);
 
             var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
             
             if (!await containerClient.ExistsAsync(cancellationToken))
             {
+                _logger.LogWarning("Container {ContainerName} does not exist", _containerName);
                 return Enumerable.Empty<ContextQueryResult<T>>();
             }
 
             var results = new List<ContextQueryResult<T>>();
+            var blobCount = 0;
 
             await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: prefix, cancellationToken: cancellationToken))
             {
+                blobCount++;
+                _logger.LogDebug("Found blob: {BlobName}", blobItem.Name);
+                
                 // Check if blob matches the pattern (handle wildcards)
                 if (!MatchesPattern(blobItem.Name, prefix, normalizedPattern))
                 {
+                    _logger.LogDebug("Blob {BlobName} does not match pattern", blobItem.Name);
                     continue;
                 }
 
@@ -186,11 +193,18 @@ public class ContextManager : IContextManager
                     var blobClient = containerClient.GetBlobClient(blobItem.Name);
                     var response = await blobClient.DownloadContentAsync(cancellationToken);
                     var json = response.Value.Content.ToString();
+                    
+                    _logger.LogDebug("Attempting to deserialize blob {BlobName}, JSON length: {Length}", 
+                        blobItem.Name, json.Length);
+                    
                     var data = JsonSerializer.Deserialize<T>(json, JsonOptions);
 
                     if (data != null)
                     {
                         var relativePath = GetRelativePath(blobItem.Name, caseId);
+                        _logger.LogDebug("Successfully deserialized {BlobName} to {RelativePath}", 
+                            blobItem.Name, relativePath);
+                        
                         results.Add(new ContextQueryResult<T>
                         {
                             Path = relativePath,
@@ -199,14 +213,25 @@ public class ContextManager : IContextManager
                             LastModified = blobItem.Properties.LastModified?.UtcDateTime ?? DateTime.UtcNow
                         });
                     }
+                    else
+                    {
+                        _logger.LogWarning("Deserialization returned null for blob {BlobName}", blobItem.Name);
+                    }
+                }
+                catch (JsonException jsonEx)
+                {
+                    _logger.LogError(jsonEx, "JSON deserialization failed for blob {BlobName}. Error: {Message}", 
+                        blobItem.Name, jsonEx.Message);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to deserialize blob {BlobName}", blobItem.Name);
+                    _logger.LogError(ex, "Failed to process blob {BlobName}. Error type: {ExceptionType}, Message: {Message}", 
+                        blobItem.Name, ex.GetType().Name, ex.Message);
                 }
             }
 
-            _logger.LogInformation("Query returned {Count} results for pattern {Pattern}", results.Count, normalizedPattern);
+            _logger.LogInformation("Query scanned {BlobCount} blobs, returned {ResultCount} results for pattern {Pattern}", 
+                blobCount, results.Count, normalizedPattern);
             return results;
         }
         catch (Exception ex)
@@ -527,14 +552,26 @@ public class ContextManager : IContextManager
 
     private bool MatchesPattern(string blobName, string prefix, string pattern)
     {
-        // Simple wildcard matching for now
+        // Extract the blob's relative path for matching
+        var blobRelativePath = blobName;
+        
+        _logger.LogDebug("MatchesPattern: blobName={BlobName}, prefix={Prefix}, pattern={Pattern}", 
+            blobName, prefix, pattern);
+        
+        // Simple wildcard matching
         if (!pattern.Contains('*'))
         {
-            return blobName.StartsWith(prefix);
+            var matches = blobName.StartsWith(prefix);
+            _logger.LogDebug("No wildcard - matches={Matches}", matches);
+            return matches;
         }
 
-        // More sophisticated pattern matching could be implemented here
-        return blobName.StartsWith(prefix);
+        // For wildcard patterns, check if blob starts with the prefix (before the *)
+        // Example: pattern "expand/suspects/*" -> prefix "CASE-xxx/context/expand/suspects"
+        // Should match: "CASE-xxx/context/expand/suspects/S001.json"
+        var matches2 = blobName.StartsWith(prefix);
+        _logger.LogDebug("Wildcard pattern - matches={Matches}", matches2);
+        return matches2;
     }
 
     private void UpdateCache<T>(string caseId, string path, T data, long size)

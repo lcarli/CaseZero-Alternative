@@ -144,12 +144,8 @@ public class CaseGeneratorOrchestrator
             // 1.4: Generate evidence plan based on all previous
             status = status with { Progress = 0.1 };
             context.SetCustomStatus(status);
-            var planEvidenceResult = await context.CallActivityAsync<string>("PlanEvidenceActivity", 
+            await context.CallActivityAsync<string>("PlanEvidenceActivity", 
                 new PlanEvidenceActivityModel { CorePlanRef = "@plan/core", SuspectsRef = "@plan/suspects", TimelineRef = "@plan/timeline", CaseId = caseId });
-            
-            // For now, use evidence result as "planResult" to maintain compatibility with Expand
-            // TODO Phase 2: Modify ExpandActivity to load from context instead of receiving full JSON
-            var planResult = planEvidenceResult;
             
             completedSteps.Add(CaseGenerationSteps.Plan);
             _caseLogging.LogOrchestratorStep(caseId, "PLAN_COMPLETE", "Hierarchical plan completed");
@@ -231,9 +227,6 @@ public class CaseGeneratorOrchestrator
             
             completedSteps.Add(CaseGenerationSteps.Expand);
             _caseLogging.LogOrchestratorStep(caseId, "EXPAND_COMPLETE", $"Hierarchical expand completed: {suspectIds.Count} suspects, {evidenceIds.Count} evidence, timeline, relations");
-            
-            // Use synthesize result as "expandResult" for backward compatibility with Design step
-            var expandResult = synthesizeResult;
 
             // Step 3: Design (Phase 4 - hierarchical by type)
             status = status with
@@ -438,7 +431,7 @@ public class CaseGeneratorOrchestrator
             var documentIds = documentsResult.Select(docJson => 
             {
                 using var jsonDoc = JsonDocument.Parse(docJson);
-                return jsonDoc.RootElement.GetProperty("id").GetString() ?? string.Empty;
+                return jsonDoc.RootElement.GetProperty("docId").GetString() ?? string.Empty;
             }).Where(id => !string.IsNullOrEmpty(id)).ToArray();
             
             var docsResult = await context.CallActivityAsync<string>("NormalizeDocumentsActivity", new NormalizeDocumentsActivityModel 
@@ -682,6 +675,9 @@ public class CaseGeneratorOrchestrator
             // Reload manifest for packaging (QA modified entities, need fresh manifest)
             var finalManifest = await context.CallActivityAsync<string>("NormalizeManifestActivity", new NormalizeManifestActivityModel { CaseId = caseId });
             
+            logger.LogInformation("MANIFEST DEBUG: finalManifest length = {Length} chars, starts with: {Start}", 
+                finalManifest?.Length ?? 0, finalManifest?.Length > 200 ? finalManifest[..200] : finalManifest);
+            
             _caseLogging.LogOrchestratorStep(caseId, "QA_FINAL", $"Final case ready for packaging after {iteration - 1} iteration(s)");
 
             // OPTIONAL RENDERING PHASE (only if requested)
@@ -832,7 +828,13 @@ public class CaseGeneratorOrchestrator
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "PACKAGE_START", "Creating final case package and delivery artifacts");
 
-            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = finalManifest, CaseId = caseId }) ?? throw new InvalidOperationException("PackageActivity returned null");
+            logger.LogInformation("PACKAGE DEBUG: About to call PackageActivity with finalManifest of {Length} chars", finalManifest?.Length ?? 0);
+            
+            // Convert finalManifest to Base64 to avoid Durable Task JSON inspection issues
+            var finalManifestBase64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(finalManifest ?? string.Empty));
+            logger.LogInformation("PACKAGE DEBUG: Converted to Base64, length = {Base64Length}", finalManifestBase64.Length);
+            
+            var packageResult = await context.CallActivityAsync<CaseGenerationOutput>("PackageActivity", new PackageActivityModel { FinalJson = finalManifestBase64, CaseId = caseId }) ?? throw new InvalidOperationException("PackageActivity returned null");
             completedSteps.Add(CaseGenerationSteps.Package);
             _caseLogging.LogOrchestratorStep(caseId, "PACKAGE_COMPLETE", "Final packaging completed successfully");
 

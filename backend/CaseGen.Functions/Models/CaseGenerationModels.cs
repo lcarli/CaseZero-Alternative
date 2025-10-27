@@ -385,13 +385,13 @@ public record CaseGenerationStatus
 public record CaseGenerationOutput
 {
     [JsonPropertyName("bundlePath")]
-    public string BundlePath { get; init; } = "";
+    public required string BundlePath { get; init; }
     
     [JsonPropertyName("caseId")]
-    public string CaseId { get; init; } = "";
+    public required string CaseId { get; init; }
     
     [JsonPropertyName("files")]
-    public GeneratedFile[] Files { get; init; } = Array.Empty<GeneratedFile>();
+    public required List<GeneratedFile> Files { get; init; }
     
     [JsonPropertyName("metadata")]
     public CaseMetadata? Metadata { get; init; }
@@ -400,10 +400,10 @@ public record CaseGenerationOutput
 public record GeneratedFile
 {
     [JsonPropertyName("path")]
-    public string Path { get; init; } = "";
+    public required string Path { get; init; }
     
     [JsonPropertyName("type")]
-    public string Type { get; init; } = "";
+    public required string Type { get; init; }
     
     [JsonPropertyName("size")]
     public long Size { get; init; }
@@ -415,19 +415,19 @@ public record GeneratedFile
 public record CaseMetadata
 {
     [JsonPropertyName("title")]
-    public string Title { get; init; } = "";
+    public required string Title { get; init; }
     
     [JsonPropertyName("difficulty")]
-    public string Difficulty { get; init; } = "";
+    public required string Difficulty { get; init; }
     
     [JsonPropertyName("estimatedDuration")]
     public int EstimatedDuration { get; init; }
     
     [JsonPropertyName("categories")]
-    public string[] Categories { get; init; } = Array.Empty<string>();
+    public required List<string> Categories { get; init; }
     
     [JsonPropertyName("tags")]
-    public string[] Tags { get; init; } = Array.Empty<string>();
+    public required List<string> Tags { get; init; }
     
     [JsonPropertyName("generatedAt")]
     public DateTime GeneratedAt { get; init; }
@@ -456,6 +456,15 @@ public static class CaseGenerationSteps
 }
 
 // Document and Media Specifications for structured case design
+public record LengthTarget
+{
+    [JsonPropertyName("min")]
+    public required int Min { get; init; }
+    
+    [JsonPropertyName("max")]
+    public required int Max { get; init; }
+}
+
 public record DocumentSpec
 {
     [JsonPropertyName("docId")]
@@ -471,7 +480,7 @@ public record DocumentSpec
     public required string[] Sections { get; init; }
     
     [JsonPropertyName("lengthTarget")]
-    public required int[] LengthTarget { get; init; }
+    public required LengthTarget LengthTarget { get; init; }
     
     [JsonPropertyName("gated")]
     public required bool Gated { get; init; }

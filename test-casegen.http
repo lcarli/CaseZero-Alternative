@@ -1,9 +1,29 @@
 
-### 
 
-#Request Base - CASO COMPLETO SEM RENDERIZAÇÃO (RÁPIDO)
+
+### 🧪 TEST - JSON Encoding (RAPIDO - Testa double-encoding)
+
+POST http://localhost:7071/api/TestJsonEncoding
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20251027-d09c1970"
+}
+
+### 🧪 TEST - Normalize Existing Case (RAPIDO - Só testa normalização)
+
+POST http://localhost:7071/api/TestNormalizeEntities
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20251027-73500c11"
+}
+
+
+### 🧪 TEST - Normalize Existing Case (RAPIDO - Só testa normalização)
 
 POST http://localhost:7071/api/StartCaseGeneration
+Content-Type: application/json
 
 {
   "difficulty": "Rookie",
@@ -12,7 +32,7 @@ POST http://localhost:7071/api/StartCaseGeneration
   "timezone": "America/Toronto"
 }
 
-###
+### 
 
 # CASO COMPLETO COM RENDERIZAÇÃO (LENTO - GERA PDFs E IMAGENS)
 POST http://localhost:7071/api/StartCaseGeneration

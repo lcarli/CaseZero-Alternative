@@ -114,8 +114,8 @@ public class SchemaValidationService : ISchemaValidationService
         // lengthTarget coerente
         foreach (var d in specs.DocumentSpecs)
         {
-            if (d.LengthTarget.Length != 2 || d.LengthTarget[0] < 10 || d.LengthTarget[0] > d.LengthTarget[1])
-                errors.Add($"Document {d.DocId} has invalid lengthTarget [{string.Join(",", d.LengthTarget)}]");
+            if (d.LengthTarget.Min < 10 || d.LengthTarget.Min > d.LengthTarget.Max)
+                errors.Add($"Document {d.DocId} has invalid lengthTarget [min:{d.LengthTarget.Min}, max:{d.LengthTarget.Max}]");
         }
 
         // gated => gatingRule obrigatório e com action válida

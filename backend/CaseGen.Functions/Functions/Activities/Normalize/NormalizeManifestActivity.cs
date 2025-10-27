@@ -95,13 +95,15 @@ public class NormalizeManifestActivity
                 }
             };
 
+            // Save manifest to context root (without .json - ContextManager adds it)
+            // Pass the manifest object directly, not the serialized string
+            await _contextManager.SaveContextAsync(caseId, "manifest", manifest);
+
+            // Serialize for logging/return
             var manifestJson = JsonSerializer.Serialize(manifest, new JsonSerializerOptions
             {
                 WriteIndented = true
             });
-
-            // Save manifest to context root
-            await _contextManager.SaveContextAsync(caseId, "manifest.json", manifestJson);
 
             _logger.LogInformation(
                 "Created manifest for case {CaseId}: {Suspects} suspects, {Evidence} evidence, {Witnesses} witnesses, {Documents} documents",

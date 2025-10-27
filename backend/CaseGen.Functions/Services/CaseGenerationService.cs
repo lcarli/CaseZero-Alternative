@@ -1751,7 +1751,7 @@ Generate the specification now.";
             - type: {spec.Type}
             - title: {spec.Title}
             - sections (order): {string.Join(", ", spec.Sections)}
-            - lengthTarget: {spec.LengthTarget[0]}–{spec.LengthTarget[1]} words
+            - lengthTarget: {spec.LengthTarget.Min}–{spec.LengthTarget.Max} words
             - gated: {spec.Gated}
 
             TYPE DIRECTIVES:
@@ -2973,6 +2973,21 @@ Generate the specification now.";
 
         try
         {
+            // Decode from Base64 if needed (orchestrator encodes to avoid Durable Task JSON inspection)
+            string actualJson;
+            try
+            {
+                var bytes = Convert.FromBase64String(finalJson);
+                actualJson = System.Text.Encoding.UTF8.GetString(bytes);
+                _logger.LogInformation("PACKAGE: Decoded Base64 manifest, length = {Length}", actualJson.Length);
+            }
+            catch (FormatException)
+            {
+                // Not Base64, use as-is (for backwards compatibility)
+                actualJson = finalJson;
+                _logger.LogInformation("PACKAGE: Using raw JSON manifest, length = {Length}", actualJson.Length);
+            }
+            
             var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
             var files = new List<GeneratedFile>();
 
@@ -2980,12 +2995,12 @@ Generate the specification now.";
             JsonElement validatedCase;
             try 
             {
-                validatedCase = JsonSerializer.Deserialize<JsonElement>(finalJson);
+                validatedCase = JsonSerializer.Deserialize<JsonElement>(actualJson);
             }
             catch (JsonException ex)
             {
                 _logger.LogError(ex, "Failed to parse finalJson as valid JSON for case {CaseId}. JSON starts with: {JsonStart}", 
-                    caseId, finalJson.Length > 100 ? finalJson[..100] : finalJson);
+                    caseId, actualJson.Length > 100 ? actualJson[..100] : actualJson);
                 throw new InvalidOperationException($"Invalid JSON provided to PackageCaseAsync for case {caseId}: {ex.Message}", ex);
             }
             
@@ -3011,14 +3026,15 @@ Generate the specification now.";
             var mediaCount = 0;
             var suspectsCount = 0;
             
-            if (validatedCase.TryGetProperty("documents", out var docsArray))
+            if (validatedCase.TryGetProperty("documents", out var docsObj) &&
+                docsObj.TryGetProperty("items", out var docsArray))
             {
                 documentsCount = docsArray.GetArrayLength();
                 _logger.LogInformation("PACKAGE: Found {DocumentsCount} documents in case {CaseId}", documentsCount, caseId);
             }
             else
             {
-                _logger.LogWarning("PACKAGE: No 'documents' property found in case {CaseId}", caseId);
+                _logger.LogWarning("PACKAGE: No 'documents.items' property found in case {CaseId}", caseId);
             }
             
             if (validatedCase.TryGetProperty("media", out var mediaArray))
@@ -3031,14 +3047,15 @@ Generate the specification now.";
                 _logger.LogWarning("PACKAGE: No 'media' property found in case {CaseId}", caseId);
             }
             
-            if (validatedCase.TryGetProperty("suspects", out var suspectsArray))
+            if (validatedCase.TryGetProperty("entities", out var entitiesObj) &&
+                entitiesObj.TryGetProperty("suspects", out var suspectsArray))
             {
                 suspectsCount = suspectsArray.GetArrayLength();
                 _logger.LogInformation("PACKAGE: Found {SuspectsCount} suspects in case {CaseId}", suspectsCount, caseId);
             }
             else
             {
-                _logger.LogWarning("PACKAGE: No 'suspects' property found in case {CaseId}", caseId);
+                _logger.LogWarning("PACKAGE: No 'entities.suspects' property found in case {CaseId}", caseId);
             }
 
             // Create comprehensive case manifest
@@ -3066,9 +3083,9 @@ Generate the specification now.";
 
             // Save the canonical normalized case file to BUNDLE
             var normalizedCaseFileName = $"{caseId}/normalized_case.json";
-            await _storageService.SaveFileAsync(bundlesContainer, normalizedCaseFileName, finalJson, cancellationToken);
+            await _storageService.SaveFileAsync(bundlesContainer, normalizedCaseFileName, actualJson, cancellationToken);
             
-            var normalizedCaseHash = ComputeSHA256Hash(finalJson);
+            var normalizedCaseHash = ComputeSHA256Hash(actualJson);
             caseManifest.Manifest.Add(new FileManifestEntry
             {
                 Filename = "normalized_case.json",
@@ -3081,20 +3098,23 @@ Generate the specification now.";
             {
                 Path = normalizedCaseFileName,
                 Type = "json",
-                Size = System.Text.Encoding.UTF8.GetByteCount(finalJson),
+                Size = System.Text.Encoding.UTF8.GetByteCount(actualJson),
                 CreatedAt = DateTime.UtcNow
             });
 
             // Add individual documents to manifest (try to read from storage)
-            if (validatedCase.TryGetProperty("documents", out var documentsArray))
+            if (validatedCase.TryGetProperty("documents", out var documentsObj) &&
+                documentsObj.TryGetProperty("items", out var documentsArray))
             {
                 _logger.LogInformation("PACKAGE: Processing {DocumentCount} documents for manifest", documentsArray.GetArrayLength());
                 
                 foreach (var doc in documentsArray.EnumerateArray())
                 {
-                    if (doc.TryGetProperty("docId", out var docIdProp))
+                    // doc is a string like "@documents/doc_interview_001"
+                    var docRef = doc.GetString();
+                    if (docRef != null && docRef.StartsWith("@documents/"))
                     {
-                        var docId = docIdProp.GetString();
+                        var docId = docRef.Substring("@documents/".Length);
                         var docFileName = $"{caseId}/documents/{docId}.json";
                         
                         try
@@ -3114,22 +3134,8 @@ Generate the specification now.";
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogWarning(ex, "PACKAGE: Could not read document {DocId} from storage at {Path} - creating metadata-only entry", 
+                            _logger.LogWarning(ex, "PACKAGE: Could not read document {DocId} from storage at {Path} - skipping", 
                                 docId, docFileName);
-                            
-                            // Create a metadata-only entry using the document content from the main JSON
-                            var docJsonContent = doc.GetRawText();
-                            var docHash = ComputeSHA256Hash(docJsonContent);
-                            
-                            caseManifest.Manifest.Add(new FileManifestEntry
-                            {
-                                Filename = $"{docId}.json",
-                                RelativePath = docFileName,
-                                Sha256 = docHash,
-                                MimeType = "application/json"
-                            });
-                            
-                            _logger.LogInformation("PACKAGE: Created metadata-only entry for document {DocId}", docId);
                         }
                     }
                 }
@@ -3217,8 +3223,8 @@ Generate the specification now.";
                 Title = caseId,
                 Difficulty = difficulty ?? "Rookie",
                 EstimatedDuration = 60,
-                Categories = new[] { "Investigation", "Training" },
-                Tags = new[] { "generated", "ai" },
+                Categories = new List<string> { "Investigation", "Training" },
+                Tags = new List<string> { "generated", "ai" },
                 GeneratedAt = DateTime.UtcNow
             };
 
@@ -3248,7 +3254,7 @@ Generate the specification now.";
             {
                 BundlePath = bundlePath,
                 CaseId = caseId,
-                Files = files.ToArray(),
+                Files = files,
                 Metadata = metadata
             };
         }
