@@ -1,26 +1,66 @@
 
+################################################################################
+#                                                                              #
+#                         CASEGEN - TESTE DE ENDPOINTS                        #
+#                                                                              #
+################################################################################
 
+################################################################################
+# 🧪 TESTES RÁPIDOS DE ETAPAS INDIVIDUAIS
+################################################################################
 
-### 🧪 TEST - JSON Encoding (RAPIDO - Testa double-encoding)
+### TEST 1 - Validar Encoding JSON (1 segundo)
+# Testa se arquivos JSON estão sendo salvos sem double-encoding
 
 POST http://localhost:7071/api/TestJsonEncoding
 Content-Type: application/json
 
 {
-  "caseId": "CASE-20251027-d09c1970"
+  "caseId": "CASE-20251027-9e3f82ea"
 }
 
-### 🧪 TEST - Normalize Existing Case (RAPIDO - Só testa normalização)
+### TEST 2 - Normalizar Entidades (1-2 segundos)
+# Testa normalização de suspects e evidence de um caso existente
+# Requer: Caso com expand/suspects/* e expand/evidence/* no blob
 
 POST http://localhost:7071/api/TestNormalizeEntities
 Content-Type: application/json
 
 {
-  "caseId": "CASE-20251027-73500c11"
+  "caseId": "CASE-20251027-9e3f82ea"
+}
+
+### TEST 3 - Gerar Imagens de Caso Existente (15-20 minutos)
+# Gera todas as imagens de um caso que já foi criado
+# Útil quando o caso foi gerado com generateImages=false
+# Requer: Caso com design/media/*.json no blob storage
+
+POST http://localhost:7071/api/TestGenerateImages
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20251027-9e3f82ea"
 }
 
 
-### 🧪 TEST - Normalize Existing Case (RAPIDO - Só testa normalização)
+################################################################################
+# 📦 GERAÇÃO DE CASO COMPLETO
+################################################################################
+
+### Gerar Caso RÁPIDO (sem imagens, sem PDFs) - 3-5 minutos
+# Recomendado para desenvolvimento e testes rápidos
+
+POST http://localhost:7071/api/StartCaseGeneration
+Content-Type: application/json
+
+{
+  "difficulty": "Rookie",
+  "generateImages": false,
+  "renderFiles": false,
+  "timezone": "America/Toronto"
+}
+
+### Gerar Caso COM IMAGENS (sem PDFs) - 15-20 minutos
 
 POST http://localhost:7071/api/StartCaseGeneration
 Content-Type: application/json
@@ -32,22 +72,29 @@ Content-Type: application/json
   "timezone": "America/Toronto"
 }
 
-### 
+### Gerar Caso COMPLETO (imagens + PDFs) - 25-30 minutos
+# Produção - tudo incluído
 
-# CASO COMPLETO COM RENDERIZAÇÃO (LENTO - GERA PDFs E IMAGENS)
 POST http://localhost:7071/api/StartCaseGeneration
+Content-Type: application/json
 
 {
-  "difficulty": "Rookie", 
+  "difficulty": "Rookie",
   "generateImages": true,
   "renderFiles": true,
   "timezone": "America/Toronto"
 }
 
-###
+### Gerar Caso com Dificuldade Aleatória
 
-# Caso completamente automatizado - nível aleatório (SEM RENDERIZAÇÃO)
 POST http://localhost:7071/api/StartCaseGeneration
+Content-Type: application/json
+
+{
+  "generateImages": false,
+  "renderFiles": false,
+  "timezone": "UTC"
+}
 
 {
   "generateImages": true,
