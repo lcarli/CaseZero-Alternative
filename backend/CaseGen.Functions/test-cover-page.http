@@ -1,0 +1,67 @@
+### Test Cover Page - Simple
+POST http://localhost:7071/api/test/pdf
+Content-Type: application/json
+
+{
+  "docId": "COVER-001",
+  "type": "cover_page",
+  "title": "Cover Page - Cold Case Investigation",
+  "words": 0,
+  "sections": [
+    {
+      "title": "Case Information",
+      "content": "This is the official cover page for a cold case investigation file."
+    }
+  ]
+}
+
+### Test Cover Page - Full Case
+POST http://localhost:7071/api/test/pdf
+Content-Type: application/json
+
+{
+  "docId": "COVER-HOMICIDE-042",
+  "type": "cover_page",
+  "title": "Cover - Homicide Investigation #2024-CFS-0042",
+  "words": 0,
+  "sections": [
+    {
+      "title": "Case Summary",
+      "content": "Cold case homicide investigation from 1987. Victim found at abandoned warehouse. Multiple witnesses interviewed. DNA evidence collected and preserved. Case reopened due to new forensic technology."
+    }
+  ]
+}
+
+### Test Cover Page - Missing Person
+POST http://localhost:7071/api/test/pdf
+Content-Type: application/json
+
+{
+  "docId": "COVER-MISSING-091",
+  "type": "cover_page",
+  "title": "Cover Page - Missing Person Investigation",
+  "words": 0,
+  "sections": [
+    {
+      "title": "Investigation Details",
+      "content": "Missing person case from 2010. Last seen leaving work. Vehicle found abandoned. Multiple search operations conducted. Case remains open."
+    }
+  ]
+}
+
+### Test Cover Page with Auto-Detection (title contains "cover")
+POST http://localhost:7071/api/test/pdf
+Content-Type: application/json
+
+{
+  "docId": "COVER-AUTO-001",
+  "type": "general",
+  "title": "Case File Cover - Unsolved Mystery",
+  "words": 0,
+  "sections": [
+    {
+      "title": "Overview",
+      "content": "Testing automatic detection of cover page type based on title keywords."
+    }
+  ]
+}
