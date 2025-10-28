@@ -1,0 +1,40 @@
+### 1. List Available Documents in Real Case
+# This will show all documents available in the case
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10
+
+### 2. Test Police Report (Initial Report)
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10&docId=doc_police_001
+
+### 3. Test Evidence Log
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10&docId=doc_evidence_log_001
+
+### 4. Test Forensics Report (Cashbox)
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10&docId=doc_forensics_cashbox_001
+
+### 5. Test Interview - Linda
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10&docId=doc_interview_linda_001
+
+### 6. Test Interview - Marco
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10&docId=doc_interview_marco_002
+
+### 7. Test Interview - Priya
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10&docId=doc_interview_priya_003
+
+### 8. Test Memo - Missing Cashbox
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10&docId=doc_memo_missing_cashbox_001
+
+### 9. Test Memo - Status Update
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10&docId=doc_memo_status_update_002
+
+### 10. Test Witness Statement - Linda
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10&docId=doc_witness_linda_001
+
+### 11. Test Witness Statement - Marco
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10&docId=doc_witness_marco_002
+
+### 12. Test Witness Statement - Priya
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10&docId=doc_witness_priya_003
+
+### 13. Test Suspect Profile - Linda (if exists)
+GET http://localhost:7071/api/test/pdf/real?caseId=CASE-20251027-b442dc10&docId=doc_suspect_linda_001
+

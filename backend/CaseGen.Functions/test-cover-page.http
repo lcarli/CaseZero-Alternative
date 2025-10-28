@@ -65,3 +65,152 @@ Content-Type: application/json
     }
   ]
 }
+
+### Test Suspect Profile - Marco DeLuca (Violent History)
+POST http://localhost:7071/api/test/pdf
+Content-Type: application/json
+
+{
+  "docId": "SUSP-MARCO-002",
+  "type": "suspect_profile",
+  "title": "Suspect Information - Marco DeLuca",
+  "words": 0,
+  "sections": [
+    {
+      "title": "Personal Information",
+      "content": "Name: DeLuca, Marco Antonio\nAKA: \"Big Marco\", \"Tony D\"\nDOB: 03/15/1985 (Age: 40)\nSex/Race: Male / White\nHeight/Weight: 6'2\" / 210 lbs\nEyes/Hair: Brown / Black\nMarks/Scars: Tattoo left forearm (eagle), scar right eyebrow\nID: SUSP-MARCO-002"
+    },
+    {
+      "title": "Criminal History",
+      "content": "Prior arrests include:\n- 2008: Assault and Battery (Convicted, 18 months probation)\n- 2012: Breaking and Entering (Charges dropped)\n- 2015: Possession of Stolen Property (Convicted, 6 months suspended)\n- 2019: Assault with Deadly Weapon (Pending trial at time of incident)\n\nCurrently on probation. Known associate of local organized crime figures. Multiple domestic violence complaints filed but not prosecuted."
+    },
+    {
+      "title": "Alibi",
+      "content": "UNVERIFIED - Claims to have been at girlfriend's apartment during incident timeframe. Girlfriend (Jessica Martinez) provided statement confirming alibi, however inconsistencies noted in timeline. Security footage from apartment building unavailable (camera malfunction reported). Cell phone data shows location consistent with claimed alibi but gaps in data."
+    }
+  ]
+}
+
+### Test Suspect Profile - Linda Park (Clean Record)
+POST http://localhost:7071/api/test/pdf
+Content-Type: application/json
+
+{
+  "docId": "SUSP-LINDA-001",
+  "type": "suspect_profile",
+  "title": "Suspect Information - Linda Park",
+  "words": 0,
+  "sections": [
+    {
+      "title": "Personal Information",
+      "content": "Name: Park, Linda Sue\nAKA: None known\nDOB: 11/22/1978 (Age: 46)\nSex/Race: Female / Asian\nHeight/Weight: 5'4\" / 125 lbs\nEyes/Hair: Brown / Black\nMarks/Scars: None reported\nID: SUSP-LINDA-001"
+    },
+    {
+      "title": "Criminal History",
+      "content": "No prior criminal record. Clean driving record. No outstanding warrants or pending charges. Background check reveals no history of violence or criminal activity. Employment record stable with current employer for 8 years."
+    },
+    {
+      "title": "Alibi",
+      "content": "PARTIALLY VERIFIED - States she was at work (Metro Community Center) during incident. Timecard shows clock-in at 8:45 AM and clock-out at 5:15 PM on date of incident. Co-workers confirm her presence but cannot account for entire day. Security footage review pending. Phone records show no unusual activity."
+    }
+  ]
+}
+
+### Test Suspect Profile - Priya Nair (Minor Offenses) - Auto Detection
+POST http://localhost:7071/api/test/pdf
+Content-Type: application/json
+
+{
+  "docId": "SUSP-PRIYA-003",
+  "type": "general",
+  "title": "Person of Interest - Priya Nair",
+  "words": 0,
+  "sections": [
+    {
+      "title": "Personal Information",
+      "content": "Name: Nair, Priya Lakshmi\nAKA: \"P.J.\"\nDOB: 07/08/1992 (Age: 33)\nSex/Race: Female / Asian Indian\nHeight/Weight: 5'6\" / 135 lbs\nEyes/Hair: Brown / Black\nMarks/Scars: Small scar on left hand\nID: SUSP-PRIYA-003"
+    },
+    {
+      "title": "Criminal History",
+      "content": "Minor offenses only:\n- 2014: Shoplifting (Misdemeanor, community service completed)\n- 2016: Disorderly Conduct (Charges dismissed)\n\nNo violent history. Both incidents occurred during college years. Clean record since 2016. Currently employed as accountant with reputable firm."
+    },
+    {
+      "title": "Alibi",
+      "content": "CONFLICTING - Claims to have attended community event (Fall Festival) during incident timeframe. Event coordinator confirms festival occurred but cannot confirm Nair's attendance. No photographic evidence of presence. Credit card records show no transactions at festival. Witness statements place her in vicinity of incident location approximately 1 hour before estimated time of occurrence."
+    }
+  ]
+}
+### Test Suspect Profile - Marco DeLuca
+POST http://localhost:7071/api/test/pdf
+Content-Type: application/json
+
+{
+  "docId": "SUSP-MARCO-001",
+  "type": "suspect_profile",
+  "title": "Suspect Information - Marco DeLuca",
+  "words": 0,
+  "sections": [
+    {
+      "title": "Personal Information",
+      "content": "Name: DELUCA, MARCO ANTHONY\nAKA: 'Big Marco', 'M.D.'\nDOB: 03/15/1978 (Age: 46)\nSex/Race: Male / White\nHeight/Weight: 6'2\" / 210 lbs\nEyes/Hair: Brown / Black\nMarks/Scars: Tattoo left forearm (eagle), scar right eyebrow\nAddress: [REDACTED - Under Surveillance]\nSSN: ###-##-4521\nID: SUSP-MARCO-001"
+    },
+    {
+      "title": "Criminal History",
+      "content": "Prior Arrests:\n- 2015: Assault, 2nd Degree (Charges Dropped)\n- 2018: Breaking and Entering (Convicted, 18 months probation)\n- 2020: Possession of Stolen Property (Dismissed)\n- 2022: Assault with Deadly Weapon (Pending Trial)\n\nCurrently on probation. Known associate of organized crime figures. Subject has history of violent confrontations. Consider armed and dangerous."
+    },
+    {
+      "title": "Alibi",
+      "content": "Claims to have been at home with girlfriend Maria Santos on night of incident (10/27/2024, 9:00 PM - 2:00 AM). Girlfriend confirmed alibi during initial interview but showed signs of nervousness. Timeline inconsistencies noted:\n- Subject claims arrived home at 9:15 PM\n- Girlfriend states he arrived closer to 10:30 PM\n- No third-party witnesses to corroborate\n- Cell phone location data pending subpoena\n\nAlibi Status: UNVERIFIED - Further investigation required."
+    }
+  ]
+}
+
+### Test Suspect Profile - Linda Park (with witness overtone)
+POST http://localhost:7071/api/test/pdf
+Content-Type: application/json
+
+{
+  "docId": "SUSP-LINDA-002",
+  "type": "suspect_profile",
+  "title": "Suspect Information - Linda Park",
+  "words": 0,
+  "sections": [
+    {
+      "title": "Personal Information",
+      "content": "Name: PARK, LINDA MARIE\nAKA: None Known\nDOB: 07/22/1985 (Age: 39)\nSex/Race: Female / Asian\nHeight/Weight: 5'6\" / 140 lbs\nEyes/Hair: Brown / Black\nMarks/Scars: None reported\nAddress: 1247 Maple Street, Apt 3B\nSSN: ###-##-7892\nID: SUSP-LINDA-002"
+    },
+    {
+      "title": "Criminal History",
+      "content": "No prior criminal record on file. Clean background check. No outstanding warrants. Subject has been cooperative with investigation but inconsistencies in statements raise suspicion."
+    },
+    {
+      "title": "Alibi",
+      "content": "Claims to have been working late at Metro Community Center on night of incident. Timecard records confirm presence until 8:45 PM. States she went directly home afterward, arriving approximately 9:15 PM. No witnesses for journey home or arrival time. Security footage from building entrance pending review.\n\nAlibi Status: PARTIALLY VERIFIED - Awaiting security footage analysis."
+    }
+  ]
+}
+
+### Test Suspect Profile with Auto-Detection (title contains "suspect")
+POST http://localhost:7071/api/test/pdf
+Content-Type: application/json
+
+{
+  "docId": "SUSP-AUTO-003",
+  "type": "general",
+  "title": "Suspect Profile - Priya Nair",
+  "words": 0,
+  "sections": [
+    {
+      "title": "Personal Information",
+      "content": "Name: NAIR, PRIYA\nAKA: 'P.N.'\nDOB: 11/08/1992 (Age: 32)\nSex/Race: Female / Asian Indian\nHeight/Weight: 5'4\" / 125 lbs\nEyes/Hair: Brown / Black\nMarks/Scars: Small birthmark left wrist\nAddress: 892 Oak Avenue\nSSN: ###-##-6543\nID: SUSP-PRIYA-003"
+    },
+    {
+      "title": "Criminal History",
+      "content": "2019: Shoplifting (Misdemeanor, Community Service completed)\n2021: Disorderly Conduct (Dismissed)\n\nNo violent offenses. Subject has maintained steady employment since 2020."
+    },
+    {
+      "title": "Alibi",
+      "content": "Claims to have been at charity event at Market Pavilion from 6:00 PM to 11:00 PM. Multiple witnesses confirm presence. Event sign-in sheet shows arrival at 6:15 PM. Departure time disputed - some witnesses state she left around 9:30 PM, others confirm presence until event end.\n\nAlibi Status: CONFLICTING - Requires additional witness interviews."
+    }
+  ]
+}
