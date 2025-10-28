@@ -139,6 +139,21 @@ public class PdfRenderingService : IPdfRenderingService
         {
             return GenerateMultiPageForensicsReport(title, markdownContent, documentType, caseId, docId);
         }
+        
+        if (documentType.ToLower() == "interview" || documentType.ToLower() == "interview_transcript")
+        {
+            return GenerateMultiPageInterview(title, markdownContent, documentType, caseId, docId);
+        }
+        
+        if (documentType.ToLower() == "memo" || documentType.ToLower() == "memo_admin" || documentType.ToLower() == "internal_memo")
+        {
+            return GenerateMultiPageMemo(title, markdownContent, documentType, caseId, docId);
+        }
+        
+        if (documentType.ToLower() == "witness_statement" || documentType.ToLower() == "statement")
+        {
+            return GenerateMultiPageWitnessStatement(title, markdownContent, documentType, caseId, docId);
+        }
 
         try
         {
@@ -637,6 +652,534 @@ public class PdfRenderingService : IPdfRenderingService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating multi-page forensics report: {Message}", ex.Message);
+            throw;
+        }
+    }
+
+    private byte[] GenerateMultiPageInterview(string title, string markdownContent, string documentType, string? caseId, string? docId)
+    {
+        try
+        {
+            var classification = "CONFIDENTIAL • INTERNAL USE ONLY";
+            
+            return Document.Create(container =>
+            {
+                // PAGE 1: Cover Page
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(36);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(10.5f).LineHeight(1.35f));
+                    
+                    page.Background().Element(e => AddWatermark(e, classification));
+                    
+                    page.Header().Column(headerCol =>
+                    {
+                        // Logo at top
+                        var logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, 
+                            "assets", "LogoMetroPolice_transparent.png");
+                        
+                        if (File.Exists(logoPath))
+                        {
+                            headerCol.Item().AlignCenter().Height(100).Image(logoPath);
+                        }
+                        
+                        headerCol.Item().PaddingTop(20).AlignCenter()
+                            .Text("INTERVIEW TRANSCRIPT").FontSize(24).Bold();
+                        headerCol.Item().AlignCenter()
+                            .Text("OFFICIAL STATEMENT RECORD").FontSize(16).FontColor(Colors.Grey.Darken2);
+                    });
+                    
+                    page.Content().PaddingTop(40).Column(col =>
+                    {
+                        // Interview Information Box
+                        col.Item().AlignCenter().Width(450).Border(2).BorderColor(Colors.Amber.Darken2)
+                            .Background(Colors.Amber.Lighten5).Padding(20).Column(c =>
+                        {
+                            c.Item().AlignCenter().Text("INTERVIEW DETAILS").FontSize(14).Bold()
+                                .FontColor(Colors.Amber.Darken3);
+                            
+                            c.Item().PaddingTop(15).Column(infoCol =>
+                            {
+                                infoCol.Item().PaddingBottom(8).Row(r =>
+                                {
+                                    r.RelativeItem().Text("Case Number:").Bold().FontSize(11);
+                                    r.RelativeItem().Text(caseId ?? "________").FontSize(11).FontColor(Colors.Amber.Darken3);
+                                });
+                                
+                                infoCol.Item().PaddingBottom(8).Row(r =>
+                                {
+                                    r.RelativeItem().Text("Interview ID:").Bold().FontSize(11);
+                                    r.RelativeItem().Text(docId ?? "________").FontSize(11).FontColor(Colors.Amber.Darken3);
+                                });
+                                
+                                infoCol.Item().PaddingBottom(8).Row(r =>
+                                {
+                                    r.RelativeItem().Text("Date/Time:").Bold().FontSize(11);
+                                    r.RelativeItem().Text(DateTimeOffset.Now.ToString("MMMM dd, yyyy - HH:mm")).FontSize(11);
+                                });
+                                
+                                infoCol.Item().PaddingBottom(8).Row(r =>
+                                {
+                                    r.RelativeItem().Text("Location:").Bold().FontSize(11);
+                                    r.RelativeItem().Text("Police Station - Interview Room [#]").FontSize(11);
+                                });
+                                
+                                infoCol.Item().PaddingBottom(8).Row(r =>
+                                {
+                                    r.RelativeItem().Text("Subject Name:").Bold().FontSize(11);
+                                    r.RelativeItem().Text("[Name from case data]").FontSize(11);
+                                });
+                                
+                                infoCol.Item().PaddingBottom(8).Row(r =>
+                                {
+                                    r.RelativeItem().Text("Subject Type:").Bold().FontSize(11);
+                                    r.RelativeItem().Text("☐ Witness  ☐ Suspect  ☐ Victim").FontSize(10);
+                                });
+                                
+                                infoCol.Item().PaddingBottom(8).Row(r =>
+                                {
+                                    r.RelativeItem().Text("Interviewer(s):").Bold().FontSize(11);
+                                    r.RelativeItem().Text("Det. [NAME] - Badge #[####]").FontSize(11);
+                                });
+                                
+                                infoCol.Item().Row(r =>
+                                {
+                                    r.RelativeItem().Text("Duration:").Bold().FontSize(11);
+                                    r.RelativeItem().Text("[##] minutes").FontSize(11);
+                                });
+                            });
+                        });
+                        
+                        // Miranda Rights / Rights Advisement (if suspect)
+                        col.Item().PaddingTop(30).AlignCenter().Width(450)
+                            .Border(1).BorderColor(Colors.Red.Lighten2)
+                            .Background(Colors.Red.Lighten5).Padding(15).Column(mirandaCol =>
+                        {
+                            mirandaCol.Item().Text("RIGHTS ADVISEMENT (If Suspect)").FontSize(11).Bold()
+                                .FontColor(Colors.Red.Darken3);
+                            
+                            mirandaCol.Item().PaddingTop(8).Text(t =>
+                            {
+                                t.DefaultTextStyle(TextStyle.Default.FontSize(9).LineHeight(1.5f));
+                                t.Line("☐ Subject advised of Miranda Rights");
+                                t.Line("☐ Subject understood rights as explained");
+                                t.Line("☐ Subject willing to speak without attorney");
+                                t.Line("☐ Rights waiver signed and documented");
+                            });
+                        });
+                        
+                        // Recording Information
+                        col.Item().PaddingTop(20).AlignCenter().Width(450).Column(recCol =>
+                        {
+                            recCol.Item().Row(r =>
+                            {
+                                r.RelativeItem().Background(Colors.Blue.Lighten4).PaddingVertical(5).PaddingHorizontal(10)
+                                    .Text("☑ Audio Recording").FontSize(10).Bold();
+                                
+                                r.ConstantItem(10);
+                                
+                                r.RelativeItem().Background(Colors.Green.Lighten4).PaddingVertical(5).PaddingHorizontal(10)
+                                    .Text("☐ Video Recording").FontSize(10).Bold();
+                            });
+                            
+                            recCol.Item().PaddingTop(8).Text("Recording File: [filename.mp3/.mp4]").FontSize(9)
+                                .FontColor(Colors.Grey.Darken2);
+                        });
+                        
+                        // Instructions
+                        col.Item().PaddingTop(30).PaddingHorizontal(60).Column(instrCol =>
+                        {
+                            instrCol.Item().Text("TRANSCRIPT NOTES").FontSize(12).Bold()
+                                .FontColor(Colors.Grey.Darken3);
+                            
+                            instrCol.Item().PaddingTop(10).Text(t =>
+                            {
+                                t.DefaultTextStyle(TextStyle.Default.FontSize(10).LineHeight(1.6f));
+                                t.Line("• Transcript produced from audio/video recording");
+                                t.Line("• Speaker labels: Q: (Interviewer), A: (Subject)");
+                                t.Line("• [Brackets] indicate non-verbal actions or clarifications");
+                                t.Line("• Pauses and hesitations noted where significant");
+                                t.Line("• Subject reviewed and verified transcript accuracy");
+                            });
+                        });
+                    });
+                    
+                    page.Footer().AlignCenter().Text(t =>
+                    {
+                        t.Span(classification).FontSize(9).FontColor(Colors.Grey.Darken2);
+                        t.Span("   •   Page 1");
+                    });
+                });
+                
+                // PAGE 2+: Interview Content
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(36);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(10.5f).LineHeight(1.35f));
+                    
+                    page.Background().Element(e => AddWatermark(e, classification));
+                    
+                    page.Header().Column(headerCol =>
+                    {
+                        headerCol.Item().Row(r =>
+                        {
+                            var logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, 
+                                "assets", "LogoMetroPolice_transparent.png");
+                            
+                            if (File.Exists(logoPath))
+                            {
+                                r.AutoItem().Height(40).Image(logoPath);
+                            }
+                            
+                            r.RelativeItem().AlignRight().Column(c =>
+                            {
+                                c.Item().Text("INTERVIEW TRANSCRIPT").Bold().FontSize(13);
+                                c.Item().Text($"Interview ID: {docId ?? "________"}").FontSize(9.5f)
+                                    .FontColor(Colors.Grey.Darken2);
+                            });
+                        });
+                        
+                        headerCol.Item().PaddingTop(5).Text(title).FontSize(13).Bold();
+                        headerCol.Item().PaddingTop(4).BorderBottom(1).BorderColor(Colors.Grey.Lighten1)
+                            .PaddingBottom(4).Text(classification).FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+                    });
+                    
+                    page.Content().PaddingTop(8).Column(col =>
+                    {
+                        RenderInterviewContent(col, markdownContent, caseId, docId);
+                    });
+                    
+                    page.Footer().AlignCenter().Text(t =>
+                    {
+                        t.Span(classification).FontSize(9).FontColor(Colors.Grey.Darken2);
+                        t.Span("   •   Page ");
+                        t.CurrentPageNumber().FontSize(9);
+                    });
+                });
+            }).GeneratePdf();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating multi-page interview: {Message}", ex.Message);
+            throw;
+        }
+    }
+
+    private byte[] GenerateMultiPageMemo(string title, string markdownContent, string documentType, string? caseId, string? docId)
+    {
+        try
+        {
+            var classification = "CONFIDENTIAL • INTERNAL USE ONLY";
+            
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(36);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(10.5f).LineHeight(1.35f));
+                    
+                    page.Background().Element(e => AddWatermark(e, classification));
+                    
+                    page.Header().Column(headerCol =>
+                    {
+                        // Logo and department header
+                        headerCol.Item().Row(r =>
+                        {
+                            var logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, 
+                                "assets", "LogoMetroPolice_transparent.png");
+                            
+                            if (File.Exists(logoPath))
+                            {
+                                r.AutoItem().Height(60).Image(logoPath);
+                            }
+                            
+                            r.RelativeItem().PaddingLeft(15).AlignMiddle().Column(c =>
+                            {
+                                c.Item().Text("MUNICIPAL POLICE DEPARTMENT").FontSize(14).Bold();
+                                c.Item().Text("Interdepartmental Communication").FontSize(11)
+                                    .FontColor(Colors.Grey.Darken2);
+                            });
+                        });
+                        
+                        headerCol.Item().PaddingTop(15).AlignCenter()
+                            .Text("M E M O R A N D U M").FontSize(18).Bold();
+                        
+                        headerCol.Item().PaddingTop(10).BorderBottom(2).BorderColor(Colors.Grey.Darken2);
+                    });
+                    
+                    page.Content().PaddingTop(20).Column(col =>
+                    {
+                        // Memo header block
+                        col.Item().Column(memoHeader =>
+                        {
+                            // TO field
+                            memoHeader.Item().PaddingBottom(10).Row(r =>
+                            {
+                                r.ConstantItem(120).Text("TO:").FontSize(11).Bold();
+                                r.RelativeItem().BorderBottom(1).BorderColor(Colors.Grey.Lighten2)
+                                    .PaddingBottom(3).Text("[Recipient Name / Unit]").FontSize(11);
+                            });
+                            
+                            // FROM field
+                            memoHeader.Item().PaddingBottom(10).Row(r =>
+                            {
+                                r.ConstantItem(120).Text("FROM:").FontSize(11).Bold();
+                                r.RelativeItem().BorderBottom(1).BorderColor(Colors.Grey.Lighten2)
+                                    .PaddingBottom(3).Text("[Sender Name / Unit] - Badge #[####]").FontSize(11);
+                            });
+                            
+                            // DATE field
+                            memoHeader.Item().PaddingBottom(10).Row(r =>
+                            {
+                                r.ConstantItem(120).Text("DATE:").FontSize(11).Bold();
+                                r.RelativeItem().BorderBottom(1).BorderColor(Colors.Grey.Lighten2)
+                                    .PaddingBottom(3).Text(DateTimeOffset.Now.ToString("MMMM dd, yyyy")).FontSize(11);
+                            });
+                            
+                            // CASE REF field
+                            memoHeader.Item().PaddingBottom(10).Row(r =>
+                            {
+                                r.ConstantItem(120).Text("CASE REF:").FontSize(11).Bold();
+                                r.RelativeItem().BorderBottom(1).BorderColor(Colors.Grey.Lighten2)
+                                    .PaddingBottom(3).Text(caseId ?? "N/A").FontSize(11).FontColor(Colors.Blue.Darken2);
+                            });
+                            
+                            // SUBJECT field (RE:)
+                            memoHeader.Item().PaddingBottom(10).Row(r =>
+                            {
+                                r.ConstantItem(120).Text("RE:").FontSize(11).Bold();
+                                r.RelativeItem().BorderBottom(1).BorderColor(Colors.Grey.Lighten2)
+                                    .PaddingBottom(3).Text(title).FontSize(11).Bold();
+                            });
+                        });
+                        
+                        // Priority indicator (if applicable)
+                        col.Item().PaddingTop(15).PaddingBottom(15).Row(priorityRow =>
+                        {
+                            priorityRow.AutoItem().Text("PRIORITY: ").FontSize(10).Bold();
+                            priorityRow.AutoItem().Background(Colors.Orange.Lighten3).PaddingVertical(3).PaddingHorizontal(8)
+                                .Text("☐ ROUTINE  ☐ URGENT  ☑ TIME SENSITIVE").FontSize(9).Bold()
+                                .FontColor(Colors.Orange.Darken3);
+                        });
+                        
+                        // Horizontal line separator
+                        col.Item().PaddingBottom(15).BorderBottom(1).BorderColor(Colors.Grey.Lighten1);
+                        
+                        // Memo body content
+                        RenderMemoContent(col, markdownContent, caseId, docId);
+                    });
+                    
+                    page.Footer().Column(footerCol =>
+                    {
+                        footerCol.Item().BorderTop(1).BorderColor(Colors.Grey.Lighten1).PaddingTop(8);
+                        footerCol.Item().AlignCenter().Text(t =>
+                        {
+                            t.Span(classification).FontSize(9).FontColor(Colors.Grey.Darken2);
+                            t.Span("   •   Page ");
+                            t.CurrentPageNumber().FontSize(9);
+                        });
+                    });
+                });
+            }).GeneratePdf();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating multi-page memo: {Message}", ex.Message);
+            throw;
+        }
+    }
+
+    private byte[] GenerateMultiPageWitnessStatement(string title, string markdownContent, string documentType, string? caseId, string? docId)
+    {
+        try
+        {
+            var classification = "CONFIDENTIAL • LAW ENFORCEMENT SENSITIVE";
+            
+            return Document.Create(container =>
+            {
+                // PAGE 1: Cover page with witness information
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(36);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(10.5f).LineHeight(1.35f));
+                    
+                    page.Background().Element(e => AddWatermark(e, classification));
+                    
+                    page.Header().Column(headerCol =>
+                    {
+                        // Large centered logo
+                        var logoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, 
+                            "assets", "LogoMetroPolice_transparent.png");
+                        
+                        if (File.Exists(logoPath))
+                        {
+                            headerCol.Item().AlignCenter().Height(100).Image(logoPath);
+                        }
+                        
+                        headerCol.Item().PaddingTop(15).AlignCenter()
+                            .Text("MUNICIPAL POLICE DEPARTMENT").FontSize(16).Bold();
+                        
+                        headerCol.Item().PaddingTop(5).AlignCenter()
+                            .Text("WITNESS STATEMENT").FontSize(20).Bold().LetterSpacing(1);
+                        
+                        headerCol.Item().PaddingTop(10).BorderBottom(2).BorderColor(Colors.Grey.Darken2);
+                    });
+                    
+                    page.Content().PaddingTop(20).Column(col =>
+                    {
+                        // Case information box
+                        col.Item().Border(2).BorderColor(Colors.Blue.Darken2)
+                            .Padding(12).Column(c =>
+                        {
+                            c.Item().PaddingBottom(10).Row(r =>
+                            {
+                                r.RelativeItem().Text($"CASE NUMBER:").FontSize(10).Bold();
+                                r.RelativeItem().Text(caseId ?? "N/A").FontSize(11).Bold()
+                                    .FontColor(Colors.Blue.Darken2);
+                            });
+                            
+                            c.Item().PaddingBottom(8).Row(r =>
+                            {
+                                r.RelativeItem().Text("DOCUMENT ID:").FontSize(9);
+                                r.RelativeItem().Text(docId ?? "N/A").FontSize(9)
+                                    .FontColor(Colors.Grey.Darken2);
+                            });
+                            
+                            c.Item().Row(r =>
+                            {
+                                r.RelativeItem().Text("DATE OF STATEMENT:").FontSize(9);
+                                r.RelativeItem().Text(DateTime.Now.ToString("MMMM dd, yyyy")).FontSize(9);
+                            });
+                        });
+                        
+                        // Witness information section
+                        col.Item().PaddingTop(20).Text("WITNESS INFORMATION").FontSize(12).Bold()
+                            .FontColor(Colors.Grey.Darken4);
+                        
+                        col.Item().PaddingTop(10).Border(1).BorderColor(Colors.Grey.Lighten2)
+                            .Padding(12).Column(c =>
+                        {
+                            c.Item().PaddingBottom(10).Row(r =>
+                            {
+                                r.ConstantItem(150).Text("FULL NAME:").FontSize(10).Bold();
+                                r.RelativeItem().BorderBottom(1).BorderColor(Colors.Grey.Lighten1)
+                                    .AlignMiddle().Text("________________________________________").FontSize(9);
+                            });
+                            
+                            c.Item().PaddingBottom(10).Row(r =>
+                            {
+                                r.ConstantItem(150).Text("DATE OF BIRTH:").FontSize(10).Bold();
+                                r.RelativeItem().BorderBottom(1).BorderColor(Colors.Grey.Lighten1)
+                                    .AlignMiddle().Text("________________________________________").FontSize(9);
+                            });
+                            
+                            c.Item().PaddingBottom(10).Row(r =>
+                            {
+                                r.ConstantItem(150).Text("ADDRESS:").FontSize(10).Bold();
+                                r.RelativeItem().BorderBottom(1).BorderColor(Colors.Grey.Lighten1)
+                                    .AlignMiddle().Text("________________________________________").FontSize(9);
+                            });
+                            
+                            c.Item().PaddingBottom(10).Row(r =>
+                            {
+                                r.ConstantItem(150).Text("PHONE NUMBER:").FontSize(10).Bold();
+                                r.RelativeItem().BorderBottom(1).BorderColor(Colors.Grey.Lighten1)
+                                    .AlignMiddle().Text("________________________________________").FontSize(9);
+                            });
+                            
+                            c.Item().Row(r =>
+                            {
+                                r.ConstantItem(150).Text("OCCUPATION:").FontSize(10).Bold();
+                                r.RelativeItem().BorderBottom(1).BorderColor(Colors.Grey.Lighten1)
+                                    .AlignMiddle().Text("________________________________________").FontSize(9);
+                            });
+                        });
+                        
+                        // Statement certification box
+                        col.Item().PaddingTop(20).Background(Colors.Grey.Lighten3)
+                            .Border(1).BorderColor(Colors.Grey.Darken1)
+                            .Padding(12).Column(c =>
+                        {
+                            c.Item().Text("STATEMENT CERTIFICATION").FontSize(10).Bold()
+                                .FontColor(Colors.Grey.Darken4);
+                            
+                            c.Item().PaddingTop(8).Text("I hereby certify that the following statement is true and accurate to the best of my knowledge. I understand that providing false information to law enforcement is a crime.")
+                                .FontSize(9).Italic().LineHeight(1.4f);
+                        });
+                        
+                        // Oath acknowledgment
+                        col.Item().PaddingTop(20).Row(r =>
+                        {
+                            r.ConstantItem(25).AlignMiddle().Text("☑").FontSize(16)
+                                .FontColor(Colors.Blue.Darken2);
+                            r.RelativeItem().AlignMiddle().Text("Witness has been advised of their rights and obligations")
+                                .FontSize(9).Bold();
+                        });
+                        
+                        col.Item().PaddingTop(8).Row(r =>
+                        {
+                            r.ConstantItem(25).AlignMiddle().Text("☑").FontSize(16)
+                                .FontColor(Colors.Blue.Darken2);
+                            r.RelativeItem().AlignMiddle().Text("Statement given voluntarily without coercion")
+                                .FontSize(9).Bold();
+                        });
+                        
+                        col.Item().PaddingTop(8).Row(r =>
+                        {
+                            r.ConstantItem(25).AlignMiddle().Text("☑").FontSize(16)
+                                .FontColor(Colors.Blue.Darken2);
+                            r.RelativeItem().AlignMiddle().Text("Witness has read and approved this statement")
+                                .FontSize(9).Bold();
+                        });
+                    });
+                    
+                    page.Footer().AlignCenter().Text(txt =>
+                    {
+                        txt.Span(classification).FontSize(8).FontColor(Colors.Grey.Darken2);
+                        txt.Span(" • Page 1").FontSize(8).FontColor(Colors.Grey.Darken1);
+                    });
+                });
+                
+                // PAGE 2+: Statement content
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.Margin(36);
+                    page.PageColor(Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(10.5f).LineHeight(1.35f));
+                    
+                    page.Background().Element(e => AddWatermark(e, classification));
+                    
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Element(e => BuildLetterhead(e, "WITNESS STATEMENT", title, caseId, docId));
+                        col.Item().PaddingTop(8).BorderBottom(1).BorderColor(Colors.Grey.Lighten2);
+                    });
+                    
+                    page.Content().PaddingTop(15).Column(col =>
+                    {
+                        RenderWitnessStatementContent(col, markdownContent, caseId, docId);
+                    });
+                    
+                    page.Footer().AlignCenter().Text(txt =>
+                    {
+                        txt.Span(classification).FontSize(8).FontColor(Colors.Grey.Darken2);
+                        txt.Span(" • Page 2").FontSize(8).FontColor(Colors.Grey.Darken1);
+                    });
+                });
+            }).GeneratePdf();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating multi-page witness statement: {Message}", ex.Message);
             throw;
         }
     }
@@ -2143,6 +2686,459 @@ public class PdfRenderingService : IPdfRenderingService
                         .FontColor(Colors.Grey.Darken2);
                 });
             });
+        });
+    }
+    
+    private void RenderInterviewContent(ColumnDescriptor col, string md, string? caseId, string? docId)
+    {
+        // Interview start notification
+        col.Item().PaddingBottom(15).Background(Colors.Amber.Lighten5).Border(1)
+            .BorderColor(Colors.Amber.Lighten3).Padding(10).Text(t =>
+        {
+            t.DefaultTextStyle(TextStyle.Default.FontSize(10).FontColor(Colors.Amber.Darken3));
+            t.Span("Interview commenced at ").Bold();
+            t.Span(DateTimeOffset.Now.ToString("HH:mm"));
+            t.Span(". Subject present and acknowledged understanding of interview purpose.");
+        });
+        
+        // Transcript notation guide
+        col.Item().PaddingBottom(10).Text(t =>
+        {
+            t.DefaultTextStyle(TextStyle.Default.FontSize(9).FontColor(Colors.Grey.Darken2).Italic());
+            t.Span("Notation: ");
+            t.Span("Q: ").Bold().FontColor(Colors.Blue.Darken2);
+            t.Span("= Interviewer Question  ");
+            t.Span("A: ").Bold().FontColor(Colors.Green.Darken2);
+            t.Span("= Subject Answer  ");
+            t.Span("[Action] ").FontColor(Colors.Grey.Darken1);
+            t.Span("= Non-verbal notation");
+        });
+        
+        // Render markdown content (Q&A transcript)
+        RenderMarkdownContent(col, md);
+        
+        // Interview conclusion
+        col.Item().PaddingTop(15).Background(Colors.Amber.Lighten5).Border(1)
+            .BorderColor(Colors.Amber.Lighten3).Padding(10).Text(t =>
+        {
+            t.DefaultTextStyle(TextStyle.Default.FontSize(10).FontColor(Colors.Amber.Darken3));
+            t.Span("Interview concluded at ").Bold();
+            t.Span(DateTimeOffset.Now.AddMinutes(45).ToString("HH:mm"));
+            t.Span(". Subject provided voluntary statement. No coercion or duress observed.");
+        });
+        
+        // Certification section
+        col.Item().PaddingTop(20).BorderTop(2).BorderColor(Colors.Amber.Darken2)
+            .PaddingTop(15).Column(certCol =>
+        {
+            certCol.Item().Text("INTERVIEW CERTIFICATION").FontSize(11).Bold()
+                .FontColor(Colors.Grey.Darken3);
+            
+            certCol.Item().PaddingTop(10).Text(t =>
+            {
+                t.DefaultTextStyle(TextStyle.Default.FontSize(9).LineHeight(1.5f));
+                t.Span("I certify that this transcript is a true and accurate representation of the ");
+                t.Span("interview conducted. The subject was treated fairly and professionally. ");
+                t.Span("All statements were voluntary and recorded accurately.");
+            });
+            
+            // Subject acknowledgment
+            certCol.Item().PaddingTop(15).Row(subjRow =>
+            {
+                subjRow.RelativeItem().Column(c =>
+                {
+                    c.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1).Height(30);
+                    c.Item().PaddingTop(2).Text("Subject Signature").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+                
+                subjRow.ConstantItem(20);
+                
+                subjRow.RelativeItem().Column(c =>
+                {
+                    c.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text($"{DateTimeOffset.Now:MM/dd/yyyy}").FontSize(9);
+                    c.Item().PaddingTop(2).Text("Date").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+                
+                subjRow.ConstantItem(20);
+                
+                subjRow.RelativeItem().Column(c =>
+                {
+                    c.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text(DateTimeOffset.Now.ToString("HH:mm")).FontSize(9);
+                    c.Item().PaddingTop(2).Text("Time").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+            });
+            
+            // Interviewer certification
+            certCol.Item().PaddingTop(15).Row(intRow =>
+            {
+                intRow.RelativeItem().Column(c =>
+                {
+                    c.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1).Height(30);
+                    c.Item().PaddingTop(2).Text("Interviewing Officer Signature").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+                
+                intRow.ConstantItem(20);
+                
+                intRow.RelativeItem().Column(c =>
+                {
+                    c.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1).Height(30);
+                    c.Item().PaddingTop(2).Text("Badge Number").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+                
+                intRow.ConstantItem(20);
+                
+                intRow.RelativeItem().Column(c =>
+                {
+                    c.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text($"{DateTimeOffset.Now:MM/dd/yyyy}").FontSize(9);
+                    c.Item().PaddingTop(2).Text("Date").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+            });
+            
+            // Witness officer (if present)
+            certCol.Item().PaddingTop(15).Row(witRow =>
+            {
+                witRow.RelativeItem().Column(c =>
+                {
+                    c.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1).Height(30);
+                    c.Item().PaddingTop(2).Text("Witness Officer Signature (if present)").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+                
+                witRow.ConstantItem(20);
+                
+                witRow.RelativeItem().Column(c =>
+                {
+                    c.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1).Height(30);
+                    c.Item().PaddingTop(2).Text("Badge Number").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+                
+                witRow.ConstantItem(20);
+                
+                witRow.RelativeItem().Column(c =>
+                {
+                    c.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________").FontSize(9);
+                    c.Item().PaddingTop(2).Text("Date").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+            });
+        });
+    }
+
+    private void RenderMemoContent(ColumnDescriptor col, string md, string? caseId, string? docId)
+    {
+        // Parse markdown sections
+        var lines = md.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+        var sections = new Dictionary<string, List<string>>
+        {
+            ["BACKGROUND"] = new List<string>(),
+            ["DISCUSSION"] = new List<string>(),
+            ["RECOMMENDATIONS"] = new List<string>(),
+            ["ACTION ITEMS"] = new List<string>()
+        };
+        
+        string currentSection = "";
+        foreach (var line in lines)
+        {
+            var upper = line.Trim().ToUpper();
+            if (upper.Contains("BACKGROUND"))
+                currentSection = "BACKGROUND";
+            else if (upper.Contains("DISCUSSION") || upper.Contains("FINDINGS"))
+                currentSection = "DISCUSSION";
+            else if (upper.Contains("RECOMMENDATION"))
+                currentSection = "RECOMMENDATIONS";
+            else if (upper.Contains("ACTION ITEM"))
+                currentSection = "ACTION ITEMS";
+            else if (!string.IsNullOrWhiteSpace(currentSection) && !string.IsNullOrWhiteSpace(line))
+                sections[currentSection].Add(line);
+        }
+
+        // Render sections
+        foreach (var section in sections)
+        {
+            if (section.Value.Count == 0) continue;
+
+            col.Item().PaddingTop(15).PaddingBottom(8).Row(row =>
+            {
+                row.RelativeItem().Border(1).BorderColor(Colors.Grey.Darken2)
+                    .Padding(6).AlignMiddle()
+                    .Text(section.Key).FontSize(11).Bold()
+                    .FontColor(Colors.Grey.Darken4);
+            });
+
+            col.Item().Border(1).BorderColor(Colors.Grey.Lighten2)
+                .Padding(10).Column(c =>
+            {
+                foreach (var line in section.Value)
+                {
+                    c.Item().PaddingBottom(4).Text(line.Trim()).FontSize(10)
+                        .LineHeight(1.4f);
+                }
+            });
+        }
+
+        // If no sections found, render all content
+        if (sections.All(s => s.Value.Count == 0))
+        {
+            col.Item().PaddingTop(15).Border(1).BorderColor(Colors.Grey.Lighten2)
+                .Padding(12).Column(c =>
+            {
+                foreach (var line in lines.Where(l => !string.IsNullOrWhiteSpace(l)))
+                {
+                    c.Item().PaddingBottom(4).Text(line.Trim()).FontSize(10)
+                        .LineHeight(1.4f);
+                }
+            });
+        }
+
+        // ACKNOWLEDGMENT section
+        col.Item().PaddingTop(30).Border(1).BorderColor(Colors.Grey.Darken2)
+            .Padding(12).Column(c =>
+        {
+            c.Item().PaddingBottom(10).Text("ACKNOWLEDGMENT").FontSize(11).Bold()
+                .FontColor(Colors.Grey.Darken4);
+
+            // Prepared by
+            c.Item().PaddingTop(15).Row(row =>
+            {
+                row.RelativeItem().Column(prepCol =>
+                {
+                    prepCol.Item().Text("PREPARED BY:").FontSize(9).Bold()
+                        .FontColor(Colors.Grey.Darken3);
+                    prepCol.Item().PaddingTop(8).BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________________________________________").FontSize(9);
+                    prepCol.Item().PaddingTop(2).Text("Officer Name / Rank").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+                
+                row.ConstantItem(20);
+                
+                row.RelativeItem().Column(dateCol =>
+                {
+                    dateCol.Item().Text("DATE:").FontSize(9).Bold()
+                        .FontColor(Colors.Grey.Darken3);
+                    dateCol.Item().PaddingTop(8).BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________________").FontSize(9);
+                    dateCol.Item().PaddingTop(2).Text("MM/DD/YYYY").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+            });
+
+            // Reviewed by
+            c.Item().PaddingTop(20).Row(row =>
+            {
+                row.RelativeItem().Column(revCol =>
+                {
+                    revCol.Item().Text("REVIEWED BY:").FontSize(9).Bold()
+                        .FontColor(Colors.Grey.Darken3);
+                    revCol.Item().PaddingTop(8).BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________________________________________").FontSize(9);
+                    revCol.Item().PaddingTop(2).Text("Supervisor Name").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+                
+                row.ConstantItem(20);
+                
+                row.RelativeItem().Column(dateCol =>
+                {
+                    dateCol.Item().Text("DATE:").FontSize(9).Bold()
+                        .FontColor(Colors.Grey.Darken3);
+                    dateCol.Item().PaddingTop(8).BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________________").FontSize(9);
+                    dateCol.Item().PaddingTop(2).Text("MM/DD/YYYY").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+            });
+
+            // Approved by
+            c.Item().PaddingTop(20).Row(row =>
+            {
+                row.RelativeItem().Column(appCol =>
+                {
+                    appCol.Item().Text("APPROVED BY:").FontSize(9).Bold()
+                        .FontColor(Colors.Grey.Darken3);
+                    appCol.Item().PaddingTop(8).BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________________________________________").FontSize(9);
+                    appCol.Item().PaddingTop(2).Text("Commanding Officer").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+                
+                row.ConstantItem(20);
+                
+                row.RelativeItem().Column(dateCol =>
+                {
+                    dateCol.Item().Text("DATE:").FontSize(9).Bold()
+                        .FontColor(Colors.Grey.Darken3);
+                    dateCol.Item().PaddingTop(8).BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________________").FontSize(9);
+                    dateCol.Item().PaddingTop(2).Text("MM/DD/YYYY").FontSize(8)
+                        .FontColor(Colors.Grey.Darken2);
+                });
+            });
+        });
+    }
+
+    private void RenderWitnessStatementContent(ColumnDescriptor col, string md, string? caseId, string? docId)
+    {
+        // Statement header
+        col.Item().PaddingBottom(15).Column(c =>
+        {
+            c.Item().Text("WITNESS STATEMENT").FontSize(12).Bold()
+                .FontColor(Colors.Grey.Darken4);
+            c.Item().PaddingTop(5).Text($"Case Reference: {caseId ?? "N/A"}").FontSize(9)
+                .FontColor(Colors.Grey.Darken2);
+            c.Item().Text($"Statement Date: {DateTime.Now.ToString("MMMM dd, yyyy")}").FontSize(9)
+                .FontColor(Colors.Grey.Darken2);
+        });
+        
+        // Statement content
+        col.Item().Border(1).BorderColor(Colors.Grey.Lighten2)
+            .Padding(12).Column(c =>
+        {
+            c.Item().PaddingBottom(10).Text("STATEMENT:").FontSize(10).Bold()
+                .FontColor(Colors.Grey.Darken3);
+            
+            var lines = md.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            foreach (var line in lines)
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                
+                // Skip markdown headers
+                if (line.TrimStart().StartsWith("#")) continue;
+                
+                c.Item().PaddingBottom(8).Text(line.Trim()).FontSize(10)
+                    .LineHeight(1.5f);
+            }
+        });
+        
+        // Witness signature section
+        col.Item().PaddingTop(30).Border(2).BorderColor(Colors.Blue.Darken2)
+            .Padding(15).Column(c =>
+        {
+            c.Item().PaddingBottom(15).Text("WITNESS SIGNATURE").FontSize(11).Bold()
+                .FontColor(Colors.Grey.Darken4);
+            
+            // Witness signature
+            c.Item().PaddingTop(15).Row(row =>
+            {
+                row.RelativeItem().Column(sigCol =>
+                {
+                    sigCol.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________________________________________").FontSize(9);
+                    sigCol.Item().PaddingTop(2).Text("Witness Signature").FontSize(9).Bold()
+                        .FontColor(Colors.Grey.Darken2);
+                });
+                
+                row.ConstantItem(20);
+                
+                row.RelativeItem().Column(dateCol =>
+                {
+                    dateCol.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________________").FontSize(9);
+                    dateCol.Item().PaddingTop(2).Text("Date").FontSize(9).Bold()
+                        .FontColor(Colors.Grey.Darken2);
+                });
+            });
+            
+            // Print name
+            c.Item().PaddingTop(20).Row(row =>
+            {
+                row.ConstantItem(120).Text("PRINT NAME:").FontSize(9).Bold()
+                    .FontColor(Colors.Grey.Darken3);
+                row.RelativeItem().BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                    .AlignMiddle().Text("__________________________________________").FontSize(9);
+            });
+        });
+        
+        // Officer witnessing signature section
+        col.Item().PaddingTop(20).Border(1).BorderColor(Colors.Grey.Darken2)
+            .Padding(12).Column(c =>
+        {
+            c.Item().PaddingBottom(15).Text("OFFICER VERIFICATION").FontSize(11).Bold()
+                .FontColor(Colors.Grey.Darken4);
+            
+            c.Item().PaddingBottom(10).Text("I certify that this statement was given voluntarily and that the witness was advised of their rights and obligations.")
+                .FontSize(9).Italic().LineHeight(1.4f);
+            
+            // Officer signature
+            c.Item().PaddingTop(15).Row(row =>
+            {
+                row.RelativeItem().Column(sigCol =>
+                {
+                    sigCol.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________________________________________").FontSize(9);
+                    sigCol.Item().PaddingTop(2).Text("Officer Signature").FontSize(9).Bold()
+                        .FontColor(Colors.Grey.Darken2);
+                });
+                
+                row.ConstantItem(20);
+                
+                row.RelativeItem().Column(badgeCol =>
+                {
+                    badgeCol.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________________").FontSize(9);
+                    badgeCol.Item().PaddingTop(2).Text("Badge Number").FontSize(9).Bold()
+                        .FontColor(Colors.Grey.Darken2);
+                });
+                
+                row.ConstantItem(20);
+                
+                row.RelativeItem().Column(dateCol =>
+                {
+                    dateCol.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________________").FontSize(9);
+                    dateCol.Item().PaddingTop(2).Text("Date").FontSize(9).Bold()
+                        .FontColor(Colors.Grey.Darken2);
+                });
+            });
+        });
+        
+        // Notary public section
+        col.Item().PaddingTop(20).Background(Colors.Grey.Lighten3)
+            .Border(2).BorderColor(Colors.Grey.Darken3)
+            .Padding(12).Column(c =>
+        {
+            c.Item().PaddingBottom(15).Text("NOTARY PUBLIC ACKNOWLEDGMENT").FontSize(11).Bold()
+                .FontColor(Colors.Grey.Darken4);
+            
+            c.Item().PaddingBottom(10).Text("State of: ________________     County of: ________________")
+                .FontSize(9);
+            
+            c.Item().PaddingBottom(10).Text("Subscribed and sworn to (or affirmed) before me on this _____ day of _____________, 20___, by ________________________________ (name of witness), proved to me on the basis of satisfactory evidence to be the person who appeared before me.")
+                .FontSize(9).LineHeight(1.4f);
+            
+            // Notary signature
+            c.Item().PaddingTop(15).Row(row =>
+            {
+                row.RelativeItem().Column(sigCol =>
+                {
+                    sigCol.Item().BorderBottom(1).BorderColor(Colors.Grey.Darken1)
+                        .AlignMiddle().Text("__________________________________________").FontSize(9);
+                    sigCol.Item().PaddingTop(2).Text("Notary Public Signature").FontSize(9).Bold()
+                        .FontColor(Colors.Grey.Darken2);
+                });
+            });
+            
+            c.Item().PaddingTop(15).Row(row =>
+            {
+                row.RelativeItem().Text("Commission Number: ________________").FontSize(9);
+                row.ConstantItem(20);
+                row.RelativeItem().Text("My Commission Expires: ________________").FontSize(9);
+            });
+            
+            c.Item().PaddingTop(10).AlignCenter().Border(1).BorderColor(Colors.Grey.Darken2)
+                .Padding(8).Text("[NOTARY SEAL]").FontSize(9).Italic()
+                .FontColor(Colors.Grey.Darken2);
         });
     }
 
