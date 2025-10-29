@@ -124,42 +124,57 @@ public class PdfRenderingService : IPdfRenderingService
 
     private byte[] GenerateRealisticPdf(string title, string markdownContent, string documentType = "general", string? caseId = null, string? docId = null)
     {
-        // Check if this is a multi-page document type
-        if (documentType.ToLower() == "suspect_profile" || documentType.ToLower() == "witness_profile")
-        {
-            return GenerateMultiPageSuspectProfile(title, markdownContent, documentType, caseId, docId);
-        }
-        
-        if (documentType.ToLower() == "evidence_log" || documentType.ToLower() == "evidence_catalog")
-        {
-            return GenerateMultiPageEvidenceLog(title, markdownContent, documentType, caseId, docId);
-        }
-        
-        if (documentType.ToLower() == "forensics_report" || documentType.ToLower() == "lab_report")
-        {
-            return GenerateMultiPageForensicsReport(title, markdownContent, documentType, caseId, docId);
-        }
-        
-        if (documentType.ToLower() == "interview" || documentType.ToLower() == "interview_transcript")
-        {
-            return GenerateMultiPageInterview(title, markdownContent, documentType, caseId, docId);
-        }
-        
-        if (documentType.ToLower() == "memo" || documentType.ToLower() == "memo_admin" || documentType.ToLower() == "internal_memo")
-        {
-            return GenerateMultiPageMemo(title, markdownContent, documentType, caseId, docId);
-        }
-        
-        if (documentType.ToLower() == "witness_statement" || documentType.ToLower() == "statement")
-        {
-            return GenerateMultiPageWitnessStatement(title, markdownContent, documentType, caseId, docId);
-        }
-
         try
         {
+            // Route to appropriate template based on document type
+            var docTypeLower = documentType.ToLower();
+            
+            // Multi-page templates with specialized layouts
+            if (docTypeLower == "suspect_profile" || docTypeLower == "witness_profile")
+            {
+                var template = new CaseGen.Functions.Services.Pdf.Templates.SuspectProfileTemplate(_logger);
+                return template.Generate(title, markdownContent, documentType, caseId, docId);
+            }
+            
+            if (docTypeLower == "evidence_log" || docTypeLower == "evidence_catalog")
+            {
+                var template = new CaseGen.Functions.Services.Pdf.Templates.EvidenceLogTemplate(_logger);
+                return template.Generate(title, markdownContent, documentType, caseId, docId);
+            }
+            
+            if (docTypeLower == "forensics_report" || docTypeLower == "lab_report")
+            {
+                var template = new CaseGen.Functions.Services.Pdf.Templates.ForensicsReportTemplate(_logger);
+                return template.Generate(title, markdownContent, documentType, caseId, docId);
+            }
+            
+            if (docTypeLower == "interview" || docTypeLower == "interview_transcript")
+            {
+                var template = new CaseGen.Functions.Services.Pdf.Templates.InterviewTranscriptTemplate(_logger);
+                return template.Generate(title, markdownContent, documentType, caseId, docId);
+            }
+            
+            if (docTypeLower == "memo" || docTypeLower == "memo_admin" || docTypeLower == "internal_memo")
+            {
+                var template = new CaseGen.Functions.Services.Pdf.Templates.MemoTemplate(_logger);
+                return template.Generate(title, markdownContent, documentType, caseId, docId);
+            }
+            
+            if (docTypeLower == "witness_statement" || docTypeLower == "statement")
+            {
+                var template = new CaseGen.Functions.Services.Pdf.Templates.WitnessStatementTemplate(_logger);
+                return template.Generate(title, markdownContent, documentType, caseId, docId);
+            }
+            
+            if (docTypeLower == "police_report" || docTypeLower == "incident_report")
+            {
+                var template = new CaseGen.Functions.Services.Pdf.Templates.PoliceReportTemplate(_logger);
+                return template.Generate(title, markdownContent, documentType, caseId, docId);
+            }
+
+            // Fallback: Generic single-page document with standard letterhead
             var classification = "CONFIDENTIAL • INTERNAL USE ONLY";
-            var docTypeLabel = GetDocumentTypeLabel(documentType);
-            var (bandBg, bandText) = GetThemeColors(documentType);
+            var docTypeLabel = CaseGen.Functions.Services.Pdf.PdfCommonComponents.GetDocumentTypeLabel(documentType);
 
             return Document.Create(container =>
             {
@@ -170,23 +185,19 @@ public class PdfRenderingService : IPdfRenderingService
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(10.5f).LineHeight(1.35f));
 
-                    // Soft watermark
-                    page.Background().Element(e => AddWatermark(e, classification));
+                    page.Background().Element(e => CaseGen.Functions.Services.Pdf.PdfCommonComponents.AddWatermark(e, classification));
 
-                    // Institutional letterhead
                     page.Header().Column(headerCol =>
                     {
-                        headerCol.Item().Element(h => BuildLetterhead(h, docTypeLabel, title, caseId, docId));
-                        headerCol.Item().Element(h => BuildClassificationBand(h, classification));
+                        headerCol.Item().Element(h => CaseGen.Functions.Services.Pdf.PdfCommonComponents.BuildLetterhead(h, docTypeLabel, title, caseId, docId));
+                        headerCol.Item().Element(h => CaseGen.Functions.Services.Pdf.PdfCommonComponents.BuildClassificationBand(h, classification));
                     });
 
-                    // Content
                     page.Content().PaddingTop(8).Column(col =>
                     {
                         RenderByType(col, documentType, markdownContent, caseId, docId);
                     });
 
-                    // Footer with pagination and classification
                     page.Footer().AlignCenter().Text(t =>
                     {
                         t.Span(classification).FontSize(9).FontColor(Colors.Grey.Darken2);
@@ -200,7 +211,7 @@ public class PdfRenderingService : IPdfRenderingService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in GenerateRealisticPdf");
+            _logger.LogError(ex, "Error in GenerateRealisticPdf: {Message}", ex.Message);
             throw;
         }
     }
@@ -1416,29 +1427,15 @@ public class PdfRenderingService : IPdfRenderingService
 
     private void RenderByType(ColumnDescriptor col, string documentType, string markdownContent, string? caseId, string? docId)
     {
+        // This method is only for fallback/generic documents
+        // Specialized templates (suspect_profile, evidence_log, etc.) are handled in GenerateRealisticPdf
         switch (documentType.ToLower())
         {
             case "cover_page":
                 RenderCoverPage(col, caseId, markdownContent);
                 break;
-            case "suspect_profile":
-            case "witness_profile":
-                var mugshotPath = FindMugshotPath(docId, markdownContent);
-                RenderSuspectProfile(col, markdownContent, mugshotPath);
-                break;
-            case "police_report":
-                RenderPoliceReport(col, markdownContent, caseId, docId);
-                break;
-            case "forensics_report":
-                RenderForensicsReport(col, markdownContent);
-                break;
-            case "interview":
-                RenderInterview(col, markdownContent);
-                break;
-            case "evidence_log":
-                RenderEvidenceLog(col, markdownContent);
-                break;
             default:
+                // Generic rendering for any document type not covered by specialized templates
                 RenderGeneric(col, markdownContent);
                 break;
         }
