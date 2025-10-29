@@ -38,14 +38,26 @@ Sistema de geração automática de casos com Azure Functions e AI:
 
 ```
 backend/CaseGen.Functions/
-├── Functions/            # Azure Durable Functions
-├── Services/            # LLM, Storage, Logging
+├── Functions/            # Azure Durable Functions (Orchestration, Activities)
+├── Services/            
+│   ├── LLMService.cs           # OpenAI GPT-4 integration
+│   ├── StorageService.cs       # Azure Blob Storage (Azurite local)
+│   ├── PdfRenderingService.cs  # ⭐ PDF generation (~3200 lines)
+│   ├── PrecisionEditor.cs      # JSON editing with AI
+│   └── LoggingService.cs       # Structured logging
 ├── Models/              # Case Generation Models
-├── Schemas/             # JSON Schemas para AI
-└── Program.cs           # Configuração do pipeline
+├── Schemas/             # JSON Schemas for AI validation
+└── Program.cs           # Dependency injection configuration
 ```
 
-**🔗 Documentação Detalhada:** Para entender completamente o pipeline de geração de casos com AI, consulte [CASE_GENERATION_PIPELINE.md](./CASE_GENERATION_PIPELINE.md).
+**Key Services:**
+- **PdfRenderingService**: Professional multi-page PDF templates using QuestPDF (7 document types implemented)
+- **LLMService**: AI-powered content generation with structured prompts
+- **StorageService**: Blob storage for cases, documents, and assets
+
+**🔗 Documentação Detalhada:** 
+- Pipeline completo: [CASE_GENERATION_PIPELINE.md](./CASE_GENERATION_PIPELINE.md)
+- Templates de PDF: [PDF_DOCUMENT_TEMPLATES.md](./PDF_DOCUMENT_TEMPLATES.md)
 
 ## Estrutura do CaseZeroApi (Core)
 
@@ -1081,6 +1093,112 @@ public class CaseObjectServiceTests
     }
 }
 ```
+
+---
+
+## CaseGen.Functions - PDF Rendering Service
+
+### PdfRenderingService Overview
+
+O **PdfRenderingService** é o componente responsável por gerar PDFs profissionais de documentos policiais usando a biblioteca **QuestPDF 2025.7.1**.
+
+**Arquivo:** `backend/CaseGen.Functions/Services/PdfRenderingService.cs` (~3200 lines)
+
+### Implemented Templates (7 types)
+
+| Document Type | Type ID | Pages | Key Features |
+|--------------|---------|-------|--------------|
+| **Police Report** | `police_report` | 1-N | Logo, status badges, checkboxes, officer signature |
+| **Suspect/Witness Profile** | `suspect_profile`, `witness_profile` | 3 | Mugshot, criminal history, risk assessment, notes |
+| **Evidence Log** | `evidence_log` | 2+ | Cover page, chain of custody, triple signatures |
+| **Forensics Report** | `forensics_report`, `lab_report` | 2+ | Lab certification, analysis badges, dual signatures |
+| **Interview Transcript** | `interview` | 2+ | Miranda rights, Q&A format, triple signatures |
+| **Memo** | `memo`, `memo_admin` | 2+ | Routing slip, priority checkboxes, triple acknowledgment |
+| **Witness Statement** | `witness_statement` | 2+ | Witness info, statement body, notary certification |
+
+### Architecture Pattern
+
+Each document type follows a consistent multi-page pattern:
+
+1. **Cover Page**: Large logo (100-120px), title, case info, document-specific metadata
+2. **Content Pages**: Small logo header (50px), structured content sections
+3. **Signature Section**: Appropriate signatures based on document type (single, dual, or triple)
+
+### Key Methods
+
+```csharp
+public class PdfRenderingService
+{
+    // Main entry point - routes to appropriate template
+    public byte[] GenerateRealisticPdf(string title, string content, string type, string caseId, string docId)
+    
+    // Multi-page generators
+    private byte[] GenerateMultiPageSuspectProfile(...)
+    private byte[] GenerateMultiPageEvidenceLog(...)
+    private byte[] GenerateMultiPageForensicsReport(...)
+    private byte[] GenerateMultiPageInterview(...)
+    private byte[] GenerateMultiPageMemo(...)
+    private byte[] GenerateMultiPageWitnessStatement(...)
+    
+    // Content renderers
+    private void RenderPoliceReport(...)
+    private void RenderEvidenceLogContent(...)
+    private void RenderForensicsReportContent(...)
+    private void RenderInterviewContent(...)
+    private void RenderMemoContent(...)
+    private void RenderWitnessStatementContent(...)
+    
+    // Common components
+    private void BuildLetterhead(IContainer c, string docType, string title, string caseId, string docId)
+    private void AddWatermark(IContainer e, string classification)
+}
+```
+
+### Assets Management
+
+Logo and visual assets are copied to output directory via `.csproj` configuration:
+
+```xml
+<ItemGroup>
+  <None Include="..\..\assets\**\*">
+    <Link>assets\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+</ItemGroup>
+```
+
+**Logo file:** `assets/LogoMetroPolice_transparent.png`
+
+### Document Type Routing
+
+The service automatically detects document type and routes to the correct template:
+
+```csharp
+if (documentType.ToLower() == "suspect_profile" || documentType.ToLower() == "witness_profile")
+    return GenerateMultiPageSuspectProfile(...);
+    
+if (documentType.ToLower() == "evidence_log" || documentType.ToLower() == "evidence_catalog")
+    return GenerateMultiPageEvidenceLog(...);
+
+// ... etc for all 7 types
+```
+
+### Testing Endpoint
+
+**Function:** `TestPdfFunction.cs`  
+**Endpoint:** `GET /api/test/pdf/real?caseId={caseId}&docId={docId}`
+
+Loads real case data from Azure Blob Storage and generates PDF for testing.
+
+**Storage Structure:**
+```
+bundles/
+  └── {caseId}/
+      └── documents/
+          └── {docId}.json
+```
+
+**🔗 Documentação Detalhada:** [PDF_DOCUMENT_TEMPLATES.md](./PDF_DOCUMENT_TEMPLATES.md)
 
 ---
 
