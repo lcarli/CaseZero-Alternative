@@ -1,4 +1,5 @@
 using CaseGen.Functions.Models;
+using CaseGen.Functions.Services.CaseGeneration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -8,12 +9,17 @@ using System.Text.RegularExpressions;
 
 namespace CaseGen.Functions.Services;
 
+/// <summary>
+/// Main orchestrator for case generation pipeline.
+/// Delegates phase-specific operations to specialized services.
+/// </summary>
 public class CaseGenerationService : ICaseGenerationService
 {
     // RedTeam chunked processing constants
     private const int DefaultMaxBytesPerCall = 60_000;
     private const int MaxParallelCalls = 3;
     
+    // Core services
     private readonly ILLMService _llmService;
     private readonly IStorageService _storageService;
     private readonly ISchemaValidationService _schemaValidationService;
@@ -28,6 +34,14 @@ public class CaseGenerationService : ICaseGenerationService
     private readonly IContextManager _contextManager;
     private readonly ILogger<CaseGenerationService> _logger;
 
+    // Specialized phase services
+    private readonly PlanGenerationService _planService;
+    private readonly ExpandService _expandService;
+    private readonly DesignService _designService;
+    private readonly DocumentGenerationService _documentService;
+    private readonly MediaGenerationService _mediaService;
+    private readonly ValidationService _validationService;
+
     public CaseGenerationService(
         ILLMService llmService,
         IStorageService storageService,
@@ -40,6 +54,12 @@ public class CaseGenerationService : ICaseGenerationService
         IPrecisionEditor precisionEditor,
         IRedTeamCacheService redTeamCache,
         IContextManager contextManager,
+        PlanGenerationService planService,
+        ExpandService expandService,
+        DesignService designService,
+        DocumentGenerationService documentService,
+        MediaGenerationService mediaService,
+        ValidationService validationService,
         IConfiguration configuration,
         ILogger<CaseGenerationService> logger)
     {
@@ -54,6 +74,12 @@ public class CaseGenerationService : ICaseGenerationService
         _precisionEditor = precisionEditor;
         _redTeamCache = redTeamCache;
         _contextManager = contextManager;
+        _planService = planService;
+        _expandService = expandService;
+        _designService = designService;
+        _documentService = documentService;
+        _mediaService = mediaService;
+        _validationService = validationService;
         _configuration = configuration;
         _logger = logger;
     }

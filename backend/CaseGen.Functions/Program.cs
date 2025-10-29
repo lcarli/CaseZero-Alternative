@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Azure.Functions.Worker.Builder;
 using CaseGen.Functions.Services;
+using CaseGen.Functions.Services.CaseGeneration;
 using Azure.Storage.Blobs;
 
 
@@ -19,7 +20,16 @@ builder.ConfigureFunctionsWebApplication();
 builder.Services
     .AddApplicationInsightsTelemetryWorkerService()
     .ConfigureFunctionsApplicationInsights()
+    // Main case generation orchestrator
     .AddScoped<ICaseGenerationService, CaseGenerationService>()
+    // Specialized case generation phase services
+    .AddScoped<PlanGenerationService>()
+    .AddScoped<ExpandService>()
+    .AddScoped<DesignService>()
+    .AddScoped<DocumentGenerationService>()
+    .AddScoped<MediaGenerationService>()
+    .AddScoped<ValidationService>()
+    // Core infrastructure services
     .AddScoped<IStorageService, StorageService>()
     .AddScoped<ICaseLoggingService, CaseLoggingService>()
     .AddScoped<ISchemaValidationService, SchemaValidationService>()
