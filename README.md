@@ -39,23 +39,41 @@ Um sistema imersivo de investigação detetivesca onde você assume o papel de u
 
 ### Documentação:
 - 📖 [Documentação Completa do Sistema Objeto Caso](docs/OBJETO_CASO.md)
-- 🛠️ Script de validação: `./validate_case.sh Case001`
+- 🧪 [Testes HTTP](tests/http-requests/README.md) - Endpoints de teste
 
 ## 🤖 Case Generator AI
 
 **NOVO!** Sistema de geração automática de casos usando IA:
 
 ### Características:
-- **Pipeline AI de 10 Etapas**: Geração completa automatizada de casos
-- **Infraestrutura Independente**: Deploy separado da aplicação principal
-- **Azure Functions**: Orquestração robusta com Durable Functions
-- **Monitoramento Completo**: Application Insights e alertas
+- **Pipeline AI de 6 Fases**: Geração completa automatizada de casos
+  - Phase 1: **Seeding** - Criação de arquivos base e bundle ID
+  - Phase 2: **Planning** - Planejamento hierárquico (Core → Suspects → Timeline → Evidence)
+  - Phase 3: **Expansion** - Expansão detalhada de conteúdo
+  - Phase 4: **Design** - Visual consistency registry e master references
+  - Phase 5: **Generation** - Documentos PDF e imagens via DALL-E
+  - Phase 6: **Validation** - Normalização + RedTeam analysis + Surgical fixes
+- **Arquitetura Modular**: 6 serviços especializados para cada fase
+- **Azure Functions**: Orquestração com .NET 9.0 Isolated Worker
+- **Monitoramento Completo**: Application Insights e logging estruturado
 - **Storage Dedicado**: Armazenamento para casos e bundles gerados
+
+### Arquitetura de Serviços:
+```
+CaseGen.Functions/Services/CaseGeneration/
+├── PlanGenerationService.cs      (282 lines) - Planejamento hierárquico
+├── ExpandService.cs              (513 lines) - Expansão de conteúdo
+├── DesignService.cs              (361 lines) - Design visual
+├── DocumentGenerationService.cs  (219 lines) - Geração de PDFs
+├── MediaGenerationService.cs     (149 lines) - Geração de imagens
+└── ValidationService.cs          (218 lines) - Validação e RedTeam
+```
 
 ### Documentação:
 - 🤖 [Setup Completo do Case Generator](docs/CASE_GENERATOR_SETUP.md)
-- 🏗️ [Infraestrutura Independente](infrastructure/case-generator-infrastructure-README.md)
-- ⚙️ [Configuração e Deploy](infrastructure/case-generator-config.yml)
+- 📋 [Pipeline de Geração](docs/CASE_GENERATION_PIPELINE.md)
+- 🏗️ [Arquitetura do Backend](docs/BACKEND_ARCHITECTURE.md)
+- 🧪 [Testes HTTP](tests/http-requests/README.md)
 
 ### Deploy Rápido:
 ```bash
@@ -63,8 +81,8 @@ Um sistema imersivo de investigação detetivesca onde você assume o papel de u
 # Ou manualmente:
 az deployment group create \
   --resource-group casezero-casegen-dev-rg \
-  --template-file infrastructure/bicep/case-generator.bicep \
-  --parameters @infrastructure/bicep/case-generator-parameters.dev.json
+  --template-file infrastructure/Functions/main.bicep \
+  --parameters @infrastructure/Functions/parameters.dev.json
 ```
 
 ## 🚀 Como Executar
@@ -140,14 +158,25 @@ O sistema implementa um fluxo moderno de autenticação com verificação por em
 - **Detective**: Nível intermediário
 - **Sergeant, Lieutenant, Captain, Commander**: Níveis avançados
 
-## 🧪 Testando o Sistema Objeto Caso
+## 🧪 Testando o Sistema
 
-### Via Script de Validação:
-```bash
-./validate_case.sh Case001
+### Via Arquivos HTTP (REST Client):
+
+Utilize os arquivos `.http` organizados em `tests/http-requests/`:
+
+```
+tests/http-requests/
+├── test-casegen.http              # Testes gerais de geração
+├── casegen-functions/
+│   ├── test-real-pdf.http         # Testes de PDF rendering
+│   └── test-cover-page.http       # Testes de cover page
+└── casezero-api/
+    └── CaseZeroApi.http           # Testes de API endpoints
 ```
 
-### Via API:
+Veja [documentação completa](tests/http-requests/README.md) para instruções de uso.
+
+### Via API Manual:
 ```bash
 # 1. Obter token de autenticação (substitua pelas suas credenciais)
 TOKEN=$(curl -X POST "http://localhost:5000/api/auth/login" \
@@ -178,12 +207,23 @@ curl -H "Authorization: Bearer $TOKEN" \
 - **Autenticação:** Context API + JWT tokens
 
 ### Backend (.NET Core)
+
+**CaseZeroApi** (Web API)
 - **Framework:** ASP.NET Core 8
 - **Banco de Dados:** SQLite com Entity Framework Core
 - **Autenticação:** JWT + ASP.NET Identity
 - **API:** RESTful endpoints
 - **CORS:** Configurado para localhost:5173
 - **Sistema de Casos:** CaseObjectService + API endpoints
+
+**CaseGen.Functions** (Azure Functions)
+- **Runtime:** .NET 9.0 Isolated Worker
+- **Arquitetura:** 6 serviços especializados (1,742 linhas organizadas)
+- **Storage:** Azure Blob Storage + Table Storage
+- **LLM:** Azure OpenAI (GPT-4o)
+- **Images:** DALL-E 3 via Azure OpenAI
+- **Caching:** RedTeam analysis caching
+- **Logging:** Structured logging com Application Insights
 
 ## 📋 Fluxo do Usuário
 
@@ -198,31 +238,51 @@ curl -H "Authorization: Bearer $TOKEN" \
 ## 🗂️ Estrutura do Projeto
 
 ```
-├── frontend/                 # React frontend
+├── frontend/                      # React frontend
 │   ├── src/
-│   │   ├── components/      # Componentes reutilizáveis
-│   │   ├── contexts/        # React Contexts (Auth, Window)
-│   │   ├── hooks/           # Custom hooks
-│   │   ├── pages/           # Páginas da aplicação
-│   │   └── services/        # API services
-├── backend/                 # .NET backend
-│   └── CaseZeroApi/
-│       ├── Controllers/     # API controllers
-│       ├── Models/          # Modelos de dados
-│       ├── DTOs/           # Data Transfer Objects
-│       ├── Data/           # DbContext
-│       └── Services/       # Business logic
-├── cases/                  # Casos investigativos
-│   └── Case001/           # Exemplo: Homicídio Corporativo
-│       ├── case.json      # Configuração do caso
-│       ├── evidence/      # Evidências
-│       ├── suspects/      # Suspeitos
-│       ├── forensics/     # Análises forenses
-│       ├── memos/         # Memorandos temporais
-│       └── witnesses/     # Testemunhas
-├── docs/                   # Documentação
-│   └── OBJETO_CASO.md     # Doc. do Sistema de Casos
-└── validate_case.sh       # Script de validação
+│   │   ├── components/           # Componentes reutilizáveis
+│   │   ├── contexts/             # React Contexts (Auth, Window)
+│   │   ├── hooks/                # Custom hooks
+│   │   ├── pages/                # Páginas da aplicação
+│   │   └── services/             # API services
+├── backend/                      # .NET backend
+│   ├── CaseZeroApi/             # Web API (.NET 8)
+│   │   ├── Controllers/         # API controllers
+│   │   ├── Models/              # Modelos de dados
+│   │   ├── DTOs/                # Data Transfer Objects
+│   │   ├── Data/                # DbContext
+│   │   └── Services/            # Business logic
+│   ├── CaseGen.Functions/       # Azure Functions (.NET 9)
+│   │   ├── Functions/           # Function endpoints
+│   │   ├── Services/
+│   │   │   └── CaseGeneration/ # 6 serviços especializados
+│   │   ├── Models/              # Domain models
+│   │   └── Schemas/             # JSON schemas
+│   ├── CaseZeroApi.Tests/       # Unit tests (API)
+│   └── CaseZeroApi.IntegrationTests/  # Integration tests
+├── cases/                        # Casos investigativos
+│   ├── CASE-2024-001/           # Exemplo: Homicídio Corporativo
+│   ├── CASE-2024-002/           # Exemplo: Roubo em Clínica
+│   └── CASE-2024-003/           # Exemplo: Apropriação Indébita
+│       ├── case.json            # Configuração do caso
+│       ├── evidence/            # Evidências
+│       ├── suspects/            # Suspeitos
+│       ├── forensics/           # Análises forenses
+│       ├── memos/               # Memorandos temporais
+│       └── witnesses/           # Testemunhas
+├── tests/
+│   └── http-requests/           # Testes HTTP REST Client
+│       ├── test-casegen.http    # Testes gerais
+│       ├── casegen-functions/   # Testes Functions
+│       └── casezero-api/        # Testes API
+├── infrastructure/              # IaC (Bicep templates)
+│   ├── Functions/               # Case Generator infra
+│   └── Web/                     # Web App infra
+└── docs/                        # Documentação técnica
+    ├── BACKEND_ARCHITECTURE.md
+    ├── CASE_GENERATION_PIPELINE.md
+    ├── OBJETO_CASO.md
+    └── PDF_DOCUMENT_TEMPLATES.md
 ```
 
 ## 🔧 Desenvolvimento
@@ -247,30 +307,45 @@ dotnet test            # Executar testes (alguns podem falhar durante desenvolvi
 dotnet ef migrations   # Gerenciar migrações
 ```
 
-**Casos:**
+**Testes:**
 ```bash
-./validate_case.sh CaseXXX  # Validar estrutura do caso
+# Usar REST Client extension no VS Code
+# Abrir arquivos em tests/http-requests/*.http
 ```
 
 ## 📈 Criando Novos Casos
 
-1. **Copie a estrutura do Case001**:
+### Método 1: Geração Automática com IA
+
+Use o **Case Generator AI** para gerar casos completos automaticamente:
+
 ```bash
-cp -r cases/Case001 cases/Case002
+# Via HTTP REST Client
+# Ver tests/http-requests/casegen-functions/test-real-pdf.http
+POST http://localhost:7071/api/GenerateCase
+Content-Type: application/json
+
+{
+  "difficulty": "Detective",
+  "timezone": "-03:00",
+  "generateImages": true
+}
+```
+
+### Método 2: Criação Manual
+
+1. **Copie a estrutura de um caso existente**:
+```bash
+cp -r cases/CASE-2024-001 cases/CASE-2024-004
 ```
 
 2. **Edite o arquivo `case.json`** com novos dados
 
 3. **Substitua os arquivos** nas subpastas com novo conteúdo
 
-4. **Valide a estrutura**:
-```bash
-./validate_case.sh Case002
-```
+4. **Teste via API** com os endpoints do CaseObjectController
 
-5. **Teste via API** com os endpoints do CaseObjectController
-
-Ver [documentação completa](docs/OBJETO_CASO.md) para detalhes.
+Ver [documentação completa](docs/OBJETO_CASO.md) para detalhes sobre estrutura de casos.
 
 ## 🛡️ Segurança
 
@@ -297,16 +372,37 @@ O sistema foi desenvolvido com design responsivo, funcionando em:
 5. Abra um Pull Request
 
 ### Criando Novos Casos:
-1. Use o Case001 como template
-2. Siga a estrutura documentada em `docs/OBJETO_CASO.md`
-3. Valide com `./validate_case.sh`
-4. Teste todos os endpoints da API
+1. Use o **Case Generator AI** para geração automática via IA
+2. Ou copie um caso existente como template manual
+3. Siga a estrutura documentada em `docs/OBJETO_CASO.md`
+4. Teste com arquivos HTTP em `tests/http-requests/`
 
 ## 📄 Licença
 
 Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
 
-## 🚀 CI/CD e DevOps
+## � Atualizações Recentes
+
+### v2.0 - Refatoração e Organização (Outubro 2025)
+
+**✅ Concluído:**
+- **Task 1**: 7 PDF templates documentados + limpeza de documentação
+- **Task 2**: CaseGenerationService dividido em 6 serviços especializados (3,938 → 1,742 linhas organizadas)
+- **Task 4**: Removidos arquivos `package-lock.json` órfãos
+- **Task 6**: Arquivos `.http` organizados em `tests/http-requests/`
+
+**📊 Métricas:**
+- **Redução de complexidade**: 56% do código organizado
+- **Serviços criados**: 6 especializados + 1 coordinator
+- **Build status**: ✅ 0 erros, 3 warnings pré-existentes
+- **Cobertura de testes**: Em desenvolvimento (Task 3)
+
+### Próximas Melhorias
+- [ ] **Task 3**: Testes unitários para os 6 novos serviços
+- [ ] Atualização da documentação de arquitetura
+- [ ] Melhorias na pipeline de CI/CD
+
+## �🚀 CI/CD e DevOps
 
 Este projeto utiliza práticas modernas de DevOps com:
 
@@ -322,3 +418,6 @@ Este projeto utiliza práticas modernas de DevOps com:
 - [🏗️ Guia de Configuração Azure](docs/cicd/azure-setup.md)
 - [🔐 Variáveis e Secrets](docs/cicd/variables-and-secrets.md)
 - [📊 Sistema Objeto Caso](docs/OBJETO_CASO.md)
+- [🧪 Testes HTTP](tests/http-requests/README.md)
+- [📋 Pipeline de Geração](docs/CASE_GENERATION_PIPELINE.md)
+- [📄 Templates PDF](docs/PDF_DOCUMENT_TEMPLATES.md)

@@ -34,30 +34,68 @@ backend/CaseZeroApi/
 ```
 
 ### 🤖 **CaseGen.Functions - AI Pipeline**
-Sistema de geração automática de casos com Azure Functions e AI:
+Sistema de geração automática de casos com Azure Functions e AI (**.NET 9.0**):
 
 ```
 backend/CaseGen.Functions/
-├── Functions/            # Azure Durable Functions (Orchestration, Activities)
-├── Services/            
-│   ├── LLMService.cs           # OpenAI GPT-4 integration
-│   ├── StorageService.cs       # Azure Blob Storage (Azurite local)
-│   ├── PdfRenderingService.cs  # ⭐ PDF generation (~3200 lines)
-│   ├── PrecisionEditor.cs      # JSON editing with AI
-│   └── LoggingService.cs       # Structured logging
-├── Models/              # Case Generation Models
-├── Schemas/             # JSON Schemas for AI validation
-└── Program.cs           # Dependency injection configuration
+├── Functions/                 # Azure Functions endpoints
+│   ├── GenerateCaseFunction.cs    # Main orchestration
+│   ├── PlanFunction.cs            # Planning phase
+│   ├── ExpandFunction.cs          # Expansion phase
+│   └── RenderFunction.cs          # PDF/Image rendering
+├── Services/
+│   ├── CaseGeneration/           # 🆕 v2.0 - Specialized Services (1,742 lines)
+│   │   ├── PlanGenerationService.cs      (282 lines) - Phase 2: Planning
+│   │   ├── ExpandService.cs              (513 lines) - Phase 3: Expansion
+│   │   ├── DesignService.cs              (361 lines) - Phase 4: Design
+│   │   ├── DocumentGenerationService.cs  (219 lines) - Phase 5: Documents
+│   │   ├── MediaGenerationService.cs     (149 lines) - Phase 5: Media
+│   │   └── ValidationService.cs          (218 lines) - Phase 6: Validation
+│   ├── CaseGenerationService.cs  # ~300 lines - Main coordinator
+│   ├── LLMService.cs             # Azure OpenAI GPT-4o integration
+│   ├── StorageService.cs         # Azure Blob Storage (Azurite local)
+│   ├── PdfRenderingService.cs    # ⭐ PDF generation (~3200 lines)
+│   ├── ImagesService.cs          # DALL-E 3 integration
+│   ├── PrecisionEditor.cs        # Surgical JSON editing with AI
+│   ├── NormalizerService.cs      # Case normalization
+│   ├── RedTeamCacheService.cs    # RedTeam analysis caching
+│   ├── ContextManager.cs         # Granular context storage
+│   └── CaseLoggingService.cs     # Structured logging
+├── Models/                       # Case Generation Models
+├── Schemas/                      # JSON Schemas for AI validation
+└── Program.cs                    # Dependency injection configuration
 ```
 
-**Key Services:**
-- **PdfRenderingService**: Professional multi-page PDF templates using QuestPDF (7 document types implemented)
-- **LLMService**: AI-powered content generation with structured prompts
-- **StorageService**: Blob storage for cases, documents, and assets
+**🎯 Arquitetura v2.0 - Modular Services:**
+
+O sistema foi **refatorado** (outubro 2025) de um monólito (3,938 linhas) para **6 serviços especializados** (1,742 linhas):
+
+| Serviço | Linhas | Fase | Responsabilidade |
+|---------|--------|------|------------------|
+| **PlanGenerationService** | 282 | 2 | Planejamento hierárquico (Core → Suspects → Timeline → Evidence) |
+| **ExpandService** | 513 | 3 | Expansão detalhada de suspeitos, evidências, timeline e relações |
+| **DesignService** | 361 | 4 | Visual consistency registry + master reference images |
+| **DocumentGenerationService** | 219 | 5 | Geração de conteúdo para PDFs (6 tipos de documentos) |
+| **MediaGenerationService** | 149 | 5 | Geração de imagens via DALL-E 3 (CCTV, scans, fotos) |
+| **ValidationService** | 218 | 6 | Normalização + RedTeam analysis + surgical fixes |
+
+**Benefícios da Refatoração:**
+- ✅ **Separation of Concerns**: Cada serviço tem responsabilidade única
+- ✅ **Testabilidade**: Serviços independentes facilitam testes unitários
+- ✅ **Manutenibilidade**: 56% redução de complexidade
+- ✅ **Escalabilidade**: Fácil adicionar novas fases/serviços
+
+**Core Services:**
+- **PdfRenderingService**: Professional multi-page PDF templates usando QuestPDF (7 document types)
+- **LLMService**: AI-powered content generation com structured prompts
+- **StorageService**: Blob storage para casos, documentos e assets
+- **ImagesService**: Geração de imagens via DALL-E 3 com temporal consistency
+- **ContextManager**: Gerenciamento granular de contexto em Table Storage
 
 **🔗 Documentação Detalhada:** 
 - Pipeline completo: [CASE_GENERATION_PIPELINE.md](./CASE_GENERATION_PIPELINE.md)
 - Templates de PDF: [PDF_DOCUMENT_TEMPLATES.md](./PDF_DOCUMENT_TEMPLATES.md)
+- Arquitetura backend: [backend/README.md](../backend/README.md)
 
 ## Estrutura do CaseZeroApi (Core)
 
@@ -1096,6 +1134,248 @@ public class CaseObjectServiceTests
 
 ---
 
+## CaseGen.Functions - Specialized Services (v2.0)
+
+### Arquitetura Modular
+
+A partir de **outubro 2025**, o sistema CaseGen.Functions foi refatorado de um monólito (`CaseGenerationService.cs` com 3,938 linhas) para uma arquitetura modular com **6 serviços especializados** totalizando 1,742 linhas organizadas.
+
+### 1. PlanGenerationService (282 linhas)
+
+**Arquivo:** `backend/CaseGen.Functions/Services/CaseGeneration/PlanGenerationService.cs`
+
+**Fase:** 2 - Planning
+
+**Responsabilidades:**
+- Planejamento hierárquico da estrutura do caso
+- Geração de plano core (título, overview, learning objectives)
+- Criação de lista inicial de suspeitos
+- Planejamento de timeline cronológica
+- Definição de plano de evidências + Golden Truth
+
+**Métodos Principais:**
+```csharp
+Task<string> PlanCoreAsync(CaseGenerationRequest request, string caseId, CancellationToken cancellationToken)
+Task<string> PlanSuspectsAsync(string caseId, CancellationToken cancellationToken)
+Task<string> PlanTimelineAsync(string caseId, CancellationToken cancellationToken)
+Task<string> PlanEvidenceAsync(string caseId, CancellationToken cancellationToken)
+```
+
+**Dependências:**
+- `ILLMService` - Geração de conteúdo via GPT-4o
+- `IJsonSchemaProvider` - Validação com schemas JSON
+- `IContextManager` - Armazenamento de contexto granular
+- `ILogger<PlanGenerationService>`
+
+### 2. ExpandService (513 linhas)
+
+**Arquivo:** `backend/CaseGen.Functions/Services/CaseGeneration/ExpandService.cs`
+
+**Fase:** 3 - Expansion
+
+**Responsabilidades:**
+- Expansão detalhada de perfis de suspeitos
+- Detalhamento de evidências com chain of custody
+- Expansão da timeline com eventos específicos
+- Síntese de relações entre elementos do caso
+
+**Métodos Principais:**
+```csharp
+Task<string> ExpandSuspectAsync(string suspectId, string caseId, CancellationToken cancellationToken)
+Task<string> ExpandEvidenceAsync(string evidenceId, string caseId, CancellationToken cancellationToken)
+Task<string> ExpandTimelineAsync(string caseId, CancellationToken cancellationToken)
+Task<string> SynthesizeRelationsAsync(string caseId, CancellationToken cancellationToken)
+```
+
+**Características:**
+- Carregamento automático de contexto via `ContextManager`
+- Referências cruzadas entre suspeitos/evidências/eventos
+- Manutenção de consistência narrativa
+
+### 3. DesignService (361 linhas)
+
+**Arquivo:** `backend/CaseGen.Functions/Services/CaseGeneration/DesignService.cs`
+
+**Fase:** 4 - Design
+
+**Responsabilidades:**
+- Criação de Visual Consistency Registry
+- Geração de master reference images (suspeitos, evidências, locais)
+- Garantia de consistência visual entre documentos
+
+**Métodos Principais:**
+```csharp
+Task<string> DesignVisualConsistencyRegistryAsync(string caseId, CancellationToken cancellationToken)
+Task GenerateMasterReferencesAsync(string caseId, CancellationToken cancellationToken)
+```
+
+**Integrações:**
+- `IImagesService` - Geração DALL-E 3
+- `ISchemaValidationService` - Validação de registry
+- `IStorageService` - Armazenamento de imagens
+
+### 4. DocumentGenerationService (219 linhas)
+
+**Arquivo:** `backend/CaseGen.Functions/Services/CaseGeneration/DocumentGenerationService.cs`
+
+**Fase:** 5 - Document Generation
+
+**Responsabilidades:**
+- Geração de conteúdo para documentos PDF
+- Diretrizes específicas por tipo de documento
+- Diretrizes específicas por nível de dificuldade
+
+**Métodos Principais:**
+```csharp
+Task<DocumentSpec> GenerateDocumentFromSpecAsync(
+    DocumentSpec spec, 
+    string caseId, 
+    string timezone, 
+    string? visualRegistry, 
+    string? goldenTruth, 
+    string? difficulty, 
+    CancellationToken cancellationToken)
+
+Task RenderDocumentFromJsonAsync(
+    string documentJson, 
+    string caseId, 
+    string outputPath, 
+    CancellationToken cancellationToken)
+```
+
+**Tipos de Documentos Suportados:**
+- `police_report` - Relatórios policiais
+- `interview` - Transcrições de entrevistas
+- `memo_admin` - Memorandos administrativos
+- `forensics_report` - Laudos forenses
+- `evidence_log` - Logs de evidências
+- `witness_statement` - Depoimentos de testemunhas
+
+**Integrações:**
+- `IPdfRenderingService` - Renderização PDF final
+
+### 5. MediaGenerationService (149 linhas)
+
+**Arquivo:** `backend/CaseGen.Functions/Services/CaseGeneration/MediaGenerationService.cs`
+
+**Fase:** 5 - Media Generation
+
+**Responsabilidades:**
+- Geração de especificações para imagens
+- Temporal consistency validation (timestamps)
+- CCTV frames com overlays de timestamp
+- Fotografias forenses e scans de documentos
+
+**Métodos Principais:**
+```csharp
+Task<MediaSpec> GenerateMediaFromSpecAsync(
+    MediaSpec spec, 
+    string caseId, 
+    string timezone, 
+    string? visualRegistry, 
+    string? goldenTruth, 
+    string? difficulty, 
+    CancellationToken cancellationToken)
+
+Task RenderMediaFromJsonAsync(
+    MediaSpec spec, 
+    string caseId, 
+    CancellationToken cancellationToken)
+```
+
+**Tipos de Media Suportados:**
+- CCTV frames (com timestamp overlays)
+- Document scans
+- Scene photography
+- Forensic photography
+
+**Características:**
+- Validação de consistência temporal (timezone enforcement)
+- Referência ao visual registry para consistência
+- Geração via DALL-E 3
+
+### 6. ValidationService (218 linhas)
+
+**Arquivo:** `backend/CaseGen.Functions/Services/CaseGeneration/ValidationService.cs`
+
+**Fase:** 6 - Validation
+
+**Responsabilidades:**
+- Normalização determinística de casos
+- Validação de regras de qualidade
+- RedTeam global analysis (análise macro)
+- Correções cirúrgicas via PrecisionEditor
+
+**Métodos Principais:**
+```csharp
+Task<NormalizationResult> NormalizeCaseDeterministicAsync(
+    NormalizationInput input, 
+    CancellationToken cancellationToken)
+
+Task<string> ValidateRulesAsync(
+    string normalizedJson, 
+    string caseId, 
+    CancellationToken cancellationToken)
+
+Task<string> RedTeamGlobalAnalysisAsync(
+    string validatedJson, 
+    string caseId, 
+    CancellationToken cancellationToken)
+
+Task<string> FixCaseAsync(
+    StructuredRedTeamAnalysis analysis, 
+    string currentJson, 
+    string caseId, 
+    int iterationNumber, 
+    CancellationToken cancellationToken)
+```
+
+**Características:**
+- **Temporal consistency checks**: Validação de timestamps e timezones
+- **RedTeam caching**: Cache de análises para economia de tokens
+- **Surgical fixes**: Correções precisas via PrecisionEditor
+- **Normalization**: Formatação consistente de todos os documentos
+
+**Integrações:**
+- `INormalizerService` - Normalização de formato
+- `IRedTeamCacheService` - Caching de análises
+- `IPrecisionEditor` - Edições cirúrgicas JSON
+
+### Main Coordinator
+
+**Arquivo:** `backend/CaseGen.Functions/Services/CaseGenerationService.cs` (~300 linhas)
+
+Após a refatoração, o `CaseGenerationService` original tornou-se um **coordinator** que:
+- Injeta os 6 serviços especializados via constructor DI
+- Delega operações para os serviços apropriados
+- Mantém interface pública para compatibilidade
+- Orquestra o fluxo entre fases
+
+**Dependency Injection (Program.cs):**
+```csharp
+builder.Services
+    .AddScoped<PlanGenerationService>()
+    .AddScoped<ExpandService>()
+    .AddScoped<DesignService>()
+    .AddScoped<DocumentGenerationService>()
+    .AddScoped<MediaGenerationService>()
+    .AddScoped<ValidationService>()
+    .AddScoped<ICaseGenerationService, CaseGenerationService>();
+```
+
+### Métricas da Refatoração
+
+| Métrica | Antes (v1.0) | Depois (v2.0) | Melhoria |
+|---------|--------------|---------------|----------|
+| **Linhas em CaseGenerationService** | 3,938 | ~300 | 92% ↓ |
+| **Serviços especializados** | 0 | 6 | +6 |
+| **Linhas organizadas** | 0 | 1,742 | - |
+| **Complexidade** | Alta | Baixa | 56% ↓ |
+| **Separation of Concerns** | ❌ | ✅ | - |
+| **Testabilidade** | Baixa | Alta | ↑ |
+
+---
+
 ## CaseGen.Functions - PDF Rendering Service
 
 ### PdfRenderingService Overview
@@ -1240,3 +1520,67 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "CaseZeroApi.dll"]
 ```
+
+---
+
+## 📝 Histórico de Versões
+
+### v2.0 (Outubro 2025) - Refatoração Modular
+
+**🎯 Objetivo:** Refatorar monólito CaseGenerationService em serviços especializados
+
+**✅ Implementado:**
+- **6 Serviços Especializados** criados:
+  1. PlanGenerationService (282 linhas) - Planning hierárquico
+  2. ExpandService (513 linhas) - Expansion de conteúdo
+  3. DesignService (361 linhas) - Design visual
+  4. DocumentGenerationService (219 linhas) - Geração de PDFs
+  5. MediaGenerationService (149 linhas) - Geração de imagens
+  6. ValidationService (218 linhas) - Validação e RedTeam
+
+- **Main Coordinator** refatorado:
+  - CaseGenerationService reduzido de 3,938 → ~300 linhas
+  - Injeção dos 6 serviços via DI
+  - Delegação de operações para serviços especializados
+
+- **Dependency Injection** atualizado:
+  - Registro de 6 novos serviços no Program.cs
+  - Scoped lifetime para todos os serviços
+
+**📊 Métricas:**
+- 92% redução no arquivo principal
+- 56% redução de complexidade geral
+- 1,742 linhas organizadas em serviços focados
+- 0 erros de compilação
+- Separation of Concerns implementado
+
+**🔗 Documentação Atualizada:**
+- [backend/README.md](../backend/README.md) - Documentação completa
+- [PDF_DOCUMENT_TEMPLATES.md](./PDF_DOCUMENT_TEMPLATES.md) - Templates PDF
+- [tests/http-requests/README.md](../tests/http-requests/README.md) - Testes HTTP
+
+### v1.0 (Agosto 2025) - Versão Inicial
+
+**✅ Implementado:**
+- CaseZeroApi - Web API REST com autenticação JWT
+- CaseGen.Functions - Pipeline de geração com Azure Functions
+- PdfRenderingService - 7 templates PDF profissionais
+- Sistema de geração com 6 fases (Seed → Plan → Expand → Design → Generate → Validate)
+- Integração com Azure OpenAI (GPT-4o) e DALL-E 3
+- Storage em Azure Blob + Table Storage
+- Application Insights para monitoramento
+
+**📚 Documentação:**
+- [CASE_GENERATION_PIPELINE.md](./CASE_GENERATION_PIPELINE.md)
+- [OBJETO_CASO.md](./OBJETO_CASO.md)
+
+---
+
+## 🔗 Links Relacionados
+
+- **📖 [Pipeline de Geração](./CASE_GENERATION_PIPELINE.md)** - Fluxo completo de geração de casos
+- **📄 [Templates PDF](./PDF_DOCUMENT_TEMPLATES.md)** - Documentação dos 7 templates implementados
+- **🏗️ [Backend README](../backend/README.md)** - Guia completo do backend
+- **🧪 [Testes HTTP](../tests/http-requests/README.md)** - Coleção de testes REST Client
+- **📋 [Sistema de Casos](./OBJETO_CASO.md)** - Estrutura de casos investigativos
+- **🚀 [Infraestrutura](../infrastructure/)** - IaC com Bicep templates
