@@ -1,0 +1,205 @@
+name: 🏗️ Deploy 3-Tier Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        default: 'deploy'
+        options:
+          - validate
+          - deploy
+          - destroy
+      confirm_destroy:
+        description: 'Type "CONFIRM" to destroy resources'
+        required: false
+        default: ''
+
+env:
+  BICEP_FILE_PATH: infrastructure/main.bicep
+
+jobs:
+  validate-inputs:
+    name: ✅ Validate Inputs
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔍 Validate destroy confirmation
+        if: github.event.inputs.action == 'destroy'
+        run: |
+          if [ "${{ github.event.inputs.confirm_destroy }}" != "CONFIRM" ]; then
+            echo "❌ Destroy action requires typing 'CONFIRM'"
+            exit 1
+          fi
+          echo "✅ Destroy action confirmed"
+
+  validate-bicep:
+    name: 🔍 Validate Bicep Templates
+    runs-on: ubuntu-latest
+    needs: [validate-inputs]
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ github.event.inputs.environment == 'prod' && secrets.AZURE_CREDENTIALS_PROD || secrets.AZURE_CREDENTIALS_DEV }}
+
+      - name: 🔍 Validate Bicep syntax
+        run: |
+          echo "Validating Bicep template syntax..."
+          az bicep build --file ${{ env.BICEP_FILE_PATH }}
+
+      - name: 🔍 Validate deployment
+        run: |
+          PARAMS_FILE="infrastructure/parameters.${{ github.event.inputs.environment }}.json"
+          
+          echo "Validating subscription-level deployment..."
+          az deployment sub validate \
+            --location canadaeast \
+            --template-file ${{ env.BICEP_FILE_PATH }} \
+            --parameters @$PARAMS_FILE
+
+      - name: 📊 Generate What-If Analysis
+        if: github.event.inputs.action != 'validate'
+        run: |
+          PARAMS_FILE="infrastructure/parameters.${{ github.event.inputs.environment }}.json"
+          
+          echo "Generating What-If analysis..."
+          az deployment sub what-if \
+            --location canadaeast \
+            --template-file ${{ env.BICEP_FILE_PATH }} \
+            --parameters @$PARAMS_FILE \
+            --result-format FullResourcePayloads
+
+  deploy-infrastructure:
+    name: 🏗️ Deploy Infrastructure
+    runs-on: ubuntu-latest
+    needs: [validate-bicep]
+    if: github.event.inputs.action == 'deploy'
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ github.event.inputs.environment == 'prod' && secrets.AZURE_CREDENTIALS_PROD || secrets.AZURE_CREDENTIALS_DEV }}
+
+      - name: 🚀 Deploy Infrastructure
+        id: deploy
+        run: |
+          PARAMS_FILE="infrastructure/parameters.${{ github.event.inputs.environment }}.json"
+          DEPLOYMENT_NAME="casezero-${{ github.event.inputs.environment }}-$(date +%Y%m%d-%H%M%S)"
+          
+          echo "Deploying infrastructure: $DEPLOYMENT_NAME"
+          
+          az deployment sub create \
+            --name $DEPLOYMENT_NAME \
+            --location canadaeast \
+            --template-file ${{ env.BICEP_FILE_PATH }} \
+            --parameters @$PARAMS_FILE \
+            --output json > deployment-output.json
+          
+          cat deployment-output.json
+
+      - name: 📤 Upload Deployment Output
+        uses: actions/upload-artifact@v3
+        with:
+          name: deployment-output-${{ github.event.inputs.environment }}
+          path: deployment-output.json
+
+      - name: 📝 Extract Outputs
+        id: outputs
+        run: |
+          echo "Extracting deployment outputs..."
+          
+          FRONTEND_URL=$(jq -r '.properties.outputs.staticWebAppUrl.value' deployment-output.json)
+          API_URL=$(jq -r '.properties.outputs.apiAppServiceUrl.value' deployment-output.json)
+          FUNCTIONS_URL=$(jq -r '.properties.outputs.functionAppUrl.value' deployment-output.json)
+          
+          echo "frontend_url=$FRONTEND_URL" >> $GITHUB_OUTPUT
+          echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+          echo "functions_url=$FUNCTIONS_URL" >> $GITHUB_OUTPUT
+          
+          echo "✅ Deployment complete!"
+          echo "📱 Frontend URL: $FRONTEND_URL"
+          echo "🔌 API URL: $API_URL"
+          echo "⚡ Functions URL: $FUNCTIONS_URL"
+
+      - name: 💬 Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🏗️ Infrastructure Deployment Complete\n\n**Environment**: ${{ github.event.inputs.environment }}\n\n**URLs**:\n- 📱 Frontend: ${{ steps.outputs.outputs.frontend_url }}\n- 🔌 API: ${{ steps.outputs.outputs.api_url }}\n- ⚡ Functions: ${{ steps.outputs.outputs.functions_url }}`
+            })
+
+  destroy-infrastructure:
+    name: 🗑️ Destroy Infrastructure
+    runs-on: ubuntu-latest
+    needs: [validate-bicep]
+    if: github.event.inputs.action == 'destroy'
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ github.event.inputs.environment == 'prod' && secrets.AZURE_CREDENTIALS_PROD || secrets.AZURE_CREDENTIALS_DEV }}
+
+      - name: 🗑️ Delete Resource Groups
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          PREFIX="casezero"
+          
+          echo "⚠️ Destroying all resource groups for environment: $ENV"
+          
+          # List resource groups to delete
+          RESOURCE_GROUPS=$(az group list --query "[?tags.Environment=='$ENV' && starts_with(name, '$PREFIX')].name" -o tsv)
+          
+          echo "Resource groups to delete:"
+          echo "$RESOURCE_GROUPS"
+          
+          # Delete each resource group
+          for RG in $RESOURCE_GROUPS; do
+            echo "Deleting resource group: $RG"
+            az group delete --name $RG --yes --no-wait
+          done
+          
+          echo "✅ Deletion initiated for all resource groups"
+
+      - name: 📝 Wait for Deletion
+        run: |
+          echo "⏳ Waiting for resource groups to be deleted..."
+          sleep 60
+          
+          ENV="${{ github.event.inputs.environment }}"
+          PREFIX="casezero"
+          
+          # Check if any resource groups still exist
+          REMAINING=$(az group list --query "[?tags.Environment=='$ENV' && starts_with(name, '$PREFIX')].name" -o tsv)
+          
+          if [ -z "$REMAINING" ]; then
+            echo "✅ All resource groups deleted successfully"
+          else
+            echo "⚠️ Some resource groups are still being deleted:"
+            echo "$REMAINING"
+            echo "Check Azure Portal for status"
+          fi
