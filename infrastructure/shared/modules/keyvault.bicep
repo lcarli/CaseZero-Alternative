@@ -22,7 +22,9 @@ param softDeleteRetentionInDays int = environment == 'prod' ? 90 : 7
 @description('Resource tags')
 param tags object
 
-var keyVaultName = '${namePrefix}-kv-${environment}-${uniqueString(resourceGroup().id)}'
+// Key Vault name must be 3-24 alphanumeric characters
+// Format: kv-{prefix}-{env}-{unique} (e.g., kv-cz-dev-abc123 or kv-cz-prod-xyz789)
+var keyVaultName = 'kv-${take(namePrefix, 2)}-${environment}-${take(uniqueString(resourceGroup().id), 8)}'
 
 // Key Vault
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
