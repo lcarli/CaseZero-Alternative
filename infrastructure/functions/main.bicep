@@ -86,21 +86,14 @@ module functionAppServicePlan 'modules/function-app-plan.bicep' = {
 // ==============================================================================
 // Function App (.NET 9.0 Isolated)
 // ==============================================================================
-
-// Get storage account connection string using existing resource
-resource existingStorage 'Microsoft.Storage/storageAccounts@2023-01-01' existing = {
-  name: take('st${namePrefix}${environment}${uniqueString(resourceGroup().id)}', 24)
-}
-
 module functionApp 'modules/function-app.bicep' = {
   name: 'functions-app-deployment'
-  dependsOn: [storageAccount]
   params: {
     environment: environment
     location: location
     namePrefix: namePrefix
     appServicePlanId: functionAppServicePlan.outputs.functionAppServicePlanId
-    storageConnectionString: 'DefaultEndpointsProtocol=https;AccountName=${existingStorage.name};AccountKey=${existingStorage.listKeys().keys[0].value};EndpointSuffix=${az.environment().suffixes.storage}'
+    storageConnectionString: storageAccount.outputs.storageConnectionString
     appInsightsConnectionString: appInsightsConnectionString
     appInsightsInstrumentationKey: appInsightsInstrumentationKey
     keyVaultUri: keyVaultUri

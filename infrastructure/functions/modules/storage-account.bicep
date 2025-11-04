@@ -129,3 +129,7 @@ resource queueService 'Microsoft.Storage/storageAccounts/queueServices@2023-01-0
 output storageAccountName string = storageAccount.name
 output storageAccountId string = storageAccount.id
 output storageAccountPrimaryEndpoints object = storageAccount.properties.primaryEndpoints
+
+@description('Storage account connection string (secure)')
+@secure()
+output storageConnectionString string = 'DefaultEndpointsProtocol=https;AccountName=${storageAccount.name};AccountKey=${storageAccount.listKeys().keys[0].value};EndpointSuffix=${az.environment().suffixes.storage}'
