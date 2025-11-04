@@ -33,11 +33,13 @@ param retentionDays int = environment == 'prod' ? 30 : 7
 @description('Resource tags')
 param tags object
 
-var storageAccountName = 'st${namePrefix}${environment}${uniqueString(resourceGroup().id)}'
+// Storage account name must be 3-24 lowercase alphanumeric characters
+// Format: st{prefix}{env}{unique} - e.g., stcgdev12345678
+var storageAccountName = 'st${toLower(take(namePrefix, 2))}${toLower(environment)}${take(uniqueString(resourceGroup().id), 10)}'
 
 // Storage Account
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
-  name: take(storageAccountName, 24) // Max 24 characters
+  name: storageAccountName
   location: location
   tags: tags
   sku: {
