@@ -86,9 +86,11 @@ resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2023-05-01-prev
 }
 
 // Outputs
-output sqlServerName string = enableSqlDatabase ? sqlServer.name : ''
-output sqlServerFqdn string = enableSqlDatabase ? sqlServer.properties.fullyQualifiedDomainName : ''
-output sqlDatabaseName string = enableSqlDatabase ? sqlDatabase.name : ''
-output sqlServerId string = enableSqlDatabase ? sqlServer.id : ''
-output sqlDatabaseId string = enableSqlDatabase ? sqlDatabase.id : ''
-output connectionString string = enableSqlDatabase ? 'Server=${sqlServer.properties.fullyQualifiedDomainName};Database=${sqlDatabase.name};User Id=${sqlAdminLogin};Password=${sqlAdminPassword};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;' : ''
+output sqlServerName string = enableSqlDatabase ? sqlServer!.name : ''
+output sqlServerFqdn string = enableSqlDatabase ? sqlServer!.properties.fullyQualifiedDomainName : ''
+output sqlDatabaseName string = enableSqlDatabase ? sqlDatabase!.name : ''
+output sqlServerId string = enableSqlDatabase ? sqlServer!.id : ''
+output sqlDatabaseId string = enableSqlDatabase ? sqlDatabase!.id : ''
+// Note: Connection string removed from outputs for security reasons
+// Use Key Vault references in application settings instead
+output connectionString string = ''
