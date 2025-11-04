@@ -1,0 +1,306 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExpandTimeline",
+  "description": "Detailed expansion of the case timeline with full event context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["events"],
+  "properties": {
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Chronologically ordered detailed events",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "eventId",
+          "timestamp",
+          "title",
+          "description",
+          "location",
+          "participants",
+          "significance"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "pattern": "^E[0-9]{3}$",
+            "description": "Event identifier matching PlanTimeline (e.g., E001)"
+          },
+          "timestamp": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2})$",
+            "description": "ISO-8601 timestamp with timezone offset"
+          },
+          "title": {
+            "type": "string",
+            "description": "Brief event title matching PlanTimeline"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 100,
+            "description": "Detailed description of what happened during this event"
+          },
+          "location": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Location name (abstract or general, no real addresses)"
+              },
+              "type": {
+                "type": "string",
+                "description": "Type of location (office, residence, public space, etc.)"
+              },
+              "details": {
+                "type": "string",
+                "description": "Additional location context"
+              }
+            }
+          },
+          "participants": {
+            "type": "array",
+            "minItems": 1,
+            "description": "People involved in this event",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id", "role", "actions"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^S[0-9]{3}$",
+                  "description": "Suspect ID"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Participant name for readability"
+                },
+                "role": {
+                  "type": "string",
+                  "description": "Role in this event (e.g., 'victim', 'witness', 'perpetrator', 'bystander')"
+                },
+                "actions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Actions taken by this participant during the event"
+                },
+                "observations": {
+                  "type": "string",
+                  "description": "What this participant observed or knows about the event"
+                }
+              }
+            }
+          },
+          "sequence": {
+            "type": "array",
+            "description": "Chronological sequence of actions within the event",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["order", "action"],
+              "properties": {
+                "order": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Sequence order (1, 2, 3, ...)"
+                },
+                "action": {
+                  "type": "string",
+                  "description": "What happened in this step"
+                },
+                "duration": {
+                  "type": "string",
+                  "description": "How long this action took"
+                },
+                "actor": {
+                  "type": "string",
+                  "pattern": "^S[0-9]{3}$",
+                  "description": "Who performed this action"
+                }
+              }
+            }
+          },
+          "evidenceGenerated": {
+            "type": "array",
+            "description": "Evidence items created or discovered during this event",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["evidenceId", "type"],
+              "properties": {
+                "evidenceId": {
+                  "type": "string",
+                  "pattern": "^EV[0-9]{3}$",
+                  "description": "Evidence identifier"
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Type of evidence"
+                },
+                "howGenerated": {
+                  "type": "string",
+                  "description": "How this evidence was created/left behind"
+                }
+              }
+            }
+          },
+          "witnessAccounts": {
+            "type": "array",
+            "description": "Witness statements or observations about this event",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["witnessId", "account"],
+              "properties": {
+                "witnessId": {
+                  "type": "string",
+                  "pattern": "^S[0-9]{3}$",
+                  "description": "Witness suspect ID"
+                },
+                "account": {
+                  "type": "string",
+                  "description": "What the witness claims to have seen/heard"
+                },
+                "reliability": {
+                  "type": "string",
+                  "enum": ["reliable", "mostly_reliable", "questionable", "unreliable"],
+                  "description": "Reliability of this witness account"
+                },
+                "contradictions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Contradictions in this account vs. other evidence"
+                }
+              }
+            }
+          },
+          "significance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["level", "reason"],
+            "properties": {
+              "level": {
+                "type": "string",
+                "enum": ["critical", "important", "moderate", "minor"],
+                "description": "Significance level for case resolution"
+              },
+              "reason": {
+                "type": "string",
+                "description": "Why this event is significant"
+              },
+              "investigativeLeads": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Investigative leads that emerge from this event"
+              }
+            }
+          },
+          "relatedEvents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["eventId", "relationship"],
+              "properties": {
+                "eventId": {
+                  "type": "string",
+                  "pattern": "^E[0-9]{3}$"
+                },
+                "relationship": {
+                  "type": "string",
+                  "description": "How this event relates (e.g., 'caused by', 'led to', 'concurrent with')"
+                }
+              }
+            },
+            "description": "Links to other events in the timeline"
+          },
+          "relatedFacts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^FACT[0-9]{3}$"
+            },
+            "description": "Golden truth facts this event supports or contradicts"
+          },
+          "inconsistencies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["description", "sources"],
+              "properties": {
+                "description": {
+                  "type": "string",
+                  "description": "Description of the inconsistency"
+                },
+                "sources": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Sources of conflicting information (witness IDs, evidence IDs)"
+                }
+              }
+            },
+            "description": "Timeline inconsistencies or contradictions at this event"
+          },
+          "playerDiscovery": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "initialKnowledge": {
+                "type": "string",
+                "enum": ["full", "partial", "none"],
+                "description": "How much players know about this event initially"
+              },
+              "revealedBy": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Sources that reveal this event (interviews, documents, evidence)"
+              },
+              "requiredRank": {
+                "type": "string",
+                "enum": ["Rookie", "Officer", "Detective", "Inspector", "Commander"],
+                "description": "Minimum rank to access full event details"
+              }
+            }
+          }
+        }
+      }
+    },
+    "timelineMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "totalDuration": {
+          "type": "string",
+          "description": "Total time span of all events (e.g., '3 days', '2 weeks')"
+        },
+        "keyTurningPoints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^E[0-9]{3}$"
+          },
+          "description": "Event IDs that are critical turning points"
+        },
+        "narrativeStructure": {
+          "type": "string",
+          "description": "Overall narrative flow (linear, parallel tracks, flashback, etc.)"
+        }
+      }
+    }
+  }
+}

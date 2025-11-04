@@ -5,7 +5,32 @@ namespace CaseGen.Functions.Services;
 public interface ICaseGenerationService
 {
     Task<string> PlanCaseAsync(CaseGenerationRequest request, string caseId, CancellationToken cancellationToken = default);
+    
+    // Phase 2: Hierarchical Plan methods
+    Task<string> PlanCoreAsync(CaseGenerationRequest request, string caseId, CancellationToken cancellationToken = default);
+    Task<string> PlanSuspectsAsync(string caseId, CancellationToken cancellationToken = default);
+    Task<string> PlanTimelineAsync(string caseId, CancellationToken cancellationToken = default);
+    Task<string> PlanEvidenceAsync(string caseId, CancellationToken cancellationToken = default);
+    
     Task<string> ExpandCaseAsync(string planJson, string caseId, CancellationToken cancellationToken = default);
+    
+    // Phase 3: Hierarchical Expand methods
+    Task<string> ExpandSuspectAsync(string caseId, string suspectId, CancellationToken cancellationToken = default);
+    Task<string> ExpandEvidenceAsync(string caseId, string evidenceId, CancellationToken cancellationToken = default);
+    Task<string> ExpandTimelineAsync(string caseId, CancellationToken cancellationToken = default);
+    Task<string> SynthesizeRelationsAsync(string caseId, CancellationToken cancellationToken = default);
+    
+    // Helper methods
+    Task<string> LoadContextAsync(string caseId, string path, CancellationToken cancellationToken = default);
+    
+    // Phase 4: Design by document/media type
+    Task<string> DesignDocumentTypeAsync(string caseId, string docType, CancellationToken cancellationToken = default);
+    Task<string> DesignMediaTypeAsync(string caseId, string mediaType, CancellationToken cancellationToken = default);
+    
+    // Visual consistency for image generation
+    Task<string> DesignVisualConsistencyRegistryAsync(string caseId, CancellationToken cancellationToken = default);
+    Task<int> GenerateMasterReferencesAsync(string caseId, CancellationToken cancellationToken = default);
+    
     Task<string> DesignCaseAsync(string planJson, string expandedJson, string caseId, string? difficulty = null, CancellationToken cancellationToken = default);
     Task<string> GenerateDocumentFromSpecAsync(DocumentSpec spec, string designJson, string caseId, string? planJson = null, string? expandJson = null, string? difficultyOverride = null, CancellationToken ct = default);
     Task<string> GenerateMediaFromSpecAsync(MediaSpec spec, string designJson, string caseId, string? planJson = null, string? expandJson = null, string? difficultyOverride = null, CancellationToken ct = default);
@@ -32,7 +57,9 @@ public interface IStorageService
 {
     Task<string> SaveFileAsync(string containerName, string fileName, string content, CancellationToken cancellationToken = default);
     Task<string> SaveFileAsync(string containerName, string fileName, byte[] content, CancellationToken cancellationToken = default);
+    Task SaveFileBytesAsync(string containerName, string fileName, byte[] content, CancellationToken cancellationToken = default);
     Task<string> GetFileAsync(string containerName, string fileName, CancellationToken cancellationToken = default);
+    Task<byte[]?> GetFileBytesAsync(string containerName, string fileName, CancellationToken cancellationToken = default);
     Task<bool> FileExistsAsync(string containerName, string fileName, CancellationToken cancellationToken = default);
     Task DeleteFileAsync(string containerName, string fileName, CancellationToken cancellationToken = default);
     Task<IEnumerable<string>> ListFilesAsync(string containerName, string prefix = "", CancellationToken cancellationToken = default);
@@ -43,6 +70,7 @@ public interface ILLMService
     Task<string> GenerateAsync(string caseId, string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
     Task<string> GenerateStructuredAsync(string caseId, string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default);
     Task<byte[]> GenerateImageAsync(string caseId, string prompt, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateImageWithReferenceAsync(string caseId, string prompt, byte[] referenceImage, byte[]? maskImage = null, CancellationToken cancellationToken = default);
 }
 
 public interface ILLMProvider
@@ -50,6 +78,7 @@ public interface ILLMProvider
     Task<LLMResponse> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default);
     Task<LLMResponse> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default);
     Task<byte[]> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateImageWithReferenceAsync(string prompt, byte[] referenceImage, byte[]? maskImage = null, CancellationToken cancellationToken = default);
 }
 
 public interface INormalizerService

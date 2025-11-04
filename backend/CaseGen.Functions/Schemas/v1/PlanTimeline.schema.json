@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PlanTimeline",
+  "description": "Canonical timeline of case events",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["timeline"],
+  "properties": {
+    "timeline": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Chronologically ordered events with ISO-8601 timestamps",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["eventId", "ts", "title"],
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "pattern": "^E[0-9]{3}$",
+            "description": "Event identifier (e.g., E001)"
+          },
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2})$",
+            "description": "ISO-8601 timestamp with timezone offset (e.g., 2025-08-30T22:15:00-03:00)"
+          },
+          "title": {
+            "type": "string",
+            "description": "Brief event description"
+          },
+          "loc": {
+            "type": "string",
+            "description": "Event location (can be abstract or general)"
+          },
+          "involvedSuspects": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^S[0-9]{3}$"
+            },
+            "description": "Suspect IDs involved in this event"
+          }
+        }
+      }
+    }
+  }
+}

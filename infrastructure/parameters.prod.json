@@ -1,0 +1,43 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "prod"
+    },
+    "location": {
+      "value": "canadaeast"
+    },
+    "namePrefix": {
+      "value": "casezero"
+    },
+    "enableSqlDatabase": {
+      "value": false
+    },
+    "sqlAdminLogin": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/{subscription-id}/resourceGroups/casezero-secrets-rg/providers/Microsoft.KeyVault/vaults/casezero-secrets-kv"
+        },
+        "secretName": "sql-admin-login"
+      }
+    },
+    "sqlAdminPassword": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/{subscription-id}/resourceGroups/casezero-secrets-rg/providers/Microsoft.KeyVault/vaults/casezero-secrets-kv"
+        },
+        "secretName": "sql-admin-password"
+      }
+    },
+    "enableMonitoring": {
+      "value": true
+    },
+    "repositoryUrl": {
+      "value": "https://github.com/lcarli/CaseZero-Alternative"
+    },
+    "branchName": {
+      "value": "main"
+    }
+  }
+}

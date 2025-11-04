@@ -1,0 +1,39 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PlanSuspects",
+  "description": "Initial suspect profiles for case planning",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["suspects"],
+  "properties": {
+    "suspects": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Initial suspect list with basic profiles",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "role", "initialMotivation"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^S[0-9]{3}$",
+            "description": "Suspect identifier (e.g., S001)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Full name (fictitious, plausible)"
+          },
+          "role": {
+            "type": "string",
+            "description": "Role or relationship to the case/victim"
+          },
+          "initialMotivation": {
+            "type": "string",
+            "description": "Brief initial motivation or connection to case"
+          }
+        }
+      }
+    }
+  }
+}

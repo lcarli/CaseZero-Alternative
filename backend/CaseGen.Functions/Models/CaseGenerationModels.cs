@@ -8,6 +8,55 @@ public record PlanActivityModel
     public required string CaseId { get; init; }
 }
 
+// Phase 2: Hierarchical Plan sub-activities
+public record PlanCoreActivityModel
+{
+    public required CaseGenerationRequest Request { get; init; }
+    public required string CaseId { get; init; }
+}
+
+public record PlanSuspectsActivityModel
+{
+    public required string CorePlanRef { get; init; } // "@plan/core"
+    public required string CaseId { get; init; }
+}
+
+public record PlanTimelineActivityModel
+{
+    public required string CorePlanRef { get; init; } // "@plan/core"
+    public required string SuspectsRef { get; init; } // "@plan/suspects"
+    public required string CaseId { get; init; }
+}
+
+public record PlanEvidenceActivityModel
+{
+    public required string CorePlanRef { get; init; } // "@plan/core"
+    public required string SuspectsRef { get; init; } // "@plan/suspects"
+    public required string TimelineRef { get; init; } // "@plan/timeline"
+    public required string CaseId { get; init; }
+}
+
+// Helper model to load context from orchestrator
+public record LoadContextActivityModel
+{
+    public required string CaseId { get; init; }
+    public required string Path { get; init; } // e.g., "plan/suspects"
+}
+
+// Phase 4: Design by document type
+public record DesignDocumentTypeActivityModel
+{
+    public required string CaseId { get; init; }
+    public required string DocType { get; init; } // e.g., "police_report", "interview", "forensics_report"
+}
+
+// Phase 4: Design by media type
+public record DesignMediaTypeActivityModel
+{
+    public required string CaseId { get; init; }
+    public required string MediaType { get; init; } // e.g., "crime_scene_photo", "mugshot", "evidence_photo"
+}
+
 public record DesignActivityModel
 {
     public required string PlanJson { get; init; }
@@ -22,11 +71,35 @@ public record ExpandActivityModel
     public required string CaseId { get; init; }
 }
 
+// Phase 3: Hierarchical Expand sub-activities
+public record ExpandSuspectActivityModel
+{
+    public required string CaseId { get; init; }
+    public required string SuspectId { get; init; } // "S001", "S002", etc.
+}
+
+public record ExpandEvidenceActivityModel
+{
+    public required string CaseId { get; init; }
+    public required string EvidenceId { get; init; }
+}
+
+public record ExpandTimelineActivityModel
+{
+    public required string CaseId { get; init; }
+}
+
+public record SynthesizeRelationsActivityModel
+{
+    public required string CaseId { get; init; }
+}
+
 public record ValidateActivityModel
 {
     public required string NormalizedJson { get; init; }
     public required string CaseId { get; init; }
 }
+
 
 
 
@@ -139,21 +212,20 @@ public record GenerateDocumentItemInput
 {
     public required string CaseId { get; init; }
     public required DocumentSpec Spec { get; init; }
-    public required string PlanJson { get; init; } = "";
-    public required string ExpandedJson { get; init; } = "";
-    public required string DesignJson { get; init; } = "";
     public required string? DifficultyOverride { get; init; } = "";
-
+    
+    // Phase 5: Removed PlanJson, ExpandedJson, DesignJson
+    // Context will be loaded via ContextManager based on Spec.Type
 }
 
 public record GenerateMediaItemInput
 {
     public required string CaseId { get; init; }
     public required MediaSpec Spec { get; init; }
-    public required string PlanJson { get; init; } = "";
-    public required string ExpandedJson { get; init; } = "";
-    public required string DesignJson { get; init; } = "";
     public required string? DifficultyOverride { get; init; } = "";
+    
+    // Phase 5: Removed PlanJson, ExpandedJson, DesignJson
+    // Context will be loaded via ContextManager based on media type
 }
 
 public record RenderDocumentItemInput
@@ -167,6 +239,55 @@ public record RenderMediaItemInput
 {
     public required string CaseId { get; init; }
     public required MediaSpec Spec { get; init; }
+}
+
+// Phase 6: Normalize activities models
+public record NormalizeEntitiesActivityModel
+{
+    public required string CaseId { get; init; }
+}
+
+public record NormalizeDocumentsActivityModel
+{
+    public required string CaseId { get; init; }
+    public required string[] DocIds { get; init; }
+}
+
+public record NormalizeManifestActivityModel
+{
+    public required string CaseId { get; init; }
+}
+
+// Phase 7: QA activities models
+public record QA_ScanIssuesActivityModel
+{
+    public required string CaseId { get; init; }
+}
+
+public record QaScanIssue
+{
+    public required string Area { get; init; }
+    public required string Severity { get; init; }  // "high", "medium", "low"
+    public required string Description { get; init; }
+}
+
+public record QA_DeepDiveActivityModel
+{
+    public required string CaseId { get; init; }
+    public required string IssueArea { get; init; }  // e.g., "suspect_S001_alibi", "evidence_E003_chain"
+}
+
+public record FixEntityActivityModel
+{
+    public required string CaseId { get; init; }
+    public required string EntityId { get; init; }  // e.g., "S001", "E003", "W002"
+    public required string IssueDescription { get; init; }  // Description from deep dive analysis
+}
+
+public record CheckCaseCleanActivityV2Model
+{
+    public required string CaseId { get; init; }
+    public required string[] IssueAreas { get; init; }  // List of issue areas that were addressed
 }
 
 public record RenderedDocument
@@ -264,13 +385,13 @@ public record CaseGenerationStatus
 public record CaseGenerationOutput
 {
     [JsonPropertyName("bundlePath")]
-    public string BundlePath { get; init; } = "";
+    public required string BundlePath { get; init; }
     
     [JsonPropertyName("caseId")]
-    public string CaseId { get; init; } = "";
+    public required string CaseId { get; init; }
     
     [JsonPropertyName("files")]
-    public GeneratedFile[] Files { get; init; } = Array.Empty<GeneratedFile>();
+    public required List<GeneratedFile> Files { get; init; }
     
     [JsonPropertyName("metadata")]
     public CaseMetadata? Metadata { get; init; }
@@ -279,10 +400,10 @@ public record CaseGenerationOutput
 public record GeneratedFile
 {
     [JsonPropertyName("path")]
-    public string Path { get; init; } = "";
+    public required string Path { get; init; }
     
     [JsonPropertyName("type")]
-    public string Type { get; init; } = "";
+    public required string Type { get; init; }
     
     [JsonPropertyName("size")]
     public long Size { get; init; }
@@ -294,19 +415,19 @@ public record GeneratedFile
 public record CaseMetadata
 {
     [JsonPropertyName("title")]
-    public string Title { get; init; } = "";
+    public required string Title { get; init; }
     
     [JsonPropertyName("difficulty")]
-    public string Difficulty { get; init; } = "";
+    public required string Difficulty { get; init; }
     
     [JsonPropertyName("estimatedDuration")]
     public int EstimatedDuration { get; init; }
     
     [JsonPropertyName("categories")]
-    public string[] Categories { get; init; } = Array.Empty<string>();
+    public required List<string> Categories { get; init; }
     
     [JsonPropertyName("tags")]
-    public string[] Tags { get; init; } = Array.Empty<string>();
+    public required List<string> Tags { get; init; }
     
     [JsonPropertyName("generatedAt")]
     public DateTime GeneratedAt { get; init; }
@@ -335,6 +456,15 @@ public static class CaseGenerationSteps
 }
 
 // Document and Media Specifications for structured case design
+public record LengthTarget
+{
+    [JsonPropertyName("min")]
+    public required int Min { get; init; }
+    
+    [JsonPropertyName("max")]
+    public required int Max { get; init; }
+}
+
 public record DocumentSpec
 {
     [JsonPropertyName("docId")]
@@ -350,7 +480,7 @@ public record DocumentSpec
     public required string[] Sections { get; init; }
     
     [JsonPropertyName("lengthTarget")]
-    public required int[] LengthTarget { get; init; }
+    public required LengthTarget LengthTarget { get; init; }
     
     [JsonPropertyName("gated")]
     public required bool Gated { get; init; }
@@ -375,7 +505,44 @@ public record MediaSpec
 
     [JsonPropertyName("constraints")]
     public Dictionary<string, object>? Constraints { get; init; }
+    
+    [JsonPropertyName("visualReferenceIds")]
+    public string[]? VisualReferenceIds { get; init; }
+    
     public bool Deferred { get; init; } = false;
+}
+
+public record VisualReference
+{
+    [JsonPropertyName("referenceId")]
+    public required string ReferenceId { get; init; }
+    
+    [JsonPropertyName("category")]
+    public required string Category { get; init; } // "evidence", "suspect", "location"
+    
+    [JsonPropertyName("detailedDescription")]
+    public required string DetailedDescription { get; init; }
+    
+    [JsonPropertyName("colorPalette")]
+    public string[]? ColorPalette { get; init; }
+    
+    [JsonPropertyName("distinctiveFeatures")]
+    public string[]? DistinctiveFeatures { get; init; }
+    
+    [JsonPropertyName("imageUrl")]
+    public string? ImageUrl { get; init; }
+}
+
+public record VisualConsistencyRegistry
+{
+    [JsonPropertyName("caseId")]
+    public required string CaseId { get; init; }
+    
+    [JsonPropertyName("references")]
+    public required Dictionary<string, VisualReference> References { get; init; }
+    
+    [JsonPropertyName("generatedAt")]
+    public DateTime GeneratedAt { get; init; } = DateTime.UtcNow;
 }
 
 public record DocumentAndMediaSpecs

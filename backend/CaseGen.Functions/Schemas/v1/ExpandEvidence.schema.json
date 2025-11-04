@@ -1,0 +1,207 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExpandEvidence",
+  "description": "Detailed expansion of a single evidence item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidenceId",
+    "type",
+    "description",
+    "discoveryContext",
+    "physicalDetails",
+    "chainOfCustody",
+    "forensicAnalysis",
+    "significance"
+  ],
+  "properties": {
+    "evidenceId": {
+      "type": "string",
+      "pattern": "^EV[0-9]{3}$",
+      "description": "Evidence identifier (e.g., EV001)"
+    },
+    "type": {
+      "type": "string",
+      "description": "Type of evidence (e.g., 'document', 'physical_object', 'digital', 'witness_statement', 'forensic')"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 50,
+      "description": "Detailed description of the evidence item"
+    },
+    "discoveryContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["location", "discoveredBy", "timestamp"],
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "Where the evidence was found"
+        },
+        "discoveredBy": {
+          "type": "string",
+          "description": "Who discovered the evidence (officer, witness, etc.)"
+        },
+        "timestamp": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[+-][0-9]{2}:[0-9]{2}$",
+          "description": "When the evidence was discovered (ISO-8601 with timezone offset)"
+        },
+        "circumstances": {
+          "type": "string",
+          "description": "Circumstances surrounding the discovery"
+        }
+      }
+    },
+    "physicalDetails": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "appearance": {
+          "type": "string",
+          "description": "Visual appearance of the evidence"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Current condition (pristine, damaged, weathered, etc.)"
+        },
+        "dimensions": {
+          "type": "string",
+          "description": "Size or dimensions if relevant"
+        },
+        "material": {
+          "type": "string",
+          "description": "Material composition if relevant"
+        }
+      }
+    },
+    "chainOfCustody": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Chain of custody log entries",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["timestamp", "handledBy", "action"],
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[+-][0-9]{2}:[0-9]{2}$"
+          },
+          "handledBy": {
+            "type": "string",
+            "description": "Person who handled the evidence"
+          },
+          "action": {
+            "type": "string",
+            "description": "Action performed (collected, logged, analyzed, stored, etc.)"
+          },
+          "location": {
+            "type": "string",
+            "description": "Location where action occurred"
+          }
+        }
+      }
+    },
+    "forensicAnalysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "performed": {
+          "type": "boolean",
+          "description": "Whether forensic analysis was conducted"
+        },
+        "analyst": {
+          "type": "string",
+          "description": "Name of forensic analyst"
+        },
+        "method": {
+          "type": "string",
+          "description": "Analysis method used"
+        },
+        "findings": {
+          "type": "string",
+          "description": "Key findings from the analysis"
+        },
+        "conclusiveness": {
+          "type": "string",
+          "enum": ["definitive", "strong", "suggestive", "inconclusive"],
+          "description": "How conclusive the forensic findings are"
+        }
+      }
+    },
+    "relatedSuspects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["suspectId", "relationship"],
+        "properties": {
+          "suspectId": {
+            "type": "string",
+            "pattern": "^S[0-9]{3}$"
+          },
+          "relationship": {
+            "type": "string",
+            "description": "How this evidence relates to the suspect (e.g., 'owned by', 'seen with', 'implicates', 'exonerates')"
+          }
+        }
+      }
+    },
+    "relatedEvents": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^E[0-9]{3}$",
+        "description": "Event IDs this evidence is connected to"
+      }
+    },
+    "relatedFacts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^FACT[0-9]{3}$",
+        "description": "Golden truth fact IDs this evidence supports"
+      }
+    },
+    "significance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "reason"],
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["critical", "important", "moderate", "minor"],
+          "description": "Significance level for case resolution"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why this evidence is significant"
+        },
+        "investigativeValue": {
+          "type": "string",
+          "description": "What investigators can learn from this evidence"
+        }
+      }
+    },
+    "playerVisibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "initiallyAvailable": {
+          "type": "boolean",
+          "description": "Whether evidence is available from the start"
+        },
+        "discoveryMethod": {
+          "type": "string",
+          "description": "How players can discover this evidence (e.g., 'search location', 'interview witness', 'analyze document')"
+        },
+        "requiredRank": {
+          "type": "string",
+          "enum": ["Rookie", "Officer", "Detective", "Inspector", "Commander"],
+          "description": "Minimum detective rank required to access"
+        }
+      }
+    }
+  }
+}

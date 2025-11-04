@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PlanEvidence",
+  "description": "Main evidence elements planned for the case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mainElements", "goldenTruth"],
+  "properties": {
+    "mainElements": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Core evidence types that will be developed (witness statements, logs, receipts, CCTV, forensics, etc.)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "goldenTruth": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Sealed true facts that must be supported by evidence (without revealing solution)",
+      "required": ["facts"],
+      "properties": {
+        "facts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "about", "minSupports"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^FACT[0-9]{3}$",
+                "description": "Fact identifier (e.g., FACT001)"
+              },
+              "about": {
+                "type": "string",
+                "description": "What this fact establishes (without revealing culprit)"
+              },
+              "minSupports": {
+                "type": "integer",
+                "minimum": 2,
+                "description": "Minimum number of supporting evidence items required"
+              },
+              "heterogeneous": {
+                "type": "boolean",
+                "description": "Whether supports should come from varied source types"
+              },
+              "relatedSuspects": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^S[0-9]{3}$"
+                },
+                "description": "Suspect IDs related to this fact"
+              },
+              "relatedEvents": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^E[0-9]{3}$"
+                },
+                "description": "Event IDs related to this fact"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

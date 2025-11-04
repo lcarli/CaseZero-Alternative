@@ -82,6 +82,98 @@ public class ImagesService : IImagesService
     {
         _logger.LogInformation("Generating image for evidence {EvidenceId} using LLM", spec.EvidenceId);
 
+        // Check if this spec has visual reference IDs
+        if (spec.VisualReferenceIds != null && spec.VisualReferenceIds.Any())
+        {
+            _logger.LogInformation("MediaSpec has visual references: {References}", string.Join(", ", spec.VisualReferenceIds));
+            
+            // Try to load visual references and generate with them
+            var referenceImage = await TryLoadVisualReference(caseId, spec.VisualReferenceIds[0], cancellationToken);
+            
+            if (referenceImage != null)
+            {
+                return await GenerateImageWithReferenceAsync(caseId, spec, referenceImage, cancellationToken);
+            }
+            else
+            {
+                _logger.LogWarning("Could not load visual reference {ReferenceId}, falling back to text-only generation", 
+                    spec.VisualReferenceIds[0]);
+            }
+        }
+
+        // Fallback to text-only generation
+        return await GenerateImageFromTextAsync(caseId, spec, cancellationToken);
+    }
+
+    private async Task<byte[]?> TryLoadVisualReference(string caseId, string referenceId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var contextContainer = _configuration["CaseGeneratorStorage:ContextContainer"] ?? "case-context";
+            var referencePath = $"{caseId}/references/{referenceId}.png";
+            
+            _logger.LogInformation("Attempting to load visual reference from {Path}", referencePath);
+            
+            var referenceBytes = await _storageService.GetFileBytesAsync(contextContainer, referencePath, cancellationToken);
+            
+            if (referenceBytes != null && referenceBytes.Length > 0)
+            {
+                _logger.LogInformation("Loaded visual reference {ReferenceId}, size: {Size} bytes", referenceId, referenceBytes.Length);
+                return referenceBytes;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load visual reference {ReferenceId}", referenceId);
+        }
+        
+        return null;
+    }
+
+    private async Task<byte[]> GenerateImageWithReferenceAsync(string caseId, MediaSpec spec, byte[] referenceImage, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Generating image for {EvidenceId} using visual reference ({ReferenceSize} bytes)", 
+            spec.EvidenceId, referenceImage.Length);
+
+        var constraintsText = spec.Constraints != null && spec.Constraints.Any()
+            ? string.Join("\n", spec.Constraints.Select(kvp => $"- {kvp.Key}: {kvp.Value}"))
+            : "No specific constraints";
+
+        var imagePrompt = $"""
+            Generate a forensic image based on these specifications:
+
+            EVIDENCE: {spec.EvidenceId}
+            TYPE: {spec.Kind}
+            TITLE: {spec.Title}
+            
+            SCENE DESCRIPTION:
+            {spec.Prompt}
+            
+            VISUAL CONSISTENCY REQUIREMENT:
+            The reference image shows the EXACT appearance of a key element in this scene.
+            You MUST maintain ALL visual characteristics from the reference image:
+            - Colors, textures, and materials
+            - Size, proportions, and distinctive features
+            - Any visible wear, marks, or unique details
+            
+            Integrate this element naturally into the scene described above.
+            DO NOT alter the element's visual appearance - only its placement, context, lighting, and angle.
+            
+            TECHNICAL REQUIREMENTS AND CONSTRAINTS:
+            {constraintsText}
+
+            Generate a high-quality PNG/JPG image that strictly satisfies all specifications for forensic/police use.
+            """;
+
+        var imageBytes = await _llmService.GenerateImageWithReferenceAsync(caseId, imagePrompt, referenceImage, null, cancellationToken);
+        
+        return imageBytes;
+    }
+
+    private async Task<byte[]> GenerateImageFromTextAsync(string caseId, MediaSpec spec, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Generating image for evidence {EvidenceId} from text prompt only", spec.EvidenceId);
+
         var constraintsText = spec.Constraints != null && spec.Constraints.Any()
             ? string.Join("\n", spec.Constraints.Select(kvp => $"- {kvp.Key}: {kvp.Value}"))
             : "No specific constraints";

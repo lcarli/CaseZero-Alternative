@@ -80,6 +80,49 @@ public class StorageService : IStorageService
         }
     }
 
+    public async Task<byte[]?> GetFileBytesAsync(string containerName, string fileName, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containerClient = await GetContainerClientAsync(containerName, cancellationToken);
+            var blobClient = containerClient.GetBlobClient(fileName);
+
+            if (!await blobClient.ExistsAsync(cancellationToken))
+            {
+                _logger.LogWarning("File {FileName} does not exist in container {ContainerName}", fileName, containerName);
+                return null;
+            }
+
+            var response = await blobClient.DownloadContentAsync(cancellationToken);
+            return response.Value.Content.ToArray();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get file bytes {FileName} from container {ContainerName}", fileName, containerName);
+            return null;
+        }
+    }
+
+    public async Task SaveFileBytesAsync(string containerName, string fileName, byte[] content, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containerClient = await GetContainerClientAsync(containerName, cancellationToken);
+            var blobClient = containerClient.GetBlobClient(fileName);
+
+            using var stream = new MemoryStream(content);
+            await blobClient.UploadAsync(stream, overwrite: true, cancellationToken);
+
+            _logger.LogInformation("Successfully saved {Size} bytes to {FileName} in container {ContainerName}", 
+                content.Length, fileName, containerName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save file bytes {FileName} to container {ContainerName}", fileName, containerName);
+            throw;
+        }
+    }
+
     public async Task<bool> FileExistsAsync(string containerName, string fileName, CancellationToken cancellationToken = default)
     {
         try

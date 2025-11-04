@@ -1,0 +1,132 @@
+
+################################################################################
+#                                                                              #
+#                         CASEGEN - TESTE DE ENDPOINTS                        #
+#                                                                              #
+################################################################################
+
+################################################################################
+# 🧪 TESTES RÁPIDOS DE ETAPAS INDIVIDUAIS
+################################################################################
+
+### TEST 1 - Validar Encoding JSON (1 segundo)
+# Testa se arquivos JSON estão sendo salvos sem double-encoding
+
+POST http://localhost:7071/api/TestJsonEncoding
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20251027-9e3f82ea"
+}
+
+### TEST 2 - Normalizar Entidades (1-2 segundos)
+# Testa normalização de suspects e evidence de um caso existente
+# Requer: Caso com expand/suspects/* e expand/evidence/* no blob
+
+POST http://localhost:7071/api/TestNormalizeEntities
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20251027-9e3f82ea"
+}
+
+### TEST 3 - Gerar Imagens de Caso Existente (15-20 minutos)
+# Gera todas as imagens de um caso que já foi criado
+# Útil quando o caso foi gerado com generateImages=false
+# Requer: Caso com design/media/*.json no blob storage
+
+POST http://localhost:7071/api/TestGenerateImages
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20251027-9e3f82ea"
+}
+
+### TEST 4 - Design Visual Registry (1-2 minutos)
+# Cria registry de elementos visuais para consistência
+# Analisa evidências e suspeitos do caso existente
+# Requer: Caso com plan/* e expand/* no blob storage
+
+POST http://localhost:7071/api/DesignVisualRegistryStep
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20251027-b442dc10"
+}
+
+### TEST 5 - Generate Master References (3-5 minutos)
+# Gera imagens de referência isoladas para cada elemento
+# Requer: visual-registry.json criado pelo TEST 4
+
+POST http://localhost:7071/api/GenerateMasterReferencesStep
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20251027-b442dc10"
+}
+
+### TEST 6 - Gerar Imagens COM Consistência Visual (15-20 minutos)
+# Gera todas as imagens usando as referências visuais
+# Requer: Master references criados pelo TEST 5
+# IMPORTANTE: Execute TEST 4 → TEST 5 → TEST 6 nesta ordem!
+
+POST http://localhost:7071/api/TestGenerateImages
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20251027-b442dc10"
+}
+
+
+################################################################################
+# 📦 GERAÇÃO DE CASO COMPLETO
+################################################################################
+
+### Gerar Caso RÁPIDO (sem imagens, sem PDFs) - 3-5 minutos
+# Recomendado para desenvolvimento e testes rápidos
+
+POST http://localhost:7071/api/StartCaseGeneration
+Content-Type: application/json
+
+{
+  "difficulty": "Rookie",
+  "generateImages": false,
+  "renderFiles": false,
+  "timezone": "America/Toronto"
+}
+
+### Gerar Caso COM IMAGENS (sem PDFs) - 15-20 minutos
+
+POST http://localhost:7071/api/StartCaseGeneration
+Content-Type: application/json
+
+{
+  "difficulty": "Rookie",
+  "generateImages": true,
+  "renderFiles": false,
+  "timezone": "America/Toronto"
+}
+
+### Gerar Caso COMPLETO (imagens + PDFs) - 25-30 minutos
+# Produção - tudo incluído
+
+POST http://localhost:7071/api/StartCaseGeneration
+Content-Type: application/json
+
+{
+  "difficulty": "Rookie",
+  "generateImages": true,
+  "renderFiles": true,
+  "timezone": "America/Toronto"
+}
+
+###
+
+# Levels: Rookie | Detective| Detective2 | Sergeant | Captain | Commander
+# Caso de nível avançado (SEM RENDERIZAÇÃO)
+POST http://localhost:7071/api/StartCaseGeneration
+
+{
+  "difficulty": "Sergeant",
+  "renderFiles": false
+}

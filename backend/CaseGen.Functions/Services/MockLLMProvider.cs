@@ -144,6 +144,32 @@ public class MockLLMProvider : ILLMProvider
         }
     }
 
+    public Task<byte[]> GenerateImageWithReferenceAsync(
+        string prompt,
+        byte[] referenceImage,
+        byte[]? maskImage = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Generating image with reference for prompt: {Prompt} (reference size: {RefSize} bytes, has mask: {HasMask})",
+                prompt, referenceImage.Length, maskImage != null);
+
+            // In mock mode, we just return a placeholder image
+            // In real implementation, this would use the reference image to maintain visual consistency
+            var placeholderImageBytes = CreatePlaceholderImage(prompt);
+            
+            _logger.LogInformation("Image with reference generated successfully with size: {Size} bytes", placeholderImageBytes.Length);
+            
+            return Task.FromResult(placeholderImageBytes);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Mock image generation with reference failed for prompt: {Prompt}", prompt);
+            throw;
+        }
+    }
+
     private byte[] CreatePlaceholderImage(string prompt)
     {
         // Create a simple PNG placeholder image

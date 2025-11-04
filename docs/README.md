@@ -10,9 +10,10 @@ Esta pasta contém toda a documentação técnica detalhada do projeto CaseZero-
 
 ### 🏗️ Arquitetura e Design
 - **[FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md)** - Arquitetura do frontend React
-- **[BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md)** - Arquitetura do backend .NET
+- **[BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md)** - Arquitetura do backend .NET (CaseZeroApi + CaseGen.Functions)
 - **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** - Schema e estrutura do banco de dados
 - **[CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md)** - Pipeline de geração automática de casos com AI
+- **[PDF_DOCUMENT_TEMPLATES.md](PDF_DOCUMENT_TEMPLATES.md)** - Templates profissionais de documentos PDF (7 tipos implementados)
 
 ### 🔧 APIs e Integrações
 - **[API_COMPLETE.md](API_COMPLETE.md)** - Documentação completa da REST API
@@ -63,10 +64,12 @@ Se você quer entender o sistema tecnicamente:
 | Camada | Tecnologia | Versão | Documentação |
 |--------|------------|--------|--------------|
 | **Frontend** | React + TypeScript | 19.x | [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md) |
-| **Backend** | .NET Core API | 8.0 | [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md) |
+| **Backend API** | ASP.NET Core | 8.0 | [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md) |
+| **Functions** | Azure Functions (.NET) | 9.0 | [CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md) |
+| **PDF Generation** | QuestPDF | 2025.7.1 | [PDF_DOCUMENT_TEMPLATES.md](PDF_DOCUMENT_TEMPLATES.md) |
 | **Banco** | SQLite + EF Core | 8.0 | [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) |
 | **API** | REST + JWT | - | [API_COMPLETE.md](API_COMPLETE.md) |
-| **Deploy** | Docker + Nginx | - | [DEPLOYMENT.md](DEPLOYMENT.md) |
+| **Storage** | Azure Blob + Azurite | - | [CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md) |
 
 ---
 

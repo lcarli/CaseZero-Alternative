@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://casegen.functions/schemas/v1/visual-consistency-registry.schema.json",
+  "title": "VisualConsistencyRegistry",
+  "description": "Registry of visual elements (evidence, suspects, locations) requiring consistent appearance across multiple generated images. Used to create master reference images and maintain visual consistency.",
+  "type": "object",
+  "required": [
+    "caseId",
+    "references",
+    "generatedAt"
+  ],
+  "properties": {
+    "caseId": {
+      "type": "string",
+      "description": "Case identifier this registry belongs to",
+      "pattern": "^CASE-[0-9]{4}-[0-9]{3}$"
+    },
+    "references": {
+      "type": "object",
+      "description": "Dictionary of visual references keyed by referenceId. Each entry contains detailed physical descriptions for generating consistent images.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "referenceId",
+          "category",
+          "detailedDescription",
+          "colorPalette",
+          "distinctiveFeatures"
+        ],
+        "properties": {
+          "referenceId": {
+            "type": "string",
+            "description": "Unique identifier for this visual reference (e.g., 'evidence_backpack', 'suspect_001', 'location_warehouse'). Used to link MediaSpecs to reference images.",
+            "pattern": "^(evidence|suspect|location)_[a-z0-9_]+$"
+          },
+          "category": {
+            "type": "string",
+            "description": "Category of visual element",
+            "enum": [
+              "physical_evidence",
+              "suspect",
+              "location"
+            ]
+          },
+          "detailedDescription": {
+            "type": "string",
+            "description": "Exhaustive physical description including: exact dimensions, materials, textures, colors, wear patterns, unique marks, text/logos. For suspects: age, build, height, hair, eyes, facial features, scars/tattoos. Minimum 200 characters for sufficient detail.",
+            "minLength": 200
+          },
+          "colorPalette": {
+            "type": "array",
+            "description": "Primary colors present in this element as hex codes. Used for color consistency validation.",
+            "minItems": 3,
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$",
+              "description": "Hex color code (e.g., '#1B3A6B')"
+            }
+          },
+          "distinctiveFeatures": {
+            "type": "array",
+            "description": "Array of 3-5 unique identifiable characteristics that make this element recognizable across different images. Must be specific and observable.",
+            "minItems": 3,
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "minLength": 10,
+              "description": "Specific distinctive feature (e.g., 'Bent left zipper pull at 15-degree angle', 'Scar above right eyebrow (2cm length)')"
+            }
+          },
+          "imageUrl": {
+            "type": "string",
+            "description": "Optional URL to generated master reference image. Populated after reference image generation. Format: blob storage path in case-context/{caseId}/references/{referenceId}.png",
+            "pattern": "^case-context/.+/references/.+\\.png$"
+          }
+        }
+      }
+    },
+    "generatedAt": {
+      "type": "string",
+      "description": "ISO-8601 timestamp when this registry was generated",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

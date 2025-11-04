@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <!-- Detectar se estamos no macOS -->
+    <IsMacOS Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))' == 'true'">true</IsMacOS>
+    
+    <!-- Desabilitar geração de metadonnées apenas no macOS Silicon -->
+    <AzureFunctionsGenerateExtensionsMetadataFile Condition="'$(IsMacOS)' == 'true'">false</AzureFunctionsGenerateExtensionsMetadataFile>
+    <_FunctionsExtensionsMetadataGeneratorEnabled Condition="'$(IsMacOS)' == 'true'">false</_FunctionsExtensionsMetadataGeneratorEnabled>
+  </PropertyGroup>
+  
+  <!-- Court-circuiter a target de geração de metadados apenas no macOS -->
+  <Target Name="GenerateFunctionsExtensionsMetadataPostBuild" Condition="'$(IsMacOS)' == 'true'" />
+</Project>

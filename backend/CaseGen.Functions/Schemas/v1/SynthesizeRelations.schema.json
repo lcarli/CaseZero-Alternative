@@ -1,0 +1,430 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SynthesizeRelations",
+  "description": "Comprehensive relationship synthesis across all case entities",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["suspectRelations", "evidenceConnections", "eventLinkages"],
+  "properties": {
+    "suspectRelations": {
+      "type": "array",
+      "description": "Relationships between suspects",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["suspectId", "connections"],
+        "properties": {
+          "suspectId": {
+            "type": "string",
+            "pattern": "^S[0-9]{3}$",
+            "description": "Source suspect ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "Suspect name for readability"
+          },
+          "connections": {
+            "type": "array",
+            "description": "Connections to other suspects",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["targetId", "relationshipType", "strength"],
+              "properties": {
+                "targetId": {
+                  "type": "string",
+                  "pattern": "^S[0-9]{3}$",
+                  "description": "Target suspect ID"
+                },
+                "relationshipType": {
+                  "type": "string",
+                  "description": "Type of relationship (e.g., 'colleague', 'friend', 'rival', 'family', 'witness_to', 'alibi_for')"
+                },
+                "strength": {
+                  "type": "string",
+                  "enum": ["strong", "moderate", "weak"],
+                  "description": "Strength of the connection"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Detailed description of the relationship"
+                },
+                "sharedEvents": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^E[0-9]{3}$"
+                  },
+                  "description": "Events where both suspects were present"
+                },
+                "contradictions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Contradictions in their accounts about each other"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "evidenceConnections": {
+      "type": "array",
+      "description": "How evidence items connect to suspects and events",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evidenceId", "linkedSuspects", "linkedEvents"],
+        "properties": {
+          "evidenceId": {
+            "type": "string",
+            "pattern": "^EV[0-9]{3}$",
+            "description": "Evidence identifier"
+          },
+          "type": {
+            "type": "string",
+            "description": "Evidence type for readability"
+          },
+          "linkedSuspects": {
+            "type": "array",
+            "description": "Suspects connected to this evidence",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["suspectId", "connectionType"],
+              "properties": {
+                "suspectId": {
+                  "type": "string",
+                  "pattern": "^S[0-9]{3}$"
+                },
+                "connectionType": {
+                  "type": "string",
+                  "description": "How evidence connects (e.g., 'owned_by', 'seen_with', 'implicates', 'exonerates', 'handled_by')"
+                },
+                "strength": {
+                  "type": "string",
+                  "enum": ["definitive", "strong", "suggestive", "weak"],
+                  "description": "Strength of connection"
+                },
+                "forensicSupport": {
+                  "type": "boolean",
+                  "description": "Whether forensic analysis supports this connection"
+                }
+              }
+            }
+          },
+          "linkedEvents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["eventId", "role"],
+              "properties": {
+                "eventId": {
+                  "type": "string",
+                  "pattern": "^E[0-9]{3}$"
+                },
+                "role": {
+                  "type": "string",
+                  "description": "Role of evidence in event (e.g., 'created_during', 'used_in', 'discovered_at')"
+                }
+              }
+            }
+          },
+          "supportsFacts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^FACT[0-9]{3}$"
+            },
+            "description": "Golden truth facts this evidence supports"
+          }
+        }
+      }
+    },
+    "eventLinkages": {
+      "type": "array",
+      "description": "Causal and temporal relationships between events",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["eventId", "linkedEvents"],
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "pattern": "^E[0-9]{3}$",
+            "description": "Source event ID"
+          },
+          "title": {
+            "type": "string",
+            "description": "Event title for readability"
+          },
+          "linkedEvents": {
+            "type": "array",
+            "description": "Events linked to this one",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["targetId", "linkType"],
+              "properties": {
+                "targetId": {
+                  "type": "string",
+                  "pattern": "^E[0-9]{3}$"
+                },
+                "linkType": {
+                  "type": "string",
+                  "enum": ["caused_by", "led_to", "concurrent_with", "contradicts", "supports", "prerequisite_for"],
+                  "description": "Type of causal or temporal link"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Explanation of the linkage"
+                },
+                "evidenceSupport": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^EV[0-9]{3}$"
+                  },
+                  "description": "Evidence supporting this linkage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "contradictionMatrix": {
+      "type": "array",
+      "description": "Matrix of contradictions across the case",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "description", "sources", "type"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^CONTRA[0-9]{3}$",
+            "description": "Contradiction identifier"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the contradiction"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["witness_accounts", "alibi_conflict", "timeline_inconsistency", "evidence_mismatch", "behavioral_contradiction"],
+            "description": "Type of contradiction"
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "string"
+            },
+            "description": "Sources of conflicting information (suspect IDs, evidence IDs, event IDs)"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "important", "moderate", "minor"],
+            "description": "How significant this contradiction is for investigation"
+          },
+          "resolution": {
+            "type": "string",
+            "description": "Potential explanation or resolution path"
+          }
+        }
+      }
+    },
+    "alibiNetwork": {
+      "type": "array",
+      "description": "Alibi corroboration network",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["suspectId", "alibis"],
+        "properties": {
+          "suspectId": {
+            "type": "string",
+            "pattern": "^S[0-9]{3}$"
+          },
+          "alibis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["timeframe", "claim", "corroboration"],
+              "properties": {
+                "timeframe": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["start", "end"],
+                  "properties": {
+                    "start": {
+                      "type": "string",
+                      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+                    },
+                    "end": {
+                      "type": "string",
+                      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2})$"
+                    }
+                  }
+                },
+                "claim": {
+                  "type": "string",
+                  "description": "What the suspect claims they were doing"
+                },
+                "corroboration": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["status"],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": ["verified", "partially_verified", "unverified", "contradicted"],
+                      "description": "Verification status"
+                    },
+                    "corroboratedBy": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Who/what corroborates (suspect IDs, evidence IDs)"
+                    },
+                    "contradictedBy": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Who/what contradicts (suspect IDs, evidence IDs)"
+                    }
+                  }
+                },
+                "relatedEvents": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^E[0-9]{3}$"
+                  },
+                  "description": "Events occurring during this timeframe"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "motiveAnalysis": {
+      "type": "array",
+      "description": "Analysis of suspect motives and their interconnections",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["suspectId", "motiveStrength", "motiveFactors"],
+        "properties": {
+          "suspectId": {
+            "type": "string",
+            "pattern": "^S[0-9]{3}$"
+          },
+          "motiveStrength": {
+            "type": "string",
+            "enum": ["very_strong", "strong", "moderate", "weak", "none"],
+            "description": "Overall motive strength"
+          },
+          "motiveFactors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["factor", "weight"],
+              "properties": {
+                "factor": {
+                  "type": "string",
+                  "description": "Specific motive factor (e.g., 'financial gain', 'revenge', 'protection')"
+                },
+                "weight": {
+                  "type": "string",
+                  "enum": ["primary", "secondary", "tertiary"],
+                  "description": "Importance of this factor"
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Evidence supporting this motive factor"
+                }
+              }
+            }
+          },
+          "relatedSuspects": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^S[0-9]{3}$"
+            },
+            "description": "Other suspects with related or conflicting motives"
+          }
+        }
+      }
+    },
+    "investigativePaths": {
+      "type": "array",
+      "description": "Recommended investigative paths based on relationships",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pathId", "focus", "keyElements"],
+        "properties": {
+          "pathId": {
+            "type": "string",
+            "pattern": "^PATH[0-9]{2}$",
+            "description": "Investigation path identifier"
+          },
+          "focus": {
+            "type": "string",
+            "description": "What this investigative path focuses on"
+          },
+          "keyElements": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "suspects": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^S[0-9]{3}$"
+                }
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^EV[0-9]{3}$"
+                }
+              },
+              "events": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^E[0-9]{3}$"
+                }
+              }
+            }
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": ["easy", "medium", "hard", "very_hard"],
+            "description": "Difficulty of this investigative path"
+          },
+          "leadsTo": {
+            "type": "string",
+            "description": "What this path reveals or leads to"
+          }
+        }
+      }
+    }
+  }
+}
