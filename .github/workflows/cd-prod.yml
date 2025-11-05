@@ -11,9 +11,9 @@ on:
         default: ''
 
 env:
-  AZURE_WEBAPP_NAME: app-casezero-api-prod
-  AZURE_STATIC_WEB_APP_NAME: swa-casezero-prod
-  AZURE_RESOURCE_GROUP: rg-casezero-api-prod
+  AZURE_WEBAPP_NAME: casezero-api-prod
+  AZURE_STATIC_WEB_APP_NAME: casezero-web-prod
+  AZURE_RESOURCE_GROUP: casezero-api-prod-rg
   DOTNET_VERSION: '8.0.x'
   NODE_VERSION: '18'
 
@@ -181,7 +181,20 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
 
-      - name: 🚀 Deploy Backend to Azure Web App (Staging Slot)
+      - name: � Check if infrastructure exists
+        id: check-infra
+        run: |
+          echo "Checking if App Service exists..."
+          EXISTS=$(az webapp show --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} 2>/dev/null && echo "true" || echo "false")
+          echo "exists=$EXISTS" >> $GITHUB_OUTPUT
+          
+          if [ "$EXISTS" == "false" ]; then
+            echo "⚠️ App Service does not exist. Please run infrastructure-3tier.yml workflow first."
+            exit 1
+          fi
+          echo "✅ App Service exists, proceeding with deployment..."
+
+      - name: �🚀 Deploy Backend to Azure Web App (Staging Slot)
         uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
@@ -225,7 +238,7 @@ jobs:
           echo "Getting Static Web App deployment token..."
           DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
             --name ${{ env.AZURE_STATIC_WEB_APP_NAME }} \
-            --resource-group rg-casezero-web-prod \
+            --resource-group casezero-web-prod-rg \
             --query "properties.apiKey" -o tsv)
           
           echo "Deploying frontend to Static Web App..."
