@@ -105,19 +105,6 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_DEV }}
 
-      - name: � Check if infrastructure exists
-        id: check-infra
-        run: |
-          echo "Checking if App Service exists..."
-          EXISTS=$(az webapp show --name ${{ env.AZURE_WEBAPP_NAME }} --resource-group ${{ env.AZURE_RESOURCE_GROUP }} 2>/dev/null && echo "true" || echo "false")
-          echo "exists=$EXISTS" >> $GITHUB_OUTPUT
-          
-          if [ "$EXISTS" == "false" ]; then
-            echo "⚠️ App Service does not exist. Please run infrastructure-3tier.yml workflow first."
-            exit 1
-          fi
-          echo "✅ App Service exists, proceeding with deployment..."
-
       - name: �🚀 Deploy Backend to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
