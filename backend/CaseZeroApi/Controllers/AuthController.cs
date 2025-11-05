@@ -304,10 +304,10 @@ namespace CaseZeroApi.Controllers
                 // Generate 4-digit badge number
                 badgeNumber = Random.Shared.Next(1000, 9999).ToString();
                 
-                // Check if it's unique
-                var existingUser = await _userManager.Users
-                    .FirstOrDefaultAsync(u => u.BadgeNumber == badgeNumber);
-                isUnique = existingUser == null;
+                // Check if it's unique by getting all users and checking in memory
+                // This is acceptable as badge numbers are checked during registration only
+                var allUsers = _userManager.Users.ToList();
+                isUnique = !allUsers.Any(u => u.BadgeNumber == badgeNumber);
                 
             } while (!isUnique);
 

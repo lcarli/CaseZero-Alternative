@@ -24,6 +24,10 @@ namespace CaseZeroApi.Tests.Controllers
             var store = new Mock<IUserStore<User>>();
             _mockUserManager = new Mock<UserManager<User>>(store.Object, null!, null!, null!, null!, null!, null!, null!, null!);
             
+            // Mock Users property to return empty queryable by default
+            var emptyUsers = new List<User>().AsQueryable();
+            _mockUserManager.Setup(x => x.Users).Returns(emptyUsers);
+            
             var contextAccessor = new Mock<Microsoft.AspNetCore.Http.IHttpContextAccessor>();
             var claimsFactory = new Mock<Microsoft.AspNetCore.Identity.IUserClaimsPrincipalFactory<User>>();
             _mockSignInManager = new Mock<SignInManager<User>>(_mockUserManager.Object, contextAccessor.Object, claimsFactory.Object, null!, null!, null!, null!);
@@ -116,11 +120,15 @@ namespace CaseZeroApi.Tests.Controllers
                 FirstName = "John",
                 LastName = "Doe",
                 PersonalEmail = "john.doe@personal.com",
-                EmailConfirmed = true
+                EmailConfirmed = true,
+                EmailVerified = true  // This is what the controller actually checks
             };
 
             _mockUserManager.Setup(x => x.FindByEmailAsync(request.Email))
                 .ReturnsAsync(user);
+            
+            _mockUserManager.Setup(x => x.UpdateAsync(It.IsAny<User>()))
+                .ReturnsAsync(IdentityResult.Success);
             
             _mockSignInManager.Setup(x => x.CheckPasswordSignInAsync(user, request.Password, false))
                 .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Success);

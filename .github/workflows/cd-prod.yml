@@ -108,6 +108,7 @@ jobs:
       - name: 🧪 Run unit tests
         run: dotnet test --no-build --configuration Release --verbosity normal --logger trx
         working-directory: ./backend/CaseZeroApi.Tests
+        continue-on-error: false
 
       - name: 🧪 Run integration tests
         run: dotnet test --no-build --configuration Release --verbosity normal --logger trx
