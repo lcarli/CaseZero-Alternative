@@ -88,6 +88,10 @@ module functionAppServicePlan 'modules/function-app-plan.bicep' = {
 // ==============================================================================
 module functionApp 'modules/function-app.bicep' = {
   name: 'functions-app-deployment'
+  dependsOn: [
+    storageAccount
+    functionAppServicePlan
+  ]
   params: {
     environment: environment
     location: location
