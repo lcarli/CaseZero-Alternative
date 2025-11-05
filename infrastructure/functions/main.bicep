@@ -1,7 +1,8 @@
 // ==============================================================================
-// Functions Infrastructure - Main Template
+// Functions Infrastructure - Main Template (using Azure Verified Modules)
 // ==============================================================================
-// Provisions CaseGen.Functions (.NET 9.0) infrastructure
+// Provisions CaseGen.Functions (.NET 9.0) infrastructure using AVM
+// Reference: https://azure.github.io/Azure-Verified-Modules/
 // ==============================================================================
 
 targetScope = 'resourceGroup'
@@ -41,6 +42,7 @@ param appInsightsConnectionString string = ''
 @description('Application Insights Instrumentation Key from shared infrastructure')
 param appInsightsInstrumentationKey string = ''
 
+// Variables
 var tags = {
   Environment: environment
   Project: 'CaseZero'
@@ -51,56 +53,165 @@ var tags = {
   Runtime: 'dotnet-isolated-9.0'
 }
 
+var storageAccountName = 'st${toLower(take(namePrefix, 2))}${toLower(environment)}${take(uniqueString(resourceGroup().id), 10)}'
+var functionAppName = '${namePrefix}-func-${environment}'
+var appServicePlanName = '${namePrefix}-funcplan-${environment}'
+
 // ==============================================================================
-// Storage Account for Case Generator
+// Storage Account for Case Generator (AVM)
 // ==============================================================================
-module storageAccount 'modules/storage-account.bicep' = {
+module storageAccount 'br/public:avm/res/storage/storage-account:0.14.3' = {
   name: 'functions-storage-deployment'
   params: {
-    environment: environment
+    name: storageAccountName
     location: location
-    namePrefix: namePrefix
-    storageSku: storageSku
-    containerNames: containerNames
-    enableVersioning: environment == 'prod'
-    retentionDays: environment == 'prod' ? 30 : 7
+    skuName: storageSku
+    kind: 'StorageV2'
+    allowSharedKeyAccess: true
+    publicNetworkAccess: 'Enabled'
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+    networkAcls: {
+      bypass: 'AzureServices'
+      defaultAction: 'Allow'
+    }
+    blobServices: {
+      containers: [for containerName in containerNames: {
+        name: containerName
+        publicAccess: 'None'
+      }]
+      deleteRetentionPolicyEnabled: true
+      deleteRetentionPolicyDays: environment == 'prod' ? 30 : 7
+    }
     tags: tags
   }
 }
 
 // ==============================================================================
-// Function App Service Plan
+// App Service Plan for Functions (AVM)
 // ==============================================================================
-module functionAppServicePlan 'modules/function-app-plan.bicep' = {
+module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.0' = {
   name: 'functions-app-service-plan-deployment'
   params: {
-    environment: environment
+    name: appServicePlanName
     location: location
-    namePrefix: namePrefix
-    sku: functionAppPlanSku
+    kind: 'linux'
+    skuName: functionAppPlanSku.name
+    skuCapacity: functionAppPlanSku.tier == 'Dynamic' ? 0 : (environment == 'prod' ? 3 : 1)
+    reserved: true // Linux
     maximumElasticWorkerCount: environment == 'prod' ? 10 : 1
     tags: tags
   }
 }
 
+// Get storage account key for connection string
+resource existingStorageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
+  name: storageAccountName
+  dependsOn: [storageAccount]
+}
+
+var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};AccountKey=${existingStorageAccount.listKeys().keys[0].value};EndpointSuffix=${az.environment().suffixes.storage}'
+
 // ==============================================================================
-// Function App (.NET 9.0 Isolated)
+// Function App (.NET 9.0 Isolated) (AVM)
 // ==============================================================================
-module functionApp 'modules/function-app.bicep' = {
+module functionApp 'br/public:avm/res/web/site:0.12.0' = {
   name: 'functions-app-deployment'
-  dependsOn: [
-    storageAccount
-    functionAppServicePlan
-  ]
   params: {
-    environment: environment
+    name: functionAppName
     location: location
-    namePrefix: namePrefix
-    appServicePlanId: functionAppServicePlan.outputs.functionAppServicePlanId
-    storageConnectionString: storageAccount.outputs.storageConnectionString
-    appInsightsConnectionString: appInsightsConnectionString
-    appInsightsInstrumentationKey: appInsightsInstrumentationKey
-    keyVaultUri: keyVaultUri
+    kind: 'functionapp,linux'
+    serverFarmResourceId: appServicePlan.outputs.resourceId
+    httpsOnly: true
+    clientAffinityEnabled: false
+    publicNetworkAccess: 'Enabled'
+    managedIdentities: {
+      systemAssigned: true
+    }
+    siteConfig: {
+      linuxFxVersion: 'DOTNET-ISOLATED|9.0'
+      use32BitWorkerProcess: false
+      alwaysOn: environment == 'prod'
+      ftpsState: 'Disabled'
+      minTlsVersion: '1.2'
+      scmMinTlsVersion: '1.2'
+      http20Enabled: true
+      healthCheckPath: '/api/health'
+      appSettings: [
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~4'
+        }
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME'
+          value: 'dotnet-isolated'
+        }
+        {
+          name: 'AzureWebJobsStorage'
+          value: storageConnectionString
+        }
+        {
+          name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
+          value: storageConnectionString
+        }
+        {
+          name: 'WEBSITE_CONTENTSHARE'
+          value: '${functionAppName}-content'
+        }
+        {
+          name: 'WEBSITE_RUN_FROM_PACKAGE'
+          value: '1'
+        }
+        {
+          name: 'ASPNETCORE_ENVIRONMENT'
+          value: environment == 'prod' ? 'Production' : (environment == 'staging' ? 'Staging' : 'Development')
+        }
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: appInsightsInstrumentationKey
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsightsConnectionString
+        }
+        {
+          name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
+          value: '~3'
+        }
+        {
+          name: 'CaseGeneratorStorage__ConnectionString'
+          value: storageConnectionString
+        }
+        {
+          name: 'CaseGeneratorStorage__CasesContainer'
+          value: 'cases'
+        }
+        {
+          name: 'CaseGeneratorStorage__BundlesContainer'
+          value: 'bundles'
+        }
+        {
+          name: 'KeyVault__VaultUri'
+          value: keyVaultUri
+        }
+        {
+          name: 'TaskHub'
+          value: 'CaseGeneratorHub'
+        }
+        {
+          name: 'AzureOpenAI__Endpoint'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/azure-openai-endpoint/)'
+        }
+        {
+          name: 'AzureOpenAI__ApiKey'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/azure-openai-api-key/)'
+        }
+        {
+          name: 'AzureOpenAI__DeploymentName'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/azure-openai-deployment-name/)'
+        }
+      ]
+    }
     tags: tags
   }
 }
@@ -108,11 +219,11 @@ module functionApp 'modules/function-app.bicep' = {
 // ==============================================================================
 // Outputs
 // ==============================================================================
-output storageAccountName string = storageAccount.outputs.storageAccountName
-output storageAccountId string = storageAccount.outputs.storageAccountId
-output functionAppServicePlanId string = functionAppServicePlan.outputs.functionAppServicePlanId
-output functionAppServicePlanName string = functionAppServicePlan.outputs.functionAppServicePlanName
-output functionAppName string = functionApp.outputs.functionAppName
-output functionAppId string = functionApp.outputs.functionAppId
-output functionAppUrl string = functionApp.outputs.functionAppUrl
-output functionAppPrincipalId string = functionApp.outputs.functionAppPrincipalId
+output storageAccountName string = storageAccount.outputs.name
+output storageAccountId string = storageAccount.outputs.resourceId
+output functionAppServicePlanId string = appServicePlan.outputs.resourceId
+output functionAppServicePlanName string = appServicePlan.outputs.name
+output functionAppName string = functionApp.outputs.name
+output functionAppId string = functionApp.outputs.resourceId
+output functionAppUrl string = 'https://${functionApp.outputs.defaultHostname}'
+output functionAppPrincipalId string = functionApp.outputs.systemAssignedMIPrincipalId
