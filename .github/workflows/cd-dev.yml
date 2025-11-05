@@ -14,7 +14,9 @@ on:
         - development
 
 env:
-  AZURE_WEBAPP_NAME: casezero-dev
+  AZURE_WEBAPP_NAME: app-casezero-api-dev
+  AZURE_STATIC_WEB_APP_NAME: swa-casezero-dev
+  AZURE_RESOURCE_GROUP: rg-casezero-api-dev
   DOTNET_VERSION: '8.0.x'
   NODE_VERSION: '18'
 
@@ -113,14 +115,17 @@ jobs:
           package: ./backend
 
       - name: 🌐 Deploy Frontend to Azure Static Web Apps
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_DEV }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: "upload"
-          app_location: "./frontend"
-          api_location: ""
-          output_location: "dist"
+        run: |
+          echo "Getting Static Web App deployment token..."
+          DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
+            --name ${{ env.AZURE_STATIC_WEB_APP_NAME }} \
+            --resource-group rg-casezero-web-dev \
+            --query "properties.apiKey" -o tsv)
+          
+          echo "Deploying frontend to Static Web App..."
+          npx @azure/static-web-apps-cli deploy ./frontend \
+            --deployment-token "$DEPLOYMENT_TOKEN" \
+            --env production
 
       - name: 🏥 Health Check
         run: |
@@ -159,28 +164,29 @@ jobs:
           
           echo "✅ Deployment successful to DEV environment!"
 
-  notify-teams:
-    name: 📢 Notify Teams
+  notify-deployment:
+    name: 📢 Deployment Summary
     runs-on: ubuntu-latest
     needs: [build-and-test, deploy-to-dev]
     if: always()
     
     steps:
-      - name: 📢 Send Teams Notification
-        if: always()
-        uses: aliencube/microsoft-teams-actions@v0.8.0
-        with:
-          webhook_uri: ${{ secrets.TEAMS_WEBHOOK_URL }}
-          title: "🚀 CaseZero DEV Deployment"
-          summary: "Deployment to DEV environment completed"
-          text: |
-            **Status:** ${{ needs.deploy-to-dev.result == 'success' && '✅ Success' || '❌ Failed' }}
-            **Environment:** Development
-            **Branch:** ${{ github.ref_name }}
-            **Commit:** ${{ github.sha }}
-            **Triggered by:** ${{ github.actor }}
-            
-            **Application URLs:**
-            - Backend: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net
-            - Frontend: https://casezero-dev.azurestaticapps.net
-          theme_color: ${{ needs.deploy-to-dev.result == 'success' && '00FF00' || 'FF0000' }}
+      - name: � Deployment Summary
+        run: |
+          echo "## 🚀 CaseZero DEV Deployment"
+          echo ""
+          echo "**Status:** ${{ needs.deploy-to-dev.result == 'success' && '✅ Success' || '❌ Failed' }}"
+          echo "**Environment:** Development"
+          echo "**Branch:** ${{ github.ref_name }}"
+          echo "**Commit:** ${{ github.sha }}"
+          echo "**Triggered by:** ${{ github.actor }}"
+          echo ""
+          echo "### 🌐 Application URLs:"
+          echo "- Backend: https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+          echo "- Frontend: https://${{ env.AZURE_STATIC_WEB_APP_NAME }}.azurestaticapps.net"
+          echo ""
+          if [ "${{ needs.deploy-to-dev.result }}" == "success" ]; then
+            echo "✅ DEV environment is ready!"
+          else
+            echo "⚠️ Please check the deployment logs for issues."
+          fi
