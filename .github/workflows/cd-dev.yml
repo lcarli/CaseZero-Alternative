@@ -51,14 +51,14 @@ jobs:
 
       - name: 📦 Restore backend dependencies
         run: dotnet restore
-        working-directory: ./backend/CaseZeroApi
+        working-directory: ./backend
 
       - name: 🔨 Build backend
         run: dotnet build --no-restore --configuration Release
-        working-directory: ./backend/CaseZeroApi
+        working-directory: ./backend
 
       - name: 🧪 Run backend tests
-        run: dotnet test --no-build --configuration Release
+        run: dotnet test --no-build --configuration Release --verbosity normal
         working-directory: ./backend/CaseZeroApi.Tests
         continue-on-error: false
 
