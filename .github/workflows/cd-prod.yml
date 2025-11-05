@@ -100,10 +100,10 @@ jobs:
         working-directory: ./frontend
 
       - name: 📦 Restore backend dependencies
-        run: dotnet restore CaseZero-Alternative.sln
+        run: dotnet restore ./CaseZero-Alternative.sln
 
       - name: 🔨 Build backend
-        run: dotnet build CaseZero-Alternative.sln --no-restore --configuration Release
+        run: dotnet build ./CaseZero-Alternative.sln --no-restore --configuration Release
 
       - name: 🧪 Run unit tests
         run: dotnet test --no-build --configuration Release --verbosity normal --logger trx

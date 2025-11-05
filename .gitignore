@@ -106,7 +106,6 @@ pids
 *.suo
 *.ntvs*
 *.njsproj
-*.sln
 *.sw?
 
 # OS generated files
