@@ -47,7 +47,21 @@ jobs:
       - name: 📦 Install EF Core Tools
         run: dotnet tool install --global dotnet-ef
 
-      - name: 🔍 Get Azure SQL Connection String
+      - name: � Restore Dependencies
+        working-directory: backend/CaseZeroApi
+        run: |
+          echo "📦 Restoring NuGet packages..."
+          dotnet restore
+          echo "✅ Dependencies restored"
+
+      - name: 🏗️ Build Project
+        working-directory: backend/CaseZeroApi
+        run: |
+          echo "🏗️ Building project..."
+          dotnet build --configuration Release --no-restore
+          echo "✅ Build completed"
+
+      - name: �🔍 Get Azure SQL Connection String
         id: get-connection
         run: |
           # Get SQL Server details
@@ -70,7 +84,7 @@ jobs:
           ConnectionStrings__DefaultConnection: ${{ steps.get-connection.outputs.CONNECTION_STRING }}
         run: |
           echo "🔄 Applying EF Core migrations to Azure SQL..."
-          dotnet ef database update --project CaseZeroApi.csproj --no-build --verbose
+          dotnet ef database update --project CaseZeroApi.csproj --verbose
           echo "✅ Migrations applied successfully"
 
       - name: 🌱 Seed Database
@@ -81,13 +95,7 @@ jobs:
           ASPNETCORE_ENVIRONMENT: ${{ github.event.inputs.environment == 'prod' && 'Production' || 'Development' }}
         run: |
           echo "🌱 Seeding database..."
-          # Run a custom seeding command or endpoint
-          # Option 1: Run the app temporarily to seed via startup
-          # Option 2: Create a dedicated seeding console app
-          # Option 3: Use SQL scripts
-          
-          # For now, we'll build and run the seeding logic
-          dotnet run --project CaseZeroApi.csproj -- --seed-only
+          dotnet run --project CaseZeroApi.csproj --no-build --configuration Release -- --seed-only
           echo "✅ Database seeded successfully"
 
       - name: 📊 Verify Database Schema
