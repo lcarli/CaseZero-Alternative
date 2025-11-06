@@ -188,11 +188,29 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// Check if --seed-only argument is provided
+var seedOnly = args.Contains("--seed-only");
+
 // Initialize database
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    context.Database.EnsureCreated();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    
+    // Use migrations for Azure SQL, EnsureCreated for SQLite (local dev)
+    var connectionString = context.Database.GetConnectionString();
+    var useSqlServer = !string.IsNullOrEmpty(connectionString) && connectionString.Contains("database.windows.net");
+    
+    if (useSqlServer)
+    {
+        logger.LogInformation("🗄️ Using Azure SQL Server - applying migrations...");
+        context.Database.Migrate();
+    }
+    else
+    {
+        logger.LogInformation("🗄️ Using SQLite - ensuring database created...");
+        context.Database.EnsureCreated();
+    }
     
     // Seed test users if none exist
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
@@ -266,6 +284,13 @@ using (var scope = app.Services.CreateScope())
     // Seed GDD-specific data
     var seedingService = scope.ServiceProvider.GetRequiredService<DataSeedingService>();
     await seedingService.SeedGDDDataAsync();
+    
+    // If --seed-only flag is provided, exit after seeding
+    if (seedOnly)
+    {
+        logger.LogInformation("✅ Database seeding completed. Exiting (--seed-only mode).");
+        Environment.Exit(0);
+    }
 }
 
 app.Run();
