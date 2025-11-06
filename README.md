@@ -1,9 +1,8 @@
 # CaseZero - Detective Investigation System
 
-[![CI](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/ci.yml/badge.svg)](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/ci.yml)
 [![Deploy to DEV](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/cd-dev.yml/badge.svg)](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/cd-dev.yml)
 [![Deploy to PROD](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/cd-prod.yml/badge.svg)](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/cd-prod.yml)
-[![🏗️ Deploy 3-Tier Infrastructure](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/infrastructure-3tier.yml/badge.svg)](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/infrastructure-3tier.yml)
+[![Deploy 3-Tier Infrastructure](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/infrastructure-3tier.yml/badge.svg)](https://github.com/lcarli/CaseZero-Alternative/actions/workflows/infrastructure-3tier.yml)
 
 Um sistema imersivo de investigação detetivesca onde você assume o papel de um detetive experiente resolvendo casos complexos.
 
