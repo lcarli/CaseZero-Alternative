@@ -38,14 +38,17 @@ resource backendApp 'Microsoft.Web/sites@2023-01-01' = {
         allowedOrigins: corsAllowedOrigins
         supportCredentials: false
       }
+      connectionStrings: [
+        {
+          name: 'DefaultConnection'
+          connectionString: !empty(databaseConnectionString) ? databaseConnectionString : 'Data Source=casezero.db'
+          type: !empty(databaseConnectionString) ? 'SQLAzure' : 'Custom'
+        }
+      ]
       appSettings: [
         {
           name: 'ASPNETCORE_ENVIRONMENT'
           value: environmentName == 'prod' ? 'Production' : 'Development'
-        }
-        {
-          name: 'ConnectionStrings__DefaultConnection'
-          value: !empty(databaseConnectionString) ? databaseConnectionString : 'Data Source=casezero.db'
         }
         {
           name: 'JwtSettings__SecretKey'

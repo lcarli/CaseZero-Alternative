@@ -63,6 +63,13 @@ resource apiAppService 'Microsoft.Web/sites@2023-01-01' = {
         allowedOrigins: corsAllowedOrigins
         supportCredentials: false
       }
+      connectionStrings: [
+        {
+          name: 'DefaultConnection'
+          connectionString: defaultConnectionString
+          type: useSqlite ? 'Custom' : 'SQLAzure'
+        }
+      ]
       appSettings: [
         {
           name: 'ASPNETCORE_ENVIRONMENT'
@@ -71,10 +78,6 @@ resource apiAppService 'Microsoft.Web/sites@2023-01-01' = {
         {
           name: 'WEBSITE_RUN_FROM_PACKAGE'
           value: '1'
-        }
-        {
-          name: 'ConnectionStrings__DefaultConnection'
-          value: defaultConnectionString
         }
         {
           name: 'JwtSettings__SecretKey'
