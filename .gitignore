@@ -173,9 +173,6 @@ artifacts/
 # .NET publishing
 wwwroot/
 
-# Entity Framework
-Migrations/
-
 # Visual Studio
 .vs/
 *.rsuser
