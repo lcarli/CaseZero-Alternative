@@ -14,8 +14,23 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 
 // Configure Entity Framework
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    if (!string.IsNullOrEmpty(connectionString) && connectionString.Contains("database.windows.net"))
+    {
+        options.UseSqlServer(connectionString);
+    }
+    else if (!string.IsNullOrEmpty(connectionString) && connectionString.Contains("Data Source"))
+    {
+        options.UseSqlite(connectionString);
+    }
+    else
+    {
+        // Default to SQL Server for Azure
+        options.UseSqlServer(connectionString ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found."));
+    }
+});
 
 // Configure Identity
 builder.Services.AddIdentity<User, IdentityRole>(options =>
@@ -198,8 +213,8 @@ using (var scope = app.Services.CreateScope())
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     
     // Use migrations for Azure SQL, EnsureCreated for SQLite (local dev)
-    var connectionString = context.Database.GetConnectionString();
-    var useSqlServer = !string.IsNullOrEmpty(connectionString) && connectionString.Contains("database.windows.net");
+    var dbConnectionString = context.Database.GetConnectionString();
+    var useSqlServer = !string.IsNullOrEmpty(dbConnectionString) && dbConnectionString.Contains("database.windows.net");
     
     if (useSqlServer)
     {

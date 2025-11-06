@@ -106,12 +106,14 @@ namespace CaseZeroApi.Data
             builder.Entity<Email>()
                 .HasOne(e => e.ToUser)
                 .WithMany()
-                .HasForeignKey(e => e.ToUserId);
+                .HasForeignKey(e => e.ToUserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<Email>()
                 .HasOne(e => e.FromUser)
                 .WithMany()
-                .HasForeignKey(e => e.FromUserId);
+                .HasForeignKey(e => e.FromUserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<Email>()
                 .HasOne(e => e.Case)
