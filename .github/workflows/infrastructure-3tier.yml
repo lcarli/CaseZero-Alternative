@@ -19,6 +19,11 @@ on:
           - validate
           - deploy
           - destroy
+      deploy_sql_database:
+        description: 'Deploy Azure SQL Database'
+        required: true
+        type: boolean
+        default: false
       confirm_destroy:
         description: 'Type "CONFIRM" to destroy resources'
         required: false
@@ -109,6 +114,7 @@ jobs:
             --location canadaeast \
             --template-file ${{ env.BICEP_FILE_PATH }} \
             --parameters @$PARAMS_FILE \
+            --parameters enableSqlDatabase=${{ github.event.inputs.deploy_sql_database }} \
             --output json > deployment-output.json
           
           cat deployment-output.json

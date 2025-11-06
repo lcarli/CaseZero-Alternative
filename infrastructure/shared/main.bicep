@@ -1,7 +1,11 @@
 // ==============================================================================
-// Shared Infrastructure - Main Template
+// Shared Infrastructure - Azure Verified Modules (AVM)
 // ==============================================================================
-// Provisions shared resources: Key Vault, Monitoring, and optional SQL Database
+// Provisions shared resources using only Azure Verified Modules:
+// - Key Vault (avm/res/key-vault/vault)
+// - Log Analytics (avm/res/operational-insights/workspace)
+// - Application Insights (avm/res/insights/component)
+// - SQL Server (avm/res/sql/server) - Optional
 // ==============================================================================
 
 targetScope = 'resourceGroup'
@@ -37,57 +41,100 @@ var tags = {
   Layer: 'Shared'
 }
 
+var keyVaultName = 'kv-ca-${environment}-${uniqueString(resourceGroup().id)}'
+var logAnalyticsName = '${namePrefix}-logs-${environment}'
+var appInsightsName = '${namePrefix}-insights-${environment}'
+var sqlServerName = '${namePrefix}-sql-${environment}'
+var sqlDatabaseName = '${namePrefix}-db'
+
 // ==============================================================================
-// Key Vault
+// Key Vault (AVM)
 // ==============================================================================
-module keyVault 'modules/keyvault.bicep' = {
+module keyVault 'br/public:avm/res/key-vault/vault:0.9.0' = {
   name: 'keyvault-deployment'
   params: {
-    environment: environment
+    name: keyVaultName
     location: location
-    namePrefix: namePrefix
+    tags: tags
     enableRbacAuthorization: true
+    enablePurgeProtection: environment == 'prod'
     softDeleteRetentionInDays: environment == 'prod' ? 90 : 7
-    tags: tags
-  }
-}
-
-// ==============================================================================
-// Monitoring (Log Analytics + Application Insights)
-// ==============================================================================
-module monitoring 'modules/monitoring.bicep' = if (enableMonitoring) {
-  name: 'monitoring-deployment'
-  params: {
-    environment: environment
-    location: location
-    namePrefix: namePrefix
-    enableApplicationInsights: true
-    retentionInDays: environment == 'prod' ? 90 : 30
-    samplingPercentage: environment == 'prod' ? 100 : 50
-    tags: tags
-  }
-}
-
-// ==============================================================================
-// SQL Database (Optional)
-// ==============================================================================
-module sqlDatabase 'modules/sql-database.bicep' = if (enableSqlDatabase && !empty(sqlAdminLogin) && !empty(sqlAdminPassword)) {
-  name: 'sql-database-deployment'
-  params: {
-    environment: environment
-    location: location
-    namePrefix: namePrefix
-    sqlAdminLogin: sqlAdminLogin
-    sqlAdminPassword: sqlAdminPassword
-    enableSqlDatabase: enableSqlDatabase
-    sqlDatabaseSku: {
-      name: environment == 'prod' ? 'S1' : 'Basic'
-      tier: environment == 'prod' ? 'Standard' : 'Basic'
-      capacity: environment == 'prod' ? 20 : 5
+    sku: 'standard'
+    publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      defaultAction: 'Allow'
+      bypass: 'AzureServices'
     }
-    sqlDatabaseMaxSizeBytes: environment == 'prod' ? 268435456000 : 2147483648
-    enableZoneRedundancy: environment == 'prod'
+  }
+}
+
+// ==============================================================================
+// Log Analytics Workspace (AVM)
+// ==============================================================================
+module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.7.0' = if (enableMonitoring) {
+  name: 'loganalytics-deployment'
+  params: {
+    name: logAnalyticsName
+    location: location
     tags: tags
+    dataRetention: environment == 'prod' ? 90 : 30
+    publicNetworkAccessForIngestion: 'Enabled'
+    publicNetworkAccessForQuery: 'Enabled'
+    skuName: 'PerGB2018'
+  }
+}
+
+// ==============================================================================
+// Application Insights (AVM)
+// ==============================================================================
+module appInsights 'br/public:avm/res/insights/component:0.4.1' = if (enableMonitoring) {
+  name: 'appinsights-deployment'
+  params: {
+    name: appInsightsName
+    location: location
+    tags: tags
+    workspaceResourceId: enableMonitoring ? logAnalytics.outputs.resourceId : ''
+    applicationType: 'web'
+    kind: 'web'
+    publicNetworkAccessForIngestion: 'Enabled'
+    publicNetworkAccessForQuery: 'Enabled'
+    samplingPercentage: environment == 'prod' ? 100 : 50
+  }
+}
+
+// ==============================================================================
+// SQL Server (AVM) - Optional
+// ==============================================================================
+module sqlServer 'br/public:avm/res/sql/server:0.8.0' = if (enableSqlDatabase && !empty(sqlAdminLogin) && !empty(sqlAdminPassword)) {
+  name: 'sqlserver-deployment'
+  params: {
+    name: sqlServerName
+    location: location
+    tags: tags
+    administratorLogin: sqlAdminLogin
+    administratorLoginPassword: sqlAdminPassword
+    minimalTlsVersion: '1.2'
+    publicNetworkAccess: 'Enabled'
+    databases: [
+      {
+        name: sqlDatabaseName
+        collation: 'SQL_Latin1_General_CP1_CI_AS'
+        skuName: environment == 'prod' ? 'S1' : 'Basic'
+        skuTier: environment == 'prod' ? 'Standard' : 'Basic'
+        maxSizeBytes: environment == 'prod' ? 268435456000 : 2147483648
+        zoneRedundant: environment == 'prod'
+        licenseType: 'LicenseIncluded'
+        readScale: environment == 'prod' ? 'Enabled' : 'Disabled'
+        requestedBackupStorageRedundancy: environment == 'prod' ? 'Geo' : 'Local'
+      }
+    ]
+    firewallRules: [
+      {
+        name: 'AllowAzureServices'
+        startIpAddress: '0.0.0.0'
+        endIpAddress: '0.0.0.0'
+      }
+    ]
   }
 }
 
@@ -96,20 +143,20 @@ module sqlDatabase 'modules/sql-database.bicep' = if (enableSqlDatabase && !empt
 // ==============================================================================
 
 // Key Vault outputs
-output keyVaultName string = keyVault.outputs.keyVaultName
-output keyVaultId string = keyVault.outputs.keyVaultId
-output keyVaultUri string = keyVault.outputs.keyVaultUri
+output keyVaultName string = keyVault.outputs.name
+output keyVaultId string = keyVault.outputs.resourceId
+output keyVaultUri string = keyVault.outputs.uri
 
 // Monitoring outputs
-output logAnalyticsWorkspaceName string = enableMonitoring ? (monitoring.?outputs.logAnalyticsWorkspaceName ?? '') : ''
-output logAnalyticsWorkspaceId string = enableMonitoring ? (monitoring.?outputs.logAnalyticsWorkspaceId ?? '') : ''
-output applicationInsightsName string = enableMonitoring ? (monitoring.?outputs.applicationInsightsName ?? '') : ''
-output applicationInsightsId string = enableMonitoring ? (monitoring.?outputs.applicationInsightsId ?? '') : ''
-output instrumentationKey string = enableMonitoring ? (monitoring.?outputs.instrumentationKey ?? '') : ''
-output connectionString string = enableMonitoring ? (monitoring.?outputs.connectionString ?? '') : ''
+output logAnalyticsWorkspaceName string = enableMonitoring ? logAnalytics.outputs.name : ''
+output logAnalyticsWorkspaceId string = enableMonitoring ? logAnalytics.outputs.resourceId : ''
+output applicationInsightsName string = enableMonitoring ? appInsights.outputs.name : ''
+output applicationInsightsId string = enableMonitoring ? appInsights.outputs.resourceId : ''
+output instrumentationKey string = enableMonitoring ? appInsights.outputs.instrumentationKey : ''
+output connectionString string = enableMonitoring ? appInsights.outputs.connectionString : ''
 
 // SQL Database outputs
-output sqlServerName string = enableSqlDatabase ? (sqlDatabase.?outputs.sqlServerName ?? '') : ''
-output sqlServerFqdn string = enableSqlDatabase ? (sqlDatabase.?outputs.sqlServerFqdn ?? '') : ''
-output sqlDatabaseName string = enableSqlDatabase ? (sqlDatabase.?outputs.sqlDatabaseName ?? '') : ''
-output sqlConnectionString string = enableSqlDatabase ? (sqlDatabase.?outputs.connectionString ?? '') : ''
+output sqlServerName string = enableSqlDatabase ? sqlServer.outputs.name : ''
+output sqlServerFqdn string = enableSqlDatabase ? sqlServer.outputs.fullyQualifiedDomainName : ''
+output sqlDatabaseName string = enableSqlDatabase ? sqlDatabaseName : ''
+output sqlConnectionString string = ''
