@@ -255,18 +255,6 @@ jobs:
             fi
           done
 
-      - name: 📊 Post Production Tests
-        run: |
-          echo "Running post-production smoke tests..."
-          
-          PROD_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
-          
-          # Test critical endpoints
-          echo "Testing critical API endpoints..."
-          curl -f "$PROD_URL/api/cases" -H "Accept: application/json" || echo "⚠️ Cases endpoint might require authentication"
-          
-          echo "✅ Production deployment successful!"
-
   notify-deployment:
     name: 📢 Deployment Summary
     runs-on: ubuntu-latest

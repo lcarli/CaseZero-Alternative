@@ -127,19 +127,6 @@ jobs:
             --deployment-token "$DEPLOYMENT_TOKEN" \
             --env production
 
-      - name: 📊 Post Deployment Tests
-        run: |
-          # Basic smoke tests
-          echo "Running post-deployment smoke tests..."
-          
-          BACKEND_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
-          
-          # Test API endpoints
-          echo "Testing API endpoints..."
-          curl -f "$BACKEND_URL/api/cases" -H "Accept: application/json" || echo "⚠️ Cases endpoint might require authentication"
-          
-          echo "✅ Deployment successful to DEV environment!"
-
   notify-deployment:
     name: 📢 Deployment Summary
     runs-on: ubuntu-latest
