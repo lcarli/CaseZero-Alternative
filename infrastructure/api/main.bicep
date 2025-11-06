@@ -157,8 +157,7 @@ module apiAppService 'br/public:avm/res/web/site:0.14.0' = {
           value: environment == 'prod' ? '100' : '200'
         }
       ]
-    }
-    appSettingsKeyValuePairs: {
+      // Connection Strings
       connectionStrings: [
         {
           name: 'DefaultConnection'
