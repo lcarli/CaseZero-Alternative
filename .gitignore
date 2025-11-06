@@ -172,6 +172,8 @@ artifacts/
 
 # .NET publishing
 wwwroot/
+publish/
+**/publish/
 
 # Visual Studio
 .vs/
