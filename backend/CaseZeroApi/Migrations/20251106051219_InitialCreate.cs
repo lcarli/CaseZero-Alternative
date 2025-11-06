@@ -3,8 +3,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
-
 namespace CaseZeroApi.Migrations
 {
     /// <inheritdoc />
@@ -489,16 +487,6 @@ namespace CaseZeroApi.Migrations
                         principalTable: "Evidences",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.InsertData(
-                table: "Cases",
-                columns: new[] { "Id", "BriefingText", "CaseNotes", "ClosedAt", "ClosedByUserId", "CorrectEvidenceIds", "CorrectSuspectName", "CreatedAt", "Description", "EstimatedDifficultyLevel", "HasMultipleSuspects", "IncidentDate", "Location", "MaxScore", "MinimumRankRequired", "Priority", "Status", "Title", "Type", "VictimInfo" },
-                values: new object[,]
-                {
-                    { "CASE-2024-001", "Roubo milionário ocorreu durante a madrugada. Sistema de segurança foi comprometido de forma sofisticada.", null, null, null, null, "Marcus Silva", new DateTime(2025, 10, 30, 4, 59, 3, 226, DateTimeKind.Utc).AddTicks(6704), "Investigação de roubo milionário no Banco Central", 7, true, new DateTime(2025, 10, 29, 4, 59, 3, 226, DateTimeKind.Utc).AddTicks(9198), "Banco Central - Centro da Cidade", 100.0, 2, 2, 1, "Roubo no Banco Central", 0, null },
-                    { "CASE-2024-002", "Auditoria interna detectou irregularidades nos relatórios financeiros dos últimos 2 anos.", null, null, null, null, "Ana Rodriguez", new DateTime(2025, 11, 1, 4, 59, 3, 228, DateTimeKind.Utc).AddTicks(3746), "Suspeita de fraude contábil na empresa TechCorp", 5, true, new DateTime(2025, 10, 27, 4, 59, 3, 228, DateTimeKind.Utc).AddTicks(3755), "TechCorp Headquarters", 100.0, 1, 1, 0, "Fraude Corporativa TechCorp", 0, null },
-                    { "CASE-2024-003", "Corpo encontrado no cais 7 durante patrulha noturna. Indícios de luta e possível execução.", null, new DateTime(2025, 11, 4, 4, 59, 3, 228, DateTimeKind.Utc).AddTicks(3767), null, null, "Roberto Santos", new DateTime(2025, 10, 7, 4, 59, 3, 228, DateTimeKind.Utc).AddTicks(3765), "Investigação de homicídio na área portuária", 8, true, new DateTime(2025, 10, 6, 4, 59, 3, 228, DateTimeKind.Utc).AddTicks(4295), "Porto da Cidade - Cais 7", 100.0, 3, 2, 2, "Homicídio no Porto", 0, null }
                 });
 
             migrationBuilder.CreateIndex(

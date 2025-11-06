@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CaseZeroApi.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251106045904_InitialCreate")]
+    [Migration("20251106051219_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -86,63 +86,6 @@ namespace CaseZeroApi.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Cases");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = "CASE-2024-001",
-                            BriefingText = "Roubo milionário ocorreu durante a madrugada. Sistema de segurança foi comprometido de forma sofisticada.",
-                            CorrectSuspectName = "Marcus Silva",
-                            CreatedAt = new DateTime(2025, 10, 30, 4, 59, 3, 226, DateTimeKind.Utc).AddTicks(6704),
-                            Description = "Investigação de roubo milionário no Banco Central",
-                            EstimatedDifficultyLevel = 7,
-                            HasMultipleSuspects = true,
-                            IncidentDate = new DateTime(2025, 10, 29, 4, 59, 3, 226, DateTimeKind.Utc).AddTicks(9198),
-                            Location = "Banco Central - Centro da Cidade",
-                            MaxScore = 100.0,
-                            MinimumRankRequired = 2,
-                            Priority = 2,
-                            Status = 1,
-                            Title = "Roubo no Banco Central",
-                            Type = 0
-                        },
-                        new
-                        {
-                            Id = "CASE-2024-002",
-                            BriefingText = "Auditoria interna detectou irregularidades nos relatórios financeiros dos últimos 2 anos.",
-                            CorrectSuspectName = "Ana Rodriguez",
-                            CreatedAt = new DateTime(2025, 11, 1, 4, 59, 3, 228, DateTimeKind.Utc).AddTicks(3746),
-                            Description = "Suspeita de fraude contábil na empresa TechCorp",
-                            EstimatedDifficultyLevel = 5,
-                            HasMultipleSuspects = true,
-                            IncidentDate = new DateTime(2025, 10, 27, 4, 59, 3, 228, DateTimeKind.Utc).AddTicks(3755),
-                            Location = "TechCorp Headquarters",
-                            MaxScore = 100.0,
-                            MinimumRankRequired = 1,
-                            Priority = 1,
-                            Status = 0,
-                            Title = "Fraude Corporativa TechCorp",
-                            Type = 0
-                        },
-                        new
-                        {
-                            Id = "CASE-2024-003",
-                            BriefingText = "Corpo encontrado no cais 7 durante patrulha noturna. Indícios de luta e possível execução.",
-                            ClosedAt = new DateTime(2025, 11, 4, 4, 59, 3, 228, DateTimeKind.Utc).AddTicks(3767),
-                            CorrectSuspectName = "Roberto Santos",
-                            CreatedAt = new DateTime(2025, 10, 7, 4, 59, 3, 228, DateTimeKind.Utc).AddTicks(3765),
-                            Description = "Investigação de homicídio na área portuária",
-                            EstimatedDifficultyLevel = 8,
-                            HasMultipleSuspects = true,
-                            IncidentDate = new DateTime(2025, 10, 6, 4, 59, 3, 228, DateTimeKind.Utc).AddTicks(4295),
-                            Location = "Porto da Cidade - Cais 7",
-                            MaxScore = 100.0,
-                            MinimumRankRequired = 3,
-                            Priority = 2,
-                            Status = 2,
-                            Title = "Homicídio no Porto",
-                            Type = 0
-                        });
                 });
 
             modelBuilder.Entity("CaseZeroApi.Models.CaseProgress", b =>

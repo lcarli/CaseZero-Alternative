@@ -125,64 +125,8 @@ namespace CaseZeroApi.Data
                 .WithMany()
                 .HasForeignKey(cs => cs.UserId);
 
-            // Seed some initial cases with GDD enhancements
-            builder.Entity<Case>().HasData(
-                new Case
-                {
-                    Id = "CASE-2024-001",
-                    Title = "Roubo no Banco Central",
-                    Description = "Investigação de roubo milionário no Banco Central",
-                    Status = CaseStatus.InProgress,
-                    Priority = CasePriority.High,
-                    CreatedAt = DateTime.UtcNow.AddDays(-7),
-                    Type = CaseType.Investigation,
-                    MinimumRankRequired = DetectiveRank.Detective2,
-                    Location = "Banco Central - Centro da Cidade",
-                    IncidentDate = DateTime.UtcNow.AddDays(-8),
-                    BriefingText = "Roubo milionário ocorreu durante a madrugada. Sistema de segurança foi comprometido de forma sofisticada.",
-                    HasMultipleSuspects = true,
-                    EstimatedDifficultyLevel = 7,
-                    CorrectSuspectName = "Marcus Silva",
-                    MaxScore = 100.0
-                },
-                new Case
-                {
-                    Id = "CASE-2024-002",
-                    Title = "Fraude Corporativa TechCorp",
-                    Description = "Suspeita de fraude contábil na empresa TechCorp",
-                    Status = CaseStatus.Open,
-                    Priority = CasePriority.Medium,
-                    CreatedAt = DateTime.UtcNow.AddDays(-5),
-                    Type = CaseType.Investigation,
-                    MinimumRankRequired = DetectiveRank.Detective,
-                    Location = "TechCorp Headquarters",
-                    IncidentDate = DateTime.UtcNow.AddDays(-10),
-                    BriefingText = "Auditoria interna detectou irregularidades nos relatórios financeiros dos últimos 2 anos.",
-                    HasMultipleSuspects = true,
-                    EstimatedDifficultyLevel = 5,
-                    CorrectSuspectName = "Ana Rodriguez",
-                    MaxScore = 100.0
-                },
-                new Case
-                {
-                    Id = "CASE-2024-003",
-                    Title = "Homicídio no Porto",
-                    Description = "Investigação de homicídio na área portuária",
-                    Status = CaseStatus.Resolved,
-                    Priority = CasePriority.High,
-                    CreatedAt = DateTime.UtcNow.AddDays(-30),
-                    ClosedAt = DateTime.UtcNow.AddDays(-2),
-                    Type = CaseType.Investigation,
-                    MinimumRankRequired = DetectiveRank.Sergeant,
-                    Location = "Porto da Cidade - Cais 7",
-                    IncidentDate = DateTime.UtcNow.AddDays(-31),
-                    BriefingText = "Corpo encontrado no cais 7 durante patrulha noturna. Indícios de luta e possível execução.",
-                    HasMultipleSuspects = true,
-                    EstimatedDifficultyLevel = 8,
-                    CorrectSuspectName = "Roberto Santos",
-                    MaxScore = 100.0
-                }
-            );
+            // Note: Seed data moved to DataSeedingService to avoid dynamic values in migrations
+            // This allows migrations to be deterministic and avoids PendingModelChangesWarning
         }
     }
 }
