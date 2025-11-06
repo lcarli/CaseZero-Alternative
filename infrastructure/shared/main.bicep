@@ -47,6 +47,9 @@ var appInsightsName = '${namePrefix}-insights-${environment}'
 var sqlServerName = '${namePrefix}-sql-${environment}'
 var sqlDatabaseName = '${namePrefix}-db'
 
+// Connection string for SQL Server (will be stored in Key Vault)
+var sqlConnectionStringValue = enableSqlDatabase ? 'Server=tcp:${sqlServerName}.${az.environment().suffixes.sqlServerHostname},1433;Initial Catalog=${sqlDatabaseName};Persist Security Info=False;User ID=${sqlAdminLogin};Password=${sqlAdminPassword};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;' : ''
+
 // ==============================================================================
 // Key Vault (AVM)
 // ==============================================================================
@@ -65,6 +68,12 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.12.0' = {
       defaultAction: 'Allow'
       bypass: 'AzureServices'
     }
+    secrets: enableSqlDatabase ? [
+      {
+        name: 'sql-connection-string'
+        value: sqlConnectionStringValue
+      }
+    ] : []
   }
 }
 
@@ -162,4 +171,5 @@ output connectionString string = enableMonitoring ? appInsights.outputs.connecti
 output sqlServerName string = enableSqlDatabase ? sqlServer.outputs.name : ''
 output sqlServerFqdn string = enableSqlDatabase ? '${sqlServer.outputs.name}.${az.environment().suffixes.sqlServerHostname}' : ''
 output sqlDatabaseName string = enableSqlDatabase ? sqlDatabaseName : ''
+// Connection string will be retrieved from Key Vault secret 'sql-connection-string'
 output sqlConnectionString string = ''

@@ -56,7 +56,8 @@ var tags = {
 
 var appServicePlanName = '${namePrefix}-api-plan-${environment}'
 var apiAppName = '${namePrefix}-api-${environment}'
-var defaultConnectionString = useSqlite ? 'Data Source=casezero.db' : sqlConnectionString
+// For SQLite, use local file. For SQL Server, use Key Vault secret reference
+var defaultConnectionString = useSqlite ? 'Data Source=casezero.db' : '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/sql-connection-string/)'
 
 // ==============================================================================
 // App Service Plan (AVM)

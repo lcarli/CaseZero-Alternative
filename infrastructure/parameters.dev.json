@@ -12,13 +12,23 @@
       "value": "casezero"
     },
     "enableSqlDatabase": {
-      "value": false
+      "value": true
     },
     "sqlAdminLogin": {
-      "value": ""
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/4e4f76f7-bfb7-4163-84bd-2a19561451b5/resourceGroups/casezero-shared-dev-rg/providers/Microsoft.KeyVault/vaults/kv-ca-dev-oeq4agkm"
+        },
+        "secretName": "sql-admin-login"
+      }
     },
     "sqlAdminPassword": {
-      "value": ""
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/4e4f76f7-bfb7-4163-84bd-2a19561451b5/resourceGroups/casezero-shared-dev-rg/providers/Microsoft.KeyVault/vaults/kv-ca-dev-oeq4agkm"
+        },
+        "secretName": "sql-admin-password"
+      }
     },
     "enableMonitoring": {
       "value": true
