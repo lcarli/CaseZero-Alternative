@@ -70,7 +70,7 @@ jobs:
           
           echo "Validating subscription-level deployment..."
           az deployment sub validate \
-            --location canadaeast \
+            --location canadacentral \
             --template-file ${{ env.BICEP_FILE_PATH }} \
             --parameters @$PARAMS_FILE \
             --parameters sqlAdminLogin='${{ secrets.SQL_ADMIN_LOGIN }}' \
@@ -83,7 +83,7 @@ jobs:
           
           echo "Generating What-If analysis..."
           az deployment sub what-if \
-            --location canadaeast \
+            --location canadacentral \
             --template-file ${{ env.BICEP_FILE_PATH }} \
             --parameters @$PARAMS_FILE \
             --parameters sqlAdminLogin='${{ secrets.SQL_ADMIN_LOGIN }}' \
@@ -115,7 +115,7 @@ jobs:
           
           az deployment sub create \
             --name $DEPLOYMENT_NAME \
-            --location canadaeast \
+            --location canadacentral \
             --template-file ${{ env.BICEP_FILE_PATH }} \
             --parameters @$PARAMS_FILE \
             --parameters enableSqlDatabase=${{ github.event.inputs.deploy_sql_database }} \
