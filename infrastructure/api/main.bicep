@@ -35,6 +35,9 @@ param sqlConnectionString string = ''
 @description('Key Vault URI from shared infrastructure')
 param keyVaultUri string
 
+@description('Key Vault Resource ID from shared infrastructure')
+param keyVaultId string
+
 @description('Application Insights Connection String from shared infrastructure')
 param appInsightsConnectionString string = ''
 
@@ -167,6 +170,20 @@ module apiAppService 'br/public:avm/res/web/site:0.14.0' = {
         }
       ]
     }
+  }
+}
+
+// ==============================================================================
+// RBAC - Grant API App Service access to Key Vault Secrets
+// ==============================================================================
+// Deploy role assignment in shared resource group where Key Vault exists
+module keyVaultRoleAssignment 'keyvault-rbac.bicep' = {
+  name: 'api-keyvault-rbac-deployment'
+  scope: resourceGroup(split(keyVaultId, '/')[2], split(keyVaultId, '/')[4]) // Extract subscription and RG from Key Vault ID
+  params: {
+    keyVaultId: keyVaultId
+    principalId: apiAppService.outputs.systemAssignedMIPrincipalId!
+    principalType: 'ServicePrincipal'
   }
 }
 

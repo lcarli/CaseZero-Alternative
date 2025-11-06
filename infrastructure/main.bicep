@@ -127,6 +127,7 @@ module apiInfrastructure 'api/main.bicep' = {
     useSqlite: !enableSqlDatabase
     sqlConnectionString: enableSqlDatabase ? sharedInfrastructure.outputs.sqlConnectionString : ''
     keyVaultUri: sharedInfrastructure.outputs.keyVaultUri
+    keyVaultId: sharedInfrastructure.outputs.keyVaultId
     appInsightsConnectionString: enableMonitoring ? sharedInfrastructure.outputs.connectionString : ''
     appInsightsInstrumentationKey: enableMonitoring ? sharedInfrastructure.outputs.instrumentationKey : ''
     corsAllowedOrigins: ['*'] // Update with specific origins in production
