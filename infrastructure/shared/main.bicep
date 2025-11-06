@@ -2,10 +2,10 @@
 // Shared Infrastructure - Azure Verified Modules (AVM)
 // ==============================================================================
 // Provisions shared resources using only Azure Verified Modules:
-// - Key Vault (avm/res/key-vault/vault)
-// - Log Analytics (avm/res/operational-insights/workspace)
-// - Application Insights (avm/res/insights/component)
-// - SQL Server (avm/res/sql/server) - Optional
+// - Key Vault (avm/res/key-vault/vault:0.12.0)
+// - Log Analytics (avm/res/operational-insights/workspace:0.9.1)
+// - Application Insights (avm/res/insights/component:0.4.2)
+// - SQL Server (avm/res/sql/server:0.20.3) - Optional
 // ==============================================================================
 
 targetScope = 'resourceGroup'
@@ -50,7 +50,7 @@ var sqlDatabaseName = '${namePrefix}-db'
 // ==============================================================================
 // Key Vault (AVM)
 // ==============================================================================
-module keyVault 'br/public:avm/res/key-vault/vault:0.9.0' = {
+module keyVault 'br/public:avm/res/key-vault/vault:0.12.0' = {
   name: 'keyvault-deployment'
   params: {
     name: keyVaultName
@@ -71,7 +71,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.9.0' = {
 // ==============================================================================
 // Log Analytics Workspace (AVM)
 // ==============================================================================
-module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.7.0' = if (enableMonitoring) {
+module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.9.1' = if (enableMonitoring) {
   name: 'loganalytics-deployment'
   params: {
     name: logAnalyticsName
@@ -87,7 +87,7 @@ module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.7.0' = i
 // ==============================================================================
 // Application Insights (AVM)
 // ==============================================================================
-module appInsights 'br/public:avm/res/insights/component:0.4.1' = if (enableMonitoring) {
+module appInsights 'br/public:avm/res/insights/component:0.4.2' = if (enableMonitoring) {
   name: 'appinsights-deployment'
   params: {
     name: appInsightsName
@@ -105,7 +105,7 @@ module appInsights 'br/public:avm/res/insights/component:0.4.1' = if (enableMoni
 // ==============================================================================
 // SQL Server (AVM) - Optional
 // ==============================================================================
-module sqlServer 'br/public:avm/res/sql/server:0.8.0' = if (enableSqlDatabase && !empty(sqlAdminLogin) && !empty(sqlAdminPassword)) {
+module sqlServer 'br/public:avm/res/sql/server:0.20.3' = if (enableSqlDatabase && !empty(sqlAdminLogin) && !empty(sqlAdminPassword)) {
   name: 'sqlserver-deployment'
   params: {
     name: sqlServerName
@@ -119,8 +119,11 @@ module sqlServer 'br/public:avm/res/sql/server:0.8.0' = if (enableSqlDatabase &&
       {
         name: sqlDatabaseName
         collation: 'SQL_Latin1_General_CP1_CI_AS'
-        skuName: environment == 'prod' ? 'S1' : 'Basic'
-        skuTier: environment == 'prod' ? 'Standard' : 'Basic'
+        availabilityZone: -1
+        sku: {
+          name: environment == 'prod' ? 'S1' : 'Basic'
+          tier: environment == 'prod' ? 'Standard' : 'Basic'
+        }
         maxSizeBytes: environment == 'prod' ? 268435456000 : 2147483648
         zoneRedundant: environment == 'prod'
         licenseType: 'LicenseIncluded'
@@ -157,6 +160,6 @@ output connectionString string = enableMonitoring ? appInsights.outputs.connecti
 
 // SQL Database outputs
 output sqlServerName string = enableSqlDatabase ? sqlServer.outputs.name : ''
-output sqlServerFqdn string = enableSqlDatabase ? sqlServer.outputs.fullyQualifiedDomainName : ''
+output sqlServerFqdn string = enableSqlDatabase ? '${sqlServer.outputs.name}.${az.environment().suffixes.sqlServerHostname}' : ''
 output sqlDatabaseName string = enableSqlDatabase ? sqlDatabaseName : ''
 output sqlConnectionString string = ''

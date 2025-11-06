@@ -1,13 +1,18 @@
 // ==============================================================================
-// Frontend Infrastructure - Main Template
+// Frontend Infrastructure - Main Template (Native Azure Resources)
 // ==============================================================================
 // Provisions CaseZero Frontend (React + Vite) as Static Web App
+// Note: Azure Static Web Apps don't have an AVM module yet, using native resource
+// Reference: https://learn.microsoft.com/en-us/azure/templates/microsoft.web/staticsites
 // ==============================================================================
 
 targetScope = 'resourceGroup'
 
 @description('Environment name (dev, staging, prod)')
 param environment string
+
+@description('Location for all resources (Static Web Apps have limited regions)')
+param location string = 'Central US'
 
 @description('Name prefix for resources')
 param namePrefix string = 'casezero'
@@ -37,26 +42,52 @@ var tags = {
   Framework: 'react-vite'
 }
 
+var staticWebAppName = '${namePrefix}-web-${environment}'
+
 // ==============================================================================
-// Static Web App
+// Static Web App (Native Azure Resource)
 // ==============================================================================
-module staticWebApp 'modules/static-web-app.bicep' = {
-  name: 'frontend-static-web-app-deployment'
-  params: {
-    environment: environment
-    namePrefix: namePrefix
-    sku: staticWebAppSku
-    backendApiUrl: backendApiUrl
-    repositoryUrl: repositoryUrl
-    branchName: branchName
-    tags: tags
+resource staticWebApp 'Microsoft.Web/staticSites@2023-12-01' = {
+  name: staticWebAppName
+  location: location
+  tags: tags
+  sku: staticWebAppSku
+  properties: {
+    repositoryUrl: !empty(repositoryUrl) ? repositoryUrl : null
+    branch: !empty(repositoryUrl) ? branchName : null
+    stagingEnvironmentPolicy: environment == 'prod' ? 'Enabled' : 'Disabled'
+    allowConfigFileUpdates: true
+    provider: !empty(repositoryUrl) ? 'GitHub' : 'None'
+    enterpriseGradeCdnStatus: environment == 'prod' ? 'Enabled' : 'Disabled'
+    buildProperties: {
+      appLocation: '/frontend'
+      apiLocation: ''
+      outputLocation: 'dist'
+      appBuildCommand: 'npm run build'
+      apiBuildCommand: ''
+      skipGithubActionWorkflowGeneration: true
+    }
+  }
+}
+
+// ==============================================================================
+// Static Web App Configuration (App Settings)
+// ==============================================================================
+resource staticWebAppConfig 'Microsoft.Web/staticSites/config@2023-12-01' = {
+  parent: staticWebApp
+  name: 'appsettings'
+  properties: {
+    VITE_API_BASE_URL: '${backendApiUrl}/api'
+    VITE_APP_TITLE: 'CaseZero'
+    VITE_ENV: environment
+    NODE_ENV: environment == 'prod' ? 'production' : 'development'
   }
 }
 
 // ==============================================================================
 // Outputs
 // ==============================================================================
-output staticWebAppName string = staticWebApp.outputs.staticWebAppName
-output staticWebAppId string = staticWebApp.outputs.staticWebAppId
-output staticWebAppUrl string = staticWebApp.outputs.staticWebAppUrl
-output staticWebAppDefaultHostname string = staticWebApp.outputs.staticWebAppDefaultHostname
+output staticWebAppName string = staticWebApp.name
+output staticWebAppId string = staticWebApp.id
+output staticWebAppUrl string = 'https://${staticWebApp.properties.defaultHostname}'
+output staticWebAppDefaultHostname string = staticWebApp.properties.defaultHostname

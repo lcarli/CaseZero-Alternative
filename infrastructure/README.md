@@ -1,15 +1,25 @@
-# CaseZero Infrastructure - 3-Tier Architecture
+# CaseZero Infrastructure - 3-Tier Architecture (Azure Verified Modules)
 
 ## 📋 Overview
 
-Infrastructure as Code (IaC) for the complete CaseZero application stack using Azure Bicep with a **3-tier modular architecture**:
+Infrastructure as Code (IaC) for the complete CaseZero application stack using **100% Azure Verified Modules (AVM)** and Azure Bicep with a **3-tier modular architecture**:
 
 - **Shared Layer**: Key Vault, Monitoring (Application Insights + Log Analytics), Optional SQL Database
 - **API Layer**: Backend API (.NET 8.0) on App Service
 - **Functions Layer**: Case Generator (.NET 9.0) on Azure Functions
 - **Frontend Layer**: Static Web App (React + Vite)
 
-## 🏗️ Architecture
+## � Azure Verified Modules (AVM)
+
+This infrastructure uses **official Microsoft Azure Verified Modules** ensuring:
+- ✅ **Best Practices**: Microsoft-vetted patterns and configurations
+- ✅ **Security**: Built-in security features and compliance
+- ✅ **Maintainability**: Regular updates from Microsoft
+- ✅ **Consistency**: Standardized modules across the organization
+
+**Reference**: https://azure.github.io/Azure-Verified-Modules/
+
+## �🏗️ Architecture
 
 ```
 infrastructure/
@@ -17,33 +27,35 @@ infrastructure/
 ├── parameters.dev.json             # Development parameters
 ├── parameters.prod.json            # Production parameters
 │
-├── shared/                         # Shared infrastructure layer
-│   ├── main.bicep
-│   └── modules/
-│       ├── sql-database.bicep      # Optional SQL Server + Database
-│       ├── keyvault.bicep          # Azure Key Vault
-│       ├── monitoring.bicep        # App Insights + Log Analytics
-│       └── rbac-keyvault.bicep     # RBAC for Key Vault
+├── shared/                         # Shared infrastructure layer (100% AVM)
+│   └── main.bicep                  # Key Vault (0.12.0), Log Analytics (0.9.1)
+│                                   # App Insights (0.4.2), SQL Server (0.20.3)
 │
-├── api/                            # Backend API layer (.NET 8.0)
-│   ├── main.bicep
-│   └── modules/
-│       ├── app-service-plan.bicep  # Linux App Service Plan
-│       └── app-service.bicep       # API App Service
+├── api/                            # Backend API layer (.NET 8.0) (100% AVM)
+│   └── main.bicep                  # App Service Plan (0.4.1), App Service (0.14.0)
 │
-├── functions/                      # Case Generator layer (.NET 9.0)
-│   ├── main.bicep
-│   └── modules/
-│       ├── function-app-plan.bicep # Function App Plan (Consumption/Premium)
-│       ├── function-app.bicep      # Function App
-│       ├── storage-account.bicep   # Storage Account with containers
-│       └── rbac-storage.bicep      # RBAC for Storage
+├── functions/                      # Case Generator layer (.NET 9.0) (100% AVM)
+│   └── main.bicep                  # Storage (0.17.1), Service Plan (0.4.1)
+│                                   # Function App (0.14.0)
 │
-└── frontend/                       # Frontend layer (React + Vite)
-    ├── main.bicep
-    └── modules/
-        └── static-web-app.bicep    # Azure Static Web App
+└── frontend/                       # Frontend layer (React + Vite) (Native Resource)
+    └── main.bicep                  # Azure Static Web App (2023-12-01 API)
 ```
+
+## 📦 Azure Verified Modules Used
+
+| Layer | Module | Version | Purpose |
+|-------|--------|---------|---------|
+| **Shared** | `avm/res/key-vault/vault` | 0.12.0 | Secrets management |
+| **Shared** | `avm/res/operational-insights/workspace` | 0.9.1 | Log Analytics |
+| **Shared** | `avm/res/insights/component` | 0.4.2 | Application Insights |
+| **Shared** | `avm/res/sql/server` | 0.20.3 | SQL Server + Database |
+| **API** | `avm/res/web/serverfarm` | 0.4.1 | App Service Plan |
+| **API** | `avm/res/web/site` | 0.14.0 | App Service (.NET 8.0) |
+| **Functions** | `avm/res/storage/storage-account` | 0.17.1 | Storage Account |
+| **Functions** | `avm/res/web/serverfarm` | 0.4.1 | Function App Plan |
+| **Functions** | `avm/res/web/site` | 0.14.0 | Function App (.NET 9.0) |
+| **Frontend** | Native `Microsoft.Web/staticSites` | 2023-12-01 | Static Web App |
 
 ## 🚀 Deployment
 

@@ -2,6 +2,9 @@
 // Functions Infrastructure - Main Template (using Azure Verified Modules)
 // ==============================================================================
 // Provisions CaseGen.Functions (.NET 9.0) infrastructure using AVM
+// - Storage Account (avm/res/storage/storage-account:0.17.1)
+// - App Service Plan (avm/res/web/serverfarm:0.4.1)
+// - Function App (avm/res/web/site:0.14.0)
 // Reference: https://azure.github.io/Azure-Verified-Modules/
 // ==============================================================================
 
@@ -60,7 +63,7 @@ var appServicePlanName = '${namePrefix}-funcplan-${environment}'
 // ==============================================================================
 // Storage Account for Case Generator (AVM)
 // ==============================================================================
-module storageAccount 'br/public:avm/res/storage/storage-account:0.14.3' = {
+module storageAccount 'br/public:avm/res/storage/storage-account:0.17.1' = {
   name: 'functions-storage-deployment'
   params: {
     name: storageAccountName
@@ -90,7 +93,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.14.3' = {
 // ==============================================================================
 // App Service Plan for Functions (AVM)
 // ==============================================================================
-module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.0' = {
+module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.1' = {
   name: 'functions-app-service-plan-deployment'
   params: {
     name: appServicePlanName
@@ -115,7 +118,7 @@ var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${stor
 // ==============================================================================
 // Function App (.NET 9.0 Isolated) (AVM)
 // ==============================================================================
-module functionApp 'br/public:avm/res/web/site:0.12.0' = {
+module functionApp 'br/public:avm/res/web/site:0.14.0' = {
   name: 'functions-app-deployment'
   params: {
     name: functionAppName
@@ -226,4 +229,4 @@ output functionAppServicePlanName string = appServicePlan.outputs.name
 output functionAppName string = functionApp.outputs.name
 output functionAppId string = functionApp.outputs.resourceId
 output functionAppUrl string = 'https://${functionApp.outputs.defaultHostname}'
-output functionAppPrincipalId string = functionApp.outputs.systemAssignedMIPrincipalId
+output functionAppPrincipalId string = functionApp.outputs.systemAssignedMIPrincipalId!

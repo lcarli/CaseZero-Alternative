@@ -1,7 +1,10 @@
 // ==============================================================================
-// API Backend Infrastructure - Main Template
+// API Backend Infrastructure - Main Template (using Azure Verified Modules)
 // ==============================================================================
-// Provisions CaseZero API Backend (.NET 8.0) infrastructure
+// Provisions CaseZero API Backend (.NET 8.0) infrastructure using 100% AVM
+// - App Service Plan (avm/res/web/serverfarm:0.4.1)
+// - App Service (avm/res/web/site:0.14.0)
+// Reference: https://azure.github.io/Azure-Verified-Modules/
 // ==============================================================================
 
 targetScope = 'resourceGroup'
@@ -51,47 +54,128 @@ var tags = {
   Runtime: 'dotnet-8.0'
 }
 
+var appServicePlanName = '${namePrefix}-api-plan-${environment}'
+var apiAppName = '${namePrefix}-api-${environment}'
+var defaultConnectionString = useSqlite ? 'Data Source=casezero.db' : sqlConnectionString
+
 // ==============================================================================
-// App Service Plan
+// App Service Plan (AVM)
 // ==============================================================================
-module appServicePlan 'modules/app-service-plan.bicep' = {
+module appServicePlan 'br/public:avm/res/web/serverfarm:0.4.1' = {
   name: 'api-app-service-plan-deployment'
   params: {
-    environment: environment
+    name: appServicePlanName
     location: location
-    namePrefix: namePrefix
-    sku: appServicePlanSku
-    enableZoneRedundancy: environment == 'prod'
     tags: tags
+    kind: 'linux'
+    skuName: appServicePlanSku.name
+    skuCapacity: appServicePlanSku.capacity
+    reserved: true
+    zoneRedundant: environment == 'prod'
   }
 }
 
 // ==============================================================================
-// API App Service (.NET 8.0)
+// API App Service (.NET 8.0) (AVM)
 // ==============================================================================
-module apiAppService 'modules/app-service.bicep' = {
+module apiAppService 'br/public:avm/res/web/site:0.14.0' = {
   name: 'api-app-service-deployment'
   params: {
-    environment: environment
+    name: apiAppName
     location: location
-    namePrefix: namePrefix
-    appServicePlanId: appServicePlan.outputs.appServicePlanId
-    appInsightsConnectionString: appInsightsConnectionString
-    appInsightsInstrumentationKey: appInsightsInstrumentationKey
-    keyVaultUri: keyVaultUri
-    sqlConnectionString: sqlConnectionString
-    useSqlite: useSqlite
-    corsAllowedOrigins: corsAllowedOrigins
     tags: tags
+    kind: 'app,linux'
+    serverFarmResourceId: appServicePlan.outputs.resourceId
+    httpsOnly: true
+    clientAffinityEnabled: false
+    managedIdentities: {
+      systemAssigned: true
+    }
+    siteConfig: {
+      linuxFxVersion: 'DOTNETCORE|8.0'
+      alwaysOn: environment == 'prod'
+      ftpsState: 'Disabled'
+      minTlsVersion: '1.2'
+      scmMinTlsVersion: '1.2'
+      http20Enabled: true
+      healthCheckPath: '/health'
+      cors: {
+        allowedOrigins: corsAllowedOrigins
+        supportCredentials: false
+      }
+      appSettings: [
+        {
+          name: 'ASPNETCORE_ENVIRONMENT'
+          value: environment == 'prod' ? 'Production' : (environment == 'staging' ? 'Staging' : 'Development')
+        }
+        {
+          name: 'WEBSITE_RUN_FROM_PACKAGE'
+          value: '1'
+        }
+        {
+          name: 'JwtSettings__SecretKey'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/jwt-signing-key/)'
+        }
+        {
+          name: 'JwtSettings__Issuer'
+          value: 'CaseZeroApi'
+        }
+        {
+          name: 'JwtSettings__Audience'
+          value: 'CaseZeroClient'
+        }
+        {
+          name: 'JwtSettings__ExpirationInMinutes'
+          value: environment == 'prod' ? '60' : '1440'
+        }
+        {
+          name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
+          value: appInsightsInstrumentationKey
+        }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsightsConnectionString
+        }
+        {
+          name: 'ApplicationInsightsAgent_EXTENSION_VERSION'
+          value: '~3'
+        }
+        {
+          name: 'IpRateLimiting__EnableEndpointRateLimiting'
+          value: 'true'
+        }
+        {
+          name: 'IpRateLimiting__GeneralRules__0__Endpoint'
+          value: '*'
+        }
+        {
+          name: 'IpRateLimiting__GeneralRules__0__Period'
+          value: '1m'
+        }
+        {
+          name: 'IpRateLimiting__GeneralRules__0__Limit'
+          value: environment == 'prod' ? '100' : '200'
+        }
+      ]
+    }
+    appSettingsKeyValuePairs: {
+      connectionStrings: [
+        {
+          name: 'DefaultConnection'
+          connectionString: defaultConnectionString
+          type: useSqlite ? 'Custom' : 'SQLAzure'
+        }
+      ]
+    }
   }
 }
 
 // ==============================================================================
 // Outputs
 // ==============================================================================
-output appServicePlanId string = appServicePlan.outputs.appServicePlanId
-output appServicePlanName string = appServicePlan.outputs.appServicePlanName
-output apiAppServiceName string = apiAppService.outputs.apiAppServiceName
-output apiAppServiceId string = apiAppService.outputs.apiAppServiceId
-output apiAppServiceUrl string = apiAppService.outputs.apiAppServiceUrl
-output apiAppServicePrincipalId string = apiAppService.outputs.apiAppServicePrincipalId
+output appServicePlanId string = appServicePlan.outputs.resourceId
+output appServicePlanName string = appServicePlan.outputs.name
+output apiAppServiceName string = apiAppService.outputs.name
+output apiAppServiceId string = apiAppService.outputs.resourceId
+output apiAppServiceUrl string = 'https://${apiAppService.outputs.defaultHostname}'
+output apiAppServicePrincipalId string = apiAppService.outputs.systemAssignedMIPrincipalId!
