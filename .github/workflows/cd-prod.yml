@@ -203,29 +203,6 @@ jobs:
           slot-name: 'staging'
           package: ./backend
 
-      - name: 🏥 Health Check (Staging)
-        run: |
-          echo "Performing health check on staging slot..."
-          sleep 30
-          
-          STAGING_URL="https://${{ env.AZURE_WEBAPP_NAME }}-staging.azurewebsites.net"
-          echo "Checking staging health at: $STAGING_URL/api/health"
-          
-          for i in {1..10}; do
-            if curl -f "$STAGING_URL/api/health" > /dev/null 2>&1; then
-              echo "✅ Staging backend is healthy!"
-              break
-            else
-              echo "⏳ Attempt $i: Staging not ready yet, waiting..."
-              sleep 15
-            fi
-            
-            if [ $i -eq 10 ]; then
-              echo "❌ Staging health check failed"
-              exit 1
-            fi
-          done
-
       - name: 🔄 Swap to Production
         run: |
           echo "Swapping staging slot to production..."

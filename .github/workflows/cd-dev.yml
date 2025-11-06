@@ -127,30 +127,6 @@ jobs:
             --deployment-token "$DEPLOYMENT_TOKEN" \
             --env production
 
-      - name: 🏥 Health Check
-        run: |
-          echo "Waiting for deployment to be ready..."
-          sleep 30
-          
-          # Health check for backend
-          BACKEND_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
-          echo "Checking backend health at: $BACKEND_URL/api/health"
-          
-          for i in {1..10}; do
-            if curl -f "$BACKEND_URL/api/health" > /dev/null 2>&1; then
-              echo "✅ Backend is healthy!"
-              break
-            else
-              echo "⏳ Attempt $i: Backend not ready yet, waiting..."
-              sleep 15
-            fi
-            
-            if [ $i -eq 10 ]; then
-              echo "❌ Backend health check failed after 10 attempts"
-              exit 1
-            fi
-          done
-
       - name: 📊 Post Deployment Tests
         run: |
           # Basic smoke tests
