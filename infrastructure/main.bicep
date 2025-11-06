@@ -15,7 +15,7 @@ targetScope = 'subscription'
 param environment string
 
 @description('Location for all resources')
-param location string = 'canadaeast'
+param location string = 'canadacentral'
 
 @description('Name prefix for all resources')
 param namePrefix string = 'casezero'
