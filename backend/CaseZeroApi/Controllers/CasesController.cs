@@ -18,6 +18,7 @@ namespace CaseZeroApi.Controllers
         private readonly ICaseObjectService _caseObjectService;
         private readonly ICaseAccessService _caseAccessService;
         private readonly ICaseFormatService _caseFormatService;
+        private readonly IBlobStorageService _blobStorageService;
         private readonly ILogger<CasesController> _logger;
 
         public CasesController(
@@ -25,12 +26,14 @@ namespace CaseZeroApi.Controllers
             ICaseObjectService caseObjectService,
             ICaseAccessService caseAccessService,
             ICaseFormatService caseFormatService,
+            IBlobStorageService blobStorageService,
             ILogger<CasesController> logger)
         {
             _context = context;
             _caseObjectService = caseObjectService;
             _caseAccessService = caseAccessService;
             _caseFormatService = caseFormatService;
+            _blobStorageService = blobStorageService;
             _logger = logger;
         }
 
@@ -348,55 +351,107 @@ namespace CaseZeroApi.Controllers
             {
                 try
                 {
-                    var caseObject = await _caseObjectService.LoadCaseObjectAsync(caseId);
-                    if (caseObject?.Metadata != null)
+                    // Check if it's a generated case (from blob storage)
+                    if (caseId.StartsWith("CASE-", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Get last session for this case (handle if table doesn't exist)
-                        CaseSession? lastSession = null;
-                        try 
+                        // Load from blob storage
+                        var caseBundle = await _blobStorageService.GetCaseBundleAsync(caseId);
+                        if (caseBundle != null)
                         {
-                            lastSession = await _context.CaseSessions
-                                .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
-                                .OrderByDescending(cs => cs.SessionStart)
-                                .FirstOrDefaultAsync();
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Could not load session data for case {CaseId}", caseId);
-                        }
+                            // Get case progress if it exists
+                            var caseProgress = await _context.CaseProgresses
+                                .FirstOrDefaultAsync(cp => cp.UserId == userId && cp.CaseId == caseId);
 
-                        // Get case progress if it exists
-                        var caseProgress = await _context.CaseProgresses
-                            .FirstOrDefaultAsync(cp => cp.UserId == userId && cp.CaseId == caseId);
+                            // Map difficulty string to numeric level
+                            int difficultyLevel = GetDifficultyLevelFromString(caseBundle.Difficulty ?? "Rookie");
 
-                        var caseDto = new CaseDto
-                        {
-                            Id = caseId,
-                            Title = caseObject.Metadata.Title,
-                            Description = caseObject.Metadata.Description,
-                            Status = DetermineCaseStatus(lastSession, caseProgress),
-                            Priority = GetPriorityFromDifficulty(caseObject.Metadata.Difficulty),
-                            CreatedAt = caseObject.Metadata.StartDateTime,
-                            Location = caseObject.Metadata.Location,
-                            IncidentDate = caseObject.Metadata.IncidentDateTime,
-                            BriefingText = caseObject.Metadata.Briefing,
-                            EstimatedDifficultyLevel = caseObject.Metadata.Difficulty,
-                            UserProgress = caseProgress != null ? new CaseProgressDto
+                            // Extract title from first document or use case ID
+                            var caseTitle = caseBundle.Documents.FirstOrDefault()?.Title ?? $"Case {caseBundle.CaseId}";
+                            var caseDescription = $"Generated case with {caseBundle.Documents.Count} documents and {caseBundle.Media.Count} media files";
+
+                            var caseDto = new CaseDto
                             {
-                                UserId = caseProgress.UserId,
-                                CaseId = caseProgress.CaseId,
-                                EvidencesCollected = caseProgress.EvidencesCollected,
-                                InterviewsCompleted = caseProgress.InterviewsCompleted,
-                                ReportsSubmitted = caseProgress.ReportsSubmitted,
-                                LastActivity = lastSession?.SessionEnd ?? lastSession?.SessionStart ?? caseProgress.LastActivity,
-                                CompletionPercentage = caseProgress.CompletionPercentage
-                            } : null,
-                            AssignedUsers = new List<UserDto>(), // Empty for now
-                            Evidences = new List<EvidenceDto>(),
-                            Suspects = new List<SuspectDto>()
-                        };
-                        
-                        cases.Add(caseDto);
+                                Id = caseBundle.CaseId,
+                                Title = caseTitle,
+                                Description = caseDescription,
+                                Status = caseProgress?.CompletionPercentage >= 100 ? CaseStatus.Resolved : CaseStatus.Open,
+                                Priority = GetPriorityFromDifficulty(difficultyLevel),
+                                CreatedAt = caseBundle.CreatedAt,
+                                Location = "Unknown", // Generated cases don't have location in metadata yet
+                                IncidentDate = caseBundle.CreatedAt,
+                                BriefingText = $"Investigate this case with {caseBundle.Documents.Count} documents",
+                                EstimatedDifficultyLevel = difficultyLevel,
+                                UserProgress = caseProgress != null ? new CaseProgressDto
+                                {
+                                    UserId = caseProgress.UserId,
+                                    CaseId = caseProgress.CaseId,
+                                    EvidencesCollected = caseProgress.EvidencesCollected,
+                                    InterviewsCompleted = caseProgress.InterviewsCompleted,
+                                    ReportsSubmitted = caseProgress.ReportsSubmitted,
+                                    LastActivity = caseProgress.LastActivity,
+                                    CompletionPercentage = caseProgress.CompletionPercentage
+                                } : null,
+                                AssignedUsers = new List<UserDto>(),
+                                Evidences = new List<EvidenceDto>(),
+                                Suspects = new List<SuspectDto>()
+                            };
+                            
+                            cases.Add(caseDto);
+                        }
+                    }
+                    else
+                    {
+                        // Load from filesystem (existing logic)
+                        var caseObject = await _caseObjectService.LoadCaseObjectAsync(caseId);
+                        if (caseObject?.Metadata != null)
+                        {
+                            // Get last session for this case (handle if table doesn't exist)
+                            CaseSession? lastSession = null;
+                            try 
+                            {
+                                lastSession = await _context.CaseSessions
+                                    .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
+                                    .OrderByDescending(cs => cs.SessionStart)
+                                    .FirstOrDefaultAsync();
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "Could not load session data for case {CaseId}", caseId);
+                            }
+
+                            // Get case progress if it exists
+                            var caseProgress = await _context.CaseProgresses
+                                .FirstOrDefaultAsync(cp => cp.UserId == userId && cp.CaseId == caseId);
+
+                            var caseDto = new CaseDto
+                            {
+                                Id = caseId,
+                                Title = caseObject.Metadata.Title,
+                                Description = caseObject.Metadata.Description,
+                                Status = DetermineCaseStatus(lastSession, caseProgress),
+                                Priority = GetPriorityFromDifficulty(caseObject.Metadata.Difficulty),
+                                CreatedAt = caseObject.Metadata.StartDateTime,
+                                Location = caseObject.Metadata.Location,
+                                IncidentDate = caseObject.Metadata.IncidentDateTime,
+                                BriefingText = caseObject.Metadata.Briefing,
+                                EstimatedDifficultyLevel = caseObject.Metadata.Difficulty,
+                                UserProgress = caseProgress != null ? new CaseProgressDto
+                                {
+                                    UserId = caseProgress.UserId,
+                                    CaseId = caseProgress.CaseId,
+                                    EvidencesCollected = caseProgress.EvidencesCollected,
+                                    InterviewsCompleted = caseProgress.InterviewsCompleted,
+                                    ReportsSubmitted = caseProgress.ReportsSubmitted,
+                                    LastActivity = lastSession?.SessionEnd ?? lastSession?.SessionStart ?? caseProgress.LastActivity,
+                                    CompletionPercentage = caseProgress.CompletionPercentage
+                                } : null,
+                                AssignedUsers = new List<UserDto>(),
+                                Evidences = new List<EvidenceDto>(),
+                                Suspects = new List<SuspectDto>()
+                            };
+                            
+                            cases.Add(caseDto);
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -635,6 +690,20 @@ namespace CaseZeroApi.Controllers
                 >= 6 => CasePriority.High,
                 >= 4 => CasePriority.Medium,
                 _ => CasePriority.Low
+            };
+        }
+
+        private static int GetDifficultyLevelFromString(string difficulty)
+        {
+            return difficulty?.ToLower() switch
+            {
+                "rookie" => 1,
+                "detective" => 3,
+                "sergeant" => 5,
+                "lieutenant" => 7,
+                "captain" => 9,
+                "commander" => 10,
+                _ => 1
             };
         }
 

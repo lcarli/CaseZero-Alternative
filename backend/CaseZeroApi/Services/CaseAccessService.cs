@@ -19,15 +19,18 @@ namespace CaseZeroApi.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly ICaseObjectService _caseObjectService;
+        private readonly IBlobStorageService _blobStorageService;
         private readonly ILogger<CaseAccessService> _logger;
 
         public CaseAccessService(
             ApplicationDbContext context, 
             ICaseObjectService caseObjectService,
+            IBlobStorageService blobStorageService,
             ILogger<CaseAccessService> logger)
         {
             _context = context;
             _caseObjectService = caseObjectService;
+            _blobStorageService = blobStorageService;
             _logger = logger;
         }
 
@@ -43,12 +46,13 @@ namespace CaseZeroApi.Services
                     return new List<string>();
                 }
 
-                // Get all available cases from filesystem
-                var allCases = await _caseObjectService.GetAvailableCasesAsync();
                 var availableCases = new List<string>();
 
-                // Filter cases based on user rank
-                foreach (var caseId in allCases)
+                // 1. Get all available cases from filesystem
+                var filesystemCases = await _caseObjectService.GetAvailableCasesAsync();
+                
+                // Filter filesystem cases based on user rank
+                foreach (var caseId in filesystemCases)
                 {
                     var caseObject = await _caseObjectService.LoadCaseObjectAsync(caseId);
                     if (caseObject?.Metadata != null)
@@ -60,7 +64,42 @@ namespace CaseZeroApi.Services
                     }
                 }
 
-                _logger.LogInformation("Found {Count} available cases for user {UserId} with rank {Rank}", 
+                // 2. Get all generated cases from blob storage
+                try
+                {
+                    var generatedCases = await _blobStorageService.ListCasesAsync();
+                    
+                    _logger.LogInformation("Found {Count} generated cases from blob storage for user with rank {Rank}", 
+                        generatedCases.Count, user.Rank);
+                    
+                    foreach (var manifest in generatedCases)
+                    {
+                        // Map difficulty to min rank requirement
+                        var requiredRank = MapDifficultyToRank(manifest.Difficulty);
+                        
+                        _logger.LogInformation("Case {CaseId}: Difficulty={Difficulty}, RequiredRank={RequiredRank}, UserRank={UserRank}, CanAccess={CanAccess}",
+                            manifest.CaseId, manifest.Difficulty, requiredRank, user.Rank, CanUserAccessCase(user.Rank, requiredRank));
+                        
+                        if (CanUserAccessCase(user.Rank, requiredRank))
+                        {
+                            availableCases.Add(manifest.CaseId);
+                            _logger.LogInformation("Added case {CaseId} to available cases", manifest.CaseId);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("User rank {UserRank} cannot access case {CaseId} (requires {RequiredRank})",
+                                user.Rank, manifest.CaseId, requiredRank);
+                        }
+                    }
+                    
+                    _logger.LogInformation("Added {Count} generated cases from blob storage", generatedCases.Count);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to load generated cases from blob storage, continuing with filesystem cases only");
+                }
+
+                _logger.LogInformation("Found {Count} total available cases for user {UserId} with rank {Rank}", 
                     availableCases.Count, userId, user.Rank);
 
                 return availableCases;
@@ -204,6 +243,25 @@ namespace CaseZeroApi.Services
 
             // User can access cases that require their rank or lower
             return userRank >= requiredRank;
+        }
+
+        /// <summary>
+        /// Maps case difficulty from CaseGen.Functions to the minimum detective rank required
+        /// Difficulty levels: Rookie, Detective, Sergeant, Lieutenant, Captain, Commander
+        /// DetectiveRank enum: Rook, Detective, Detective2, Sergeant, Lieutenant, Captain, Commander
+        /// </summary>
+        private static string MapDifficultyToRank(string? difficulty)
+        {
+            return difficulty?.ToLower() switch
+            {
+                "rookie" => "Rook",  // Maps to DetectiveRank.Rook
+                "detective" => "Detective",
+                "sergeant" => "Sergeant",
+                "lieutenant" => "Lieutenant",
+                "captain" => "Captain",
+                "commander" => "Commander",
+                _ => "Rook" // Default to Rook if unknown
+            };
         }
     }
 }
