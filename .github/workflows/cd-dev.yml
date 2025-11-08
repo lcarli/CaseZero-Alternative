@@ -107,7 +107,15 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_DEV }}
 
-      - name: �🚀 Deploy Backend to Azure Web App
+      - name: 🔧 Configure Connection String
+        run: |
+          az webapp config connection-string set \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --name ${{ env.AZURE_WEBAPP_NAME }} \
+            --connection-string-type SQLAzure \
+            --settings DefaultConnection="Server=tcp:casezero-sql-dev.database.windows.net,1433;Initial Catalog=casezero-db;Persist Security Info=False;User ID=casezero_admin;Password=${{ secrets.SQL_ADMIN_PASSWORD }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+
+      - name: 🚀 Deploy Backend to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
