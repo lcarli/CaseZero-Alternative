@@ -45,9 +45,15 @@ cd CaseZero-Alternative
 # 2. Configurar backend
 cd backend/CaseZeroApi
 dotnet restore
+
+# 3. Configurar conexão com Azure SQL Database
+# Edite appsettings.Development.json e configure a connection string do Azure
+# Veja seção "Azure SQL Database Configuration" abaixo
+
+# 4. Aplicar migrations ao banco de dados do Azure
 dotnet ef database update
 
-# 3. Configurar frontend
+# 5. Configurar frontend
 cd ../../frontend
 npm install
 
@@ -55,13 +61,48 @@ npm install
 cp .env.example .env.development
 ```
 
-### 4. Variáveis de Ambiente
+### 4. Azure SQL Database Configuration
+
+**⚠️ IMPORTANTE: Este projeto SEMPRE usa Azure SQL Database (não LocalDB)**
+
+Para configurar a conexão com o banco de dados do Azure:
+
+1. **Obtenha a connection string do Azure SQL Database:**
+   - Acesse o Portal do Azure (https://portal.azure.com)
+   - Navegue até seu SQL Database
+   - Vá em "Connection strings" > "ADO.NET"
+   - Copie a connection string
+
+2. **Configure em `appsettings.Development.json`:**
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=tcp:your-server.database.windows.net,1433;Database=CaseZeroDb;User ID=your-username;Password=your-password;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+  }
+}
+```
+
+3. **Variáveis importantes:**
+   - `your-server`: Nome do seu Azure SQL Server
+   - `your-username`: Usuário do banco de dados
+   - `your-password`: Senha do usuário
+   - `CaseZeroDb`: Nome do banco de dados
+
+4. **Aplicar migrations:**
+```bash
+cd backend/CaseZeroApi
+dotnet ef database update
+```
+
+**Validação:** O sistema irá falhar na inicialização se a connection string não estiver configurada ou contiver valores de placeholder.
+
+### 5. Variáveis de Ambiente
 
 **Backend (`appsettings.Development.json`):**
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Data Source=casezero_dev.db"
+    "DefaultConnection": "Server=tcp:casezero-sql-server.database.windows.net,1433;Database=CaseZeroDb;User ID=admin;Password=YourPassword123!;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
   },
   "JwtSettings": {
     "SecretKey": "DevSecretKeyThatShouldBeAtLeast32Characters!",

@@ -57,9 +57,32 @@ API REST principal do sistema CaseZero, responsável por:
 
 - **Framework**: ASP.NET Core 8
 - **ORM**: Entity Framework Core
-- **Database**: SQLite (dev), SQL Server (prod)
+- **Database**: Azure SQL Database (sempre, dev e prod)
 - **Auth**: JWT Bearer tokens + ASP.NET Identity
 - **Email**: SMTP via configuration
+
+### ⚙️ Configuração do Banco de Dados
+
+**⚠️ IMPORTANTE: Este projeto SEMPRE usa Azure SQL Database**
+
+1. **Configure a connection string em `appsettings.Development.json`:**
+
+```json
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=tcp:your-server.database.windows.net,1433;Database=CaseZeroDb;User ID=your-username;Password=your-password;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+  }
+}
+```
+
+2. **Obtenha as credenciais no Azure Portal:**
+   - SQL Server: `your-server.database.windows.net`
+   - Database: `CaseZeroDb`
+   - User ID e Password: Configure no SQL Server
+
+3. **O sistema validará a connection string no startup** e falhará se:
+   - A connection string não estiver configurada
+   - Contiver valores de placeholder (`your-server`, `your-username`)
 
 ### 📡 Principais Endpoints
 
@@ -93,7 +116,10 @@ cd CaseZeroApi
 # Restaurar dependências
 dotnet restore
 
-# Aplicar migrações (cria banco SQLite)
+# Configure a connection string do Azure SQL em appsettings.Development.json
+# Veja seção "Configuração do Banco de Dados" acima
+
+# Aplicar migrações ao banco do Azure
 dotnet ef database update
 
 # Executar

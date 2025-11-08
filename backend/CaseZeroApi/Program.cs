@@ -13,9 +13,23 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Configure Entity Framework - Always use SQL Server
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? "Server=(localdb)\\mssqllocaldb;Database=CaseZeroDb;Trusted_Connection=True;MultipleActiveResultSets=true";
+// Configure Entity Framework - Always use Azure SQL Database
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException(
+        "Database connection string 'DefaultConnection' is not configured. " +
+        "Please set it in appsettings.json or appsettings.Development.json with your Azure SQL Database connection string.");
+}
+
+// Validate that it's not the placeholder value
+if (connectionString.Contains("your-server") || connectionString.Contains("your-username"))
+{
+    throw new InvalidOperationException(
+        "Database connection string contains placeholder values. " +
+        "Please update appsettings.json or appsettings.Development.json with your actual Azure SQL Database credentials.");
+}
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
