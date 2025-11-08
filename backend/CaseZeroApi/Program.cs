@@ -15,20 +15,36 @@ builder.Services.AddControllers();
 
 // Configure Entity Framework
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// Detect if running in Azure App Service
+var isAzure = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"));
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    if (!string.IsNullOrEmpty(connectionString) && connectionString.Contains("database.windows.net"))
+    // In Azure, always use SQL Server (connection string will be resolved from Key Vault by Azure)
+    if (isAzure || (!string.IsNullOrEmpty(connectionString) && 
+        (connectionString.Contains("database.windows.net") || connectionString.Contains("@microsoft.keyvault"))))
     {
-        options.UseSqlServer(connectionString);
-    }
-    else if (!string.IsNullOrEmpty(connectionString) && connectionString.Contains("Data Source"))
-    {
-        options.UseSqlite(connectionString);
+        options.UseSqlServer(connectionString ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found."), sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+            sqlOptions.CommandTimeout(60);
+        });
     }
     else
     {
-        // Default to SQL Server for Azure
-        options.UseSqlServer(connectionString ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found."));
+        // Default to SQL Server (LocalDB for local dev)
+        options.UseSqlServer(connectionString ?? "Server=(localdb)\\mssqllocaldb;Database=CaseZeroDb;Trusted_Connection=True;MultipleActiveResultSets=true", sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+            sqlOptions.CommandTimeout(60);
+        });
     }
 });
 
