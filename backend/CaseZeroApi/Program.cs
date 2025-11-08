@@ -13,39 +13,20 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Configure Entity Framework
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-// Detect if running in Azure App Service
-var isAzure = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME"));
+// Configure Entity Framework - Always use SQL Server
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? "Server=(localdb)\\mssqllocaldb;Database=CaseZeroDb;Trusted_Connection=True;MultipleActiveResultSets=true";
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    // In Azure, always use SQL Server (connection string will be resolved from Key Vault by Azure)
-    if (isAzure || (!string.IsNullOrEmpty(connectionString) && 
-        (connectionString.Contains("database.windows.net") || connectionString.Contains("@microsoft.keyvault"))))
+    options.UseSqlServer(connectionString, sqlOptions =>
     {
-        options.UseSqlServer(connectionString ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found."), sqlOptions =>
-        {
-            sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
-                errorNumbersToAdd: null);
-            sqlOptions.CommandTimeout(60);
-        });
-    }
-    else
-    {
-        // Default to SQL Server (LocalDB for local dev)
-        options.UseSqlServer(connectionString ?? "Server=(localdb)\\mssqllocaldb;Database=CaseZeroDb;Trusted_Connection=True;MultipleActiveResultSets=true", sqlOptions =>
-        {
-            sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
-                errorNumbersToAdd: null);
-            sqlOptions.CommandTimeout(60);
-        });
-    }
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null);
+        sqlOptions.CommandTimeout(60);
+    });
 });
 
 // Configure Identity
@@ -228,20 +209,9 @@ using (var scope = app.Services.CreateScope())
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     
-    // Use migrations for Azure SQL, EnsureCreated for SQLite (local dev)
-    var dbConnectionString = context.Database.GetConnectionString();
-    var useSqlServer = !string.IsNullOrEmpty(dbConnectionString) && dbConnectionString.Contains("database.windows.net");
-    
-    if (useSqlServer)
-    {
-        logger.LogInformation("🗄️ Using Azure SQL Server - applying migrations...");
-        context.Database.Migrate();
-    }
-    else
-    {
-        logger.LogInformation("🗄️ Using SQLite - ensuring database created...");
-        context.Database.EnsureCreated();
-    }
+    // Always use migrations for SQL Server
+    logger.LogInformation("🗄️ Applying SQL Server migrations...");
+    context.Database.Migrate();
     
     // Seed test users if none exist
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
