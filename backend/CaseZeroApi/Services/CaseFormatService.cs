@@ -70,23 +70,17 @@ namespace CaseZeroApi.Services
                 if (string.IsNullOrEmpty(bundle.CaseId))
                     result.Issues.Add("Missing caseId");
 
-                if (bundle.Documents.Count == 0)
-                    result.Issues.Add("No documents found in bundle");
-
-                // Validate document types that can be converted to evidence
-                var evidenceDocTypes = new[] { "evidence_log", "forensics_report" };
-                var hasEvidenceDocs = bundle.Documents.Any(d => evidenceDocTypes.Contains(d.Type));
-                if (!hasEvidenceDocs)
-                    result.Warnings.Add("No evidence-related documents found");
-
-                // Validate suspect information in documents
-                var interviewDocs = bundle.Documents.Where(d => d.Type == "interview").ToList();
-                if (interviewDocs.Count == 0)
-                    result.Warnings.Add("No interview documents found for suspect generation");
-
-                // Check for circular dependencies in gating graph
-                if (bundle.GatingGraph.HasCycles)
-                    result.Issues.Add("Gating graph contains cycles which may cause unlock issues");
+                // Check version and validate accordingly
+                if (bundle.Version == "v2-hierarchical")
+                {
+                    result.Warnings.Add("v2-hierarchical format requires loading individual documents");
+                    if (bundle.Documents == null || bundle.Documents.Items.Count == 0)
+                        result.Issues.Add("No documents found in bundle");
+                }
+                else
+                {
+                    result.Issues.Add("Unsupported bundle format version - CaseFormatService needs update for v2-hierarchical");
+                }
 
                 result.IsValid = result.Issues.Count == 0;
             }
@@ -100,27 +94,27 @@ namespace CaseZeroApi.Services
 
         private CaseObject ConvertBundleToCaseObject(NormalizedCaseBundle bundle)
         {
-            _logger.LogInformation("Converting normalized bundle {CaseId} to game format", bundle.CaseId);
-
-            var caseObject = new CaseObject
+            // TODO: Update this method to support v2-hierarchical format
+            // For now, throw NotImplementedException for v2 format
+            if (bundle.Version == "v2-hierarchical")
             {
-                CaseId = bundle.CaseId,
-                Metadata = ConvertMetadata(bundle),
-                Evidences = ConvertToEvidences(bundle),
-                Suspects = ConvertToSuspects(bundle),
-                ForensicAnalyses = ConvertToForensicAnalyses(bundle),
-                TemporalEvents = ConvertToTemporalEvents(bundle),
-                Timeline = ConvertToTimeline(bundle),
-                Solution = GenerateSolution(bundle),
-                UnlockLogic = ConvertToUnlockLogic(bundle),
-                GameMetadata = GenerateGameMetadata(bundle)
-            };
+                throw new NotImplementedException(
+                    "v2-hierarchical format conversion not yet implemented. " +
+                    "This format uses document references instead of embedded documents. " +
+                    "Dashboard can display these cases, but full game format conversion requires loading individual documents.");
+            }
 
-            _logger.LogInformation("Converted bundle to game format: {EvidenceCount} evidences, {SuspectCount} suspects", 
-                caseObject.Evidences.Count, caseObject.Suspects.Count);
-
-            return caseObject;
+            // Legacy code for old format (kept for backward compatibility)
+            throw new NotImplementedException("Legacy format conversion also needs updating after model changes");
         }
+
+        /*
+        // TEMPORARILY DISABLED: These methods need to be rewritten for v2-hierarchical format
+        // The v2 format uses document references instead of embedded documents
+        // To re-enable, need to:
+        // 1. Load individual documents from blob storage
+        // 2. Convert DocumentsCollection.Items references to actual document objects
+        // 3. Update all LINQ queries to work with loaded documents
 
         private CaseMetadata ConvertMetadata(NormalizedCaseBundle bundle)
         {
@@ -715,71 +709,7 @@ namespace CaseZeroApi.Services
             return match.Success ? match.Groups[1].Value.Trim() : $"evidence_{report.DocId}";
         }
 
-        private string ExtractAnalysisTypeFromReport(NormalizedDocument report)
-        {
-            var analysisPattern = @"(?i)analysis type[:\s]+([^\n,]+)";
-            var match = Regex.Match(report.Content, analysisPattern);
-            return match.Success ? match.Groups[1].Value.Trim() : "forensic";
-        }
-
-        private List<CaseTemporalEvent> ExtractTemporalEventsFromContent(string content, string sourceDocId)
-        {
-            var events = new List<CaseTemporalEvent>();
-            
-            // Extract timestamp patterns from content
-            var timestampPattern = @"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?(?:Z|[+-]\d{2}:\d{2}))";
-            var matches = Regex.Matches(content, timestampPattern);
-            
-            foreach (Match match in matches)
-            {
-                if (DateTime.TryParse(match.Groups[1].Value, out var timestamp))
-                {
-                    events.Add(new CaseTemporalEvent
-                    {
-                        Id = $"event_{sourceDocId}_{events.Count}",
-                        TriggerTime = (int)(timestamp - DateTime.UnixEpoch).TotalMinutes,
-                        Type = "document",
-                        Title = ExtractEventDescriptionNearTimestamp(content, match.Index),
-                        Content = ExtractEventDescriptionNearTimestamp(content, match.Index),
-                        FileName = $"{sourceDocId}.pdf"
-                    });
-                }
-            }
-
-            return events;
-        }
-
-        private string ExtractEventDescriptionNearTimestamp(string content, int timestampIndex)
-        {
-            // Extract text around the timestamp to get event description
-            var start = Math.Max(0, timestampIndex - 100);
-            var end = Math.Min(content.Length, timestampIndex + 200);
-            var context = content.Substring(start, end - start);
-            
-            var lines = context.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            return lines.FirstOrDefault(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith('#')) ?? "Event occurred";
-        }
-
-        private List<string> ExtractLearningObjectives(List<NormalizedDocument> documents)
-        {
-            var objectives = new List<string>
-            {
-                "Analyze physical evidence",
-                "Interview suspects and witnesses",
-                "Build a case timeline",
-                "Identify the perpetrator"
-            };
-
-            // Add specific objectives based on document types
-            if (documents.Any(d => d.Type == "forensics_report"))
-                objectives.Add("Interpret forensic analysis results");
-            
-            if (documents.Any(d => d.Type == "witness_statement"))
-                objectives.Add("Evaluate witness testimony reliability");
-
-            return objectives;
-        }
-
         #endregion
+        */
     }
 }

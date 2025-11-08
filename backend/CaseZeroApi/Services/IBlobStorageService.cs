@@ -8,6 +8,11 @@ public interface IBlobStorageService
     Task<List<CaseManifest>> ListCasesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the manifest for a specific case
+    /// </summary>
+    Task<CaseManifest?> GetCaseManifestAsync(string caseId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets the full normalized case bundle for a specific case ID
     /// </summary>
     Task<Models.NormalizedCaseBundle?> GetCaseBundleAsync(string caseId, CancellationToken cancellationToken = default);

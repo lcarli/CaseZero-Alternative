@@ -235,7 +235,37 @@ namespace CaseZeroApi.Controllers
                 return Unauthorized();
             }
 
-            // Verify user has access to this case
+            // Check if it's a generated case (from blob storage)
+            if (id.StartsWith("CASE-", StringComparison.OrdinalIgnoreCase))
+            {
+                // For generated cases, verify user has access via CaseAccessService
+                var availableCases = await _caseAccessService.GetAvailableCasesForUserAsync(userId);
+                if (!availableCases.Contains(id))
+                {
+                    return NotFound("Case not found or user does not have access");
+                }
+
+                // Load case bundle from blob storage
+                try
+                {
+                    var bundle = await _blobStorageService.GetCaseBundleAsync(id);
+                    if (bundle == null)
+                    {
+                        return NotFound($"Case data not found for case {id}");
+                    }
+
+                    // TODO: Convert NormalizedCaseBundle to CaseObject format for frontend
+                    // For now, return error indicating this feature is not yet implemented
+                    return StatusCode(501, new { error = "Loading generated cases in desktop is not yet implemented. Please use the /api/generatedcases/{id} endpoint for now." });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to load generated case {CaseId}", id);
+                    return StatusCode(500, "Failed to load case data");
+                }
+            }
+
+            // Verify user has access to this case (database cases)
             var userCase = await _context.UserCases
                 .Where(uc => uc.UserId == userId && uc.CaseId == id)
                 .FirstOrDefaultAsync();
@@ -355,48 +385,55 @@ namespace CaseZeroApi.Controllers
                     if (caseId.StartsWith("CASE-", StringComparison.OrdinalIgnoreCase))
                     {
                         // Load from blob storage
-                        var caseBundle = await _blobStorageService.GetCaseBundleAsync(caseId);
-                        if (caseBundle != null)
+                        try
                         {
-                            // Get case progress if it exists
-                            var caseProgress = await _context.CaseProgresses
-                                .FirstOrDefaultAsync(cp => cp.UserId == userId && cp.CaseId == caseId);
-
-                            // Map difficulty string to numeric level
-                            int difficultyLevel = GetDifficultyLevelFromString(caseBundle.Difficulty ?? "Rookie");
-
-                            // Extract title from first document or use case ID
-                            var caseTitle = caseBundle.Documents.FirstOrDefault()?.Title ?? $"Case {caseBundle.CaseId}";
-                            var caseDescription = $"Generated case with {caseBundle.Documents.Count} documents and {caseBundle.Media.Count} media files";
-
-                            var caseDto = new CaseDto
-                            {
-                                Id = caseBundle.CaseId,
-                                Title = caseTitle,
-                                Description = caseDescription,
-                                Status = caseProgress?.CompletionPercentage >= 100 ? CaseStatus.Resolved : CaseStatus.Open,
-                                Priority = GetPriorityFromDifficulty(difficultyLevel),
-                                CreatedAt = caseBundle.CreatedAt,
-                                Location = "Unknown", // Generated cases don't have location in metadata yet
-                                IncidentDate = caseBundle.CreatedAt,
-                                BriefingText = $"Investigate this case with {caseBundle.Documents.Count} documents",
-                                EstimatedDifficultyLevel = difficultyLevel,
-                                UserProgress = caseProgress != null ? new CaseProgressDto
-                                {
-                                    UserId = caseProgress.UserId,
-                                    CaseId = caseProgress.CaseId,
-                                    EvidencesCollected = caseProgress.EvidencesCollected,
-                                    InterviewsCompleted = caseProgress.InterviewsCompleted,
-                                    ReportsSubmitted = caseProgress.ReportsSubmitted,
-                                    LastActivity = caseProgress.LastActivity,
-                                    CompletionPercentage = caseProgress.CompletionPercentage
-                                } : null,
-                                AssignedUsers = new List<UserDto>(),
-                                Evidences = new List<EvidenceDto>(),
-                                Suspects = new List<SuspectDto>()
-                            };
+                            // Get manifest for difficulty and counts (it's more reliable than normalized_case.json)
+                            var manifest = await _blobStorageService.GetCaseManifestAsync(caseId);
                             
-                            cases.Add(caseDto);
+                            if (manifest != null)
+                            {
+                                // Get case progress if it exists
+                                var caseProgress = await _context.CaseProgresses
+                                    .FirstOrDefaultAsync(cp => cp.UserId == userId && cp.CaseId == caseId);
+
+                                // Map difficulty string to numeric level
+                                int difficultyLevel = GetDifficultyLevelFromString(manifest.Difficulty ?? "Rookie");
+
+                                // Build case info from manifest
+                                var caseDto = new CaseDto
+                                {
+                                    Id = manifest.CaseId,
+                                    Title = $"Generated Case {manifest.CaseId.Replace("CASE-", "")}",
+                                    Description = $"AI-generated case with {manifest.Counts?.Documents ?? 0} documents, {manifest.Counts?.Media ?? 0} media files, {manifest.Counts?.Suspects ?? 0} suspects",
+                                    Status = caseProgress?.CompletionPercentage >= 100 ? CaseStatus.Resolved : CaseStatus.Open,
+                                    Priority = GetPriorityFromDifficulty(difficultyLevel),
+                                    CreatedAt = manifest.GeneratedAt,
+                                    Location = "Unknown", // Generated cases don't have location in metadata yet
+                                    IncidentDate = manifest.GeneratedAt,
+                                    BriefingText = $"Investigate this case with {manifest.Counts?.Documents ?? 0} documents",
+                                    EstimatedDifficultyLevel = difficultyLevel,
+                                    UserProgress = caseProgress != null ? new CaseProgressDto
+                                    {
+                                        UserId = caseProgress.UserId,
+                                        CaseId = caseProgress.CaseId,
+                                        EvidencesCollected = caseProgress.EvidencesCollected,
+                                        InterviewsCompleted = caseProgress.InterviewsCompleted,
+                                        ReportsSubmitted = caseProgress.ReportsSubmitted,
+                                        LastActivity = caseProgress.LastActivity,
+                                        CompletionPercentage = caseProgress.CompletionPercentage
+                                    } : null,
+                                    AssignedUsers = new List<UserDto>(),
+                                    Evidences = new List<EvidenceDto>(),
+                                    Suspects = new List<SuspectDto>()
+                                };
+                                
+                                cases.Add(caseDto);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to load case {CaseId} from blob storage for dashboard", caseId);
+                            // Continue with other cases
                         }
                     }
                     else

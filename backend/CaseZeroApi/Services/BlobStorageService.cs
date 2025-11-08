@@ -80,6 +80,36 @@ public class BlobStorageService : IBlobStorageService
         }
     }
 
+    public async Task<CaseManifest?> GetCaseManifestAsync(
+        string caseId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containerClient = _blobServiceClient.GetBlobContainerClient(_bundlesContainer);
+            var manifestPath = $"{caseId}/{caseId}.json";
+            var blobClient = containerClient.GetBlobClient(manifestPath);
+
+            if (!await blobClient.ExistsAsync(cancellationToken))
+            {
+                _logger.LogWarning("Case manifest not found: {CaseId}", caseId);
+                return null;
+            }
+
+            var response = await blobClient.DownloadContentAsync(cancellationToken);
+            var manifest = JsonSerializer.Deserialize<CaseManifest>(
+                response.Value.Content.ToString(),
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            return manifest;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get case manifest for {CaseId}", caseId);
+            throw;
+        }
+    }
+
     public async Task<Models.NormalizedCaseBundle?> GetCaseBundleAsync(
         string caseId,
         CancellationToken cancellationToken = default)

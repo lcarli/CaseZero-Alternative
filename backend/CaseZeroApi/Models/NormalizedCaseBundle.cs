@@ -15,26 +15,69 @@ namespace CaseZeroApi.Models
         [JsonPropertyName("version")]
         public string Version { get; set; } = string.Empty;
 
+        [JsonPropertyName("generatedAt")]
+        public DateTime GeneratedAt { get; set; }
+
+        [JsonPropertyName("entities")]
+        public CaseEntities? Entities { get; set; }
+
+        [JsonPropertyName("documents")]
+        public DocumentsCollection? Documents { get; set; }
+
+        [JsonPropertyName("context")]
+        public CaseContext? Context { get; set; }
+
+        // Legacy properties for backward compatibility
         [JsonPropertyName("createdAt")]
-        public DateTime CreatedAt { get; set; }
+        public DateTime? CreatedAt { get; set; }
 
         [JsonPropertyName("timezone")]
-        public string Timezone { get; set; } = string.Empty;
+        public string? Timezone { get; set; }
 
         [JsonPropertyName("difficulty")]
         public string? Difficulty { get; set; }
 
-        [JsonPropertyName("documents")]
-        public List<NormalizedDocument> Documents { get; set; } = new();
-
         [JsonPropertyName("media")]
-        public List<NormalizedMedia> Media { get; set; } = new();
+        public List<NormalizedMedia>? Media { get; set; }
 
         [JsonPropertyName("gatingGraph")]
-        public GatingGraph GatingGraph { get; set; } = new();
+        public GatingGraph? GatingGraph { get; set; }
 
         [JsonPropertyName("metadata")]
-        public NormalizedCaseMetadata Metadata { get; set; } = new();
+        public NormalizedCaseMetadata? Metadata { get; set; }
+    }
+
+    public class CaseEntities
+    {
+        [JsonPropertyName("suspects")]
+        public List<string> Suspects { get; set; } = new();
+
+        [JsonPropertyName("evidence")]
+        public List<string> Evidence { get; set; } = new();
+
+        [JsonPropertyName("witnesses")]
+        public List<string> Witnesses { get; set; } = new();
+
+        [JsonPropertyName("total")]
+        public int Total { get; set; }
+    }
+
+    public class DocumentsCollection
+    {
+        [JsonPropertyName("items")]
+        public List<string> Items { get; set; } = new();
+
+        [JsonPropertyName("total")]
+        public int Total { get; set; }
+    }
+
+    public class CaseContext
+    {
+        [JsonPropertyName("plan")]
+        public Dictionary<string, string> Plan { get; set; } = new();
+
+        [JsonPropertyName("expand")]
+        public Dictionary<string, string> Expand { get; set; } = new();
     }
 
     public class NormalizedDocument
