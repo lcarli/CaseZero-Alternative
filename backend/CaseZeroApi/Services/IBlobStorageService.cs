@@ -23,6 +23,11 @@ public interface IBlobStorageService
     Task<string?> GetCaseDocumentAsync(string caseId, string documentId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets all documents for a case as FileViewerItems
+    /// </summary>
+    Task<Models.CaseFilesResponse> GetCaseFilesAsync(string caseId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets the URL for a media file
     /// </summary>
     string GetMediaUrl(string caseId, string fileName);

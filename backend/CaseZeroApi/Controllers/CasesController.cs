@@ -254,9 +254,63 @@ namespace CaseZeroApi.Controllers
                         return NotFound($"Case data not found for case {id}");
                     }
 
-                    // TODO: Convert NormalizedCaseBundle to CaseObject format for frontend
-                    // For now, return error indicating this feature is not yet implemented
-                    return StatusCode(501, new { error = "Loading generated cases in desktop is not yet implemented. Please use the /api/generatedcases/{id} endpoint for now." });
+                    // Convert NormalizedCaseBundle to CaseObject format for frontend
+                    var caseObject = await _caseFormatService.ConvertToGameFormatAsync(bundle);
+                    if (caseObject == null)
+                    {
+                        _logger.LogError("Failed to convert case bundle {CaseId} to CaseObject", id);
+                        return StatusCode(500, "Failed to convert case data");
+                    }
+
+                    // Return sanitized case data without exposing solution details
+                    var sanitizedCaseData = new
+                    {
+                        caseId = caseObject.CaseId,
+                        metadata = caseObject.Metadata,
+                        evidences = caseObject.Evidences?.Select(e => new
+                        {
+                            id = e.Id,
+                            name = e.Name,
+                            type = e.Type,
+                            fileName = e.FileName,
+                            category = e.Category,
+                            priority = e.Priority,
+                            description = e.Description,
+                            location = e.Location,
+                            isUnlocked = e.IsUnlocked,
+                            requiresAnalysis = e.RequiresAnalysis,
+                            dependsOn = e.DependsOn,
+                            linkedSuspects = e.LinkedSuspects,
+                            analysisRequired = e.AnalysisRequired,
+                            unlockConditions = e.UnlockConditions
+                        }).ToList(),
+                        suspects = caseObject.Suspects?.Select(s => new
+                        {
+                            id = s.Id,
+                            name = s.Name,
+                            alias = s.Alias,
+                            age = s.Age,
+                            occupation = s.Occupation,
+                            description = s.Description,
+                            relationship = s.Relationship,
+                            motive = s.Motive,
+                            alibi = s.Alibi,
+                            alibiVerified = s.AlibiVerified,
+                            unlockConditions = s.UnlockConditions
+                        }).ToList(),
+                        forensicAnalyses = caseObject.ForensicAnalyses?.Select(f => new
+                        {
+                            id = f.Id,
+                            evidenceId = f.EvidenceId,
+                            analysisType = f.AnalysisType,
+                            description = f.Description,
+                            resultFile = f.ResultFile
+                        }).ToList(),
+                        unlockLogic = caseObject.UnlockLogic,
+                        gameMetadata = caseObject.GameMetadata
+                    };
+
+                    return Ok(sanitizedCaseData);
                 }
                 catch (Exception ex)
                 {

@@ -341,4 +341,81 @@ export const caseGenerationApi = {
   }
 }
 
+// Case Files API (for normalized case bundles)
+export interface FileViewerItem {
+  id: string
+  name: string
+  type: string
+  icon: string
+  category: string
+  size: string
+  modified: string
+  content: string
+  evidenceId?: string
+  isUnlocked: boolean
+}
+
+export interface CaseFilesResponse {
+  caseId: string
+  files: FileViewerItem[]
+  totalFiles: number
+  filesByCategory: Record<string, number>
+}
+
+export interface CaseDocument {
+  docId: string
+  type: string
+  title: string
+  words: number
+  sections: DocumentSection[]
+}
+
+export interface DocumentSection {
+  title: string
+  content: string
+}
+
+export interface NormalizedCaseBundle {
+  caseId: string
+  version: string
+  generatedAt: string
+  entities: {
+    suspects: string[]
+    evidence: string[]
+    witnesses: string[]
+    total: number
+  }
+  documents: {
+    items: string[]
+    total: number
+  }
+  context: {
+    plan: Record<string, string>
+    expand: Record<string, string>
+  }
+}
+
+export const caseFilesApi = {
+  /**
+   * Get all files for a specific case from the normalized bundle
+   */
+  getCaseFiles: async (caseId: string): Promise<CaseFilesResponse> => {
+    return apiFetch(`/casefiles/${caseId}`)
+  },
+
+  /**
+   * Get a specific document from a case
+   */
+  getCaseDocument: async (caseId: string, documentId: string): Promise<CaseDocument> => {
+    return apiFetch(`/casefiles/${caseId}/documents/${documentId}`)
+  },
+
+  /**
+   * Get the normalized case bundle
+   */
+  getCaseBundle: async (caseId: string): Promise<NormalizedCaseBundle> => {
+    return apiFetch(`/casefiles/${caseId}/bundle`)
+  }
+}
+
 export { ApiError }

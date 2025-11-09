@@ -167,6 +167,141 @@ public class BlobStorageService : IBlobStorageService
         }
     }
 
+    public async Task<Models.CaseFilesResponse> GetCaseFilesAsync(
+        string caseId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Get the normalized case bundle to find all document references
+            var bundle = await GetCaseBundleAsync(caseId, cancellationToken);
+            if (bundle == null || bundle.Documents == null)
+            {
+                _logger.LogWarning("Case bundle not found or has no documents: {CaseId}", caseId);
+                return new Models.CaseFilesResponse { CaseId = caseId };
+            }
+
+            var files = new List<Models.FileViewerItem>();
+            var containerClient = _blobServiceClient.GetBlobContainerClient(_bundlesContainer);
+
+            // Process each document reference
+            foreach (var docRef in bundle.Documents.Items)
+            {
+                // Extract document ID from reference (e.g., "@documents/doc_evidence_log_001" -> "doc_evidence_log_001")
+                var docId = docRef.Replace("@documents/", "");
+                var documentPath = $"{caseId}/documents/{docId}.json";
+                
+                try
+                {
+                    var blobClient = containerClient.GetBlobClient(documentPath);
+                    if (!await blobClient.ExistsAsync(cancellationToken))
+                    {
+                        _logger.LogWarning("Document not found: {DocumentPath}", documentPath);
+                        continue;
+                    }
+
+                    var response = await blobClient.DownloadContentAsync(cancellationToken);
+                    var document = JsonSerializer.Deserialize<Models.CaseDocument>(
+                        response.Value.Content.ToString(),
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                    if (document != null)
+                    {
+                        // Convert document to FileViewerItem
+                        var file = ConvertDocumentToFileItem(document, bundle.GeneratedAt);
+                        files.Add(file);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to load document {DocId} for case {CaseId}", docId, caseId);
+                }
+            }
+
+            // Group files by category
+            var filesByCategory = files
+                .GroupBy(f => f.Category)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            return new Models.CaseFilesResponse
+            {
+                CaseId = caseId,
+                Files = files,
+                TotalFiles = files.Count,
+                FilesByCategory = filesByCategory
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get case files for {CaseId}", caseId);
+            throw;
+        }
+    }
+
+    private Models.FileViewerItem ConvertDocumentToFileItem(Models.CaseDocument document, DateTime generatedAt)
+    {
+        // Concatenate all sections into content
+        var content = string.Join("\n\n", document.Sections.Select(s => 
+            $"## {s.Title}\n\n{s.Content}"));
+
+        // Determine category and icon from document type
+        var (category, icon) = GetCategoryAndIcon(document.Type);
+
+        // Extract evidence ID if present (e.g., "doc_evidence_log_001" might reference "EV001")
+        string? evidenceId = null;
+        if (document.Type.Contains("evidence"))
+        {
+            // Try to extract evidence ID from document content
+            var match = System.Text.RegularExpressions.Regex.Match(content, @"EV\d{3}");
+            evidenceId = match.Success ? match.Value : null;
+        }
+
+        return new Models.FileViewerItem
+        {
+            Id = document.DocId,
+            Name = document.Title,
+            Type = GetFileType(document.Type),
+            Icon = icon,
+            Category = category,
+            Size = $"{document.Words * 5} bytes", // Rough estimate: avg 5 bytes per word
+            Modified = generatedAt,
+            Content = content,
+            EvidenceId = evidenceId,
+            IsUnlocked = true // For now, all files are unlocked. Add unlock logic later
+        };
+    }
+
+    private (string category, string icon) GetCategoryAndIcon(string docType)
+    {
+        // All documents go under "documents" category, but keep different icons
+        return docType.ToLower() switch
+        {
+            "evidence_log" => ("documents", "📋"),
+            "forensics" => ("documents", "🔬"),
+            "interview" => ("documents", "👤"),
+            "witness" => ("documents", "👤"),
+            "memo" => ("documents", "📝"),
+            "police" => ("documents", "👮"),
+            "suspect_profile" => ("documents", "🕵️"),
+            _ => ("documents", "📄")
+        };
+    }
+
+    private string GetFileType(string docType)
+    {
+        return docType.ToLower() switch
+        {
+            "evidence_log" => "pdf",
+            "forensics" => "pdf",
+            "interview" => "text",
+            "witness" => "pdf",
+            "memo" => "text",
+            "police" => "pdf",
+            "suspect_profile" => "pdf",
+            _ => "text"
+        };
+    }
+
     public string GetMediaUrl(string caseId, string fileName)
     {
         // Generate URL for media file in format: {storageUrl}/bundles/{caseId}/media/{fileName}

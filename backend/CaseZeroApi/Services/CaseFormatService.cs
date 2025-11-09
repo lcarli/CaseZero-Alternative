@@ -12,11 +12,13 @@ namespace CaseZeroApi.Services
     public class CaseFormatService : ICaseFormatService
     {
         private readonly ILogger<CaseFormatService> _logger;
+        private readonly IBlobStorageService _blobStorageService;
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public CaseFormatService(ILogger<CaseFormatService> logger)
+        public CaseFormatService(ILogger<CaseFormatService> logger, IBlobStorageService blobStorageService)
         {
             _logger = logger;
+            _blobStorageService = blobStorageService;
             _jsonOptions = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true,
@@ -94,18 +96,232 @@ namespace CaseZeroApi.Services
 
         private CaseObject ConvertBundleToCaseObject(NormalizedCaseBundle bundle)
         {
-            // TODO: Update this method to support v2-hierarchical format
-            // For now, throw NotImplementedException for v2 format
             if (bundle.Version == "v2-hierarchical")
             {
-                throw new NotImplementedException(
-                    "v2-hierarchical format conversion not yet implemented. " +
-                    "This format uses document references instead of embedded documents. " +
-                    "Dashboard can display these cases, but full game format conversion requires loading individual documents.");
+                return ConvertV2HierarchicalBundle(bundle);
             }
 
             // Legacy code for old format (kept for backward compatibility)
             throw new NotImplementedException("Legacy format conversion also needs updating after model changes");
+        }
+
+        private CaseObject ConvertV2HierarchicalBundle(NormalizedCaseBundle bundle)
+        {
+            _logger.LogInformation("Converting v2-hierarchical bundle {CaseId}", bundle.CaseId);
+
+            var caseObject = new CaseObject
+            {
+                CaseId = bundle.CaseId,
+                Metadata = CreateMetadataFromBundle(bundle),
+                Evidences = CreateEvidencesFromEntities(bundle),
+                Suspects = CreateSuspectsFromEntities(bundle),
+                ForensicAnalyses = new List<CaseForensicAnalysis>(),
+                TemporalEvents = new List<CaseTemporalEvent>(),
+                Timeline = new List<CaseTimelineEvent>(),
+                Solution = new CaseSolution
+                {
+                    Culprit = "unknown",
+                    KeyEvidence = string.Empty,
+                    Explanation = "Solution hidden for gameplay",
+                    RequiredEvidence = new List<string>(),
+                    MinimumScore = 80
+                },
+                UnlockLogic = CreateUnlockLogicFromGatingGraph(bundle),
+                GameMetadata = CreateGameMetadata(bundle)
+            };
+
+            return caseObject;
+        }
+
+        private CaseMetadata CreateMetadataFromBundle(NormalizedCaseBundle bundle)
+        {
+            return new CaseMetadata
+            {
+                Title = $"Case {bundle.CaseId}",
+                Description = "AI Generated Investigation Case",
+                StartDateTime = bundle.GeneratedAt,
+                Location = "Unknown",
+                IncidentDateTime = bundle.GeneratedAt,
+                VictimInfo = new CaseVictimInfo
+                {
+                    Name = "Unknown",
+                    Age = 0,
+                    Occupation = "Unknown",
+                    CauseOfDeath = "Under investigation"
+                },
+                Briefing = "Review the case files and identify the suspect based on the evidence.",
+                Difficulty = ConvertDifficultyToInt(bundle.Difficulty ?? "medium"),
+                EstimatedDuration = "60 minutes",
+                MinRankRequired = ConvertDifficultyToRank(bundle.Difficulty ?? "medium")
+            };
+        }
+
+        private List<CaseEvidence> CreateEvidencesFromEntities(NormalizedCaseBundle bundle)
+        {
+            var evidences = new List<CaseEvidence>();
+
+            if (bundle.Entities?.Evidence != null)
+            {
+                foreach (var evidenceId in bundle.Entities.Evidence)
+                {
+                    // Check if this evidence is gated in the gating graph
+                    var node = bundle.GatingGraph?.Nodes.FirstOrDefault(n => n.Id == evidenceId);
+                    var isGated = node?.Gated ?? false;
+
+                    evidences.Add(new CaseEvidence
+                    {
+                        Id = evidenceId,
+                        Name = FormatEvidenceName(evidenceId),
+                        Type = "document",
+                        FileName = $"{evidenceId}.pdf",
+                        Category = "document",
+                        Priority = isGated ? "high" : "medium",
+                        Description = $"Evidence item {evidenceId}",
+                        Location = "Unknown",
+                        IsUnlocked = !isGated,
+                        RequiresAnalysis = false,
+                        DependsOn = node?.RequiredIds ?? new List<string>(),
+                        LinkedSuspects = new List<string>(),
+                        AnalysisRequired = new List<string>(),
+                        UnlockConditions = new CaseUnlockConditions
+                        {
+                            Immediate = !isGated,
+                            RequiredEvidence = node?.RequiredIds.Where(id => id.StartsWith("EV")).ToList() ?? new List<string>(),
+                            RequiredAnalysis = new List<string>()
+                        }
+                    });
+                }
+            }
+
+            return evidences;
+        }
+
+        private List<CaseSuspect> CreateSuspectsFromEntities(NormalizedCaseBundle bundle)
+        {
+            var suspects = new List<CaseSuspect>();
+
+            if (bundle.Entities?.Suspects != null)
+            {
+                foreach (var suspectId in bundle.Entities.Suspects)
+                {
+                    // Check if this suspect is gated in the gating graph
+                    var node = bundle.GatingGraph?.Nodes.FirstOrDefault(n => n.Id == suspectId);
+                    var isGated = node?.Gated ?? false;
+
+                    suspects.Add(new CaseSuspect
+                    {
+                        Id = suspectId,
+                        Name = FormatSuspectName(suspectId),
+                        Alias = null,
+                        Age = 0,
+                        Occupation = "Unknown",
+                        Description = $"Suspect {suspectId}",
+                        Relationship = "Unknown",
+                        Motive = "Unknown",
+                        Alibi = "Unknown",
+                        AlibiVerified = false,
+                        Behavior = "Unknown",
+                        BackgroundInfo = "Unknown",
+                        LinkedEvidence = new List<string>(),
+                        Comments = string.Empty,
+                        IsActualCulprit = false,
+                        Status = "Person of Interest",
+                        UnlockConditions = new CaseUnlockConditions
+                        {
+                            Immediate = !isGated,
+                            RequiredEvidence = node?.RequiredIds.Where(id => id.StartsWith("EV")).ToList() ?? new List<string>(),
+                            RequiredAnalysis = new List<string>()
+                        }
+                    });
+                }
+            }
+
+            return suspects;
+        }
+
+        private CaseUnlockLogic CreateUnlockLogicFromGatingGraph(NormalizedCaseBundle bundle)
+        {
+            var unlockLogic = new CaseUnlockLogic
+            {
+                ProgressionRules = new List<CaseProgressionRule>(),
+                AnalysisRules = new List<CaseAnalysisRule>()
+            };
+
+            if (bundle.GatingGraph != null)
+            {
+                // Create progression rules from gated nodes
+                foreach (var node in bundle.GatingGraph.Nodes.Where(n => n.Gated))
+                {
+                    // Create a rule for each required evidence
+                    if (node.RequiredIds.Any())
+                    {
+                        unlockLogic.ProgressionRules.Add(new CaseProgressionRule
+                        {
+                            Condition = $"collected_{string.Join("_and_", node.RequiredIds)}",
+                            Target = node.Id,
+                            Unlocks = new List<string> { node.Id },
+                            Delay = 0
+                        });
+                    }
+                }
+            }
+
+            return unlockLogic;
+        }
+
+        private CaseGameMetadata CreateGameMetadata(NormalizedCaseBundle bundle)
+        {
+            return new CaseGameMetadata
+            {
+                Version = "1.0",
+                CreatedBy = "AI Case Generator",
+                CreatedAt = bundle.GeneratedAt,
+                Tags = new List<string> { "ai-generated", bundle.Difficulty ?? "medium" },
+                Difficulty = bundle.Difficulty ?? "medium",
+                EstimatedPlayTime = "60 minutes"
+            };
+        }
+
+        private string FormatEvidenceName(string evidenceId)
+        {
+            // EV001 -> "Evidence 001"
+            if (evidenceId.StartsWith("EV"))
+            {
+                return $"Evidence {evidenceId.Substring(2)}";
+            }
+            return evidenceId;
+        }
+
+        private string FormatSuspectName(string suspectId)
+        {
+            // SU001 -> "Suspect 001"
+            if (suspectId.StartsWith("SU"))
+            {
+                return $"Suspect {suspectId.Substring(2)}";
+            }
+            return suspectId;
+        }
+
+        private int ConvertDifficultyToInt(string difficulty)
+        {
+            return difficulty?.ToLower() switch
+            {
+                "easy" => 1,
+                "medium" => 2,
+                "hard" => 3,
+                _ => 2
+            };
+        }
+
+        private string ConvertDifficultyToRank(string difficulty)
+        {
+            return difficulty?.ToLower() switch
+            {
+                "easy" => "Cadet",
+                "medium" => "Detective",
+                "hard" => "Inspector",
+                _ => "Detective"
+            };
         }
 
         /*
