@@ -345,14 +345,19 @@ export const caseGenerationApi = {
 export interface FileViewerItem {
   id: string
   name: string
+  title?: string // Display title
   type: string
   icon: string
   category: string
   size: string
+  sizeBytes?: number
   modified: string
+  timestamp?: string // Alternative to modified
   content: string
   evidenceId?: string
+  author?: string
   isUnlocked: boolean
+  mediaUrl?: string // URL for media files (images)
 }
 
 export interface CaseFilesResponse {

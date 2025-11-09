@@ -42,14 +42,19 @@ public class FileViewerItem
 {
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty; // Display title
     public string Type { get; set; } = string.Empty;
     public string Icon { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public string Size { get; set; } = string.Empty;
+    public long SizeBytes { get; set; } // Size in bytes
     public DateTime Modified { get; set; }
+    public DateTime Timestamp { get; set; } // Alternative to Modified
     public string Content { get; set; } = string.Empty;
     public string? EvidenceId { get; set; }
+    public string? Author { get; set; } // Author or source
     public bool IsUnlocked { get; set; } = true;
+    public string? MediaUrl { get; set; } // URL for media files (images, etc.)
 }
 
 /// <summary>

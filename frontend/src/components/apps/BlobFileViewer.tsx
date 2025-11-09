@@ -292,7 +292,9 @@ const BlobFileViewer: React.FC = () => {
         <RightPanel>
           {selectedFileData ? (
             <FileContent>
-              <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>{selectedFileData.name}</h4>
+              <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>
+                {selectedFileData.title || selectedFileData.name}
+              </h4>
               <FileInfo>
                 <FileInfoItem>
                   <span>📊</span>
@@ -313,16 +315,49 @@ const BlobFileViewer: React.FC = () => {
                   </FileInfoItem>
                 )}
               </FileInfo>
-              <pre style={{ 
-                margin: 0, 
-                whiteSpace: 'pre-wrap', 
-                fontFamily: 'monospace', 
-                fontSize: '13px', 
-                lineHeight: '1.4',
-                color: 'rgba(255, 255, 255, 0.9)'
-              }}>
-                {selectedFileData.content}
-              </pre>
+              
+              {/* Display image if mediaUrl is present */}
+              {selectedFileData.mediaUrl && selectedFileData.type.startsWith('image/') ? (
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'center', 
+                  alignItems: 'center',
+                  padding: '1rem',
+                  backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                  borderRadius: '4px',
+                  maxHeight: '70vh',
+                  overflow: 'auto'
+                }}>
+                  <img 
+                    src={selectedFileData.mediaUrl} 
+                    alt={selectedFileData.title || selectedFileData.name}
+                    style={{ 
+                      maxWidth: '100%',
+                      maxHeight: '65vh',
+                      objectFit: 'contain',
+                      borderRadius: '4px'
+                    }}
+                    onError={(e) => {
+                      console.error('Failed to load image:', selectedFileData.mediaUrl);
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement!.innerHTML = 
+                        '<div style="color: rgba(231, 76, 60, 0.9);">Failed to load image</div>';
+                    }}
+                  />
+                </div>
+              ) : (
+                /* Display text content for documents */
+                <pre style={{ 
+                  margin: 0, 
+                  whiteSpace: 'pre-wrap', 
+                  fontFamily: 'monospace', 
+                  fontSize: '13px', 
+                  lineHeight: '1.4',
+                  color: 'rgba(255, 255, 255, 0.9)'
+                }}>
+                  {selectedFileData.content}
+                </pre>
+              )}
             </FileContent>
           ) : (
             <div style={{ 

@@ -218,6 +218,52 @@ public class BlobStorageService : IBlobStorageService
                 }
             }
 
+            // Process media files - include only evidence PNG images (ev_*.png)
+            // Exclude JSON metadata files and reference images (ref_*.png)
+            var mediaPrefix = $"{caseId}/media/";
+            await foreach (var blobItem in containerClient.GetBlobsAsync(prefix: mediaPrefix, cancellationToken: cancellationToken))
+            {
+                var fileName = blobItem.Name.Replace(mediaPrefix, "");
+                
+                // Filter: Only include PNG files that start with "ev_" (evidence images)
+                // Exclude: JSON files (ev_*.json) and reference images (ref_*.png)
+                if (fileName.StartsWith("ev_") && 
+                    fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase) &&
+                    !fileName.Contains(".json", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        // Extract evidence ID (e.g., "ev_cash_count_annotation_005.generated-image.png" -> "ev_cash_count_annotation_005")
+                        var evidenceId = fileName.Replace(".generated-image.png", "").Replace(".png", "");
+                        var sizeBytes = blobItem.Properties.ContentLength ?? 0;
+                        
+                        var mediaItem = new Models.FileViewerItem
+                        {
+                            Id = evidenceId,
+                            Name = fileName,
+                            Title = FormatMediaTitle(evidenceId),
+                            Category = "evidence",
+                            Icon = "📷",
+                            Type = "image/png",
+                            Timestamp = blobItem.Properties.CreatedOn?.DateTime ?? bundle.GeneratedAt,
+                            Modified = blobItem.Properties.CreatedOn?.DateTime ?? bundle.GeneratedAt,
+                            Size = $"{sizeBytes} bytes",
+                            SizeBytes = sizeBytes,
+                            Content = "", // Images don't have text content
+                            Author = "System Generated",
+                            EvidenceId = evidenceId.ToUpperInvariant(),
+                            MediaUrl = GetMediaUrl(caseId, fileName)
+                        };
+                        
+                        files.Add(mediaItem);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to process media file {FileName} for case {CaseId}", fileName, caseId);
+                    }
+                }
+            }
+
             // Group files by category
             var filesByCategory = files
                 .GroupBy(f => f.Category)
@@ -260,13 +306,17 @@ public class BlobStorageService : IBlobStorageService
         {
             Id = document.DocId,
             Name = document.Title,
+            Title = document.Title,
             Type = GetFileType(document.Type),
             Icon = icon,
             Category = category,
             Size = $"{document.Words * 5} bytes", // Rough estimate: avg 5 bytes per word
+            SizeBytes = document.Words * 5,
             Modified = generatedAt,
+            Timestamp = generatedAt,
             Content = content,
             EvidenceId = evidenceId,
+            Author = "Case Generator",
             IsUnlocked = true // For now, all files are unlocked. Add unlock logic later
         };
     }
@@ -300,6 +350,19 @@ public class BlobStorageService : IBlobStorageService
             "suspect_profile" => "pdf",
             _ => "text"
         };
+    }
+
+    private string FormatMediaTitle(string evidenceId)
+    {
+        // Convert "ev_cash_count_annotation_005" to "Cash Count Annotation 005"
+        var title = evidenceId
+            .Replace("ev_", "")
+            .Replace("_", " ")
+            .Replace(".generated-image", "")
+            .Replace(".png", "");
+        
+        // Capitalize each word
+        return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(title);
     }
 
     public string GetMediaUrl(string caseId, string fileName)
