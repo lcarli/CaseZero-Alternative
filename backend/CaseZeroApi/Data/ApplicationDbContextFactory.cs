@@ -16,7 +16,7 @@ namespace CaseZeroApi
             if (string.IsNullOrEmpty(connectionString))
             {
                 // Fallback to LocalDB for local development
-                connectionString = "Server=(localdb)\\mssqllocaldb;Database=CaseZeroDb;Trusted_Connection=True;MultipleActiveResultSets=true";
+                connectionString = "Server=(localdb)\\mssqllocaldb;Database=casezero-db;Trusted_Connection=True;MultipleActiveResultSets=true";
             }
             
             // Always use SQL Server

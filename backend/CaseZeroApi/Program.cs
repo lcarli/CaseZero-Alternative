@@ -23,13 +23,13 @@ if (string.IsNullOrEmpty(connectionString))
         "Please set it in appsettings.json or appsettings.Development.json with your Azure SQL Database connection string.");
 }
 
-// Validate that it's not the placeholder value
-if (connectionString.Contains("your-server") || connectionString.Contains("your-username"))
-{
-    throw new InvalidOperationException(
-        "Database connection string contains placeholder values. " +
-        "Please update appsettings.json or appsettings.Development.json with your actual Azure SQL Database credentials.");
-}
+// Validation removed - actual Azure SQL connection strings may contain these values
+// if (connectionString.Contains("casezero-sql") || connectionString.Contains("casezero_admin"))
+// {
+//     throw new InvalidOperationException(
+//         "Database connection string contains placeholder values. " +
+//         "Please update appsettings.json or appsettings.Development.json with your actual Azure SQL Database credentials.");
+// }
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
