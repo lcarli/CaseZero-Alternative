@@ -3683,7 +3683,20 @@ OUTPUT: ONLY valid JSON conforming to VisualConsistencyRegistry schema.
             }
             else
             {
-                _logger.LogWarning("PACKAGE: No 'media' property found in case {CaseId}", caseId);
+                // For v2-hierarchical format, media is not in the JSON - count from storage
+                _logger.LogInformation("PACKAGE: No 'media' property found in case {CaseId} - counting from storage (v2-hierarchical format)", caseId);
+                try
+                {
+                    var mediaFiles = await _storageService.ListFilesAsync(bundlesContainer, $"{caseId}/media/", cancellationToken);
+                    // Count only .json files (each media item has a .json and optionally a .png)
+                    mediaCount = mediaFiles.Count(f => f.EndsWith(".json", StringComparison.OrdinalIgnoreCase));
+                    _logger.LogInformation("PACKAGE: Found {MediaCount} media items from storage for case {CaseId}", mediaCount, caseId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "PACKAGE: Could not count media files from storage for case {CaseId}", caseId);
+                    mediaCount = 0;
+                }
             }
             
             if (validatedCase.TryGetProperty("entities", out var entitiesObj) &&
@@ -3827,6 +3840,46 @@ OUTPUT: ONLY valid JSON conforming to VisualConsistencyRegistry schema.
                             _logger.LogInformation("PACKAGE: Created metadata-only entry for media {EvidenceId}", evidenceId);
                         }
                     }
+                }
+            }
+            else
+            {
+                // For v2-hierarchical format, list media files directly from storage
+                _logger.LogInformation("PACKAGE: No 'media' property in JSON - listing media files from storage (v2-hierarchical format)");
+                try
+                {
+                    var mediaFiles = await _storageService.ListFilesAsync(bundlesContainer, $"{caseId}/media/", cancellationToken);
+                    _logger.LogInformation("PACKAGE: Found {MediaFilesCount} media files in storage for case {CaseId}", mediaFiles.Count, caseId);
+                    
+                    foreach (var mediaFile in mediaFiles)
+                    {
+                        try
+                        {
+                            var mediaContent = await _storageService.GetFileAsync(bundlesContainer, mediaFile, cancellationToken);
+                            var mediaHash = ComputeSHA256Hash(mediaContent);
+                            var fileName = Path.GetFileName(mediaFile);
+                            var mimeType = fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? "image/png" : 
+                                          fileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? "application/json" : "application/octet-stream";
+                            
+                            caseManifest.Manifest.Add(new FileManifestEntry
+                            {
+                                Filename = fileName,
+                                RelativePath = mediaFile,
+                                Sha256 = mediaHash,
+                                MimeType = mimeType
+                            });
+                            
+                            _logger.LogDebug("PACKAGE: Added media file {FileName} to manifest (hash: {Hash})", fileName, mediaHash[..8]);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "PACKAGE: Could not read media file {MediaFile} from storage - skipping", mediaFile);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "PACKAGE: Could not list media files from storage for case {CaseId}", caseId);
                 }
             }
 

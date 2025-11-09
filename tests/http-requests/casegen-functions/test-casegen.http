@@ -39,7 +39,7 @@ POST http://localhost:7071/api/TestGenerateImages
 Content-Type: application/json
 
 {
-  "caseId": "CASE-20251027-9e3f82ea"
+  "caseId": "CASE-20251109-a9bb62da"
 }
 
 ### TEST 4 - Design Visual Registry (1-2 minutos)
@@ -51,7 +51,7 @@ POST http://localhost:7071/api/DesignVisualRegistryStep
 Content-Type: application/json
 
 {
-  "caseId": "CASE-20251027-b442dc10"
+  "caseId": "CASE-20251109-a9bb62da"
 }
 
 ### TEST 5 - Generate Master References (3-5 minutos)
@@ -62,7 +62,7 @@ POST http://localhost:7071/api/GenerateMasterReferencesStep
 Content-Type: application/json
 
 {
-  "caseId": "CASE-20251027-b442dc10"
+  "caseId": "CASE-20251109-a9bb62da"
 }
 
 ### TEST 6 - Gerar Imagens COM Consistência Visual (15-20 minutos)
@@ -74,7 +74,7 @@ POST http://localhost:7071/api/TestGenerateImages
 Content-Type: application/json
 
 {
-  "caseId": "CASE-20251027-b442dc10"
+  "caseId": "CASE-20251109-a9bb62da"
 }
 
 
