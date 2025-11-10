@@ -23,6 +23,7 @@ const LeftPanel = styled.div`
   flex-direction: column;
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   padding-right: 1rem;
+  overflow: hidden;
 `
 
 const RightPanel = styled.div`
@@ -36,6 +37,8 @@ const FileExplorer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  overflow-y: auto;
+  overflow-x: hidden;
 `
 
 const FolderHeader = styled.div`
@@ -66,6 +69,7 @@ const FileList = styled.div`
   flex-direction: column;
   gap: 0.5rem;
   padding-left: 1.5rem;
+  overflow: hidden;
 `
 
 const FileItem = styled.div`
@@ -76,6 +80,8 @@ const FileItem = styled.div`
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.2s ease;
+  overflow: hidden;
+  min-width: 0;
 
   &:hover {
     background: rgba(255, 255, 255, 0.05);
@@ -84,10 +90,16 @@ const FileItem = styled.div`
 
 const FileIcon = styled.span`
   font-size: 14px;
+  flex-shrink: 0;
 `
 
 const FileName = styled.span`
   color: rgba(255, 255, 255, 0.8);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 `
 
 const FileContent = styled.div`
@@ -269,7 +281,7 @@ const BlobFileViewer: React.FC = () => {
                         }}
                       >
                         <FileIcon>{file.icon}</FileIcon>
-                        <FileName>{file.name}</FileName>
+                        <FileName title={file.title || file.name}>{file.title || file.name}</FileName>
                       </FileItem>
                     ))}
                   </FileList>
