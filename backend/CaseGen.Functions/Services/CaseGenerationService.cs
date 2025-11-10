@@ -3849,7 +3849,7 @@ OUTPUT: ONLY valid JSON conforming to VisualConsistencyRegistry schema.
                 try
                 {
                     var mediaFiles = await _storageService.ListFilesAsync(bundlesContainer, $"{caseId}/media/", cancellationToken);
-                    _logger.LogInformation("PACKAGE: Found {MediaFilesCount} media files in storage for case {CaseId}", mediaFiles.Count, caseId);
+                    _logger.LogInformation("PACKAGE: Found {MediaFilesCount} media files in storage for case {CaseId}", mediaFiles.Count(), caseId);
                     
                     foreach (var mediaFile in mediaFiles)
                     {
