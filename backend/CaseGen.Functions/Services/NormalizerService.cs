@@ -261,12 +261,23 @@ public class NormalizerService : INormalizerService
         var lengthTarget = new[] { 100, 500 }; // default values
         if (docData.TryGetValue("lengthTarget", out var lengthTargetObj))
         {
-            if (lengthTargetObj is JsonElement lengthTargetElement && lengthTargetElement.ValueKind == JsonValueKind.Array)
+            if (lengthTargetObj is JsonElement lengthTargetElement)
             {
-                var targets = lengthTargetElement.EnumerateArray().Select(e => e.GetInt32()).ToArray();
-                if (targets.Length >= 2)
+                // Handle both object format {min: 100, max: 500} and legacy array format [100, 500]
+                if (lengthTargetElement.ValueKind == JsonValueKind.Object)
                 {
-                    lengthTarget = new[] { targets[0], targets[1] };
+                    var min = lengthTargetElement.TryGetProperty("min", out var minElement) ? minElement.GetInt32() : 100;
+                    var max = lengthTargetElement.TryGetProperty("max", out var maxElement) ? maxElement.GetInt32() : 500;
+                    lengthTarget = new[] { min, max };
+                }
+                else if (lengthTargetElement.ValueKind == JsonValueKind.Array)
+                {
+                    // Legacy array format support
+                    var targets = lengthTargetElement.EnumerateArray().Select(e => e.GetInt32()).ToArray();
+                    if (targets.Length >= 2)
+                    {
+                        lengthTarget = new[] { targets[0], targets[1] };
+                    }
                 }
             }
         }

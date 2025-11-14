@@ -1,0 +1,309 @@
+################################################################################
+#                                                                              #
+#                   CASEGEN - PIPELINE STEP-BY-STEP TESTING                   #
+#                                                                              #
+#  Este arquivo permite testar cada etapa do pipeline de geração de casos     #
+#  de forma isolada e sequencial. Útil para debug e desenvolvimento.          #
+#                                                                              #
+#  FLUXO COMPLETO:                                                             #
+#  1. PlanStepOnly        → Cria caso + gera plano                            #
+#  2. ExpandStepByCaseId  → Expande detalhes (suspeitos, evidências, etc)    #
+#  3. DesignStepByCaseId  → Design de documentos e mídias                     #
+#  4. GenerateStepByCaseId → Gera conteúdo final (textos/imagens)            #
+#  5. NormalizeStepByCaseId → Normaliza e finaliza caso                       #
+#                                                                              #
+################################################################################
+
+@baseUrl = http://localhost:7071
+
+# ⚠️ IMPORTANTE: Atualize este caseId após executar o Step 1 (PlanStepOnly)
+@caseId = CASE-20251113-098f27e8
+
+################################################################################
+# 📝 STEP 1: PLAN - Criar caso e gerar plano inicial
+################################################################################
+# Cria um novo caso e executa apenas a etapa de planejamento.
+# Retorna: caseId (use-o nos próximos steps!)
+# Duração: ~30-60 segundos
+# Storage: Salva plan.json no blob
+
+### STEP 1A - Plan para caso Rookie (fácil)
+POST {{baseUrl}}/api/PlanStepOnly
+Content-Type: application/json
+
+{
+  "difficulty": "Rookie",
+  "timezone": "America/Toronto"
+}
+
+### STEP 1B - Plan para caso Detective (médio)
+POST {{baseUrl}}/api/PlanStepOnly
+Content-Type: application/json
+
+{
+  "difficulty": "Detective",
+  "timezone": "America/Toronto"
+}
+
+### STEP 1C - Plan para caso Sergeant (avançado)
+POST {{baseUrl}}/api/PlanStepOnly
+Content-Type: application/json
+
+{
+  "difficulty": "Sergeant",
+  "timezone": "America/New_York"
+}
+
+
+################################################################################
+# 🔍 STEP 2: EXPAND - Expandir detalhes do caso
+################################################################################
+# Busca o plan.json do storage e expande os detalhes:
+#   - Suspeitos (perfis detalhados)
+#   - Evidências (descrições completas)
+#   - Timeline (sequência de eventos)
+#   - Testemunhas
+# Duração: ~60-90 segundos
+# Storage: Salva expand/*.json (suspects, evidence, timeline, witnesses)
+
+### STEP 2 - Expand (use o caseId do Step 1)
+POST {{baseUrl}}/api/ExpandStepByCaseId
+Content-Type: application/json
+
+{
+  "caseId": "{{caseId}}"
+}
+
+
+################################################################################
+# 🎨 STEP 3: DESIGN - Design de documentos e mídias
+################################################################################
+# Busca plan.json e expand/*.json do storage e cria o design:
+#   - Catálogo de documentos (relatórios, entrevistas, etc)
+#   - Catálogo de mídias (fotos, vídeos, áudios)
+#   - Especificações visuais
+#   - Estrutura narrativa
+# Duração: ~90-120 segundos
+# Storage: Salva design/*.json (documents, media, specs)
+
+### STEP 3 - Design (use o caseId dos steps anteriores)
+POST {{baseUrl}}/api/DesignStepByCaseId
+Content-Type: application/json
+
+{
+  "caseId": "{{caseId}}"
+}
+
+
+################################################################################
+# ✨ STEP 4: GENERATE - Gerar conteúdo final
+################################################################################
+# 🎯 STEP 4: GENERATE - Gerar conteúdo detalhado
+################################################################################
+# IMPORTANTE: A geração de documentos é LENTA (2-3 minutos por documento)!
+# 
+# Recomendação: Use a OPÇÃO D para gerar documento por documento
+# - Evita timeouts HTTP
+# - Permite acompanhar progresso em tempo real
+# - Pode pausar e continuar quando quiser
+
+################################################################################
+# 🔹 STEP 4 - OPÇÃO D: Generate UM DOCUMENTO POR VEZ (RECOMENDADO)
+################################################################################
+# Gera apenas 1 documento por requisição (~2-3 minutos cada)
+# Use o índice (0-based) para especificar qual documento gerar
+
+### STEP 4D-1 - Gerar documento 0 (primeiro documento)
+POST {{baseUrl}}/api/GenerateSingleDocumentByCaseId
+Content-Type: application/json
+
+{
+  "caseId": "{{caseId}}",
+  "documentIndex": 0
+}
+
+### STEP 4D-2 - Gerar documento 1 (segundo documento)
+POST {{baseUrl}}/api/GenerateSingleDocumentByCaseId
+Content-Type: application/json
+
+{
+  "caseId": "{{caseId}}",
+  "documentIndex": 1
+}
+
+### STEP 4D-3 - Gerar documento 2 (terceiro documento)
+POST {{baseUrl}}/api/GenerateSingleDocumentByCaseId
+Content-Type: application/json
+
+{
+  "caseId": "{{caseId}}",
+  "documentIndex": 2
+}
+
+### STEP 4D-4 - Gerar documento 3 (quarto documento)
+POST {{baseUrl}}/api/GenerateSingleDocumentByCaseId
+Content-Type: application/json
+
+{
+  "caseId": "{{caseId}}",
+  "documentIndex": 3
+}
+
+### STEP 4D-5 - Gerar documento 4 (quinto documento)
+POST {{baseUrl}}/api/GenerateSingleDocumentByCaseId
+Content-Type: application/json
+
+{
+  "caseId": "{{caseId}}",
+  "documentIndex": 4
+}
+
+### STEP 4D-6 - Gerar documento 5 (sexto documento)
+POST {{baseUrl}}/api/GenerateSingleDocumentByCaseId
+Content-Type: application/json
+
+{
+  "caseId": "{{caseId}}",
+  "documentIndex": 5
+}
+
+### STEP 4D-MEDIA-1 - Gerar media 0 (primeira mídia)
+POST {{baseUrl}}/api/GenerateSingleMediaByCaseId
+Content-Type: application/json
+
+{
+  "caseId": "{{caseId}}",
+  "mediaIndex": 0
+}
+
+### STEP 4D-MEDIA-2 - Gerar media 1 (segunda mídia)
+POST {{baseUrl}}/api/GenerateSingleMediaByCaseId
+Content-Type: application/json
+
+{
+  "caseId": "{{caseId}}",
+  "mediaIndex": 1
+}
+
+
+################################################################################
+# 🔹 STEP 4 - OPÇÃO A: Generate COMPLETO (ORIGINAL - vai dar timeout!)
+################################################################################
+# NÃO USE ESTA OPÇÃO - deixada apenas para referência
+# Tenta gerar tudo de uma vez - SEMPRE dá timeout em casos grandes
+
+### STEP 4A-1 - Generate SEM imagens (AINDA MUITO LENTO)
+# POST {{baseUrl}}/api/GenerateStepByCaseId
+# Content-Type: application/json
+# 
+# {
+#   "caseId": "{{caseId}}",
+#   "generateImages": false,
+#   "renderFiles": false
+# }
+
+
+################################################################################
+# 🔹 STEP 4 - OPÇÃO B: Generate POR LOTES (VAI DAR TIMEOUT - NÃO USE)
+################################################################################
+# NÃO USE ESTA OPÇÃO - lotes de 3 documentos ainda demoram ~8 minutos
+# Deixada apenas para referência
+
+### STEP 4B-1 - Gerar lote 0-3 (VAI DAR TIMEOUT)
+# POST {{baseUrl}}/api/GenerateDocumentsStepByCaseId
+# Content-Type: application/json
+# 
+# {
+#   "caseId": "{{caseId}}",
+#   "batchStart": 0,
+#   "batchEnd": 3
+# }
+
+
+################################################################################
+# 🔹 STEP 4 - OPÇÃO C: Progress Check
+################################################################################
+# Verifica quantos documentos e media já foram gerados.
+
+### STEP 4C - Verificar progresso da geração
+POST {{baseUrl}}/api/GetGenerateProgressByCaseId
+Content-Type: application/json
+
+{
+  "caseId": "{{caseId}}"
+}
+
+
+################################################################################
+# 🎯 STEP 5: NORMALIZE - Normalizar e finalizar caso
+################################################################################
+# Busca todos os dados gerados e executa normalização final:
+#   - Validação de integridade
+#   - Ajustes de formatação
+#   - Geração de metadados finais
+#   - Criação do bundle final
+# Duração: ~10-20 segundos
+# Storage: Salva bundle final compactado
+
+### STEP 5 - Normalize (finaliza o caso)
+POST {{baseUrl}}/api/NormalizeStepByCaseId
+Content-Type: application/json
+
+{
+  "caseId": "{{caseId}}"
+}
+
+
+################################################################################
+# 🔧 UTILITÁRIOS - Helpers para debug
+################################################################################
+
+### Verificar status de um caso no storage
+GET {{baseUrl}}/api/GetCaseStatus?caseId={{caseId}}
+
+### Listar todos os arquivos de um caso no blob storage
+GET {{baseUrl}}/api/ListCaseFiles?caseId={{caseId}}
+
+### Baixar plan.json de um caso específico
+GET {{baseUrl}}/api/GetCaseFile?caseId={{caseId}}&file=plan.json
+
+### Baixar expand completo de um caso
+GET {{baseUrl}}/api/GetCaseFile?caseId={{caseId}}&file=expand/suspects.json
+
+
+################################################################################
+# 📊 EXEMPLOS DE FLUXOS COMPLETOS
+################################################################################
+
+### FLUXO 1: Desenvolvimento Rápido (sem imagens)
+# 1. Execute STEP 1A (Plan Rookie)
+# 2. Copie o caseId retornado e atualize @caseId no topo do arquivo
+# 3. Execute STEP 2 (Expand)
+# 4. Execute STEP 3 (Design)
+# 5. Execute STEP 4A (Generate sem imagens)
+# 6. Execute STEP 5 (Normalize)
+# Tempo total: ~4-6 minutos
+
+### FLUXO 2: Produção com Imagens
+# 1. Execute STEP 1B (Plan Detective)
+# 2. Atualize @caseId
+# 3. Execute STEP 2 → 3 → 4B → 5
+# Tempo total: ~18-30 minutos
+
+### FLUXO 3: Debug de Etapa Específica
+# Se você quer apenas re-executar o Expand de um caso existente:
+# 1. Atualize @caseId com um caso que já tem plan.json
+# 2. Execute apenas STEP 2
+# O sistema busca o plan existente e reprocessa apenas o Expand
+
+################################################################################
+# 💡 DICAS
+################################################################################
+# 
+# • Use variáveis de ambiente (@caseId) para evitar copy/paste
+# • Cada step é independente e pode ser re-executado
+# • Útil para testar mudanças incrementais em cada etapa
+# • Logs detalhados em cada endpoint mostram tempo e tokens
+# • Storage é preservado entre execuções
+#
+################################################################################

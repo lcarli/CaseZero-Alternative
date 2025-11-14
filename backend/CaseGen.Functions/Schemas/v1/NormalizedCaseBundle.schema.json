@@ -87,10 +87,22 @@
           "items": { "type": "string" }
         },
         "lengthTarget": {
-          "type": "array",
-          "minItems": 2,
-          "maxItems": 2,
-          "items": { "type": "integer", "minimum": 50 }
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["min", "max"],
+          "properties": {
+            "min": { 
+              "type": "integer", 
+              "minimum": 50,
+              "description": "Minimum word count" 
+            },
+            "max": { 
+              "type": "integer", 
+              "minimum": 50,
+              "description": "Maximum word count" 
+            }
+          },
+          "description": "Target word range {min, max}"
         },
         "gated": {
           "type": "boolean"
