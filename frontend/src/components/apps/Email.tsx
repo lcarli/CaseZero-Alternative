@@ -36,16 +36,17 @@ const EmailList = styled.div`
   overflow-y: auto;
 `
 
-const EmailItem = styled.div<{ $isSelected: boolean; $isUnread: boolean }>`
+const EmailItem = styled.div<{ $isSelected: boolean; $isUnread: boolean; $isLocked: boolean }>`
   padding: 0.75rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  cursor: pointer;
+  cursor: ${props => props.$isLocked ? 'not-allowed' : 'pointer'};
   transition: all 0.2s ease;
   background: ${props => props.$isSelected ? 'rgba(74, 158, 255, 0.2)' : 'transparent'};
   border-left: ${props => props.$isUnread ? '3px solid #4a9eff' : '3px solid transparent'};
+  opacity: ${props => props.$isLocked ? 0.6 : 1};
 
   &:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: ${props => props.$isLocked ? 'transparent' : 'rgba(255, 255, 255, 0.05)'};
   }
 `
 
@@ -143,7 +144,7 @@ const AttachmentButton = styled.button`
   }
 `
 
-const PriorityBadge = styled.span<{ $priority: 'high' | 'medium' | 'low' }>`
+const PriorityBadge = styled.span<{ $priority: 'high' | 'medium' | 'low' | 'normal' | 'urgent' }>`
   padding: 2px 6px;
   border-radius: 3px;
   font-size: 10px;
@@ -151,311 +152,88 @@ const PriorityBadge = styled.span<{ $priority: 'high' | 'medium' | 'low' }>`
   text-transform: uppercase;
   background: ${props => {
     switch (props.$priority) {
-      case 'high': return '#ff4757'
-      case 'medium': return '#ffa502'
-      case 'low': return '#2ed573'
-      default: return '#747d8c'
+      case 'high': 
+      case 'urgent': 
+        return '#ff4757'
+      case 'medium': 
+      case 'normal': 
+        return '#ffa502'
+      case 'low': 
+        return '#2ed573'
+      default: 
+        return '#747d8c'
     }
   }};
   color: white;
   margin-left: 0.5rem;
 `
 
-interface AttachmentData {
-  name: string
-  size: string
-  type: string
-}
+const LockedEmailOverlay = styled.div`
+  padding: 2rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 165, 0, 0.3);
+  text-align: center;
+`
 
-interface EmailData {
-  id: string
-  sender: string
-  subject: string
-  preview: string
-  content: string
-  time: string
-  isUnread: boolean
-  priority: 'high' | 'medium' | 'low'
-  attachments?: AttachmentData[]
-}
+const LockIcon = styled.div`
+  font-size: 48px;
+  margin-bottom: 1rem;
+`
+
+const UnlockRequirements = styled.div`
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 165, 0, 0.1);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 165, 0, 0.3);
+  text-align: left;
+`
+
+const RequirementList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0 0;
+`
+
+const RequirementItem = styled.li`
+  padding: 0.25rem 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 13px;
+  
+  &:before {
+    content: '• ';
+    color: #ffa502;
+    font-weight: bold;
+    margin-right: 0.5rem;
+  }
+`
 
 const Email: React.FC = () => {
-  const [selectedEmail, setSelectedEmail] = useState<string | null>('case001_email1')
-  const { currentCase } = useCase()
+  const [selectedEmail, setSelectedEmail] = useState<string | null>(null)
+  const { getAvailableEmails, currentCase } = useCase()
 
-  const getCaseEmails = (caseId: string): EmailData[] => {
-    const caseEmails: { [key: string]: EmailData[] } = {
-      'CASE-2024-001': [
-        {
-          id: 'case001_email1',
-          sender: 'Chief Johnson',
-          subject: 'URGENT: Case Assignment #001',
-          preview: 'New high-priority case has been assigned to your unit. Downtown office break-in...',
-          content: `Officer,
+  // Get emails from CaseEngine (with gating logic applied)
+  const emails = getAvailableEmails()
 
-A new high-priority case has been assigned to your unit. Case #001 involves a break-in at the Downtown Office Building at 123 Main Street.
-
-Key Details:
-- Incident occurred at 02:30 AM on January 15, 2024
-- Security system was compromised
-- Suspect appeared to be searching for specific documents
-- No random theft - electronics and cash left untouched
-
-Please review the attached case files and begin investigation immediately.
-
-Evidence files have been uploaded to the system for your review.
-
-Chief Johnson
-Metropolitan Police Department
-
-[Email Source: /cases/CASE-2024-001/emails/case001_email1.json]`,
-          time: '2 hours ago',
-          isUnread: true,
-          priority: 'high',
-          attachments: [
-            { name: 'case001.txt', size: '2.4 KB', type: 'text' },
-            { name: 'evidence.jpg', size: '1.2 MB', type: 'image' }
-          ]
-        },
-        {
-          id: 'case001_email2',
-          sender: 'Forensics Lab',
-          subject: 'DNA Results - Case #001',
-          preview: 'DNA analysis complete for evidence submitted from downtown break-in...',
-          content: `Lab Report - Case #001
-
-DNA analysis has been completed for the evidence submitted from the downtown office break-in.
-
-Results Summary:
-- Sample from window frame: Partial match found (85% confidence)
-- Subject: David Thompson, DOB: 03/15/1987
-- Criminal History: Minor theft (2019), Breaking & Entering (2021)
-- Current Status: On probation
-
-Recommendations:
-1. Interview David Thompson regarding whereabouts on January 15, 2024
-2. Obtain fresh DNA sample for definitive comparison
-3. Check alibi and known associates
-
-Full detailed report is attached for your review.
-
-Dr. Emily Chen, PhD
-Metropolitan Forensics Laboratory
-
-[Email Source: /cases/CASE-2024-001/emails/case001_email2.json]`,
-          time: '1 day ago',
-          isUnread: false,
-          priority: 'medium',
-          attachments: [
-            { name: 'dna_results.txt', size: '3.7 KB', type: 'text' }
-          ]
-        },
-        {
-          id: 'case001_email3',
-          sender: 'Detective Sarah Johnson',
-          subject: 'Witness Statement Available',
-          preview: 'Night security guard witness statement has been processed and is ready for review...',
-          content: `Case Update - Witness Statement
-
-The witness statement from John Matthews, the night security guard, has been processed and is now available in the case files.
-
-Key points from the statement:
-- Suspect appeared familiar with building layout
-- Individual avoided several camera angles
-- Carried something when leaving that wasn't visible when entering
-- Guard had never witnessed anything similar in 3 years of employment
-
-The complete witness statement PDF is attached and also available in the case file system.
-
-Detective Sarah Johnson
-Investigating Officer
-
-[Email Source: /cases/CASE-2024-001/emails/case001_email3.json]`,
-          time: '2 days ago',
-          isUnread: false,
-          priority: 'medium',
-          attachments: [
-            { name: 'witness_statement.pdf', size: '156 KB', type: 'pdf' }
-          ]
-        }
-      ],
-      'CASE-2024-002': [
-        {
-          id: 'case002_email1',
-          sender: 'Chefe de Polícia',
-          subject: 'URGENTE: Roubo na Clínica - Caso #002',
-          preview: 'Novo caso de alta prioridade: roubo em clínica médica com evidências forenses...',
-          content: `Detetive,
-
-Um novo caso de alta prioridade foi atribuído à sua unidade. Caso #002 envolve um roubo na Clínica Médica São Lucas no Bairro Jardins.
-
-Detalhes Principais:
-- Incidente ocorreu na madrugada de 05 de Fevereiro de 2024
-- Cofre arrombado com documentos confidenciais furtados
-- Sem sinais de arrombamento na entrada principal
-- Evidências sugerem envolvimento de funcionário interno
-
-A cena foi preservada e evidências foram coletadas:
-- Fio de cabelo loiro
-- Imagens de câmera de segurança
-- Impressões digitais parciais
-
-Três funcionários estão sendo investigados como pessoas de interesse.
-
-Por favor, inicie a investigação imediatamente e mantenha-me informado sobre o progresso.
-
-Chefe de Polícia Maria Santos
-Departamento de Polícia Metropolitana
-
-[Email Fonte: /cases/CASE-2024-002/emails/case002_email1.json]`,
-          time: '3 horas atrás',
-          isUnread: true,
-          priority: 'high',
-          attachments: [
-            { name: 'relatorio_inicial_clinica.pdf', size: '3.1 KB', type: 'pdf' },
-            { name: 'fio_cabelo_loiro.jpg', size: '890 KB', type: 'image' }
-          ]
-        },
-        {
-          id: 'case002_email2',
-          sender: 'Laboratório Forense',
-          subject: 'Resultados de DNA - Caso #002',
-          preview: 'Análise de DNA concluída para cabelo encontrado na clínica. Correspondência positiva...',
-          content: `Relatório de Laboratório - Caso #002
-
-A análise de DNA foi concluída para a evidência submetida do roubo na clínica.
-
-Resumo dos Resultados:
-- Amostra do fio de cabelo: Correspondência positiva encontrada (99.7% confiança)
-- Suspeita: Joana Duarte, DOB: 15/04/1995
-- Status: Funcionária da clínica (Enfermeira Chefe)
-- Histórico: Acesso total às instalações
-
-Esta é uma correspondência estatisticamente significativa para identificação positiva.
-
-Recomendações Urgentes:
-1. Interrogar Joana Duarte imediatamente
-2. Verificar álibi detalhadamente
-3. Obter mandado de busca se necessário
-
-O relatório detalhado está anexado para sua revisão.
-
-Dr. Patricia Santos, PhD
-Laboratório Forense Metropolitano
-
-[Email Fonte: /cases/CASE-2024-002/emails/case002_email2.json]`,
-          time: '1 dia atrás',
-          isUnread: false,
-          priority: 'high',
-          attachments: [
-            { name: 'dna_cabelo_resultado.pdf', size: '2.8 KB', type: 'pdf' }
-          ]
-        },
-        {
-          id: 'case002_email3',
-          sender: 'Segurança da Clínica',
-          subject: 'Depoimento sobre Avistamento Suspeito',
-          preview: 'Segurança noturno relatou ter visto mulher loira saindo pela porta dos fundos...',
-          content: `Atualização do Caso - Depoimento de Testemunha
-
-O depoimento do segurança noturno da clínica foi processado e está disponível nos arquivos do caso.
-
-Pontos-chave do depoimento:
-- Mulher loira vista saindo pela porta dos fundos às 03:45
-- Suspeita parecia conhecer o código da porta de emergência
-- Estava vestindo jaleco médico branco
-- Comportamento suspeito - tentando evitar câmeras
-
-O segurança trabalha na clínica há 2 anos e nunca havia presenciado algo similar.
-
-Este depoimento corrobora com as evidências de câmera de segurança coletadas.
-
-Oficial de Segurança João Martinez
-Clínica Médica São Lucas
-
-[Email Fonte: /cases/CASE-2024-002/emails/case002_email3.json]`,
-          time: '2 dias atrás',
-          isUnread: false,
-          priority: 'medium',
-          attachments: [
-            { name: 'depoimento_seguranca.pdf', size: '145 KB', type: 'pdf' }
-          ]
-        }
-      ],
-      'CASE-2024-003': [
-        {
-          id: 'case003_email1',
-          sender: 'Sistema CaseZero',
-          subject: 'Caso de Demonstração Ativo',
-          preview: 'Este é um email de demonstração para mostrar a funcionalidade do sistema...',
-          content: `Email de Demonstração - Sistema CaseZero
-
-Este é um email automático gerado para demonstrar a funcionalidade do sistema de casos.
-
-Funcionalidades Demonstradas:
-- Emails específicos por caso
-- Sistema de prioridades
-- Anexos por email
-- Interface responsiva
-
-Este caso (CASE-2024-003) serve para:
-1. Validar o carregamento automático de casos
-2. Testar a interface de seleção
-3. Demonstrar componentes independentes
-4. Verificar navegação entre casos
-
-O sistema está funcionando corretamente se você consegue ver este email apenas quando o CASE-2024-003 está selecionado.
-
-Sistema CaseZero v1.0
-Departamento de Desenvolvimento
-
-[Email Fonte: /cases/CASE-2024-003/emails/case003_email1.json]`,
-          time: '1 hora atrás',
-          isUnread: true,
-          priority: 'low',
-          attachments: [
-            { name: 'caso_demo.txt', size: '1.2 KB', type: 'text' }
-          ]
-        }
-      ]
+  // Auto-select first email when emails load
+  React.useEffect(() => {
+    if (emails.length > 0 && !selectedEmail) {
+      setSelectedEmail(emails[0].id)
     }
-    
-    return caseEmails[caseId] || [
-      {
-        id: 'no_case_email',
-        sender: 'Sistema',
-        subject: 'Nenhum caso selecionado',
-        preview: 'Selecione um caso no dashboard para visualizar emails específicos...',
-        content: `Nenhum Caso Ativo
+  }, [emails, selectedEmail])
 
-Atualmente não há nenhum caso selecionado. 
-
-Para visualizar emails específicos de um caso:
-1. Volte ao dashboard
-2. Selecione um caso disponível
-3. Retorne ao sistema de email
-
-Os emails são específicos para cada caso e mostram comunicações relevantes para a investigação em andamento.
-
-Sistema CaseZero`,
-        time: 'Agora',
-        isUnread: false,
-        priority: 'low',
-        attachments: []
-      }
-    ]
-  }
-
-  const emails = getCaseEmails(currentCase || '')
-
-  const handleEmailClick = (emailId: string) => {
+  const handleEmailClick = (emailId: string, isUnlocked: boolean) => {
+    if (!isUnlocked) {
+      // Don't allow clicking on locked emails
+      return
+    }
     setSelectedEmail(emailId)
   }
 
-  const handleAttachmentOpen = (attachmentName: string) => {
+  const handleAttachmentOpen = (attachmentName: string, evidenceId?: string) => {
     // This will trigger opening the file in FileViewer
-    // For now, we'll just log it - this would need to be implemented with inter-component communication
-    console.log(`Opening file: ${attachmentName} in FileViewer`)
+    console.log(`Opening file: ${attachmentName}${evidenceId ? ` (Evidence ID: ${evidenceId})` : ''} in FileViewer`)
     alert(`File "${attachmentName}" would be opened in the File Viewer component.`)
   }
 
@@ -463,34 +241,38 @@ Sistema CaseZero`,
 
   return (
     <EmailContainer>
-      <h3 style={{ margin: '0 0 1rem 0' }}>Police Email System - {currentCase || 'No Case'}</h3>
+      <h3 style={{ margin: '0 0 1rem 0' }}>Police Email System{currentCase ? ` - ${currentCase}` : ''}</h3>
       
       <TwoColumnLayout>
         <LeftPanel>
-          <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>Inbox</h4>
+          <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>Inbox ({emails.length})</h4>
           <EmailList>
             {emails.map(email => (
               <EmailItem
                 key={email.id}
                 $isSelected={email.id === selectedEmail}
-                $isUnread={email.isUnread}
-                onClick={() => handleEmailClick(email.id)}
+                $isUnread={!email.isUnlocked && !selectedEmail}
+                $isLocked={!email.isUnlocked}
+                onClick={() => handleEmailClick(email.id, email.isUnlocked)}
               >
                 <EmailHeader>
-                  <EmailSender $isUnread={email.isUnread}>
-                    {email.sender}
+                  <EmailSender $isUnread={!email.isUnlocked && !selectedEmail}>
+                    {!email.isUnlocked && '🔒 '}{email.sender || email.from}
                     <PriorityBadge $priority={email.priority}>
                       {email.priority}
                     </PriorityBadge>
                   </EmailSender>
-                  <EmailTime>{email.time}</EmailTime>
+                  <EmailTime>{email.time || email.sentAt}</EmailTime>
                 </EmailHeader>
-                <EmailSubject $isUnread={email.isUnread}>
+                <EmailSubject $isUnread={!email.isUnlocked && !selectedEmail}>
                   {email.subject}
                 </EmailSubject>
                 <EmailPreview>
-                  {email.preview}
-                  {email.attachments && email.attachments.length > 0 && (
+                  {email.isUnlocked 
+                    ? (email.content?.substring(0, 100) + '...' || '') 
+                    : `🔒 ${email.gatingRule?.unlockMessage || 'Este email está bloqueado. Colete as evidências necessárias.'}`
+                  }
+                  {email.isUnlocked && email.attachments && email.attachments.length > 0 && (
                     <span style={{ marginLeft: '0.5rem', color: '#4a9eff' }}>
                       📎 {email.attachments.length} attachment{email.attachments.length > 1 ? 's' : ''}
                     </span>
@@ -503,51 +285,104 @@ Sistema CaseZero`,
 
         <RightPanel>
           {selectedEmailData ? (
-            <EmailContent>
-              <h4 style={{ margin: '0 0 0.5rem 0', color: '#4a9eff' }}>
-                {selectedEmailData.subject}
-              </h4>
-              <p style={{ margin: '0 0 1rem 0', fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)' }}>
-                From: {selectedEmailData.sender} • {selectedEmailData.time}
-              </p>
-              <pre style={{ 
-                margin: 0, 
-                whiteSpace: 'pre-wrap', 
-                fontFamily: 'inherit', 
-                fontSize: '14px', 
-                lineHeight: '1.5',
-                color: 'rgba(255, 255, 255, 0.9)'
-              }}>
-                {selectedEmailData.content}
-              </pre>
-              
-              {selectedEmailData.attachments && selectedEmailData.attachments.length > 0 && (
-                <AttachmentList>
-                  <h5 style={{ margin: '0 0 0.5rem 0', color: 'rgba(255, 255, 255, 0.8)', fontSize: '13px' }}>
-                    Attachments ({selectedEmailData.attachments.length})
-                  </h5>
-                  {selectedEmailData.attachments.map((attachment, index) => (
-                    <AttachmentItem key={index}>
-                      <AttachmentInfo>
-                        <span style={{ fontSize: '16px' }}>
-                          {attachment.type === 'image' ? '🖼️' : 
-                           attachment.type === 'pdf' ? '📋' : '📄'}
-                        </span>
-                        <div>
-                          <AttachmentName>{attachment.name}</AttachmentName>
+            selectedEmailData.isUnlocked ? (
+              <EmailContent>
+                <h4 style={{ margin: '0 0 0.5rem 0', color: '#4a9eff' }}>
+                  {selectedEmailData.subject}
+                </h4>
+                <p style={{ margin: '0 0 1rem 0', fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)' }}>
+                  From: {selectedEmailData.sender || selectedEmailData.from} • {selectedEmailData.time || selectedEmailData.sentAt}
+                </p>
+                <pre style={{ 
+                  margin: 0, 
+                  whiteSpace: 'pre-wrap', 
+                  fontFamily: 'inherit', 
+                  fontSize: '14px', 
+                  lineHeight: '1.5',
+                  color: 'rgba(255, 255, 255, 0.9)'
+                }}>
+                  {selectedEmailData.content}
+                </pre>
+                
+                {selectedEmailData.attachments && selectedEmailData.attachments.length > 0 && (
+                  <AttachmentList>
+                    <h5 style={{ margin: '0 0 0.5rem 0', color: 'rgba(255, 255, 255, 0.8)', fontSize: '13px' }}>
+                      Attachments ({selectedEmailData.attachments.length})
+                    </h5>
+                    {selectedEmailData.attachments.map((attachment, index) => (
+                      <AttachmentItem key={index}>
+                        <AttachmentInfo>
+                          <span style={{ fontSize: '16px' }}>
+                            {attachment.type === 'image' ? '🖼️' : 
+                             attachment.type === 'pdf' ? '📋' : '📄'}
+                          </span>
                           <div>
-                            <AttachmentMeta>{attachment.size} • {attachment.type.toUpperCase()}</AttachmentMeta>
+                            <AttachmentName>{attachment.name}</AttachmentName>
+                            <div>
+                              <AttachmentMeta>{attachment.size} • {attachment.type.toUpperCase()}</AttachmentMeta>
+                            </div>
                           </div>
-                        </div>
-                      </AttachmentInfo>
-                      <AttachmentButton onClick={() => handleAttachmentOpen(attachment.name)}>
-                        Open in File Viewer
-                      </AttachmentButton>
-                    </AttachmentItem>
-                  ))}
-                </AttachmentList>
-              )}
-            </EmailContent>
+                        </AttachmentInfo>
+                        <AttachmentButton onClick={() => handleAttachmentOpen(attachment.name, attachment.evidenceId)}>
+                          Open in File Viewer
+                        </AttachmentButton>
+                      </AttachmentItem>
+                    ))}
+                  </AttachmentList>
+                )}
+              </EmailContent>
+            ) : (
+              <EmailContent style={{ position: 'relative' }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', color: '#4a9eff' }}>
+                  {selectedEmailData.subject}
+                </h4>
+                <p style={{ margin: '0 0 1rem 0', fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)' }}>
+                  From: {selectedEmailData.sender || selectedEmailData.from} • {selectedEmailData.time || selectedEmailData.sentAt}
+                </p>
+                
+                <LockedEmailOverlay>
+                  <LockIcon>🔒</LockIcon>
+                  <h3 style={{ margin: '0 0 1rem 0', color: '#fff' }}>Email Bloqueado</h3>
+                  <p style={{ margin: '0 0 1.5rem 0', color: 'rgba(255, 255, 255, 0.8)', textAlign: 'center' }}>
+                    {selectedEmailData.gatingRule?.unlockMessage || 'Este email está bloqueado. Colete as evidências necessárias para desbloqueá-lo.'}
+                  </p>
+                  
+                  {selectedEmailData.gatingRule && (
+                    <UnlockRequirements>
+                      <h4 style={{ margin: '0 0 0.75rem 0', color: '#4a9eff' }}>Requisitos para Desbloquear:</h4>
+                      <RequirementList>
+                        {selectedEmailData.gatingRule.requiredDocuments && selectedEmailData.gatingRule.requiredDocuments.length > 0 && (
+                          <>
+                            <h5 style={{ margin: '0.5rem 0 0.25rem 0', color: 'rgba(255, 255, 255, 0.9)', fontSize: '13px' }}>Documentos:</h5>
+                            {selectedEmailData.gatingRule.requiredDocuments.map((doc, index) => (
+                              <RequirementItem key={`doc-${index}`}>📄 {doc}</RequirementItem>
+                            ))}
+                          </>
+                        )}
+                        
+                        {selectedEmailData.gatingRule.requiredMedia && selectedEmailData.gatingRule.requiredMedia.length > 0 && (
+                          <>
+                            <h5 style={{ margin: '0.5rem 0 0.25rem 0', color: 'rgba(255, 255, 255, 0.9)', fontSize: '13px' }}>Mídia:</h5>
+                            {selectedEmailData.gatingRule.requiredMedia.map((media, index) => (
+                              <RequirementItem key={`media-${index}`}>🖼️ {media}</RequirementItem>
+                            ))}
+                          </>
+                        )}
+                        
+                        {selectedEmailData.gatingRule.requiredEvidence && selectedEmailData.gatingRule.requiredEvidence.length > 0 && (
+                          <>
+                            <h5 style={{ margin: '0.5rem 0 0.25rem 0', color: 'rgba(255, 255, 255, 0.9)', fontSize: '13px' }}>Evidências:</h5>
+                            {selectedEmailData.gatingRule.requiredEvidence.map((evidence, index) => (
+                              <RequirementItem key={`evidence-${index}`}>🔍 {evidence}</RequirementItem>
+                            ))}
+                          </>
+                        )}
+                      </RequirementList>
+                    </UnlockRequirements>
+                  )}
+                </LockedEmailOverlay>
+              </EmailContent>
+            )
           ) : (
             <div style={{ 
               flex: 1, 

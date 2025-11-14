@@ -115,6 +115,7 @@ namespace CaseZeroApi.Services
                 Metadata = CreateMetadataFromBundle(bundle),
                 Evidences = CreateEvidencesFromEntities(bundle),
                 Suspects = CreateSuspectsFromEntities(bundle),
+                Emails = ConvertEmails(bundle.Emails),
                 ForensicAnalyses = new List<CaseForensicAnalysis>(),
                 TemporalEvents = new List<CaseTemporalEvent>(),
                 Timeline = new List<CaseTimelineEvent>(),
@@ -135,6 +136,9 @@ namespace CaseZeroApi.Services
 
         private CaseMetadata CreateMetadataFromBundle(NormalizedCaseBundle bundle)
         {
+            // Extract briefing from emails (prioritize briefing email)
+            var briefing = ExtractBriefingFromEmails(bundle.Emails);
+            
             return new CaseMetadata
             {
                 Title = $"Case {bundle.CaseId}",
@@ -149,10 +153,10 @@ namespace CaseZeroApi.Services
                     Occupation = "Unknown",
                     CauseOfDeath = "Under investigation"
                 },
-                Briefing = "Review the case files and identify the suspect based on the evidence.",
-                Difficulty = ConvertDifficultyToInt(bundle.Difficulty ?? "medium"),
+                Briefing = briefing,
+                Difficulty = ConvertDifficultyToInt(bundle.Difficulty),
                 EstimatedDuration = "60 minutes",
-                MinRankRequired = ConvertDifficultyToRank(bundle.Difficulty ?? "medium")
+                MinRankRequired = ConvertDifficultyToRank(bundle.Difficulty)
             };
         }
 
@@ -322,6 +326,75 @@ namespace CaseZeroApi.Services
                 "hard" => "Inspector",
                 _ => "Detective"
             };
+        }
+
+        private string ExtractBriefingFromEmails(List<NormalizedEmail>? emails)
+        {
+            if (emails == null || emails.Count == 0)
+            {
+                return "Investigate the case by examining evidence and interviewing suspects.";
+            }
+
+            // Find briefing email (prioritize email_briefing_*)
+            var briefingEmail = emails.FirstOrDefault(e => e.EmailId.Contains("briefing"));
+            if (briefingEmail != null)
+            {
+                // Return first 300 characters of the email content as briefing
+                var briefingText = briefingEmail.Content.Length > 300 
+                    ? briefingEmail.Content.Substring(0, 300) + "..." 
+                    : briefingEmail.Content;
+                return briefingText.Replace("\n", " ").Trim();
+            }
+
+            // Fallback: use first email if no briefing found
+            if (emails.Count > 0)
+            {
+                var firstEmail = emails[0];
+                var briefingText = firstEmail.Content.Length > 300 
+                    ? firstEmail.Content.Substring(0, 300) + "..." 
+                    : firstEmail.Content;
+                return briefingText.Replace("\n", " ").Trim();
+            }
+
+            return "Investigate the case by examining evidence and interviewing suspects.";
+        }
+
+        private List<CaseEmail> ConvertEmails(List<NormalizedEmail>? normalizedEmails)
+        {
+            var caseEmails = new List<CaseEmail>();
+
+            if (normalizedEmails == null)
+            {
+                return caseEmails;
+            }
+
+            foreach (var email in normalizedEmails)
+            {
+                var caseEmail = new CaseEmail
+                {
+                    EmailId = email.EmailId,
+                    From = email.From,
+                    To = email.To,
+                    Subject = email.Subject,
+                    Content = email.Content,
+                    SentAt = email.SentAt,
+                    Priority = email.Priority,
+                    Attachments = email.Attachments.ToList(),
+                    Gated = email.Gated,
+                    GatingRule = email.GatingRule != null ? new CaseEmailGatingRule
+                    {
+                        RequiredDocuments = email.GatingRule.RequiredNodeIds.Where(id => id.StartsWith("doc_")).ToList(),
+                        RequiredMedia = email.GatingRule.RequiredNodeIds.Where(id => id.StartsWith("media_")).ToList(),
+                        RequiredEvidence = email.GatingRule.RequiredNodeIds.Where(id => !id.StartsWith("doc_") && !id.StartsWith("media_")).ToList(),
+                        UnlockMessage = email.GatingRule.UnlockCondition
+                    } : null,
+                    Metadata = email.Metadata != null ? new Dictionary<string, object>(email.Metadata) : new Dictionary<string, object>()
+                };
+
+                caseEmails.Add(caseEmail);
+            }
+
+            return caseEmails;
         }
 
         /*
@@ -719,6 +792,70 @@ namespace CaseZeroApi.Services
             }
 
             return null;
+        }
+
+        private string ExtractBriefingFromEmails(NormalizedEmail[] emails)
+        {
+            if (emails == null || emails.Length == 0)
+            {
+                return "Investigate the case by examining evidence and interviewing suspects.";
+            }
+
+            // Find briefing email (prioritize email_briefing_*)
+            var briefingEmail = emails.FirstOrDefault(e => e.EmailId.Contains("briefing"));
+            if (briefingEmail != null)
+            {
+                // Return first 300 characters of the email content as briefing
+                var briefingText = briefingEmail.Content.Length > 300 
+                    ? briefingEmail.Content.Substring(0, 300) + "..." 
+                    : briefingEmail.Content;
+                return briefingText.Replace("\n", " ").Trim();
+            }
+
+            // Fallback: use first email if no briefing found
+            if (emails.Length > 0)
+            {
+                var firstEmail = emails[0];
+                var briefingText = firstEmail.Content.Length > 300 
+                    ? firstEmail.Content.Substring(0, 300) + "..." 
+                    : firstEmail.Content;
+                return briefingText.Replace("\n", " ").Trim();
+            }
+
+            return "Investigate the case by examining evidence and interviewing suspects.";
+        }
+
+        private List<CaseEmail> ConvertEmails(NormalizedEmail[] normalizedEmails)
+        {
+            var caseEmails = new List<CaseEmail>();
+
+            foreach (var email in normalizedEmails)
+            {
+                var caseEmail = new CaseEmail
+                {
+                    EmailId = email.EmailId,
+                    From = email.From,
+                    To = email.To,
+                    Subject = email.Subject,
+                    Content = email.Content,
+                    SentAt = email.SentAt,
+                    Priority = email.Priority,
+                    Attachments = email.Attachments.ToList(),
+                    Gated = email.Gated,
+                    GatingRule = email.GatingRule != null ? new CaseEmailGatingRule
+                    {
+                        RequiredDocuments = email.GatingRule.RequiredDocuments.ToList(),
+                        RequiredMedia = email.GatingRule.RequiredMedia.ToList(),
+                        RequiredEvidence = email.GatingRule.RequiredEvidence.ToList(),
+                        UnlockMessage = email.GatingRule.UnlockMessage
+                    } : null,
+                    Metadata = new Dictionary<string, object>(email.Metadata)
+                };
+
+                caseEmails.Add(caseEmail);
+            }
+
+            return caseEmails;
         }
 
         private string ExtractBriefingFromDocuments(List<NormalizedDocument> documents)

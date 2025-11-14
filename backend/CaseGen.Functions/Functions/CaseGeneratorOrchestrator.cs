@@ -408,6 +408,40 @@ public class CaseGeneratorOrchestrator
             completedSteps.Add(CaseGenerationSteps.GenMedia);
             _caseLogging.LogOrchestratorStep(caseId, "GENMEDIA_COMPLETE", $"Generated {mediaResult.Length} media items");
 
+            // Step 5.5: Generate Emails (Design → Expand → Normalize)
+            status = status with
+            {
+                Progress = 0.55,
+                CompletedSteps = completedSteps.ToArray()
+            };
+            context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "EMAILS_START", "Generating case emails (briefing + optional update)");
+
+            // 5.5.1: Design email specifications
+            var emailDesignResult = await context.CallActivityAsync<string>("GenerateEmailDesignsActivity",
+                new GenerateEmailDesignsActivityModel { CaseId = caseId });
+            
+            status = status with { Progress = 0.56 };
+            context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "EMAILS_DESIGN_COMPLETE", "Email design specifications created");
+
+            // 5.5.2: Expand emails with full content
+            var emailExpandResult = await context.CallActivityAsync<string>("ExpandEmailsActivity",
+                new ExpandEmailsActivityModel { CaseId = caseId });
+            
+            status = status with { Progress = 0.57 };
+            context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "EMAILS_EXPAND_COMPLETE", "Email content expanded");
+
+            // 5.5.3: Normalize emails to individual JSON files
+            var emailNormalizeResult = await context.CallActivityAsync<string>("NormalizeEmailsActivity",
+                new NormalizeEmailsActivityModel { CaseId = caseId });
+            
+            status = status with { Progress = 0.58 };
+            context.SetCustomStatus(status);
+            _caseLogging.LogOrchestratorStep(caseId, "EMAILS_NORMALIZE_COMPLETE", $"Emails normalized: {emailNormalizeResult}");
+            _caseLogging.LogOrchestratorStep(caseId, "EMAILS_COMPLETE", "Email generation pipeline finished");
+
             // Step 6: Normalize (CORE GAME CONTENT - NO RENDERING YET)
             status = status with
             {

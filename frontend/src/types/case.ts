@@ -6,6 +6,7 @@ export interface CaseData {
   metadata: CaseMetadata
   evidences: Evidence[]
   suspects: Suspect[]
+  emails: EmailItem[]
   forensicAnalyses: ForensicAnalysis[]
   temporalEvents: TemporalEvent[]
   timeline: TimelineEvent[]
@@ -167,13 +168,27 @@ export interface FileItem {
 
 export interface EmailItem {
   id: string
+  emailId: string
+  from: string
+  to: string
   sender: string
   subject: string
   content: string
   time: string
-  priority: 'high' | 'medium' | 'low'
+  sentAt: string
+  priority: 'high' | 'medium' | 'low' | 'normal' | 'urgent'
   attachments: AttachmentItem[]
   isUnlocked: boolean
+  gated: boolean
+  gatingRule?: EmailGatingRule
+  metadata?: Record<string, any>
+}
+
+export interface EmailGatingRule {
+  requiredDocuments: string[]
+  requiredMedia: string[]
+  requiredEvidence: string[]
+  unlockMessage: string
 }
 
 export interface AttachmentItem {

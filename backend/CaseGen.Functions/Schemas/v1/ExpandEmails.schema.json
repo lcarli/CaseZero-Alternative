@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExpandEmails",
+  "description": "Expanded email specifications with complete content. Generated from DesignEmails phase.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["emails"],
+  "properties": {
+    "emails": {
+      "type": "array",
+      "description": "List of expanded email specifications with full content",
+      "minItems": 1,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "emailId",
+          "from",
+          "to",
+          "subject",
+          "content",
+          "sentAt",
+          "priority",
+          "gated"
+        ],
+        "properties": {
+          "emailId": {
+            "type": "string",
+            "description": "Unique email identifier (e.g., 'email_briefing_001', 'email_update_002')",
+            "pattern": "^email_(briefing|update)_[0-9]{3}$"
+          },
+          "from": {
+            "type": "string",
+            "description": "Sender in format 'Name <email>' (e.g., 'Chief Sarah Mitchell <chief.police@cityofportland.gov>')"
+          },
+          "to": {
+            "type": "string",
+            "description": "Recipient in format 'Name <email>' (e.g., 'Detective Alex Morgan <detective@cityofportland.gov>')"
+          },
+          "subject": {
+            "type": "string",
+            "description": "Email subject line in English"
+          },
+          "content": {
+            "type": "string",
+            "description": "FULL EMAIL BODY (300-600 words for briefing, 200-400 for update). Includes greeting, body paragraphs, and signature. Professional tone maintained throughout."
+          },
+          "sentAt": {
+            "type": "string",
+            "description": "ISO-8601 timestamp with timezone offset when email was sent",
+            "format": "date-time"
+          },
+          "priority": {
+            "type": "string",
+            "description": "Email priority level",
+            "enum": ["normal", "high", "urgent"]
+          },
+          "attachments": {
+            "type": "array",
+            "description": "Array of document references in format '@documents/<docId>'",
+            "items": {
+              "type": "string",
+              "pattern": "^@documents/doc_[a-z_]+_[0-9]{3}$"
+            }
+          },
+          "gated": {
+            "type": "boolean",
+            "description": "Whether email is locked until requirements satisfied"
+          },
+          "gatingRule": {
+            "type": ["object", "null"],
+            "description": "Gating rule defining unlock conditions. Required if gated=true, must be null if gated=false.",
+            "required": ["requiredNodeIds", "unlockCondition"],
+            "properties": {
+              "requiredNodeIds": {
+                "type": "array",
+                "description": "Array of document IDs that must be read before email unlocks",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "unlockCondition": {
+                "type": "string",
+                "description": "Unlock condition type",
+                "enum": ["read_all", "unlock_evidence", "custom"]
+              }
+            }
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata about email generation",
+            "properties": {
+              "tone": {
+                "type": "string",
+                "description": "Actual tone used in generated content"
+              },
+              "purpose": {
+                "type": "string",
+                "description": "Purpose of email"
+              },
+              "wordCount": {
+                "type": "integer",
+                "description": "Actual word count of generated content",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

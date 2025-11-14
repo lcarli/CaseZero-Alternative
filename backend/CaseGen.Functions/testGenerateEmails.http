@@ -1,0 +1,97 @@
+### Test Generate Emails - Existing Case
+# This endpoint tests the complete email generation pipeline for an existing case
+# Steps: GenerateEmailDesigns -> ExpandEmails -> NormalizeEmails -> Verify Bundle
+
+POST http://localhost:7071/api/TestGenerateEmails
+Content-Type: application/json
+
+{
+  "caseId": "CASE-2024-001"
+}
+
+### Test Generate Emails - Another Case
+POST http://localhost:7071/api/TestGenerateEmails
+Content-Type: application/json
+
+{
+  "caseId": "CASE-2024-002"
+}
+
+### Test Generate Emails - Demo Case
+POST http://localhost:7071/api/TestGenerateEmails
+Content-Type: application/json
+
+{
+  "caseId": "CASE-2024-003"
+}
+
+### Expected Response Format:
+# {
+#   "caseId": "CASE-2024-001",
+#   "success": true,
+#   "summary": "Email generation complete. 4/4 steps successful.",
+#   "steps": [
+#     {
+#       "stepName": "GenerateEmailDesigns",
+#       "success": true,
+#       "message": "Created 3 email design files",
+#       "filesCreated": [
+#         "design/emails/email_briefing_design.json",
+#         "design/emails/email_update_design.json"
+#       ]
+#     },
+#     {
+#       "stepName": "ExpandEmails",
+#       "success": true,
+#       "message": "Created 3 expanded email files",
+#       "filesCreated": [
+#         "expand/emails/email_briefing_001.json",
+#         "expand/emails/email_update_001.json"
+#       ]
+#     },
+#     {
+#       "stepName": "NormalizeEmails",
+#       "success": true,
+#       "message": "Created 3 normalized email files",
+#       "filesCreated": [
+#         "emails/email_briefing_001.json",
+#         "emails/email_update_001.json"
+#       ],
+#       "emailValidations": [
+#         {
+#           "filePath": "emails/email_briefing_001.json",
+#           "isValid": true,
+#           "fields": {
+#             "emailId": true,
+#             "from": true,
+#             "to": true,
+#             "subject": true,
+#             "content": true,
+#             "sentAt": true,
+#             "priority": true,
+#             "attachments": true,
+#             "gated": true
+#           },
+#           "timestampFormat": "Valid ISO-8601"
+#         }
+#       ]
+#     },
+#     {
+#       "stepName": "VerifyBundle",
+#       "success": true,
+#       "message": "Bundle contains 3 emails",
+#       "bundleEmailCount": 3
+#     }
+#   ]
+# }
+
+### Notes:
+# - Ensure Azure Functions are running locally (func start)
+# - Ensure case already exists in blob storage with required contexts:
+#   - plan/core/case_concept.json
+#   - plan/suspects/*
+#   - expand/timeline/*
+# - Briefing email is always generated (ungated)
+# - Update email may be generated for Advanced/Expert difficulty (gated)
+# - Emails saved to: design/emails/, expand/emails/, emails/
+# - Each email has ISO-8601 timestamp, priority, attachments, gatingRule

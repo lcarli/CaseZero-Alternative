@@ -1533,6 +1533,864 @@ Generate the specification now.";
         };
     }
 
+    // ========== Email Generation Methods ==========
+
+    public async Task<string> GenerateEmailDesignsAsync(string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("DESIGN-EMAILS: Generating email designs for caseId={CaseId}", caseId);
+
+        // Step 1: Load required contexts
+        var contextPaths = new List<string> { "plan/core", "plan/suspects", "expand/timeline" };
+        
+        var contextTasks = contextPaths.Select(async path =>
+        {
+            try
+            {
+                var content = await LoadContextAsync(caseId, path, cancellationToken);
+                return (path, content);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("DESIGN-EMAILS: Failed to load context {Path}: {Error}", path, ex.Message);
+                return (path, (string?)null);
+            }
+        });
+
+        var contextResults = await Task.WhenAll(contextTasks);
+        var contexts = contextResults
+            .Where(r => r.Item2 != null)
+            .ToDictionary(r => r.Item1, r => r.Item2!);
+
+        if (!contexts.ContainsKey("plan/core"))
+        {
+            throw new InvalidOperationException("Failed to load required plan/core context");
+        }
+
+        // Step 2: Extract case metadata from plan/core
+        string difficulty = "Rookie";
+        string caseTitle = "Untitled Case";
+        string victimName = "Unknown";
+        string timezone = "America/Los_Angeles"; // Default, should be from timeline
+        
+        try
+        {
+            using var coreDoc = JsonDocument.Parse(contexts["plan/core"]);
+            var root = coreDoc.RootElement;
+            
+            if (root.TryGetProperty("difficulty", out var diffProp))
+                difficulty = diffProp.GetString() ?? "Rookie";
+            
+            if (root.TryGetProperty("caseTitle", out var titleProp))
+                caseTitle = titleProp.GetString() ?? "Untitled Case";
+            
+            if (root.TryGetProperty("victimName", out var victimProp))
+                victimName = victimProp.GetString() ?? "Unknown";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("DESIGN-EMAILS: Failed to parse plan/core: {Error}", ex.Message);
+        }
+
+        // Step 2b: Extract timezone from expand/timeline if available
+        if (contexts.ContainsKey("expand/timeline"))
+        {
+            try
+            {
+                using var timelineDoc = JsonDocument.Parse(contexts["expand/timeline"]);
+                if (timelineDoc.RootElement.TryGetProperty("timezone", out var tzProp))
+                {
+                    timezone = tzProp.GetString() ?? timezone;
+                }
+            }
+            catch { /* use default */ }
+        }
+
+        // Step 3: Determine email count based on difficulty
+        int emailCount = difficulty is "Advanced" or "Expert" ? 2 : 1;
+        
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+
+        // Step 4: Build AI prompt
+        var systemPrompt = $@"
+You are a police department communications specialist designing email specifications for a cold case investigation.
+
+TASK: Create email design specifications for the case ""{caseTitle}"" (Difficulty: {difficulty}).
+
+EMAILS TO GENERATE:
+1. **Briefing Email (REQUIRED)**: Initial case assignment from Chief of Police to Detective
+   - Purpose: Assign the cold case, provide context, set expectations
+   - Priority: high or urgent
+   - Gated: false (always visible at case start)
+   - Attachments: Should reference @documents/doc_police_report_001
+   - Tone: Authoritative, clear, supportive
+   - Word count target: 300-600 words
+
+{(emailCount == 2 ? @"
+2. **Update Email (OPTIONAL - Advanced/Expert only)**: Progress check or external pressure
+   - Purpose: Check investigation progress, convey urgency or external pressure
+   - Priority: high or urgent
+   - Gated: May be true (locked until detective reads key documents)
+   - If gated: gatingRule must specify requiredNodeIds (e.g., ['doc_police_report_001', 'doc_forensics_001']) and unlockCondition: 'read_all'
+   - Tone: Urgent, focused, may convey pressure from media/politicians/victims family
+   - Word count target: 200-400 words" : "")}
+
+OUTPUT FORMAT (JSON conforming to DesignEmails schema):
+{{
+  ""emails"": [
+    {{
+      ""emailId"": ""email_briefing_001"",
+      ""from"": ""Chief [Name] <chief.police@[department].gov>"",
+      ""to"": ""Detective [Name] <detective@[department].gov>"",
+      ""subject"": ""Re: Cold Case Assignment - [Case Title]"",
+      ""contentDesign"": ""DESIGN INSTRUCTIONS (not final content): Describe tone, key points to cover, structure. Expand phase will generate actual body. Example: 'Professional, authoritative tone. Key points: 1) Case overview, 2) Assignment details, 3) Resources available, 4) Timeline expectations. Include supportive closing encouraging thorough investigation.'"",
+      ""sentAt"": ""ISO-8601 timestamp with timezone offset (MUST match timezone: {timezone})"",
+      ""priority"": ""high"" | ""urgent"",
+      ""attachments"": [""@documents/doc_police_report_001""],
+      ""gated"": false,
+      ""gatingRule"": null,
+      ""metadata"": {{
+        ""tone"": ""professional, authoritative"",
+        ""purpose"": ""case_assignment"",
+        ""wordCountTarget"": {{ ""min"": 300, ""max"": 600 }}
+      }}
+    }}{(emailCount == 2 ? @",
+    {{
+      ""emailId"": ""email_update_002"",
+      ""from"": ""Chief [Name] <chief.police@[department].gov>"",
+      ""to"": ""Detective [Name] <detective@[department].gov>"",
+      ""subject"": ""Re: [Case Title] - Progress Update Required"",
+      ""contentDesign"": ""DESIGN INSTRUCTIONS: Urgent tone conveying external pressure. Key points: 1) Request for progress update, 2) Mention external pressure (media/family/politicians), 3) Emphasize case priority, 4) Set deadline for report. Keep focused and direct."",
+      ""sentAt"": ""ISO-8601 timestamp LATER than briefing (investigation in progress)"",
+      ""priority"": ""urgent"",
+      ""attachments"": [],
+      ""gated"": true | false,
+      ""gatingRule"": {{
+        ""requiredNodeIds"": [""doc_police_report_001"", ""doc_forensics_001""],
+        ""unlockCondition"": ""read_all""
+      }} | null,
+      ""metadata"": {{
+        ""tone"": ""urgent, focused"",
+        ""purpose"": ""progress_check"",
+        ""wordCountTarget"": {{ ""min"": 200, ""max"": 400 }}
+      }}
+    }}" : "")}
+  ],
+  ""contextUsed"": {{
+    ""planCore"": true,
+    ""planSuspects"": {contexts.ContainsKey("plan/suspects").ToString().ToLower()},
+    ""expandTimeline"": {contexts.ContainsKey("expand/timeline").ToString().ToLower()}
+  }}
+}}
+
+CRITICAL RULES:
+- All text in English
+- Email IDs: email_briefing_001, email_update_002 (if applicable)
+- sentAt timestamps MUST use timezone offset: {timezone}
+- sentAt for briefing: Early in investigation timeline
+- sentAt for update (if exists): Later, after detective has had time to investigate
+- Briefing email: gated=false, gatingRule=null
+- Update email: May be gated (true/false) based on difficulty. If gated=true, gatingRule REQUIRED.
+- contentDesign: Instructions for content generation, NOT the final email body
+- Attachments: Use @documents/<docId> format (e.g., @documents/doc_police_report_001)
+- priority: 'high' or 'urgent' (briefing typically high, update typically urgent)
+- metadata.tone: Describe expected tone for email body generation
+- metadata.purpose: case_assignment, progress_check, external_pressure, etc.
+
+CONTEXT AVAILABLE:
+- Case Title: {caseTitle}
+- Victim: {victimName}
+- Difficulty: {difficulty}
+- Email Count: {emailCount}
+- Timezone: {timezone}
+
+Generate the email design specifications now.";
+
+        var userPrompt = $"Generate {emailCount} email design specification(s) for the cold case investigation.";
+
+        // Step 5: Call LLM with schema validation
+        var jsonSchema = _schemaProvider.GetSchema("DesignEmails");
+
+        const int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            try
+            {
+                var response = await _llmService.GenerateStructuredAsync(
+                    caseId,
+                    systemPrompt,
+                    userPrompt,
+                    jsonSchema,
+                    cancellationToken
+                );
+
+                // Validate response structure
+                using var doc = JsonDocument.Parse(response);
+                if (!doc.RootElement.TryGetProperty("emails", out var emailsElement))
+                {
+                    throw new InvalidOperationException("Response missing 'emails' property");
+                }
+
+                var emailArray = emailsElement.EnumerateArray().ToArray();
+                if (emailArray.Length == 0 || emailArray.Length > 2)
+                {
+                    throw new InvalidOperationException($"Invalid email count: {emailArray.Length}. Expected 1-2 emails.");
+                }
+
+                // Validate briefing email exists
+                var hasBriefing = emailArray.Any(e =>
+                    e.TryGetProperty("emailId", out var idProp) &&
+                    idProp.GetString()?.StartsWith("email_briefing") == true);
+
+                if (!hasBriefing)
+                {
+                    throw new InvalidOperationException("Missing required briefing email (email_briefing_001)");
+                }
+
+                // Validate gating rules consistency
+                foreach (var email in emailArray)
+                {
+                    if (email.TryGetProperty("gated", out var gatedProp) &&
+                        email.TryGetProperty("gatingRule", out var ruleProp))
+                    {
+                        bool isGated = gatedProp.GetBoolean();
+                        bool hasRule = ruleProp.ValueKind != JsonValueKind.Null;
+
+                        if (isGated && !hasRule)
+                        {
+                            var emailId = email.TryGetProperty("emailId", out var idProp) ? idProp.GetString() : "unknown";
+                            throw new InvalidOperationException($"Email {emailId} has gated=true but gatingRule is null");
+                        }
+
+                        if (!isGated && hasRule)
+                        {
+                            var emailId = email.TryGetProperty("emailId", out var idProp) ? idProp.GetString() : "unknown";
+                            _logger.LogWarning("DESIGN-EMAILS-INCONSISTENT: Email {EmailId} has gated=false but gatingRule is not null. Setting gatingRule to null.", emailId);
+                        }
+                    }
+                }
+
+                // Step 6: Save to context storage
+                var savePath = "design/emails";
+                await _contextManager.SaveContextAsync(caseId, savePath, response, cancellationToken);
+
+                _logger.LogInformation("DESIGN-EMAILS-COMPLETE: Generated {EmailCount} email(s), saved to {Path}", emailArray.Length, savePath);
+                return response;
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                _logger.LogWarning("DESIGN-EMAILS-RETRY: attempt={Attempt} error={Error}", attempt, ex.Message);
+                await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), cancellationToken); // Exponential backoff
+            }
+        }
+
+        throw new InvalidOperationException($"Failed to generate email designs after {maxRetries} attempts");
+    }
+
+    public async Task<string> ExpandEmailsAsync(string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("EXPAND-EMAILS: Expanding email designs for caseId={CaseId}", caseId);
+
+        // Step 1: Load design/emails
+        string emailDesignsJson;
+        try
+        {
+            emailDesignsJson = await LoadContextAsync(caseId, "design/emails", cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to load design/emails context: {ex.Message}", ex);
+        }
+
+        // Step 2: Parse email designs
+        JsonElement emailsArray;
+        try
+        {
+            using var designDoc = JsonDocument.Parse(emailDesignsJson);
+            emailsArray = designDoc.RootElement.GetProperty("emails").Clone();
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to parse design/emails JSON: {ex.Message}", ex);
+        }
+
+        // Step 3: Load additional contexts for content generation
+        var contextPaths = new List<string> { "plan/core", "plan/suspects", "plan/evidence", "expand/timeline" };
+        
+        var contextTasks = contextPaths.Select(async path =>
+        {
+            try
+            {
+                var content = await LoadContextAsync(caseId, path, cancellationToken);
+                return (path, content);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("EXPAND-EMAILS: Failed to load context {Path}: {Error}", path, ex.Message);
+                return (path, (string?)null);
+            }
+        });
+
+        var contextResults = await Task.WhenAll(contextTasks);
+        var contexts = contextResults
+            .Where(r => r.Item2 != null)
+            .ToDictionary(r => r.Item1, r => r.Item2!);
+
+        if (!contexts.ContainsKey("plan/core"))
+        {
+            throw new InvalidOperationException("Failed to load required plan/core context");
+        }
+
+        // Step 4: Extract case metadata
+        string caseTitle = "Untitled Case";
+        string victimName = "Unknown";
+        string difficulty = "Rookie";
+        
+        try
+        {
+            using var coreDoc = JsonDocument.Parse(contexts["plan/core"]);
+            var root = coreDoc.RootElement;
+            
+            if (root.TryGetProperty("caseTitle", out var titleProp))
+                caseTitle = titleProp.GetString() ?? "Untitled Case";
+            
+            if (root.TryGetProperty("victimName", out var victimProp))
+                victimName = victimProp.GetString() ?? "Unknown";
+            
+            if (root.TryGetProperty("difficulty", out var diffProp))
+                difficulty = diffProp.GetString() ?? "Rookie";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("EXPAND-EMAILS: Failed to parse plan/core metadata: {Error}", ex.Message);
+        }
+
+        // Step 5: Build context summary for AI prompt
+        var contextSummary = new StringBuilder();
+        contextSummary.AppendLine("CASE CONTEXT:");
+        contextSummary.AppendLine($"- Title: {caseTitle}");
+        contextSummary.AppendLine($"- Victim: {victimName}");
+        contextSummary.AppendLine($"- Difficulty: {difficulty}");
+        contextSummary.AppendLine();
+
+        if (contexts.ContainsKey("expand/timeline"))
+        {
+            try
+            {
+                using var timelineDoc = JsonDocument.Parse(contexts["expand/timeline"]);
+                var timeline = timelineDoc.RootElement;
+                
+                if (timeline.TryGetProperty("incidentDate", out var incidentProp))
+                {
+                    contextSummary.AppendLine($"- Incident Date: {incidentProp.GetString()}");
+                }
+                
+                if (timeline.TryGetProperty("summary", out var summaryProp))
+                {
+                    var summary = summaryProp.GetString();
+                    if (!string.IsNullOrEmpty(summary) && summary.Length > 200)
+                        summary = summary.Substring(0, 200) + "...";
+                    contextSummary.AppendLine($"- Timeline Summary: {summary}");
+                }
+            }
+            catch { /* optional */ }
+        }
+
+        if (contexts.ContainsKey("plan/suspects"))
+        {
+            try
+            {
+                using var suspectsDoc = JsonDocument.Parse(contexts["plan/suspects"]);
+                if (suspectsDoc.RootElement.TryGetProperty("suspects", out var suspectsArray))
+                {
+                    var suspectNames = suspectsArray.EnumerateArray()
+                        .Select(s => s.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null)
+                        .Where(name => !string.IsNullOrEmpty(name))
+                        .ToArray();
+                    
+                    if (suspectNames.Any())
+                    {
+                        contextSummary.AppendLine($"- Suspects: {string.Join(", ", suspectNames)}");
+                    }
+                }
+            }
+            catch { /* optional */ }
+        }
+
+        if (contexts.ContainsKey("plan/evidence"))
+        {
+            try
+            {
+                using var evidenceDoc = JsonDocument.Parse(contexts["plan/evidence"]);
+                if (evidenceDoc.RootElement.TryGetProperty("evidenceCount", out var countProp))
+                {
+                    contextSummary.AppendLine($"- Evidence Items: {countProp.GetInt32()}");
+                }
+            }
+            catch { /* optional */ }
+        }
+
+        // Step 6: Process each email design and generate full content
+        var expandedEmails = new List<JsonElement>();
+
+        foreach (var emailDesign in emailsArray.EnumerateArray())
+        {
+            var emailId = emailDesign.GetProperty("emailId").GetString();
+            var from = emailDesign.GetProperty("from").GetString();
+            var to = emailDesign.GetProperty("to").GetString();
+            var subject = emailDesign.GetProperty("subject").GetString();
+            var contentDesign = emailDesign.GetProperty("contentDesign").GetString();
+            var sentAt = emailDesign.GetProperty("sentAt").GetString();
+            var priority = emailDesign.GetProperty("priority").GetString();
+            var gated = emailDesign.GetProperty("gated").GetBoolean();
+            
+            // Extract metadata
+            var tone = "professional";
+            var purpose = "case_assignment";
+            int minWords = 300;
+            int maxWords = 600;
+            
+            if (emailDesign.TryGetProperty("metadata", out var metadataElement))
+            {
+                if (metadataElement.TryGetProperty("tone", out var toneProp))
+                    tone = toneProp.GetString() ?? tone;
+                
+                if (metadataElement.TryGetProperty("purpose", out var purposeProp))
+                    purpose = purposeProp.GetString() ?? purpose;
+                
+                if (metadataElement.TryGetProperty("wordCountTarget", out var wordCountObj))
+                {
+                    if (wordCountObj.TryGetProperty("min", out var minProp))
+                        minWords = minProp.GetInt32();
+                    if (wordCountObj.TryGetProperty("max", out var maxProp))
+                        maxWords = maxProp.GetInt32();
+                }
+            }
+
+            _logger.LogInformation("EXPAND-EMAILS: Generating content for {EmailId}", emailId);
+
+            // Step 7: Build AI prompt for content generation
+            var systemPrompt = $@"
+You are a police department communications specialist writing investigative emails.
+
+TASK: Generate COMPLETE EMAIL BODY based on the design instructions provided.
+
+EMAIL DETAILS:
+- Email ID: {emailId}
+- From: {from}
+- To: {to}
+- Subject: {subject}
+- Purpose: {purpose}
+- Tone: {tone}
+- Word Count: {minWords}-{maxWords} words
+
+{contextSummary}
+
+DESIGN INSTRUCTIONS:
+{contentDesign}
+
+OUTPUT FORMAT:
+Generate ONLY the email body content (do NOT include 'From:', 'To:', 'Subject:' headers - these are already defined).
+
+EMAIL STRUCTURE:
+1. **Greeting**: Appropriate salutation (e.g., ""Detective Morgan,"")
+2. **Opening Paragraph**: State purpose clearly
+3. **Body Paragraphs**: 
+   - For briefing: Case overview, assignment details, resources available, timeline expectations
+   - For update: Current status inquiry, external pressure mention, urgency emphasis, deadline
+4. **Closing**: Professional sign-off appropriate to sender's role
+5. **Signature**: Sender's name and title
+
+TONE GUIDELINES:
+- Professional and appropriate to police department communications
+- Briefing: Authoritative yet supportive, clear expectations
+- Update: More urgent, may convey pressure from media/politicians/victim's family
+- Use proper grammar, formal language
+- Avoid overly casual phrases
+
+CRITICAL RULES:
+- All text in English
+- Word count: {minWords}-{maxWords} words (aim for middle of range)
+- Include line breaks between paragraphs for readability
+- Use sender's voice (Chief of Police = authoritative, commanding)
+- Reference attached documents when relevant
+- Maintain professional distance while showing appropriate concern
+- For briefing: Be clear about expectations and available support
+- For update: Convey urgency without being accusatory
+
+Generate the complete email body now.";
+
+            var userPrompt = $"Generate the full email body for {emailId} following the design instructions.";
+
+            // Step 8: Generate email content with retries
+            var jsonSchema = _schemaProvider.GetSchema("ExpandEmails");
+            string? generatedContent = null;
+            
+            const int maxRetries = 3;
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
+            {
+                try
+                {
+                    // Note: We're generating just the content, not the full structured email
+                    // So we'll use GenerateAsync instead of GenerateStructuredAsync
+                    generatedContent = await _llmService.GenerateAsync(
+                        caseId,
+                        systemPrompt,
+                        userPrompt,
+                        cancellationToken
+                    );
+
+                    // Validate word count
+                    var wordCount = generatedContent.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length;
+                    
+                    if (wordCount < minWords * 0.8 || wordCount > maxWords * 1.2)
+                    {
+                        _logger.LogWarning("EXPAND-EMAILS-WORDCOUNT: {EmailId} word count {WordCount} outside target range {MinWords}-{MaxWords}", 
+                            emailId, wordCount, minWords, maxWords);
+                    }
+
+                    _logger.LogInformation("EXPAND-EMAILS-CONTENT-GENERATED: {EmailId} ({WordCount} words)", emailId, wordCount);
+                    break;
+                }
+                catch (Exception ex) when (attempt < maxRetries)
+                {
+                    _logger.LogWarning("EXPAND-EMAILS-RETRY: {EmailId} attempt={Attempt} error={Error}", emailId, attempt, ex.Message);
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), cancellationToken);
+                }
+            }
+
+            if (string.IsNullOrEmpty(generatedContent))
+            {
+                throw new InvalidOperationException($"Failed to generate content for {emailId} after {maxRetries} attempts");
+            }
+
+            // Step 9: Build expanded email object preserving all fields
+            var expandedEmailJson = new StringBuilder();
+            expandedEmailJson.AppendLine("{");
+            expandedEmailJson.AppendLine($"  \"emailId\": \"{emailId}\",");
+            expandedEmailJson.AppendLine($"  \"from\": \"{from}\",");
+            expandedEmailJson.AppendLine($"  \"to\": \"{to}\",");
+            expandedEmailJson.AppendLine($"  \"subject\": \"{subject}\",");
+            expandedEmailJson.AppendLine($"  \"content\": {JsonSerializer.Serialize(generatedContent)},");
+            expandedEmailJson.AppendLine($"  \"sentAt\": \"{sentAt}\",");
+            expandedEmailJson.AppendLine($"  \"priority\": \"{priority}\",");
+            
+            // Attachments
+            if (emailDesign.TryGetProperty("attachments", out var attachmentsElement))
+            {
+                expandedEmailJson.AppendLine($"  \"attachments\": {attachmentsElement.GetRawText()},");
+            }
+            else
+            {
+                expandedEmailJson.AppendLine("  \"attachments\": [],");
+            }
+            
+            expandedEmailJson.AppendLine($"  \"gated\": {gated.ToString().ToLower()},");
+            
+            // GatingRule
+            if (emailDesign.TryGetProperty("gatingRule", out var gatingRuleElement))
+            {
+                expandedEmailJson.AppendLine($"  \"gatingRule\": {gatingRuleElement.GetRawText()},");
+            }
+            else
+            {
+                expandedEmailJson.AppendLine("  \"gatingRule\": null,");
+            }
+            
+            // Metadata (update wordCount)
+            var actualWordCount = generatedContent.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries).Length;
+            expandedEmailJson.AppendLine("  \"metadata\": {");
+            expandedEmailJson.AppendLine($"    \"tone\": \"{tone}\",");
+            expandedEmailJson.AppendLine($"    \"purpose\": \"{purpose}\",");
+            expandedEmailJson.AppendLine($"    \"wordCount\": {actualWordCount}");
+            expandedEmailJson.AppendLine("  }");
+            expandedEmailJson.AppendLine("}");
+
+            using var expandedDoc = JsonDocument.Parse(expandedEmailJson.ToString());
+            expandedEmails.Add(expandedDoc.RootElement.Clone());
+        }
+
+        // Step 10: Build final response
+        var responseJson = new StringBuilder();
+        responseJson.AppendLine("{");
+        responseJson.AppendLine("  \"emails\": [");
+        
+        for (int i = 0; i < expandedEmails.Count; i++)
+        {
+            responseJson.Append("    ");
+            responseJson.Append(expandedEmails[i].GetRawText());
+            if (i < expandedEmails.Count - 1)
+                responseJson.AppendLine(",");
+            else
+                responseJson.AppendLine();
+        }
+        
+        responseJson.AppendLine("  ]");
+        responseJson.AppendLine("}");
+
+        var finalResponse = responseJson.ToString();
+
+        // Step 11: Save to context storage
+        var savePath = "expand/emails";
+        await _contextManager.SaveContextAsync(caseId, savePath, finalResponse, cancellationToken);
+
+        _logger.LogInformation("EXPAND-EMAILS-COMPLETE: Expanded {EmailCount} email(s), saved to {Path}", expandedEmails.Count, savePath);
+        return finalResponse;
+    }
+
+    public async Task<string> NormalizeEmailsAsync(string caseId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("NORMALIZE-EMAILS: Normalizing emails for caseId={CaseId}", caseId);
+
+        // Step 1: Load expand/emails
+        string expandedEmailsJson;
+        try
+        {
+            expandedEmailsJson = await LoadContextAsync(caseId, "expand/emails", cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to load expand/emails context: {ex.Message}", ex);
+        }
+
+        // Step 2: Parse expanded emails
+        JsonElement emailsArray;
+        try
+        {
+            using var expandDoc = JsonDocument.Parse(expandedEmailsJson);
+            emailsArray = expandDoc.RootElement.GetProperty("emails").Clone();
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to parse expand/emails JSON: {ex.Message}", ex);
+        }
+
+        var validationErrors = new List<string>();
+        var normalizedCount = 0;
+
+        // Step 3: Process each expanded email and convert to NormalizedEmail
+        foreach (var email in emailsArray.EnumerateArray())
+        {
+            var emailId = email.GetProperty("emailId").GetString();
+            
+            try
+            {
+                _logger.LogInformation("NORMALIZE-EMAILS: Processing {EmailId}", emailId);
+
+                // Step 3a: Extract and validate required fields
+                if (!email.TryGetProperty("emailId", out var emailIdProp) || string.IsNullOrEmpty(emailIdProp.GetString()))
+                {
+                    validationErrors.Add($"{emailId}: Missing or empty emailId");
+                    continue;
+                }
+
+                if (!email.TryGetProperty("from", out var fromProp) || string.IsNullOrEmpty(fromProp.GetString()))
+                {
+                    validationErrors.Add($"{emailId}: Missing or empty 'from' field");
+                    continue;
+                }
+
+                if (!email.TryGetProperty("to", out var toProp) || string.IsNullOrEmpty(toProp.GetString()))
+                {
+                    validationErrors.Add($"{emailId}: Missing or empty 'to' field");
+                    continue;
+                }
+
+                if (!email.TryGetProperty("subject", out var subjectProp) || string.IsNullOrEmpty(subjectProp.GetString()))
+                {
+                    validationErrors.Add($"{emailId}: Missing or empty 'subject' field");
+                    continue;
+                }
+
+                if (!email.TryGetProperty("content", out var contentProp) || string.IsNullOrEmpty(contentProp.GetString()))
+                {
+                    validationErrors.Add($"{emailId}: Missing or empty 'content' field");
+                    continue;
+                }
+
+                if (!email.TryGetProperty("sentAt", out var sentAtProp) || string.IsNullOrEmpty(sentAtProp.GetString()))
+                {
+                    validationErrors.Add($"{emailId}: Missing or empty 'sentAt' field");
+                    continue;
+                }
+
+                if (!email.TryGetProperty("priority", out var priorityProp) || string.IsNullOrEmpty(priorityProp.GetString()))
+                {
+                    validationErrors.Add($"{emailId}: Missing or empty 'priority' field");
+                    continue;
+                }
+
+                if (!email.TryGetProperty("gated", out var gatedProp))
+                {
+                    validationErrors.Add($"{emailId}: Missing 'gated' field");
+                    continue;
+                }
+
+                // Step 3b: Validate ISO-8601 timestamp
+                var sentAtStr = sentAtProp.GetString();
+                try
+                {
+                    DateTimeOffset.Parse(sentAtStr); // Validate format
+                }
+                catch
+                {
+                    validationErrors.Add($"{emailId}: Invalid ISO-8601 timestamp in 'sentAt': {sentAtStr}");
+                    continue;
+                }
+
+                // Step 3c: Validate priority value
+                var priority = priorityProp.GetString();
+                if (priority != "normal" && priority != "high" && priority != "urgent")
+                {
+                    validationErrors.Add($"{emailId}: Invalid priority value '{priority}'. Must be 'normal', 'high', or 'urgent'");
+                    continue;
+                }
+
+                // Step 3d: Validate 'from' and 'to' email format (should contain '<' and '>')
+                var fromStr = fromProp.GetString();
+                var toStr = toProp.GetString();
+                
+                if (!fromStr!.Contains('<') || !fromStr.Contains('>'))
+                {
+                    _logger.LogWarning("NORMALIZE-EMAILS-FORMAT: {EmailId} 'from' field may not be in 'Name <email>' format: {From}", emailId, fromStr);
+                }
+
+                if (!toStr!.Contains('<') || !toStr.Contains('>'))
+                {
+                    _logger.LogWarning("NORMALIZE-EMAILS-FORMAT: {EmailId} 'to' field may not be in 'Name <email>' format: {To}", emailId, toStr);
+                }
+
+                // Step 3e: Validate gating rule consistency
+                var gated = gatedProp.GetBoolean();
+                bool hasGatingRule = email.TryGetProperty("gatingRule", out var gatingRuleElement) && 
+                                      gatingRuleElement.ValueKind != JsonValueKind.Null;
+
+                if (gated && !hasGatingRule)
+                {
+                    validationErrors.Add($"{emailId}: gated=true but gatingRule is null or missing");
+                    continue;
+                }
+
+                if (!gated && hasGatingRule)
+                {
+                    _logger.LogWarning("NORMALIZE-EMAILS-GATING: {EmailId} has gated=false but gatingRule is present. GatingRule will be preserved.", emailId);
+                }
+
+                // Step 3f: Build NormalizedEmail JSON
+                var normalizedEmailJson = new StringBuilder();
+                normalizedEmailJson.AppendLine("{");
+                normalizedEmailJson.AppendLine($"  \"emailId\": {JsonSerializer.Serialize(emailIdProp.GetString())},");
+                normalizedEmailJson.AppendLine($"  \"from\": {JsonSerializer.Serialize(fromStr)},");
+                normalizedEmailJson.AppendLine($"  \"to\": {JsonSerializer.Serialize(toStr)},");
+                normalizedEmailJson.AppendLine($"  \"subject\": {JsonSerializer.Serialize(subjectProp.GetString())},");
+                normalizedEmailJson.AppendLine($"  \"content\": {JsonSerializer.Serialize(contentProp.GetString())},");
+                normalizedEmailJson.AppendLine($"  \"sentAt\": {JsonSerializer.Serialize(sentAtStr)},");
+                normalizedEmailJson.AppendLine($"  \"priority\": {JsonSerializer.Serialize(priority)},");
+
+                // Attachments
+                if (email.TryGetProperty("attachments", out var attachmentsElement))
+                {
+                    normalizedEmailJson.AppendLine($"  \"attachments\": {attachmentsElement.GetRawText()},");
+                }
+                else
+                {
+                    normalizedEmailJson.AppendLine("  \"attachments\": [],");
+                }
+
+                normalizedEmailJson.AppendLine($"  \"gated\": {gated.ToString().ToLower()},");
+
+                // GatingRule
+                if (hasGatingRule)
+                {
+                    normalizedEmailJson.AppendLine($"  \"gatingRule\": {gatingRuleElement.GetRawText()},");
+                }
+                else
+                {
+                    normalizedEmailJson.AppendLine("  \"gatingRule\": null,");
+                }
+
+                // Metadata
+                if (email.TryGetProperty("metadata", out var metadataElement))
+                {
+                    normalizedEmailJson.AppendLine($"  \"metadata\": {metadataElement.GetRawText()}");
+                }
+                else
+                {
+                    normalizedEmailJson.AppendLine("  \"metadata\": {}");
+                }
+
+                normalizedEmailJson.AppendLine("}");
+
+                // Step 4: Save individual email JSON to emails/ folder
+                var emailFileName = $"emails/{emailId}";
+                await _contextManager.SaveContextAsync(caseId, emailFileName, normalizedEmailJson.ToString(), cancellationToken);
+
+                _logger.LogInformation("NORMALIZE-EMAILS-SAVED: {EmailId} saved to {Path}.json", emailId, emailFileName);
+                normalizedCount++;
+            }
+            catch (Exception ex)
+            {
+                var errorMsg = $"{emailId}: Exception during normalization - {ex.Message}";
+                validationErrors.Add(errorMsg);
+                _logger.LogError(ex, "NORMALIZE-EMAILS-ERROR: {ErrorMsg}", errorMsg);
+            }
+        }
+
+        // Step 5: Report validation errors if any
+        if (validationErrors.Any())
+        {
+            var errorSummary = string.Join("\n", validationErrors);
+            _logger.LogWarning("NORMALIZE-EMAILS-VALIDATION-ERRORS: {ErrorCount} error(s) encountered:\n{Errors}", 
+                validationErrors.Count, errorSummary);
+
+            if (normalizedCount == 0)
+            {
+                throw new InvalidOperationException($"Failed to normalize any emails. Errors:\n{errorSummary}");
+            }
+        }
+
+        // Step 6: Build summary response
+        var summaryJson = new StringBuilder();
+        summaryJson.AppendLine("{");
+        summaryJson.AppendLine($"  \"normalizedCount\": {normalizedCount},");
+        summaryJson.AppendLine($"  \"errorCount\": {validationErrors.Count},");
+        summaryJson.AppendLine("  \"normalizedEmails\": [");
+        
+        var emailIds = emailsArray.EnumerateArray()
+            .Select(e => e.TryGetProperty("emailId", out var idProp) ? idProp.GetString() : null)
+            .Where(id => !string.IsNullOrEmpty(id))
+            .Take(normalizedCount)
+            .ToArray();
+        
+        for (int i = 0; i < emailIds.Length; i++)
+        {
+            summaryJson.Append($"    {JsonSerializer.Serialize(emailIds[i])}");
+            if (i < emailIds.Length - 1)
+                summaryJson.AppendLine(",");
+            else
+                summaryJson.AppendLine();
+        }
+        
+        summaryJson.AppendLine("  ],");
+        summaryJson.AppendLine("  \"errors\": [");
+        
+        for (int i = 0; i < validationErrors.Count; i++)
+        {
+            summaryJson.Append($"    {JsonSerializer.Serialize(validationErrors[i])}");
+            if (i < validationErrors.Count - 1)
+                summaryJson.AppendLine(",");
+            else
+                summaryJson.AppendLine();
+        }
+        
+        summaryJson.AppendLine("  ]");
+        summaryJson.AppendLine("}");
+
+        _logger.LogInformation("NORMALIZE-EMAILS-COMPLETE: Normalized {NormalizedCount} email(s), {ErrorCount} error(s)", 
+            normalizedCount, validationErrors.Count);
+
+        return summaryJson.ToString();
+    }
+
     // ========== Original Monolithic Expand Method ==========
 
     public async Task<string> ExpandCaseAsync(string planJson, string caseId, CancellationToken cancellationToken = default)

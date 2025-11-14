@@ -40,6 +40,9 @@ namespace CaseZeroApi.Models
         [JsonPropertyName("media")]
         public List<NormalizedMedia>? Media { get; set; }
 
+        [JsonPropertyName("emails")]
+        public List<NormalizedEmail>? Emails { get; set; }
+
         [JsonPropertyName("gatingGraph")]
         public GatingGraph? GatingGraph { get; set; }
 
@@ -219,5 +222,51 @@ namespace CaseZeroApi.Models
 
         [JsonPropertyName("appliedRules")]
         public List<string> AppliedRules { get; set; } = new();
+    }
+
+    // Email system models
+    public class NormalizedEmail
+    {
+        [JsonPropertyName("emailId")]
+        public string EmailId { get; set; } = string.Empty;
+
+        [JsonPropertyName("from")]
+        public string From { get; set; } = string.Empty;
+
+        [JsonPropertyName("to")]
+        public string To { get; set; } = string.Empty;
+
+        [JsonPropertyName("subject")]
+        public string Subject { get; set; } = string.Empty;
+
+        [JsonPropertyName("content")]
+        public string Content { get; set; } = string.Empty;
+
+        [JsonPropertyName("sentAt")]
+        public string SentAt { get; set; } = string.Empty; // ISO-8601 with timezone
+
+        [JsonPropertyName("priority")]
+        public string Priority { get; set; } = "normal"; // "normal", "high", "urgent"
+
+        [JsonPropertyName("attachments")]
+        public List<string> Attachments { get; set; } = new();
+
+        [JsonPropertyName("gated")]
+        public bool Gated { get; set; }
+
+        [JsonPropertyName("gatingRule")]
+        public EmailGatingRule? GatingRule { get; set; }
+
+        [JsonPropertyName("metadata")]
+        public Dictionary<string, object>? Metadata { get; set; }
+    }
+
+    public class EmailGatingRule
+    {
+        [JsonPropertyName("requiredNodeIds")]
+        public List<string> RequiredNodeIds { get; set; } = new();
+
+        [JsonPropertyName("unlockCondition")]
+        public string UnlockCondition { get; set; } = string.Empty; // "read_all", "unlock_evidence", etc.
     }
 }

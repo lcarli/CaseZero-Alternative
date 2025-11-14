@@ -57,6 +57,22 @@ public record DesignMediaTypeActivityModel
     public required string MediaType { get; init; } // e.g., "crime_scene_photo", "mugshot", "evidence_photo"
 }
 
+// Email Generation Activities
+public record GenerateEmailDesignsActivityModel
+{
+    public required string CaseId { get; init; }
+}
+
+public record ExpandEmailsActivityModel
+{
+    public required string CaseId { get; init; }
+}
+
+public record NormalizeEmailsActivityModel
+{
+    public required string CaseId { get; init; }
+}
+
 public record DesignActivityModel
 {
     public required string PlanJson { get; init; }
@@ -768,6 +784,7 @@ public record NormalizedCaseBundle
     public string? Difficulty { get; init; }
     public required NormalizedDocument[] Documents { get; init; }
     public required NormalizedMedia[] Media { get; init; }
+    public NormalizedEmail[] Emails { get; init; } = Array.Empty<NormalizedEmail>();
     public required GatingGraph GatingGraph { get; init; }
     public required NormalizedCaseMetadata Metadata { get; init; }
 }
@@ -944,4 +961,50 @@ public record RedTeamCacheEntry
     public required DateTime CreatedAt { get; init; }
     public required string AnalysisType { get; init; } // "Global" or "Focused"
     public string[]? FocusAreas { get; init; } // For focused analysis
+}
+
+// Email system models
+public record NormalizedEmail
+{
+    [JsonPropertyName("emailId")]
+    public required string EmailId { get; init; }
+    
+    [JsonPropertyName("from")]
+    public required string From { get; init; }
+    
+    [JsonPropertyName("to")]
+    public required string To { get; init; }
+    
+    [JsonPropertyName("subject")]
+    public required string Subject { get; init; }
+    
+    [JsonPropertyName("content")]
+    public required string Content { get; init; }
+    
+    [JsonPropertyName("sentAt")]
+    public required string SentAt { get; init; } // ISO-8601 with timezone
+    
+    [JsonPropertyName("priority")]
+    public required string Priority { get; init; } // "normal", "high", "urgent"
+    
+    [JsonPropertyName("attachments")]
+    public string[] Attachments { get; init; } = Array.Empty<string>();
+    
+    [JsonPropertyName("gated")]
+    public bool Gated { get; init; }
+    
+    [JsonPropertyName("gatingRule")]
+    public EmailGatingRule? GatingRule { get; init; }
+    
+    [JsonPropertyName("metadata")]
+    public Dictionary<string, object>? Metadata { get; init; }
+}
+
+public record EmailGatingRule
+{
+    [JsonPropertyName("requiredNodeIds")]
+    public required string[] RequiredNodeIds { get; init; }
+    
+    [JsonPropertyName("unlockCondition")]
+    public required string UnlockCondition { get; init; } // "read_all", "unlock_evidence", etc.
 }

@@ -20,6 +20,9 @@ namespace CaseZeroApi.Models
         [JsonPropertyName("suspects")]
         public List<CaseSuspect> Suspects { get; set; } = new();
 
+        [JsonPropertyName("emails")]
+        public List<CaseEmail> Emails { get; set; } = new();
+
         [JsonPropertyName("forensicAnalyses")]
         public List<CaseForensicAnalysis> ForensicAnalyses { get; set; } = new();
 
@@ -334,5 +337,56 @@ namespace CaseZeroApi.Models
 
         [JsonPropertyName("estimatedPlayTime")]
         public string EstimatedPlayTime { get; set; } = string.Empty;
+    }
+
+    public class CaseEmail
+    {
+        [JsonPropertyName("emailId")]
+        public string EmailId { get; set; } = string.Empty;
+
+        [JsonPropertyName("from")]
+        public string From { get; set; } = string.Empty;
+
+        [JsonPropertyName("to")]
+        public string To { get; set; } = string.Empty;
+
+        [JsonPropertyName("subject")]
+        public string Subject { get; set; } = string.Empty;
+
+        [JsonPropertyName("content")]
+        public string Content { get; set; } = string.Empty;
+
+        [JsonPropertyName("sentAt")]
+        public string SentAt { get; set; } = string.Empty;
+
+        [JsonPropertyName("priority")]
+        public string Priority { get; set; } = string.Empty;
+
+        [JsonPropertyName("attachments")]
+        public List<string> Attachments { get; set; } = new();
+
+        [JsonPropertyName("gated")]
+        public bool Gated { get; set; }
+
+        [JsonPropertyName("gatingRule")]
+        public CaseEmailGatingRule? GatingRule { get; set; }
+
+        [JsonPropertyName("metadata")]
+        public Dictionary<string, object> Metadata { get; set; } = new();
+    }
+
+    public class CaseEmailGatingRule
+    {
+        [JsonPropertyName("requiredDocuments")]
+        public List<string> RequiredDocuments { get; set; } = new();
+
+        [JsonPropertyName("requiredMedia")]
+        public List<string> RequiredMedia { get; set; } = new();
+
+        [JsonPropertyName("requiredEvidence")]
+        public List<string> RequiredEvidence { get; set; } = new();
+
+        [JsonPropertyName("unlockMessage")]
+        public string UnlockMessage { get; set; } = string.Empty;
     }
 }

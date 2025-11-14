@@ -394,6 +394,22 @@ export interface NormalizedCaseBundle {
     items: string[]
     total: number
   }
+  emails?: Array<{
+    emailId: string
+    from: string
+    to: string
+    subject: string
+    content: string
+    sentAt: string
+    priority: string
+    attachments: string[]
+    gated: boolean
+    gatingRule?: {
+      requiredNodeIds: string[]
+      unlockCondition: string
+    }
+    metadata?: Record<string, any>
+  }>
   context: {
     plan: Record<string, string>
     expand: Record<string, string>

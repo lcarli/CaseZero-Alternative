@@ -27,6 +27,11 @@ public interface ICaseGenerationService
     Task<string> DesignDocumentTypeAsync(string caseId, string docType, CancellationToken cancellationToken = default);
     Task<string> DesignMediaTypeAsync(string caseId, string mediaType, CancellationToken cancellationToken = default);
     
+    // Phase 5.5: Email generation pipeline
+    Task<string?> GenerateEmailDesignsAsync(string caseId, CancellationToken cancellationToken = default);
+    Task<string?> ExpandEmailsAsync(string caseId, CancellationToken cancellationToken = default);
+    Task<string> NormalizeEmailsAsync(string caseId, CancellationToken cancellationToken = default);
+    
     // Visual consistency for image generation
     Task<string> DesignVisualConsistencyRegistryAsync(string caseId, CancellationToken cancellationToken = default);
     Task<int> GenerateMasterReferencesAsync(string caseId, CancellationToken cancellationToken = default);

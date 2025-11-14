@@ -910,6 +910,9 @@ public class NormalizerService : INormalizerService
         NormalizationInput input, NormalizedDocument[] documents, NormalizedMedia[] media, 
         GatingGraph gatingGraph, DifficultyProfile difficultyProfile)
     {
+        // Read emails from blob storage (emails/ folder)
+        var emails = ReadEmailsFromStorage(input.CaseId).GetAwaiter().GetResult();
+
         return new NormalizedCaseBundle
         {
             CaseId = input.CaseId,
@@ -919,18 +922,20 @@ public class NormalizerService : INormalizerService
             Difficulty = input.Difficulty,
             Documents = documents,
             Media = media,
+            Emails = emails,
             GatingGraph = gatingGraph,
             Metadata = new NormalizedCaseMetadata
             {
                 GeneratedBy = "NormalizerService",
-                Pipeline = "Plan→Expand→Design→GenerateDocuments/GenerateMedia→Normalize",
+                Pipeline = "Plan→Expand→Design→GenerateDocuments/GenerateMedia→GenerateEmails→Normalize",
                 GeneratedAt = DateTime.UtcNow,
                 ValidationResults = new Dictionary<string, object>
                 {
                     ["difficultyProfile"] = difficultyProfile.Description,
                     ["documentCount"] = documents.Length,
                     ["mediaCount"] = media.Length,
-                    ["gatedCount"] = documents.Count(d => d.Gated)
+                    ["gatedCount"] = documents.Count(d => d.Gated),
+                    ["emailCount"] = emails.Length
                 },
                 AppliedRules = new[]
                 {
@@ -1059,5 +1064,63 @@ public class NormalizerService : INormalizerService
         using var sha256 = SHA256.Create();
         var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(content));
         return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private async Task<NormalizedEmail[]> ReadEmailsFromStorage(string caseId)
+    {
+        try
+        {
+            _logger.LogInformation("Reading emails from storage for case {CaseId}", caseId);
+
+            // List all email_*.json files in emails/ folder
+            var prefix = $"{caseId}/emails/email_";
+            var emailFiles = await _storageService.ListFilesAsync("casegen", prefix);
+            var emails = new List<NormalizedEmail>();
+
+            foreach (var fileName in emailFiles)
+            {
+                // Only process files that match email_*.json pattern
+                if (!fileName.EndsWith(".json"))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    _logger.LogDebug("Reading email file: {FileName}", fileName);
+                    
+                    var json = await _storageService.GetFileAsync("casegen", fileName);
+                    
+                    var email = JsonSerializer.Deserialize<NormalizedEmail>(json, new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
+
+                    if (email != null)
+                    {
+                        emails.Add(email);
+                        _logger.LogDebug("Successfully deserialized email: {EmailId}", email.EmailId);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to deserialize email from {FileName}", fileName);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error reading email file {FileName}", fileName);
+                    // Continue processing other emails even if one fails
+                }
+            }
+
+            _logger.LogInformation("Read {EmailCount} emails from storage for case {CaseId}", emails.Count, caseId);
+            return emails.ToArray();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error reading emails from storage for case {CaseId}", caseId);
+            // Return empty array if emails folder doesn't exist or there's an error
+            return Array.Empty<NormalizedEmail>();
+        }
     }
 }

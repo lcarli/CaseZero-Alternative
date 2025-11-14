@@ -142,6 +142,35 @@ public class CaseGeneratorActivities
         return result;
     }
 
+    // ========== Phase 5.5: Email Generation Activities ==========
+
+    [Function("GenerateEmailDesignsActivity")]
+    public async Task<string> GenerateEmailDesignsActivity([ActivityTrigger] GenerateEmailDesignsActivityModel input)
+    {
+        _logger.LogInformation("EMAIL-DESIGN: caseId={CaseId}", input.CaseId);
+        var result = await _caseGenerationService.GenerateEmailDesignsAsync(input.CaseId, CancellationToken.None);
+        await _caseLogging.LogStepResponseAsync(input.CaseId, "email-design", result);
+        return result;
+    }
+
+    [Function("ExpandEmailsActivity")]
+    public async Task<string> ExpandEmailsActivity([ActivityTrigger] ExpandEmailsActivityModel input)
+    {
+        _logger.LogInformation("EMAIL-EXPAND: caseId={CaseId}", input.CaseId);
+        var result = await _caseGenerationService.ExpandEmailsAsync(input.CaseId, CancellationToken.None);
+        await _caseLogging.LogStepResponseAsync(input.CaseId, "email-expand", result);
+        return result;
+    }
+
+    [Function("NormalizeEmailsActivity")]
+    public async Task<string> NormalizeEmailsActivity([ActivityTrigger] NormalizeEmailsActivityModel input)
+    {
+        _logger.LogInformation("EMAIL-NORMALIZE: caseId={CaseId}", input.CaseId);
+        var result = await _caseGenerationService.NormalizeEmailsAsync(input.CaseId);
+        await _caseLogging.LogStepResponseAsync(input.CaseId, "email-normalize", result);
+        return result;
+    }
+
     // ========== Original Monolithic Expand Activity ==========
 
     [Function("ExpandActivity")]
