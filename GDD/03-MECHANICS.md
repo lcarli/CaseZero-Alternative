@@ -79,36 +79,39 @@ The primary interaction mechanic - reading investigative documents.
 
 ### Viewing Interface
 
-**PDF Viewer Controls:**
-```
+Document reading happens inside the existing **File Viewer** application on the in-game desktop. We reuse the same window that already handles other file types, so opening a PDF feels identical to double-clicking a file on a real workstation.
+
+**File Viewer layout:**
+
+```text
 ┌─────────────────────────────────────────────┐
-│ [<] Page 1 of 3 [>]  [⚲ Fit] [⊕ Zoom In] [⊖]│
+│  File Viewer · Incident Report 2023-0315    │
+├─────────────────────────────────────────────┤
+│  Page 1 / 3        [Fit] [100%] [150%]      │
 ├─────────────────────────────────────────────┤
 │                                             │
-│         [PDF CONTENT RENDERS HERE]          │
+│        RENDERED PDF CONTENT HERE            │
 │                                             │
-│   METROPOLITAN POLICE DEPARTMENT            │
-│   INCIDENT REPORT #2023-0315                │
-│   ...                                       │
+│   (standard vertical scroll, neutral bg)    │
 │                                             │
-├─────────────────────────────────────────────┤
-│ [📌 Bookmark] [🔍 Search Text] [🖨️ Print]    │
 └─────────────────────────────────────────────┘
 ```
 
-**Features:**
-- Page navigation (arrow keys, mouse wheel)
-- Zoom controls (fit to width, actual size, custom zoom)
-- Text selection and copy (for note-taking)
-- Bookmarking important pages
-- Search within document
-- Print/save option (saves to "My Documents" in game)
+**Available behavior (all inherited from File Viewer):**
 
-**No Features:**
-- ❌ No automatic highlighting of clues
-- ❌ No "important information" markers
-- ❌ No translation or simplification
-- ❌ No audio narration (browser can provide via accessibility)
+- Vertical scroll or Page Up/Down for pagination
+- Simple zoom presets: Fit to width, 100%, 150%
+- Native PDF rendering with antialiasing and soft gray background
+- Copy text or drag images directly into the Notes app
+- Light/Dark toggle follows the global desktop setting
+
+**Intentionally not included:**
+
+- Bookmarks, highlights, search, print, or any extra HUD widgets
+- Automatic clue markers or summaries
+- Overlay hints, guided reading, or extra navigation chrome
+
+> Goal: let the detective open a PDF, read it comfortably, and close it—nothing more elaborate than a clean file viewer.
 
 ### Document Metadata
 
@@ -173,15 +176,14 @@ Viewing and analyzing physical evidence through photographs.
 
 ### Evidence Photo Presentation
 
-**Single Evidence View:**
-```
+Each evidence entry now shows **only one primary photo**. No alternate angles, no gallery controls—just the same kind of printed photo you would get in a physical cold-case binder.
+
+```text
 ┌─────────────────────────────────────────────┐
 │ Evidence #EV-001: Firearm (.38 Caliber)     │
 ├─────────────────────────────────────────────┤
 │                                             │
-│        [HIGH-RESOLUTION PHOTO]              │
-│                                             │
-│     (Weapon on evidence table with ruler)   │
+│        PRIMARY PHOTO (with scale)           │
 │                                             │
 ├─────────────────────────────────────────────┤
 │ Type: Physical - Weapon                     │
@@ -189,19 +191,13 @@ Viewing and analyzing physical evidence through photographs.
 │ Location: Crime scene, near victim          │
 │ Collected by: CSI Team Alpha                │
 │                                             │
-│ [📸 View Alternate Angles (3)]              │
 │ [🔬 Available Analyses: Ballistics,         │
 │     Fingerprints]                           │
 │ [📋 View Chain of Custody]                  │
 └─────────────────────────────────────────────┘
 ```
 
-**Multiple Angles:**
-- Overview shot (context)
-- Close-up detail
-- Scale reference (ruler)
-- Evidence tag visible
-- Sometimes: Before/after collection
+If we need to highlight a detail, it appears inside the supporting documents (e.g., circled in the police report) rather than as separate photos. This keeps the File Viewer simple and focused on reading.
 
 ### Evidence Metadata
 
@@ -225,12 +221,12 @@ Viewing and analyzing physical evidence through photographs.
     {
       "type": "Ballistics",
       "duration": 12,
-      "durationUnit": "hours"
+      "durationUnit": "minutes"
     },
     {
       "type": "Fingerprints",
       "duration": 8,
-      "durationUnit": "hours"
+      "durationUnit": "minutes"
     }
   ],
   "tags": ["weapon", "critical", "firearm"],
@@ -243,8 +239,7 @@ Viewing and analyzing physical evidence through photographs.
 
 **What Players Can Do:**
 - ✅ View high-resolution photos
-- ✅ Zoom in to see details
-- ✅ Switch between photo angles
+- ✅ Zoom and pan the single archived photo
 - ✅ Read evidence description
 - ✅ See collection metadata
 - ✅ Request forensic analysis
@@ -265,75 +260,80 @@ The core time-based mechanic that creates pacing and anticipation.
 
 ### Forensic Analysis Types
 
+> **Accelerated timing (new default):** players now see real-time minutes. Every real minute equals one in-world hour, so "12-hour" lab work finishes in 12 real minutes.
+
 **DNA Analysis**
-- **Duration:** 24 hours (real-time) or accelerated
+- **Accelerated Duration:** 24 minutes (equals 24 in-world hours)
 - **Applied to:** Blood, hair, saliva, tissue
 - **Results:** DNA profile, potential matches to suspects/database
 - **Cost:** None (unlimited requests)
 - **Example Output:** "DNA profile matches Michael Torres (99.7% confidence)"
 
 **Ballistics Analysis**
-- **Duration:** 12 hours
+- **Accelerated Duration:** 12 minutes (12h in-lore)
 - **Applied to:** Firearms, bullets, casings
 - **Results:** Weapon identification, trajectory, match to bullets
 - **Example Output:** "Bullet recovered from victim fired from Evidence #EV-001"
 
 **Fingerprint Analysis**
-- **Duration:** 8 hours
+- **Accelerated Duration:** 8 minutes (8h in-lore)
 - **Applied to:** Prints on surfaces, weapons, objects
 - **Results:** Print identification, matches to suspects
 - **Example Output:** "Partial print on weapon matches right thumb of SUSP-002"
 
 **Toxicology**
-- **Duration:** 36 hours
+- **Accelerated Duration:** 36 minutes (36h in-lore)
 - **Applied to:** Blood samples, tissue
 - **Results:** Drugs, poisons, alcohol levels
 - **Example Output:** "Blood toxicology: 0.08% BAC, traces of sleeping medication"
 
 **Trace Evidence Analysis**
-- **Duration:** 16 hours
+- **Accelerated Duration:** 16 minutes (16h in-lore)
 - **Applied to:** Fibers, hair, paint chips
 - **Results:** Material identification, potential sources
 - **Example Output:** "Fiber matches carpet in suspect's vehicle"
 
 **Handwriting Analysis**
-- **Duration:** 10 hours
+- **Accelerated Duration:** 10 minutes (10h in-lore)
 - **Applied to:** Written documents
 - **Results:** Author identification, forgery detection
 - **Example Output:** "Signature on document likely forged"
 
 **Digital Forensics (Future)**
-- **Duration:** 48 hours
+- **Accelerated Duration:** 48 minutes (48h in-lore)
 - **Applied to:** Phones, computers, storage
 - **Results:** Deleted files, metadata, communication logs
 
 ### Request Flow
 
 **Step 1: Select Evidence**
-```
+
+```text
 Forensics Lab > Available Evidence
 
 EV-001: Firearm (.38 Caliber)
-  [✓] Ballistics Analysis (12h)
-  [✓] Fingerprint Analysis (8h)
+  [✓] Ballistics Analysis (12 min)
+  [✓] Fingerprint Analysis (8 min)
   [ ] Request Selected Analyses
 
 EV-004: Blood Sample
-  [✓] DNA Analysis (24h)
-  [✓] Toxicology (36h)
+  [✓] DNA Analysis (24 min)
+  [✓] Toxicology (36 min)
   [ ] Request Selected Analyses
 ```
 
 **Step 2: Confirm Request**
-```
+
+```text
 ┌─────────────────────────────────────────────┐
 │ Confirm Forensic Analysis Request           │
 ├─────────────────────────────────────────────┤
 │ Evidence: EV-001 - Firearm                  │
-│ Analysis: Ballistics                         │
-│ Duration: 12 hours                          │
+│ Analysis: Ballistics                        │
+│ Duration: 12 minutes (equals 12h in-world)  │
 │                                             │
 │ Estimated Completion: 03/17/2023 02:00 PM   │
+│  (in ~12 real minutes)                      │
 │                                             │
 │ Note: You can continue investigating while  │
 │ waiting for results.                        │
@@ -343,24 +343,26 @@ EV-004: Blood Sample
 ```
 
 **Step 3: Wait Period**
-```
+
+```text
 Forensics Lab > Pending Requests
 
 EV-001 - Ballistics Analysis
   Requested: 03/17/2023 02:00 AM
   Status: In Progress
-  Completion: 03/17/2023 02:00 PM (10h remaining)
+  Completion: 03/17/2023 02:00 PM (12 real min / 12h in-world remaining)
   [View Status]
 
 EV-004 - DNA Analysis
   Requested: 03/17/2023 02:05 AM
   Status: In Progress  
-  Completion: 03/18/2023 02:05 AM (22h remaining)
+  Completion: 03/18/2023 02:05 AM (24 real min / 24h in-world remaining)
   [View Status]
 ```
 
 **Step 4: Results Ready**
-```
+
+```text
 Forensics Lab > Completed Analyses
 
 ✓ EV-001 - Ballistics Analysis
@@ -368,22 +370,24 @@ Forensics Lab > Completed Analyses
   [View Report]  ← Opens PDF with results
 
 ⏱ EV-004 - DNA Analysis
-  In Progress (22h remaining)
+  In Progress (24 real min / 24h in-world remaining)
 ```
+
+When a lab report finishes, the player receives a **plain email from the Forensics Lab** (subject line "Report Ready", short body listing the evidence ID plus a "Download report" link). Clicking the link pushes the PDF into the in-game **File Viewer**, so it opens exactly like any other digital dossier page.
 
 ### Time Mechanics
 
-**Real-Time Mode (Default):**
-- Analysis takes actual hours
-- Player can close game, come back later
-- Progress persists server-side
-- Encourages multi-session gameplay
+**Accelerated Mode (now the default):**
+- UI shows real minutes that map 1:1 to in-world hours
+- A "12-hour" report finishes in 12 real minutes
+- Keeps procedural weight without multi-hour waits
+- Can be disabled in settings for players who want the long-form experience
 
-**Accelerated Mode (Optional Setting):**
-- 1 real minute = 1 game hour
-- 12-hour analysis = 12 real minutes
-- For players who prefer faster pacing
-- Can toggle in settings
+**Real-Time Mode (optional):**
+- Restores the original hour-long timers
+- Player can close the game and return later
+- Progress persists server-side
+- Great for long streams or slow-burn roleplay
 
 **Instant Mode (Accessibility):**
 - All analyses complete immediately
@@ -400,11 +404,12 @@ Forensics Lab > Completed Analyses
 - ✅ All complete at their scheduled times
 
 **Example Timeline:**
-```
-02:00 AM - Request Ballistics (12h) + DNA (24h) + Fingerprints (8h)
-10:00 AM - Fingerprints ready
-02:00 PM - Ballistics ready
-02:00 AM (next day) - DNA ready
+
+```text
+02:00 AM in-world (T+0 real min)  - Request Ballistics (12 min), DNA (24 min), Fingerprints (8 min)
+10:00 AM in-world (T+8 real min)  - Fingerprints ready
+02:00 PM in-world (T+12 real min) - Ballistics ready
+02:00 AM next day in-world (T+24 real min) - DNA ready
 ```
 
 ### Forensic Report Format
@@ -724,9 +729,9 @@ function evaluateSolution(submission, correctSolution) {
 │ • Cited key evidence ✓                     │
 │ • Explained motive thoroughly ✓            │
 │                                             │
-│ REWARDS:                                    │
-│ • +250 XP                                  │
-│ • Rank Progress: 250/1000 → Detective I    │
+│ RECORDS (server):                           │
+│ • Time logged: 18 min total                │
+│ • Cases solved: 5/6 toward Detective I     │
 │ • Case Status: SOLVED                      │
 │                                             │
 │ [View Full Solution] [Next Case]           │
@@ -772,8 +777,8 @@ function evaluateSolution(submission, correctSolution) {
 │ what you missed, or return to this case    │
 │ after solving 2 more cases.                │
 │                                             │
-│ REWARDS:                                    │
-│ • +0 XP                                    │
+│ RECORD:                                     │
+│ • Time logged: 24 min (for reference)      │
 │ • Case Status: UNSOLVED (Reviewed)        │
 │                                             │
 │ [View Solution] [Return to Dashboard]      │
@@ -867,67 +872,66 @@ Long-term advancement through ranks.
 
 ### Rank Structure
 
-**Ranks (8 Tiers):**
+**Official ranks (8 tiers):** same ladder already shown on in-game profiles – we are only redefining how promotions trigger.
 
-1. **Rookie** (0-500 XP)
-   - Starting rank
-   - Access to Easy cases
-   - Tutorial complete
+1. **Rookie**
+  - Starting rank
+  - Access to Easy cases
+  - **Requirement:** 0 solved cases (tutorial completion only)
 
-2. **Detective III** (500-1500 XP)
-   - Solved first case
-   - Unlocks Medium cases
-   - Shows competence
+2. **Detective III**
+  - First real step in the career
+  - Unlocks Medium cases
+  - **Requirement:** 1 archived case solved with a correct verdict
 
-3. **Detective II** (1500-3000 XP)
-   - Multiple cases solved
-   - Consistent performance
-   - Medium cases feel comfortable
+3. **Detective II**
+  - Shows consistency
+  - Medium cases feel routine
+  - **Requirement:** 3 solved cases (at least 1 Medium)
 
-4. **Detective I** (3000-5000 XP)
-   - Experienced investigator
-   - Unlocks Hard cases
-   - High success rate
+4. **Detective I**
+  - Experienced investigator
+  - Gains access to Hard cases
+  - **Requirement:** 6 solved cases (at least 2 Medium/Hard)
 
-5. **Senior Detective** (5000-8000 XP)
-   - Master of fundamentals
-   - Solved many cases
-   - Hard cases accessible
+5. **Senior Detective**
+  - Master of fundamentals
+  - Hard cases become common
+  - **Requirement:** 10 solved cases (at least 3 Hard)
 
-6. **Lead Detective** (8000-12000 XP)
-   - Expert investigator
-   - Unlocks Expert cases
-   - Respected by peers
+6. **Lead Detective**
+  - Technical reference point
+  - Invited to Expert cases
+  - **Requirement:** 15 solved cases (at least 2 Expert)
 
-7. **Veteran Detective** (12000-18000 XP)
-   - Elite status
-   - Expert cases feel achievable
-   - Rare rank
+7. **Veteran Detective**
+  - Elite status
+  - Expert dossiers feel attainable
+  - **Requirement:** 21 solved cases (at least 3 Expert)
 
-8. **Master Detective** (18000+ XP)
-   - Highest rank
-   - All content unlocked
-   - Legendary status
-   - <1% of players
+8. **Master Detective**
+  - Highest badge in the ranking
+  - All archived content unlocked
+  - **Requirement:** 28 solved cases (at least 5 Expert)
 
-### XP Awards
+### Case Logging & Timekeeping
 
-**Solving Cases:**
-- Easy: 100-200 XP
-- Medium: 250-400 XP
-- Hard: 500-750 XP
-- Expert: 1000-1500 XP
+- No XP, no score multipliers—**progression equals solved cases**.
+- When the player submits the final report and gets the verdict right we only persist:
+  - `caseId`
+  - `difficulty`
+  - `resolvedAt`
+  - `elapsedMinutes` (total time spent on that case)
+- `elapsedMinutes` feeds the internal leaderboard (“best time in the department”) and post-case emails.
+- The server stores one row per solved case; there is no cumulative XP counter.
 
-**Modifiers:**
-- **First attempt:** +50% bonus
-- **Without forensics:** +25% bonus (rare)
-- **Quick solve (<2 hours):** +10%
-- **Thorough explanation:** +10%
+### Promotion Flow
 
-**Penalties:**
-- Second attempt: -25% XP
-- Third attempt: -50% XP
-- Failed case: 0 XP
+1. Player solves a cold case.
+2. System stores the elapsed time and increments the `casesSolved` counter.
+3. Promotion service checks whether rank requirements (total solved + difficulty quota) are met.
+4. If yes, the profile rank updates immediately and new case categories unlock.
+5. Only solve count + per-case time remain in the save; no other numeric grind is persisted.
 
 ### Rank Benefits
 
@@ -1265,7 +1269,7 @@ What we measure (respectfully):
 3. **Note-Taking** - Free-form personal notes
 4. **Timeline** - Visual event chronology
 5. **Solution** - Submit culprit + explanation (3 attempts)
-6. **Progression** - XP and ranks unlock harder cases
+6. **Progression** - Ranks advance by solved cases; only total time is stored
 
 **Mechanical Principles:**
 - 🎯 Authentic (realistic forensics, no gamification)

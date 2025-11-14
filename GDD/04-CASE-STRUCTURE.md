@@ -11,6 +11,7 @@
 This chapter defines the **anatomical structure of a case** - the components, formats, and relationships that make up a complete investigation. Every case in CaseZero follows this structure to ensure consistency, completeness, and investigability.
 
 **Key Concepts:**
+
 - **case.json** as single source of truth
 - Required vs. optional components
 - Evidence types and categorization
@@ -27,7 +28,7 @@ This chapter defines the **anatomical structure of a case** - the components, fo
 
 **Every case MUST have:**
 
-```
+```text
 CASE-YYYY-NNN/
 ├── case.json                 # Master data file
 ├── README.md                 # Human-readable case summary
@@ -50,7 +51,7 @@ CASE-YYYY-NNN/
 
 **Full structure with optional elements:**
 
-```
+```text
 CASE-YYYY-NNN/
 ├── case.json                 # REQUIRED
 ├── README.md                 # REQUIRED
@@ -61,75 +62,74 @@ CASE-YYYY-NNN/
 ├── documents/                # REQUIRED (min 5)
 │   ├── police/
 │   ├── witnesses/
-│   ├── suspects/
-│   ├── forensics/
-│   └── personal/
-├── suspects/                 # REQUIRED (min 2)
-│   ├── photos/
-│   └── profiles/
-├── forensics/                # REQUIRED (min 1 type)
-│   ├── dna/
-│   ├── ballistics/
-│   ├── fingerprints/
-│   └── toxicology/
-├── witnesses/                # OPTIONAL
-│   └── photos/
-├── victim/                   # REQUIRED
-│   ├── photo.jpg
-│   └── background.pdf
-├── memos/                    # OPTIONAL (future)
-│   └── case-notes.txt
-└── timeline/                 # OPTIONAL (auto-generated)
-    └── timeline.json
-```
-
----
-
-## 4.3 case.json Schema
-
-The master data file defining the entire case.
-
-### Complete Schema
-
-```json
-{
-  "caseId": "CASE-2024-001",
-  "version": "3.0",
-  "metadata": {
-    "title": "The Downtown Office Murder",
-    "shortDescription": "Business partner found dead in locked office",
-    "createdAt": "2024-01-15T00:00:00Z",
-    "author": "CaseZero Team",
-    "difficulty": "Medium",
-    "estimatedTimeHours": 4.5,
-    "tags": ["homicide", "financial-motive", "locked-room"],
-    "status": "Published"
-  },
-  "crime": {
-    "type": "Homicide",
-    "date": "2023-03-15T23:30:00Z",
-    "location": {
-      "name": "TechCorp Office Building",
-      "address": "450 Market Street, Floor 15",
-      "city": "San Francisco",
-      "state": "CA",
-      "coordinates": {
-        "lat": 37.7749,
-        "lng": -122.4194
+  "forensicReports": [
+    {
+      "id": "LAB-001",
+      "analysis": "ballistics",
+      "evidenceId": "EV-001",
+      "label": "Ballistics – EV-001",
+      "filename": "ballistics-ev001.pdf",
+      "path": "forensics/ballistics-ev001.pdf",
+      "unlock": {
+        "trigger": "onEvidenceCollected",
+        "requires": ["EV-001"],
+        "autoStart": true,
+        "durationMinutes": 12,
+        "notification": {
+          "type": "email",
+          "template": "lab-ballistics",
+          "sender": "Forensics Lab"
+        }
       }
     },
-    "description": "Victim found shot once in the chest in his private office. Door was locked from inside. No signs of forced entry.",
-    "weaponUsed": "Firearm (.38 caliber revolver)",
-    "causeOfDeath": "Single gunshot wound to chest"
-  },
-  "victim": {
-    "id": "VICTIM-001",
-    "name": "Robert Chen",
-    "age": 42,
-    "gender": "Male",
-    "occupation": "CEO, TechCorp Industries",
-    "photo": "victim/robert-chen.jpg",
-    "background": "victim/background.pdf",
+    {
+      "id": "LAB-002",
+      "analysis": "dna",
+      "evidenceId": "EV-004",
+      "label": "DNA – EV-004",
+      "filename": "dna-ev004.pdf",
+      "path": "forensics/dna-ev004.pdf",
+      "unlock": {
+        "trigger": "onEvidenceCollected",
+        "requires": ["EV-004"],
+        "autoStart": true,
+        "durationMinutes": 24,
+        "notification": {
+          "type": "email",
+          "template": "lab-dna",
+          "sender": "Forensics Lab"
+        }
+      }
+    }
+  ],
+
+#### Forensic reports
+
+- `analysis` follows the same taxonomy used everywhere else (dna, ballistics, fingerprints, etc.).
+- Each report references exactly one `evidenceId`; submit multiple entries when the lab processes multiple exhibits.
+- `unlock` shares the same shape as documents/evidence, ensuring reports stay invisible until the email download arrives.
+- Use the `notification` block to model the “email received with attachment” fantasy; typically `type = "email"` plus a localized template key.
+- Keep findings and summaries inside the PDF asset. The JSON only needs to describe where the file lives and how/when it unlocks.
+    },
+    {
+      "id": "LAB-002",
+      "analysis": "dna",
+      "evidenceId": "EV-004",
+      "label": "DNA – EV-004",
+      "filename": "dna-ev004.pdf",
+      "path": "forensics/dna-ev004.pdf",
+      "unlock": {
+        "trigger": "onEvidenceCollected",
+        "requires": ["EV-004"],
+        "autoStart": true,
+        "durationMinutes": 24,
+        "notification": {
+          "type": "email",
+          "template": "lab-dna",
+          "sender": "Forensics Lab"
+        }
+      }
+    }
     "personalityTraits": ["ambitious", "detail-oriented", "demanding"],
     "relationships": [
       {
@@ -220,230 +220,169 @@ The master data file defining the entire case.
   "evidence": [
     {
       "id": "EV-001",
-      "name": "Firearm - .38 Caliber Revolver",
-      "type": "Physical",
-      "category": "Weapon",
-      "description": "Smith & Wesson .38 Special revolver. Serial number registered to Michael Torres.",
-      "photos": [
-        "evidence/ev001-overview.jpg",
-        "evidence/ev001-closeup.jpg",
-        "evidence/ev001-serial.jpg"
-      ],
-      "collectedFrom": "Crime scene, 3 feet from victim",
-      "collectedBy": "CSI Team Alpha",
-      "collectedAt": "2023-03-16T02:00:00Z",
-      "tags": ["weapon", "critical", "firearm"],
-      "forensicAnalysisAvailable": [
-        {
-          "type": "Ballistics",
-          "duration": 12,
-          "durationUnit": "hours",
-          "reportTemplate": "forensics/ballistics-report-template.pdf"
-        },
-        {
-          "type": "Fingerprints",
-          "duration": 8,
-          "durationUnit": "hours",
-          "reportTemplate": "forensics/fingerprint-report-template.pdf"
-        }
-      ],
-      "forensicResults": {
-        "Ballistics": {
-          "finding": "Bullet recovered from victim matches rifling pattern. High confidence match.",
-          "significance": "Critical - confirms this weapon fired fatal shot"
-        },
-        "Fingerprints": {
-          "finding": "Partial print on grip matches Michael Torres (right thumb, 85% confidence)",
-          "significance": "Strong - places Torres in contact with weapon"
-        }
-      },
-      "importance": "Critical"
+      "label": "Murder Weapon (.38)",
+      "fileType": "photo",
+      "filename": "ev001-weapon.jpg",
+      "path": "evidence/photos/ev001-weapon.jpg",
+      "unlock": {
+        "trigger": "caseStart",
+        "requires": [],
+        "autoStart": true,
+        "durationMinutes": 0,
+        "notification": null
+      }
     },
     {
       "id": "EV-004",
-      "name": "Blood Sample - Crime Scene",
-      "type": "Biological",
-      "category": "Blood",
-      "description": "Blood droplets found near door. Distinct from victim's blood.",
-      "photos": [
-        "evidence/ev004-scene.jpg",
-        "evidence/ev004-sample.jpg"
-      ],
-      "collectedFrom": "Office entrance, near door handle",
-      "collectedBy": "CSI Team Alpha",
-      "collectedAt": "2023-03-16T03:30:00Z",
-      "tags": ["biological", "critical", "blood"],
-      "forensicAnalysisAvailable": [
-        {
-          "type": "DNA",
-          "duration": 24,
-          "durationUnit": "hours",
-          "reportTemplate": "forensics/dna-report-template.pdf"
-        }
-      ],
-      "forensicResults": {
-        "DNA": {
-          "finding": "DNA profile matches Michael Torres (99.7% confidence). Not victim's blood.",
-          "significance": "Critical - places Torres at scene, suggests he was injured/cut"
-        }
-      },
-      "importance": "Critical"
+      "label": "Blood Sample – Lobby",
+      "fileType": "photo",
+      "filename": "ev004-sample.jpg",
+      "path": "evidence/photos/ev004-sample.jpg",
+      "unlock": {
+        "trigger": "onDocumentRead",
+        "requires": ["DOC-005"],
+        "autoStart": true,
+        "durationMinutes": 0,
+        "notification": null
+      }
     },
     {
       "id": "EV-007",
-      "name": "Security Access Log",
-      "type": "Document",
-      "category": "Records",
-      "description": "Digital log of building access card swipes on night of murder.",
-      "photos": [
-        "evidence/ev007-log.pdf"
-      ],
-      "collectedFrom": "Building security office",
-      "collectedBy": "Detective Sarah Martinez",
-      "collectedAt": "2023-03-16T10:00:00Z",
-      "tags": ["document", "timeline", "critical"],
-      "forensicAnalysisAvailable": [],
-      "forensicResults": {},
-      "keyEntries": [
-        "23:15 - Michael Torres - Floor 15 entry",
-        "23:45 - Michael Torres - Floor 15 exit"
-      ],
-      "importance": "Critical"
+      "label": "Access Log",
+      "fileType": "pdf",
+      "filename": "ev007-log.pdf",
+      "path": "evidence/documents/ev007-log.pdf",
+      "unlock": {
+        "trigger": "caseStart",
+        "requires": [],
+        "autoStart": true,
+        "durationMinutes": 10,
+        "notification": {
+          "type": "email",
+          "template": "access-log",
+          "sender": "Building Security"
+        }
+      }
     }
   ],
   "documents": [
     {
       "id": "DOC-001",
-      "type": "PoliceReport",
-      "title": "Initial Incident Report #2023-0315",
-      "fileName": "documents/police-report-2023-0315.pdf",
-      "author": "Officer Sarah Martinez",
-      "dateCreated": "2023-03-16T08:00:00Z",
-      "pageCount": 3,
-      "description": "Official police report documenting crime scene, initial findings, and witness accounts.",
-      "availableAt": "start",
-      "tags": ["official", "initial", "scene"],
-      "keyInformation": [
-        "Body discovered at 12:30 AM by security guard",
-        "Single gunshot wound, estimated TOD 11:30 PM",
-        "Door locked from inside",
-        "Weapon found at scene"
-      ],
-      "relatedEvidence": ["EV-001", "EV-002"],
-      "relatedPeople": ["VICTIM-001"],
-      "importance": "Critical"
+      "label": "Initial Police Report",
+      "filename": "police-report-2023-0315.pdf",
+      "path": "documents/police/police-report-2023-0315.pdf",
+      "unlock": {
+        "trigger": "caseStart",
+        "requires": [],
+        "autoStart": true,
+        "durationMinutes": 0,
+        "notification": {
+          "type": "email",
+          "template": "records-police-report",
+          "sender": "MPD Records"
+        }
+      }
     },
     {
       "id": "DOC-003",
-      "type": "WitnessStatement",
-      "title": "Statement - John Silva, Night Security Guard",
-      "fileName": "documents/witness-silva.pdf",
-      "author": "John Silva",
-      "dateCreated": "2023-03-16T04:00:00Z",
-      "pageCount": 2,
-      "description": "Statement from security guard who discovered body.",
-      "availableAt": "start",
-      "tags": ["witness", "discovery"],
-      "keyInformation": [
-        "Discovered body during routine 12:30 AM check",
-        "Heard no gunshot (on different floor)",
-        "Saw Torres enter building at 11:15 PM",
-        "Saw Torres exit at 11:45 PM"
-      ],
-      "relatedEvidence": ["EV-007"],
-      "relatedPeople": ["SUSP-001"],
-      "importance": "High"
+      "label": "Witness Statement – John Silva",
+      "filename": "witness-silva.pdf",
+      "path": "documents/witnesses/witness-silva.pdf",
+      "unlock": {
+        "trigger": "caseStart",
+        "requires": ["EV-007"],
+        "autoStart": true,
+        "durationMinutes": 5,
+        "notification": {
+          "type": "email",
+          "template": "witness-silva",
+          "sender": "Security Desk"
+        }
+      }
     },
     {
       "id": "DOC-004",
-      "type": "SuspectInterview",
-      "title": "Interview Transcript - Michael Torres",
-      "fileName": "documents/suspect-interview-torres.pdf",
-      "author": "Detective Lisa Wong",
-      "dateCreated": "2023-03-17T14:00:00Z",
-      "pageCount": 4,
-      "description": "Formal interview with primary suspect Michael Torres.",
-      "availableAt": "start",
-      "tags": ["suspect", "interview", "torres"],
-      "keyInformation": [
-        "Claims he was home alone",
-        "Admits financial dispute with victim",
-        "Cannot explain building access log",
-        "Nervous, evasive answers about timeline"
-      ],
-      "relatedEvidence": ["EV-007"],
-      "relatedPeople": ["SUSP-001"],
-      "contradictions": ["DOC-003"],
-      "importance": "Critical"
+      "label": "Suspect Interview – Michael Torres",
+      "filename": "suspect-interview-torres.pdf",
+      "path": "documents/suspects/suspect-interview-torres.pdf",
+      "unlock": {
+        "trigger": "onDocumentRead",
+        "requires": ["DOC-003"],
+        "autoStart": true,
+        "durationMinutes": 0,
+        "notification": {
+          "type": "email",
+          "template": "interview-torres",
+          "sender": "Major Crimes"
+        }
+      }
     },
     {
       "id": "DOC-009",
-      "type": "FinancialRecord",
-      "title": "Bank Statements - Torres & Chen",
-      "fileName": "documents/financial-records.pdf",
-      "author": "First National Bank",
-      "dateCreated": "2023-03-17T00:00:00Z",
-      "pageCount": 2,
-      "description": "Financial records showing transactions between victim and Torres.",
-      "availableAt": "start",
-      "tags": ["financial", "motive"],
-      "keyInformation": [
-        "$500,000 loan from Chen to Torres (2022)",
-        "Payment due: March 1, 2023",
-        "Torres account shows insufficient funds",
-        "Email mentions buyout threat"
-      ],
-      "relatedPeople": ["VICTIM-001", "SUSP-001"],
-      "importance": "High"
+      "label": "Bank Statements",
+      "filename": "financial-records.pdf",
+      "path": "documents/financial/financial-records.pdf",
+      "unlock": {
+        "trigger": "onEvidenceCollected",
+        "requires": ["EV-001"],
+        "autoStart": true,
+        "durationMinutes": 20,
+        "notification": {
+          "type": "email",
+          "template": "bank-records",
+          "sender": "Financial Crimes"
+        }
+      }
     }
   ],
   "forensicReports": [
     {
-      "id": "FOR-001",
-      "type": "Ballistics",
+      "id": "LAB-001",
+      "analysis": "ballistics",
       "evidenceId": "EV-001",
-      "title": "Ballistics Analysis Report - EV-001",
-      "fileName": "forensics/ballistics-ev001.pdf",
-      "analyst": "Dr. James Chen, PhD",
-      "completionTime": 12,
-      "completionUnit": "hours",
-      "templatePath": "forensics/templates/ballistics-template.pdf",
-      "findings": {
-        "summary": "Weapon #EV-001 fired fatal bullet",
-        "details": [
-          "Bullet recovered from victim matches rifling pattern",
-          "Gunshot residue present on weapon grip",
-          "Weapon recently fired (within 24 hours of collection)",
-          "High confidence match (99.2%)"
-        ]
-      },
-      "significance": "Critical",
-      "relatedEvidence": ["EV-001", "EV-002"]
+      "label": "Ballistics – EV-001",
+      "filename": "ballistics-ev001.pdf",
+      "path": "forensics/ballistics-ev001.pdf",
+      "unlock": {
+        "trigger": "onEvidenceCollected",
+        "requires": ["EV-001"],
+        "autoStart": true,
+        "durationMinutes": 12,
+        "notification": {
+          "type": "email",
+          "template": "lab-ballistics",
+          "sender": "Forensics Lab"
+        }
+      }
     },
     {
-      "id": "FOR-002",
-      "type": "DNA",
+      "id": "LAB-002",
+      "analysis": "dna",
       "evidenceId": "EV-004",
-      "title": "DNA Analysis Report - EV-004",
-      "fileName": "forensics/dna-ev004.pdf",
-      "analyst": "Dr. Sarah Kim, PhD",
-      "completionTime": 24,
-      "completionUnit": "hours",
-      "templatePath": "forensics/templates/dna-template.pdf",
-      "findings": {
-        "summary": "Blood sample matches Michael Torres",
-        "details": [
-          "DNA profile: [technical details]",
-          "Match: Michael Torres (99.7% confidence)",
-          "Blood type: O positive (matches Torres)",
-          "Conclusion: Torres was present at scene"
-        ]
-      },
-      "significance": "Critical",
-      "relatedEvidence": ["EV-004"],
-      "relatedPeople": ["SUSP-001"]
+      "label": "DNA – EV-004",
+      "filename": "dna-ev004.pdf",
+      "path": "forensics/dna-ev004.pdf",
+      "unlock": {
+        "trigger": "onEvidenceCollected",
+        "requires": ["EV-004"],
+        "autoStart": true,
+        "durationMinutes": 24,
+        "notification": {
+          "type": "email",
+          "template": "lab-dna",
+          "sender": "Forensics Lab"
+        }
+      }
     }
   ],
+
+#### Forensic reports
+
+- `analysis` follows the same taxonomy used everywhere else (dna, ballistics, fingerprints, etc.).
+- Each entry references exactly one `evidenceId`; duplicate the block if multiple items need lab work.
+- `unlock` makes reports invisible until the lab finishes and the notification email delivers the attachment.
+- Use the `notification` block to pick which in-game email template fires when the countdown ends.
+- Keep conclusions inside the PDF; the JSON only describes file paths and unlock logistics.
   "timeline": [
     {
       "time": "2023-03-15T22:00:00Z",
@@ -562,9 +501,20 @@ The master data file defining the entire case.
 }
 ```
 
+#### Unlock flow (documents, evidence, forensic reports)
+
+- Players never see a locked entry; assets only appear in the File Viewer after the `unlock` resolves.
+- `unlock.trigger` defines when the countdown can begin (`caseStart`, `onEvidenceCollected`, `onDocumentRead`, `manual`).
+- `unlock.requires` is an internal dependency list (document/evidence IDs) that must already be satisfied; the UI does not expose it.
+- `unlock.autoStart = true` begins the timer automatically once the trigger occurs; `false` lets scripting start it later.
+- `unlock.durationMinutes` specifies the real-time wait before the PDF becomes downloadable. Use `0` for immediate availability.
+- `unlock.notification` optionally emits an email when the timer completes (default fantasy: “lab envia o PDF”). Provide `type`, `template`, and `sender` so UI text is localized.
+- Put all narrative findings inside the PDF itself; `case.json` only tracks where the asset lives and how it unlocks.
+
 ### Schema Field Requirements
 
 **Required Top-Level Fields:**
+
 ```json
 {
   "caseId": "string",              // CASE-YYYY-NNN format
@@ -589,19 +539,22 @@ The master data file defining the entire case.
 ### Physical Evidence
 
 **Weapons:**
+
 - Firearms (guns, rifles)
 - Bladed weapons (knives, swords)
 - Blunt objects (bats, hammers)
 - Improvised weapons
 
 **Personal Items:**
+
 - Wallets, purses
 - Phones, electronics
 - Jewelry
 - Clothing
 - Documents
 
-**Tools:**
+**Usage:**
+
 - Used in crime commission
 - Breaking & entering tools
 - Restraints
@@ -609,13 +562,15 @@ The master data file defining the entire case.
 ### Biological Evidence
 
 **Samples:**
+
 - Blood
 - Hair/fibers
 - Saliva
 - Tissue
 - Bodily fluids
 
-**Analysis Types:**
+**Testing:**
+
 - DNA profiling
 - Blood typing
 - Hair comparison
@@ -623,7 +578,8 @@ The master data file defining the entire case.
 
 ### Trace Evidence
 
-**Types:**
+**Materials:**
+
 - Fingerprints (latent, patent)
 - Footprints/shoe prints
 - Tire tracks
@@ -631,27 +587,33 @@ The master data file defining the entire case.
 - Glass fragments
 - Soil samples
 
+**Use Cases:**
+
+- Link suspect to scene
+- Show transfer evidence
+- Reconstruct events
+
 ### Documentary Evidence
 
 **Types:**
+
 - Handwritten notes
 - Typed documents
 - Forged papers
-- Threatening letters
 - Business records
 - Personal correspondence
 
 **Analysis:**
+
 - Handwriting comparison
 - Forgery detection
-- Ink analysis
 - Paper dating
 
 ### Digital Evidence (Future)
 
-**Types:**
+**Sources:**
+
 - Phone records
-- Text messages
 - Emails
 - Computer files
 - Photos/videos
@@ -665,7 +627,8 @@ The master data file defining the entire case.
 ### Police Report Template
 
 **Structure:**
-```
+
+```text
 ┌─────────────────────────────────────────────┐
 │ METROPOLITAN POLICE DEPARTMENT              │
 │ INCIDENT REPORT                             │
@@ -704,6 +667,7 @@ The master data file defining the entire case.
 ```
 
 **Key Elements:**
+
 - Official header
 - Case number
 - Officer information
@@ -716,7 +680,8 @@ The master data file defining the entire case.
 ### Witness Statement Template
 
 **Structure:**
-```
+
+```text
 ┌─────────────────────────────────────────────┐
 │ METROPOLITAN POLICE DEPARTMENT              │
 │ WITNESS STATEMENT                           │
@@ -749,7 +714,8 @@ The master data file defining the entire case.
 ### Suspect Interview Template
 
 **Structure (Q&A Format):**
-```
+
+```text
 ┌─────────────────────────────────────────────┐
 │ METROPOLITAN POLICE DEPARTMENT              │
 │ INTERVIEW TRANSCRIPT                        │
@@ -788,6 +754,7 @@ The master data file defining the entire case.
 ```
 
 **Key Elements:**
+
 - Formal header
 - All parties present
 - Q&A format
@@ -798,7 +765,8 @@ The master data file defining the entire case.
 ### Forensic Report Template
 
 **Structure:**
-```
+
+```text
 ┌─────────────────────────────────────────────┐
 │ METROPOLITAN FORENSICS LABORATORY           │
 │ FORENSIC ANALYSIS REPORT                    │
@@ -843,7 +811,8 @@ The master data file defining the entire case.
 ### Financial Records Template
 
 **Structure:**
-```
+
+```text
 ┌─────────────────────────────────────────────┐
 │ FIRST NATIONAL BANK                         │
 │ ACCOUNT STATEMENT                           │
@@ -880,12 +849,14 @@ The master data file defining the entire case.
 **Duration:** 24 hours  
 **Applicable To:** Blood, hair, saliva, tissue, bodily fluids  
 **Results Provided:**
+
 - DNA profile (STR loci)
 - Match to known suspects (% confidence)
 - Database comparison (if no match)
 - Statistical significance
 
 **Report Sections:**
+
 - Evidence description
 - Methodology
 - DNA profile data
@@ -893,6 +864,7 @@ The master data file defining the entire case.
 - Conclusions
 
 **Use Cases:**
+
 - Identify perpetrator from biological evidence
 - Confirm suspect presence at scene
 - Exclude innocent suspects
@@ -903,6 +875,7 @@ The master data file defining the entire case.
 **Duration:** 12 hours  
 **Applicable To:** Firearms, bullets, casings  
 **Results Provided:**
+
 - Weapon identification
 - Bullet matching (fired from specific weapon)
 - Trajectory analysis
@@ -910,6 +883,7 @@ The master data file defining the entire case.
 - Gunshot residue presence
 
 **Report Sections:**
+
 - Weapon specifications
 - Bullet/casing examination
 - Comparison microscopy results
@@ -921,6 +895,7 @@ The master data file defining the entire case.
 **Duration:** 8 hours  
 **Applicable To:** Latent prints on surfaces, objects, weapons  
 **Results Provided:**
+
 - Print quality assessment
 - Pattern classification (arch, loop, whorl)
 - Match to known suspects
@@ -928,6 +903,7 @@ The master data file defining the entire case.
 - Confidence level
 
 **Report Sections:**
+
 - Print quality and location
 - Enhancement methods used
 - Comparison results
@@ -939,6 +915,7 @@ The master data file defining the entire case.
 **Duration:** 36 hours  
 **Applicable To:** Blood, tissue, stomach contents  
 **Results Provided:**
+
 - Drug detection and identification
 - Poison detection
 - Alcohol concentration
@@ -946,6 +923,7 @@ The master data file defining the entire case.
 - Time since ingestion (estimate)
 
 **Report Sections:**
+
 - Sample description
 - Analytical methods (GC-MS, etc.)
 - Substances detected
@@ -957,12 +935,14 @@ The master data file defining the entire case.
 **Duration:** 16 hours  
 **Applicable To:** Fibers, hair, paint, glass, soil  
 **Results Provided:**
+
 - Material identification
 - Source comparison
 - Transfer evidence confirmation
 - Manufacturing origin (sometimes)
 
 **Report Sections:**
+
 - Evidence description
 - Microscopic examination
 - Chemical analysis
@@ -974,12 +954,14 @@ The master data file defining the entire case.
 **Duration:** 10 hours  
 **Applicable To:** Handwritten documents, signatures  
 **Results Provided:**
+
 - Author identification
 - Forgery detection
 - Alteration detection
 - Comparison to known samples
 
 **Report Sections:**
+
 - Document description
 - Characteristics examined
 - Known samples comparison
@@ -1085,21 +1067,25 @@ function getDifficultyRating(score) {
 ### Difficulty Target Ranges
 
 **Easy (0-40 points):**
+
 - Time: 2-4 hours
 - First-attempt success: 50-60%
 - Rank required: Rookie
 
 **Medium (40-80 points):**
+
 - Time: 4-6 hours
 - First-attempt success: 30-40%
 - Rank required: Detective III
 
 **Hard (80-120 points):**
+
 - Time: 6-8 hours
 - First-attempt success: 20-30%
 - Rank required: Detective I
 
 **Expert (120-180 points):**
+
 - Time: 8-12 hours
 - First-attempt success: 10-20%
 - Rank required: Lead Detective
@@ -1111,6 +1097,7 @@ function getDifficultyRating(score) {
 ### Required Assets Per Case
 
 **Documents (PDFs):**
+
 - [ ] Police report (3-5 pages)
 - [ ] 2+ witness statements (1-3 pages each)
 - [ ] 2+ suspect interviews (2-4 pages each)
@@ -1118,17 +1105,20 @@ function getDifficultyRating(score) {
 - [ ] Forensic report templates (for generation)
 
 **Evidence Photos (JPGs):**
+
 - [ ] 3+ evidence items (2-3 angles each)
 - [ ] High resolution (2000x1500 minimum)
 - [ ] Proper evidence tags visible
 - [ ] Scale reference (ruler) included
 
 **Character Photos (JPGs):**
+
 - [ ] Victim photo (headshot)
 - [ ] 2+ suspect photos (headshots)
 - [ ] Witness photos (optional)
 
 **Location Photos (Optional):**
+
 - [ ] Crime scene exterior
 - [ ] Crime scene interior
 - [ ] Relevant locations
@@ -1136,6 +1126,7 @@ function getDifficultyRating(score) {
 ### Asset Quality Standards
 
 **PDFs:**
+
 - Professional formatting
 - Realistic headers/footers
 - No typos or errors
@@ -1143,6 +1134,7 @@ function getDifficultyRating(score) {
 - Searchable text (not scanned images)
 
 **Photos:**
+
 - 2000x1500 minimum resolution
 - Clear, well-lit
 - Realistic evidence presentation
@@ -1150,7 +1142,8 @@ function getDifficultyRating(score) {
 - JPEG format, <5 MB
 
 **Naming Convention:**
-```
+
+```text
 CASE-YYYY-NNN/
 ├── documents/
 │   ├── police-report-{casenumber}.pdf
@@ -1173,6 +1166,7 @@ CASE-YYYY-NNN/
 ### Content Validation
 
 **Logical Consistency:**
+
 - [ ] Timeline is internally consistent
 - [ ] No contradictions in evidence
 - [ ] Forensics match physical evidence
@@ -1180,6 +1174,7 @@ CASE-YYYY-NNN/
 - [ ] Geographic locations make sense
 
 **Solvability:**
+
 - [ ] Solution can be deduced from evidence
 - [ ] Key evidence is present
 - [ ] No information required outside case files
@@ -1187,12 +1182,14 @@ CASE-YYYY-NNN/
 - [ ] Motive is discoverable
 
 **Red Herrings:**
+
 - [ ] Innocent suspects are plausible
 - [ ] Evidence eventually exonerates them
 - [ ] Not TOO obvious they're innocent
 - [ ] Not TOO convincing (frustrating)
 
 **Fairness:**
+
 - [ ] No hidden information required
 - [ ] No impossible leaps of logic
 - [ ] No obscure knowledge needed
@@ -1201,6 +1198,7 @@ CASE-YYYY-NNN/
 ### Technical Validation
 
 **case.json:**
+
 - [ ] Valid JSON syntax
 - [ ] All required fields present
 - [ ] Correct data types
@@ -1208,6 +1206,7 @@ CASE-YYYY-NNN/
 - [ ] File paths exist
 
 **Assets:**
+
 - [ ] All referenced files exist
 - [ ] File paths match case.json
 - [ ] Correct file formats
@@ -1215,6 +1214,7 @@ CASE-YYYY-NNN/
 - [ ] No broken references
 
 **Forensics:**
+
 - [ ] Duration values reasonable
 - [ ] Results match evidence
 - [ ] Report templates exist
@@ -1292,14 +1292,15 @@ Business partner murders CEO over financial dispute. Staged as potential locked-
 
 1. **Clear Motive:** Financial desperation (owes $500k)
 2. **Strong Evidence:** DNA, ballistics, access logs all point to Torres
-3. **Plausible Red Herrings:** 
+3. **Plausible Red Herrings:**
    - Wife has insurance motive but solid alibi
    - Fired employee has revenge motive but witnesses confirm alibi
 4. **Solvable:** Multiple independent evidence pieces converge on Torres
 5. **Medium Difficulty:** 3 suspects, clear evidence, some misdirection
 
 **Key Evidence Chain:**
-```
+
+```text
 Financial Records → Motive (owes $500k)
         +
 Access Log → Opportunity (at scene during murder)
@@ -1314,6 +1315,7 @@ Failed Alibi → No alternative explanation
 ```
 
 **Red Herring Resolution:**
+
 - **Linda Chen:** CCTV proves she never left home
 - **David Park:** Multiple bar witnesses confirm alibi
 
@@ -1324,6 +1326,7 @@ Failed Alibi → No alternative explanation
 ### Multi-Culprit Cases
 
 **Structure:**
+
 - Two suspects working together
 - Different roles (mastermind vs executor)
 - Evidence must implicate both
@@ -1334,6 +1337,7 @@ Failed Alibi → No alternative explanation
 ### Cold Case Evolution
 
 **Structure:**
+
 - Original investigation (20 years ago)
 - New evidence discovered (present day)
 - Must re-examine old conclusions
@@ -1344,6 +1348,7 @@ Failed Alibi → No alternative explanation
 ### Innocent Suspect Cases
 
 **Structure:**
+
 - All evidence points to one person
 - But they're actually innocent
 - Must find real culprit through subtle clues
@@ -1358,6 +1363,7 @@ Failed Alibi → No alternative explanation
 ### Translatable Elements
 
 **Must Be Translated:**
+
 - UI text
 - Case titles
 - Case descriptions
@@ -1366,11 +1372,13 @@ Failed Alibi → No alternative explanation
 - Character names (optional)
 
 **Cannot Be Translated:**
+
 - Evidence photos (text in images)
 - Handwritten documents
 - Signatures
 
 **Solution:**
+
 - Create separate document PDFs per language
 - Evidence photos use minimal text
 - Provide translation guide for embedded text
@@ -1396,6 +1404,7 @@ Every case must be **solvable through deduction** using only the provided eviden
 **Next Chapter:** [05-NARRATIVE.md](05-NARRATIVE.md) - Writing guidelines and tone
 
 **Related Documents:**
+
 - [03-MECHANICS.md](03-MECHANICS.md) - How case components are presented
 - [09-DATA-SCHEMA.md](09-DATA-SCHEMA.md) - Technical implementation of case.json
 - [10-CONTENT-PIPELINE.md](10-CONTENT-PIPELINE.md) - Case generation workflow

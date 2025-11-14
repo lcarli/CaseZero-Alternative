@@ -6,63 +6,54 @@
 
 ---
 
-## 4.1 Visão Geral
+  "forensicReports": [
+    {
+      "id": "LAB-001",
+      "analysis": "balistica",
+      "evidenceId": "EV-001",
+      "label": "Balística – EV-001",
+      "filename": "ballistics-ev001.pdf",
+      "path": "forensics/ballistics-ev001.pdf",
+      "unlock": {
+        "trigger": "onEvidenceCollected",
+        "requires": ["EV-001"],
+        "autoStart": true,
+        "durationMinutes": 12,
+        "notification": {
+          "type": "email",
+          "template": "lab-ballistics",
+          "sender": "Laboratório Forense"
+        }
+      }
+    },
+    {
+      "id": "LAB-002",
+      "analysis": "dna",
+      "evidenceId": "EV-004",
+      "label": "DNA – EV-004",
+      "filename": "dna-ev004.pdf",
+      "path": "forensics/dna-ev004.pdf",
+      "unlock": {
+        "trigger": "onEvidenceCollected",
+        "requires": ["EV-004"],
+        "autoStart": true,
+        "durationMinutes": 24,
+        "notification": {
+          "type": "email",
+          "template": "lab-dna",
+          "sender": "Laboratório Forense"
+        }
+      }
+    }
+  ],
 
-Este capítulo define a **anatomia completa de um caso** – os componentes, formatos e relações que compõem uma investigação íntegra. Todo caso em CaseZero segue esta estrutura para garantir consistência, completude e investigabilidade.
+#### Relatórios de perícia
 
-**Conceitos-chave:**
-
-- `case.json` como fonte única da verdade
-- Componentes obrigatórios vs. opcionais
-- Tipos e categorização de evidências
-- Modelos e formatos de documentos
-- Tipos de análises forenses
-- Fórmulas de balanceamento de dificuldade
-- Checklist de requisitos de assets
-
----
-
-## 4.2 Anatomia do Caso
-
-### Caso Mínimo Viável
-
-**Todo caso DEVE conter:**
-
-```text
-CASE-AAAA-NNN/
-├── case.json                 # Arquivo mestre de dados
-├── README.md                 # Resumo legível por humanos
-├── evidence/                 # Fotos das evidências físicas
-│   ├── ev001-weapon.jpg
-│   └── ev002-blood.jpg
-├── documents/                # Documentos da investigação
-│   ├── police-report.pdf
-│   ├── witness-statement-1.pdf
-│   └── suspect-interview-1.pdf
-├── forensics/                # Laudos forenses (gerados)
-│   ├── ballistics-report.pdf
-│   └── dna-report.pdf
-└── suspects/                 # Fotos dos suspeitos
-    ├── suspect-1.jpg
-    └── suspect-2.jpg
-```
-
-### Estrutura Completa do Caso
-
-**Estrutura completa com elementos opcionais:**
-
-```text
-CASE-AAAA-NNN/
-├── case.json                 # OBRIGATÓRIO
-├── README.md                 # OBRIGATÓRIO
-├── evidence/                 # OBRIGATÓRIO (mínimo 3 itens)
-│   ├── photos/
-│   ├── documents/
-│   └── metadata/
-├── documents/                # OBRIGATÓRIO (mínimo 5)
-│   ├── police/
-│   ├── witnesses/
-│   ├── suspects/
+- `analysis` usa a mesma taxonomia das evidências (dna, balística, impressões etc.).
+- Cada entrada referencia um único `evidenceId`; duplique o bloco se várias amostras forem enviadas.
+- O `unlock` mantém o laudo invisível até o laboratório concluir e enviar o e-mail com o PDF.
+- Utilize `notification` para escolher qual template de e-mail dispara quando o cronômetro termina.
+- As conclusões ficam dentro do PDF; o JSON só descreve caminhos e lógica de desbloqueio.
 │   ├── forensics/
 │   └── personal/
 ├── suspects/                 # OBRIGATÓRIO (mínimo 2)
@@ -95,55 +86,46 @@ Arquivo mestre que define todo o caso.
 ```json
 {
   "caseId": "CASE-2024-001",
-  "version": "3.0",
-  "metadata": {
-    "title": "The Downtown Office Murder",
-    "shortDescription": "Business partner found dead in locked office",
-    "createdAt": "2024-01-15T00:00:00Z",
-    "author": "CaseZero Team",
-    "difficulty": "Medium",
-    "estimatedTimeHours": 4.5,
-    "tags": ["homicide", "financial-motive", "locked-room"],
-    "status": "Published"
-  },
-  "crime": {
-    "type": "Homicide",
-    "date": "2023-03-15T23:30:00Z",
-    "location": {
-      "name": "TechCorp Office Building",
-      "address": "450 Market Street, Floor 15",
-      "city": "San Francisco",
-      "state": "CA",
-      "coordinates": {
-        "lat": 37.7749,
-        "lng": -122.4194
+  "forensicReports": [
+    {
+      "id": "LAB-001",
+      "analysis": "balistica",
+      "evidenceId": "EV-001",
+      "label": "Balística – EV-001",
+      "filename": "ballistics-ev001.pdf",
+      "path": "forensics/ballistics-ev001.pdf",
+      "unlock": {
+        "trigger": "onEvidenceCollected",
+        "requires": ["EV-001"],
+        "autoStart": true,
+        "durationMinutes": 12,
+        "notification": {
+          "type": "email",
+          "template": "lab-ballistics",
+          "sender": "Laboratório Forense"
+        }
       }
     },
-    "description": "Victim found shot once in the chest in his private office. Door was locked from inside. No signs of forced entry.",
-    "weaponUsed": "Firearm (.38 caliber revolver)",
-    "causeOfDeath": "Single gunshot wound to chest"
-  },
-  "victim": {
-    "id": "VICTIM-001",
-    "name": "Robert Chen",
-    "age": 42,
-    "gender": "Male",
-    "occupation": "CEO, TechCorp Industries",
-    "photo": "victim/robert-chen.jpg",
-    "background": "victim/background.pdf",
-    "personalityTraits": ["ambitious", "detail-oriented", "demanding"],
-    "relationships": [
-      {
-        "personId": "SUSP-001",
-        "relationship": "Business Partner",
-        "nature": "Strained - financial disputes"
-      },
-      {
-        "personId": "SUSP-002",
-        "relationship": "Wife",
-        "nature": "Troubled marriage"
+    {
+      "id": "LAB-002",
+      "analysis": "dna",
+      "evidenceId": "EV-004",
+      "label": "DNA – EV-004",
+      "filename": "dna-ev004.pdf",
+      "path": "forensics/dna-ev004.pdf",
+      "unlock": {
+        "trigger": "onEvidenceCollected",
+        "requires": ["EV-004"],
+        "autoStart": true,
+        "durationMinutes": 24,
+        "notification": {
+          "type": "email",
+          "template": "lab-dna",
+          "sender": "Laboratório Forense"
+        }
       }
-    ],
+    }
+  ],
     "relevantHistory": [
       "Founded TechCorp in 2018",
       "Recent financial success but partner conflicts",
@@ -221,228 +203,119 @@ Arquivo mestre que define todo o caso.
   "evidence": [
     {
       "id": "EV-001",
-      "name": "Firearm - .38 Caliber Revolver",
-      "type": "Physical",
-      "category": "Weapon",
-      "description": "Smith & Wesson .38 Special revolver. Serial number registered to Michael Torres.",
-      "photos": [
-        "evidence/ev001-overview.jpg",
-        "evidence/ev001-closeup.jpg",
-        "evidence/ev001-serial.jpg"
-      ],
-      "collectedFrom": "Crime scene, 3 feet from victim",
-      "collectedBy": "CSI Team Alpha",
-      "collectedAt": "2023-03-16T02:00:00Z",
-      "tags": ["weapon", "critical", "firearm"],
-      "forensicAnalysisAvailable": [
-        {
-          "type": "Ballistics",
-          "duration": 12,
-          "durationUnit": "hours",
-          "reportTemplate": "forensics/ballistics-report-template.pdf"
-        },
-        {
-          "type": "Fingerprints",
-          "duration": 8,
-          "durationUnit": "hours",
-          "reportTemplate": "forensics/fingerprint-report-template.pdf"
-        }
-      ],
-      "forensicResults": {
-        "Ballistics": {
-          "finding": "Bullet recovered from victim matches rifling pattern. High confidence match.",
-          "significance": "Critical - confirms this weapon fired fatal shot"
-        },
-        "Fingerprints": {
-          "finding": "Partial print on grip matches Michael Torres (right thumb, 85% confidence)",
-          "significance": "Strong - places Torres in contact with weapon"
-        }
-      },
-      "importance": "Critical"
+      "label": "Arma do Crime (.38)",
+      "fileType": "photo",
+      "filename": "ev001-weapon.jpg",
+      "path": "evidence/photos/ev001-weapon.jpg",
+      "unlock": {
+        "trigger": "caseStart",
+        "requires": [],
+        "autoStart": true,
+        "durationMinutes": 0,
+        "notification": null
+      }
     },
     {
       "id": "EV-004",
-      "name": "Blood Sample - Crime Scene",
-      "type": "Biological",
-      "category": "Blood",
-      "description": "Blood droplets found near door. Distinct from victim's blood.",
-      "photos": [
-        "evidence/ev004-scene.jpg",
-        "evidence/ev004-sample.jpg"
-      ],
-      "collectedFrom": "Office entrance, near door handle",
-      "collectedBy": "CSI Team Alpha",
-      "collectedAt": "2023-03-16T03:30:00Z",
-      "tags": ["biological", "critical", "blood"],
-      "forensicAnalysisAvailable": [
-        {
-          "type": "DNA",
-          "duration": 24,
-          "durationUnit": "hours",
-          "reportTemplate": "forensics/dna-report-template.pdf"
-        }
-      ],
-      "forensicResults": {
-        "DNA": {
-          "finding": "DNA profile matches Michael Torres (99.7% confidence). Not victim's blood.",
-          "significance": "Critical - places Torres at scene, suggests he was injured/cut"
-        }
-      },
-      "importance": "Critical"
+      "label": "Amostra de Sangue – Entrada",
+      "fileType": "photo",
+      "filename": "ev004-sample.jpg",
+      "path": "evidence/photos/ev004-sample.jpg",
+      "unlock": {
+        "trigger": "onDocumentRead",
+        "requires": ["DOC-005"],
+        "autoStart": true,
+        "durationMinutes": 0,
+        "notification": null
+      }
     },
     {
       "id": "EV-007",
-      "name": "Security Access Log",
-      "type": "Document",
-      "category": "Records",
-      "description": "Digital log of building access card swipes on night of murder.",
-      "photos": [
-        "evidence/ev007-log.pdf"
-      ],
-      "collectedFrom": "Building security office",
-      "collectedBy": "Detective Sarah Martinez",
-      "collectedAt": "2023-03-16T10:00:00Z",
-      "tags": ["document", "timeline", "critical"],
-      "forensicAnalysisAvailable": [],
-      "forensicResults": {},
-      "keyEntries": [
-        "23:15 - Michael Torres - Floor 15 entry",
-        "23:45 - Michael Torres - Floor 15 exit"
-      ],
-      "importance": "Critical"
+      "label": "Registro de Acesso",
+      "fileType": "pdf",
+      "filename": "ev007-log.pdf",
+      "path": "evidence/documents/ev007-log.pdf",
+      "unlock": {
+        "trigger": "caseStart",
+        "requires": [],
+        "autoStart": true,
+        "durationMinutes": 10,
+        "notification": {
+          "type": "email",
+          "template": "access-log",
+          "sender": "Segurança do Prédio"
+        }
+      }
     }
   ],
   "documents": [
     {
       "id": "DOC-001",
-      "type": "PoliceReport",
-      "title": "Initial Incident Report #2023-0315",
-      "fileName": "documents/police-report-2023-0315.pdf",
-      "author": "Officer Sarah Martinez",
-      "dateCreated": "2023-03-16T08:00:00Z",
-      "pageCount": 3,
-      "description": "Official police report documenting crime scene, initial findings, and witness accounts.",
-      "availableAt": "start",
-      "tags": ["official", "initial", "scene"],
-      "keyInformation": [
-        "Body discovered at 12:30 AM by security guard",
-        "Single gunshot wound, estimated TOD 11:30 PM",
-        "Door locked from inside",
-        "Weapon found at scene"
-      ],
-      "relatedEvidence": ["EV-001", "EV-002"],
-      "relatedPeople": ["VICTIM-001"],
-      "importance": "Critical"
+      "label": "Relatório Policial Inicial",
+      "filename": "police-report-2023-0315.pdf",
+      "path": "documents/police/police-report-2023-0315.pdf",
+      "unlock": {
+        "trigger": "caseStart",
+        "requires": [],
+        "autoStart": true,
+        "durationMinutes": 0,
+        "notification": {
+          "type": "email",
+          "template": "records-police-report",
+          "sender": "Arquivo MPD"
+        }
+      }
     },
     {
       "id": "DOC-003",
-      "type": "WitnessStatement",
-      "title": "Statement - John Silva, Night Security Guard",
-      "fileName": "documents/witness-silva.pdf",
-      "author": "John Silva",
-      "dateCreated": "2023-03-16T04:00:00Z",
-      "pageCount": 2,
-      "description": "Statement from security guard who discovered body.",
-      "availableAt": "start",
-      "tags": ["witness", "discovery"],
-      "keyInformation": [
-        "Discovered body during routine 12:30 AM check",
-        "Heard no gunshot (on different floor)",
-        "Saw Torres enter building at 11:15 PM",
-        "Saw Torres exit at 11:45 PM"
-      ],
-      "relatedEvidence": ["EV-007"],
-      "relatedPeople": ["SUSP-001"],
-      "importance": "High"
+      "label": "Depoimento – Vigia John Silva",
+      "filename": "witness-silva.pdf",
+      "path": "documents/witnesses/witness-silva.pdf",
+      "unlock": {
+        "trigger": "caseStart",
+        "requires": ["EV-007"],
+        "autoStart": true,
+        "durationMinutes": 5,
+        "notification": {
+          "type": "email",
+          "template": "witness-silva",
+          "sender": "Portaria TechCorp"
+        }
+      }
     },
     {
       "id": "DOC-004",
-      "type": "SuspectInterview",
-      "title": "Interview Transcript - Michael Torres",
-      "fileName": "documents/suspect-interview-torres.pdf",
-      "author": "Detective Lisa Wong",
-      "dateCreated": "2023-03-17T14:00:00Z",
-      "pageCount": 4,
-      "description": "Formal interview with primary suspect Michael Torres.",
-      "availableAt": "start",
-      "tags": ["suspect", "interview", "torres"],
-      "keyInformation": [
-        "Claims he was home alone",
-        "Admits financial dispute with victim",
-        "Cannot explain building access log",
-        "Nervous, evasive answers about timeline"
-      ],
-      "relatedEvidence": ["EV-007"],
-      "relatedPeople": ["SUSP-001"],
-      "contradictions": ["DOC-003"],
-      "importance": "Critical"
+      "label": "Entrevista – Michael Torres",
+      "filename": "suspect-interview-torres.pdf",
+      "path": "documents/suspects/suspect-interview-torres.pdf",
+      "unlock": {
+        "trigger": "onDocumentRead",
+        "requires": ["DOC-003"],
+        "autoStart": true,
+        "durationMinutes": 0,
+        "notification": {
+          "type": "email",
+          "template": "interview-torres",
+          "sender": "Divisão de Homicídios"
+        }
+      }
     },
     {
       "id": "DOC-009",
-      "type": "FinancialRecord",
-      "title": "Bank Statements - Torres & Chen",
-      "fileName": "documents/financial-records.pdf",
-      "author": "First National Bank",
-      "dateCreated": "2023-03-17T00:00:00Z",
-      "pageCount": 2,
-      "description": "Financial records showing transactions between victim and Torres.",
-      "availableAt": "start",
-      "tags": ["financial", "motive"],
-      "keyInformation": [
-        "$500,000 loan from Chen to Torres (2022)",
-        "Payment due: March 1, 2023",
-        "Torres account shows insufficient funds",
-        "Email mentions buyout threat"
-      ],
-      "relatedPeople": ["VICTIM-001", "SUSP-001"],
-      "importance": "High"
-    }
-  ],
-  "forensicReports": [
-    {
-      "id": "FOR-001",
-      "type": "Ballistics",
-      "evidenceId": "EV-001",
-      "title": "Ballistics Analysis Report - EV-001",
-      "fileName": "forensics/ballistics-ev001.pdf",
-      "analyst": "Dr. James Chen, PhD",
-      "completionTime": 12,
-      "completionUnit": "hours",
-      "templatePath": "forensics/templates/ballistics-template.pdf",
-      "findings": {
-        "summary": "Weapon #EV-001 fired fatal bullet",
-        "details": [
-          "Bullet recovered from victim matches rifling pattern",
-          "Gunshot residue present on weapon grip",
-          "Weapon recently fired (within 24 hours of collection)",
-          "High confidence match (99.2%)"
-        ]
-      },
-      "significance": "Critical",
-      "relatedEvidence": ["EV-001", "EV-002"]
-    },
-    {
-      "id": "FOR-002",
-      "type": "DNA",
-      "evidenceId": "EV-004",
-      "title": "DNA Analysis Report - EV-004",
-      "fileName": "forensics/dna-ev004.pdf",
-      "analyst": "Dr. Sarah Kim, PhD",
-      "completionTime": 24,
-      "completionUnit": "hours",
-      "templatePath": "forensics/templates/dna-template.pdf",
-      "findings": {
-        "summary": "Blood sample matches Michael Torres",
-        "details": [
-          "DNA profile: [technical details]",
-          "Match: Michael Torres (99.7% confidence)",
-          "Blood type: O positive (matches Torres)",
-          "Conclusion: Torres was present at scene"
-        ]
-      },
-      "significance": "Critical",
-      "relatedEvidence": ["EV-004"],
-      "relatedPeople": ["SUSP-001"]
+      "label": "Extratos Bancários",
+      "filename": "financial-records.pdf",
+      "path": "documents/financial/financial-records.pdf",
+      "unlock": {
+        "trigger": "onEvidenceCollected",
+        "requires": ["EV-001"],
+        "autoStart": true,
+        "durationMinutes": 20,
+        "notification": {
+          "type": "email",
+          "template": "bank-records",
+          "sender": "Fraudes Financeiras"
+        }
+      }
     }
   ],
   "timeline": [
@@ -562,6 +435,15 @@ Arquivo mestre que define todo o caso.
   }
 }
 ```
+
+#### Documentos e evidências no File Viewer
+
+- `label`, `filename` e `path` definem exatamente qual arquivo subir para o jogo.
+- `unlock` (agora obrigatório para documentos, evidências e laudos) controla quando algo aparece no File Viewer. Configure `trigger`, `requires`, `autoStart` e `durationMinutes` para alinhar com o fluxo narrativo.
+- `requires` aceita IDs de documentos/evidências/laudos que o jogador precisa ler ou coletar antes da liberação. Deixe vazio quando o item deve iniciar destravado.
+- `notification` define o e-mail disparado quando o desbloqueio termina (template, remetente, tipo). Deixe `null` se o item não gera comunicação.
+- Use `durationMinutes` maior que zero para simular processamento de laboratório; combine com `autoStart = true` para cronômetros que começam automaticamente após o trigger.
+- Campos narrativos ricos (`keyInformation`, `relatedPeople`, etc.) devem existir dentro do PDF/asset, não no JSON. O `case.json` fica responsável apenas por gating e metadados de arquivo.
 
 ### Campos obrigatórios do esquema
 
@@ -1341,6 +1223,7 @@ Sócio mata o CEO por disputa financeira. Cena parece mistério de sala trancada
 5. **Dificuldade média:** Três suspeitos, provas claras, alguma distração
 
 **Cadeia de evidências-chave:**
+
 ```text
 Registros financeiros → Motivo (dívida de US$500 mil)
         +
@@ -1356,6 +1239,7 @@ Balística → Arma registrada em seu nome
 ```
 
 **Como as pistas falsas se resolvem:**
+
 - **Linda Chen:** CCTV confirma que não saiu de casa
 - **David Park:** Várias testemunhas no bar confirmam o álibi
 
@@ -1444,6 +1328,7 @@ Todo caso deve ser **solucionável por dedução** apenas com as evidências for
 **Próximo capítulo:** [05-NARRATIVA.md](05-NARRATIVA.md) – Diretrizes de escrita e tom
 
 **Documentos relacionados:**
+
 - [03-MECANICAS.md](03-MECANICAS.md) – Como os componentes do caso aparecem no jogo
 - [09-ESQUEMA-DE-DADOS.md](09-ESQUEMA-DE-DADOS.md) – Implementação técnica do `case.json`
 - [10-PRODUCAO-DE-CONTEUDO.md](10-PRODUCAO-DE-CONTEUDO.md) – Pipeline de produção de casos

@@ -79,36 +79,39 @@ O principal mecanismo de interação: ler documentos da investigação.
 
 ### Interface de Visualização
 
-**Controles do visualizador de PDF:**
-```
+A leitura acontece dentro do aplicativo **File Viewer**, que já existe no desktop do jogador. Não criamos uma nova UI específica para PDFs; apenas abrimos o arquivo na janela padrão de arquivos, garantindo foco total no conteúdo.
+
+**Layout essencial do File Viewer:**
+
+```text
 ┌─────────────────────────────────────────────┐
-│ [<] Página 1 de 3 [>]  [⚲ Ajustar] [⊕ Aproximar] [⊖]│
+│  File Viewer · Relatório Policial 2023-0315 │
+├─────────────────────────────────────────────┤
+│  Página 1 / 3      [Ajustar] [100%] [150%]  │
 ├─────────────────────────────────────────────┤
 │                                             │
-│       [CONTEÚDO DO PDF RENDERIZADO AQUI]    │
+│        CONTEÚDO DO PDF RENDERIZADO          │
 │                                             │
-│   DEPARTAMENTO DE POLÍCIA METROPOLITANO     │
-│   RELATÓRIO DE INCIDENTE nº 2023-0315       │
-│   ...                                       │
+│   (scroll vertical padrão, fundo neutro)    │
 │                                             │
-├─────────────────────────────────────────────┤
-│ [📌 Favoritar] [🔍 Buscar texto] [🖨️ Imprimir]  │
 └─────────────────────────────────────────────┘
 ```
 
-**Recursos disponíveis:**
-- Navegação por páginas (setas do teclado, scroll do mouse)
-- Controles de zoom (ajustar à largura, tamanho real, zoom personalizado)
-- Seleção e cópia de texto (para anotações)
-- Marcação de páginas importantes
-- Busca dentro do documento
-- Opção de imprimir/salvar (salva em "Meus Documentos" dentro do jogo)
+**Recursos disponíveis (todos herdados do File Viewer):**
 
-**Recursos ausentes:**
-- ❌ Sem destaque automático de pistas
-- ❌ Sem marcadores de "informação importante"
-- ❌ Sem tradução ou simplificação automática
-- ❌ Sem narração em áudio (o navegador pode fornecer via acessibilidade)
+- Scroll vertical/inércia para passar páginas (ou Page Up/Down)
+- Botões simples de zoom: Ajustar à largura, 100% e 150%
+- Renderização nativa do PDF com antialiasing e fundo cinza-claro
+- Copiar texto ou arrastar imagens diretamente para as anotações
+- Modo escuro/claro seguindo a configuração global do jogo
+
+**Não adicionamos:**
+
+- Favoritos, marcações, busca, impressão ou qualquer HUD extra
+- Indicadores automáticos de pistas ou resumos
+- Sobreposição com dicas/contexto
+
+> Objetivo: o jogador abre um documento no File Viewer, lê confortavelmente e volta aos outros aplicativos quando quiser. Mantemos o fluxo o mais próximo possível de "abrir um PDF no desktop" real.
 
 ### Metadados dos Documentos
 
@@ -122,10 +125,12 @@ Cada documento possui metadados ocultos (não exibidos ao jogador, mas que afeta
   "fileName": "police-report-2023-0315.pdf",
   "author": "Officer Sarah Martinez",
   "dateCreated": "2023-03-16T08:00:00Z",
+
   "tags": ["initial", "official", "scene"],
   "availableAt": "start",
   "relatedEvidence": ["EV-001", "EV-002"],
   "relatedSuspects": ["SUSP-001", "SUSP-002"],
+
   "contradicts": ["DOC-003"],
   "pageCount": 3,
   "importance": "critical"
@@ -173,15 +178,14 @@ Visualização e análise de evidências físicas por meio de fotografias.
 
 ### Apresentação das fotos de evidência
 
-**Visualização individual:**
-```
+Cada evidência possui **apenas uma foto principal** em alta resolução. Nada de galerias com vários ângulos; o objetivo é ser direto como nos dossiês físicos que inspiram o jogo.
+
+```text
 ┌─────────────────────────────────────────────┐
 │ Evidência #EV-001: Arma de fogo (.38)       │
 ├─────────────────────────────────────────────┤
 │                                             │
-│        [FOTO EM ALTA RESOLUÇÃO]             │
-│                                             │
-│   (Arma sobre mesa de evidências com régua) │
+│        FOTO PRINCIPAL (com régua)           │
 │                                             │
 ├─────────────────────────────────────────────┤
 │ Tipo: Física - Arma                         │
@@ -189,19 +193,13 @@ Visualização e análise de evidências físicas por meio de fotografias.
 │ Local: Cena do crime, perto da vítima       │
 │ Coletada por: Equipe CSI Alpha              │
 │                                             │
-│ [📸 Ver ângulos alternativos (3)]            │
 │ [🔬 Análises disponíveis: Balística,        │
 │     Impressões digitais]                    │
 │ [📋 Ver cadeia de custódia]                 │
 └─────────────────────────────────────────────┘
 ```
 
-**Vários ângulos:**
-- Foto geral (contexto)
-- Detalhe em close
-- Referência de escala (régua)
-- Etiqueta de evidência visível
-- Às vezes: antes/depois da coleta
+Se o caso precisar mostrar um detalhe, ele aparece em um **recorte dentro do próprio documento** (por exemplo, no relatório policial). Mantemos o File Viewer livre de botões extras ou carrosséis.
 
 ### Metadados da evidência
 
@@ -225,12 +223,12 @@ Visualização e análise de evidências físicas por meio de fotografias.
     {
       "type": "Ballistics",
       "duration": 12,
-      "durationUnit": "hours"
+      "durationUnit": "minutes"
     },
     {
       "type": "Fingerprints",
       "duration": 8,
-      "durationUnit": "hours"
+      "durationUnit": "minutes"
     }
   ],
   "tags": ["weapon", "critical", "firearm"],
@@ -243,8 +241,7 @@ Visualização e análise de evidências físicas por meio de fotografias.
 
 **O que os jogadores podem fazer:**
 - ✅ Ver fotos em alta resolução
-- ✅ Dar zoom nos detalhes
-- ✅ Alternar entre ângulos
+- ✅ Dar zoom e percorrer a foto arquivada única
 - ✅ Ler a descrição da evidência
 - ✅ Ver metadados de coleta
 - ✅ Solicitar análise forense
@@ -265,75 +262,80 @@ A mecânica central baseada em tempo que cria ritmo e antecipação.
 
 ### Tipos de análise forense
 
+> **Mecânica de tempo acelerado (novo padrão):** todas as durações agora aparecem em minutos reais. Cada minuto corresponde a uma hora da cronologia do caso (ex.: 12 horas in-lore = 12 minutos reais de espera).
+
 **Análise de DNA**
-- **Duração:** 24 horas (tempo real) ou acelerado
+- **Duração acelerada:** 24 minutos (equivalem a 24h na cronologia do caso)
 - **Aplicação em:** Sangue, cabelo, saliva, tecido
 - **Resultados:** Perfil genético, possíveis correspondências com suspeitos/banco de dados
 - **Custo:** Nenhum (solicitações ilimitadas)
 - **Exemplo de resultado:** "Perfil de DNA corresponde a Michael Torres (99,7% de confiança)"
 
 **Balística**
-- **Duração:** 12 horas
+- **Duração acelerada:** 12 minutos (12h in-lore)
 - **Aplicação em:** Armas de fogo, projéteis, cápsulas
 - **Resultados:** Identificação da arma, trajetória, correspondência com projéteis
 - **Exemplo de resultado:** "Projétil retirado da vítima foi disparado pela evidência #EV-001"
 
 **Impressões digitais**
-- **Duração:** 8 horas
+- **Duração acelerada:** 8 minutos (8h in-lore)
 - **Aplicação em:** Impressões em superfícies, armas, objetos
 - **Resultados:** Identificação das digitais, correspondências com suspeitos
 - **Exemplo de resultado:** "Parcial encontrado na arma corresponde ao polegar direito de SUSP-002"
 
 **Toxicologia**
-- **Duração:** 36 horas
+- **Duração acelerada:** 36 minutos (36h in-lore)
 - **Aplicação em:** Amostras de sangue, tecidos
 - **Resultados:** Drogas, venenos, nível alcoólico
 - **Exemplo de resultado:** "Toxicologia do sangue: 0,08% BAC, traços de sedativo"
 
 **Análise de vestígios**
-- **Duração:** 16 horas
+- **Duração acelerada:** 16 minutos (16h in-lore)
 - **Aplicação em:** Fibras, cabelos, lascas de tinta
 - **Resultados:** Identificação do material, possíveis origens
 - **Exemplo de resultado:** "Fibra compatível com carpete do veículo do suspeito"
 
 **Grafoscopia**
-- **Duração:** 10 horas
+- **Duração acelerada:** 10 minutos (10h in-lore)
 - **Aplicação em:** Documentos escritos
 - **Resultados:** Identificação do autor, detecção de falsificação
 - **Exemplo de resultado:** "Assinatura no documento provavelmente falsificada"
 
 **Forense digital (futuro)**
-- **Duração:** 48 horas
+- **Duração acelerada:** 48 minutos (48h in-lore)
 - **Aplicação em:** Telefones, computadores, armazenamento
 - **Resultados:** Arquivos excluídos, metadados, registros de comunicação
 
 ### Fluxo da solicitação
 
 **Passo 1: Selecionar evidência**
-```
+
+```text
 Laboratório Forense > Evidências disponíveis
 
 EV-001: Arma de fogo (.38)
-  [✓] Análise de balística (12h)
-  [✓] Impressões digitais (8h)
+  [✓] Análise de balística (12 min)
+  [✓] Impressões digitais (8 min)
   [ ] Solicitar análises selecionadas
 
 EV-004: Amostra de sangue
-  [✓] Análise de DNA (24h)
-  [✓] Toxicologia (36h)
+  [✓] Análise de DNA (24 min)
+  [✓] Toxicologia (36 min)
   [ ] Solicitar análises selecionadas
 ```
 
 **Passo 2: Confirmar solicitação**
-```
+
+```text
 ┌─────────────────────────────────────────────┐
 │ Confirmar solicitação de perícia            │
 ├─────────────────────────────────────────────┤
 │ Evidência: EV-001 - Arma de fogo            │
 │ Análise: Balística                          │
-│ Duração: 12 horas                           │
+│ Duração: 12 minutos (equivalem a 12h in-lore)│
 │                                             │
 │ Previsão de conclusão: 17/03/2023 14h00     │
+│  (em ~12 minutos reais)                     │
 │                                             │
 │ Observação: você pode continuar investigando│
 │ enquanto aguarda o resultado.               │
@@ -343,24 +345,26 @@ EV-004: Amostra de sangue
 ```
 
 **Passo 3: Período de espera**
-```
+
+```text
 Laboratório Forense > Solicitações pendentes
 
 EV-001 - Análise de balística
   Solicitada: 17/03/2023 02h00
   Status: Em andamento
-  Conclusão: 17/03/2023 14h00 (restam 10h)
+  Conclusão: 17/03/2023 14h00 (restam 12 min reais / 12h in-lore)
   [Ver status]
 
 EV-004 - Análise de DNA
   Solicitada: 17/03/2023 02h05
   Status: Em andamento
-  Conclusão: 18/03/2023 02h05 (restam 22h)
+  Conclusão: 18/03/2023 02h05 (restam 24 min reais / 24h in-lore)
   [Ver status]
 ```
 
 **Passo 4: Resultados disponíveis**
-```
+
+```text
 Laboratório Forense > Análises concluídas
 
 ✓ EV-001 - Análise de balística
@@ -368,22 +372,24 @@ Laboratório Forense > Análises concluídas
   [Ver laudo]  ← Abre o PDF com resultados
 
 ⏱ EV-004 - Análise de DNA
-  Em andamento (restam 22h)
+  Em andamento (restam 24 min reais / 24h in-lore)
 ```
+
+Assim que o laboratório conclui uma perícia, o jogador recebe um **e-mail padrão do Laboratório Forense** (assunto "Laudo disponível", corpo curto com nome da evidência e link "Baixar relatório"). Ao clicar no link, o PDF é automaticamente copiado para o **File Viewer** dentro do jogo, abrindo o documento como se fosse qualquer outro arquivo digital do caso.
 
 ### Mecânicas de tempo
 
-**Modo em tempo real (padrão):**
-- Análises levam horas reais
+**Modo acelerado (padrão agora):**
+- Interface mostra minutos reais equivalentes às horas in-lore (1 minuto = 1 hora na ficção)
+- Análise de "12 horas" termina em 12 minutos reais
+- Mantém a sensação procedural sem exigir espera longa
+- Pode ser desativado nas configurações para quem quiser experiência prolongada
+
+**Modo em tempo real (opcional):**
+- Restaura o cronômetro original em horas reais
 - Jogador pode fechar o jogo e voltar depois
 - Progresso persiste no servidor
-- Incentiva sessões múltiplas
-
-**Modo acelerado (configuração opcional):**
-- 1 minuto real = 1 hora de jogo
-- Análise de 12 horas = 12 minutos reais
-- Para jogadores que preferem ritmo mais rápido
-- Pode ser alternado nas configurações
+- Recomendado para sessões espaçadas ou streamings longos
 
 **Modo instantâneo (acessibilidade):**
 - Todas as análises terminam na hora
@@ -400,11 +406,12 @@ Laboratório Forense > Análises concluídas
 - ✅ Todas terminam no horário previsto
 
 **Linha do tempo de exemplo:**
-```
-02h00 - Solicitar Balística (12h) + DNA (24h) + Impressões (8h)
-10h00 - Impressões prontas
-14h00 - Balística pronta
-02h00 (dia seguinte) - DNA pronto
+
+```text
+02h00 in-lore (T+0 min reais)  - Solicitar Balística (12 min), DNA (24 min) e Impressões (8 min)
+10h00 in-lore (T+8 min reais)  - Impressões prontas
+14h00 in-lore (T+12 min reais) - Balística pronta
+02h00 in-lore do dia seguinte (T+24 min reais) - DNA pronto
 ```
 
 ### Formato do laudo forense
@@ -723,9 +730,9 @@ function evaluateSolution(submission, correctSolution) {
 │ • Citou evidências-chave ✓                  │
 │ • Explicou o motivo de forma sólida ✓       │
 │                                             │
-│ RECOMPENSAS:                                │
-│ • +250 XP                                   │
-│ • Progresso de patente: 250/1000 → Detetive I│
+│ REGISTROS (servidor):                       │
+│ • Tempo registrado: 18 min totais           │
+│ • Casos resolvidos: 5/6 para Detetive I     │
 │ • Status do caso: RESOLVIDO                 │
 │                                             │
 │ [Ver solução completa] [Próximo caso]       │
@@ -769,8 +776,8 @@ function evaluateSolution(submission, correctSolution) {
 │ entender o que faltou ou retornar depois de │
 │ resolver mais 2 casos.                      │
 │                                             │
-│ RECOMPENSAS:                                │
-│ • +0 XP                                     │
+│ REGISTRO:                                   │
+│ • Tempo registrado: 24 min (para referência) │
 │ • Status do caso: NÃO RESOLVIDO (Revisado)  │
 │                                             │
 │ [Ver solução] [Voltar ao painel]            │
@@ -864,67 +871,66 @@ Avanço de longo prazo por meio de patentes.
 
 ### Estrutura de patentes
 
-**Patentes (8 níveis):**
+**Patentes oficiais (8 níveis):** seguimos a hierarquia já usada pelo departamento – mesma nomenclatura de ranking exibida no perfil do jogador.
 
-1. **Novato** (0-500 XP)
-   - Patente inicial
-   - Acesso a casos fáceis
-   - Tutorial concluído
+1. **Novato**
+  - Patente inicial
+  - Acesso a casos fáceis
+  - **Requisito:** 0 casos concluídos (apenas terminar o tutorial)
 
-2. **Detetive III** (500-1500 XP)
-   - Primeiro caso resolvido
-   - Desbloqueia casos médios
-   - Demonstra competência
+2. **Detetive III**
+  - Primeiro degrau real da carreira
+  - Desbloqueia casos médios
+  - **Requisito:** 1 caso arquivado resolvido com veredito correto
 
-3. **Detetive II** (1500-3000 XP)
-   - Vários casos solucionados
-   - Desempenho consistente
-   - Casos médios ficam confortáveis
+3. **Detetive II**
+  - Demonstra consistência
+  - Casos médios passam a ser rotina
+  - **Requisito:** 3 casos concluídos (pelo menos 1 de dificuldade média)
 
-4. **Detetive I** (3000-5000 XP)
-   - Investigador experiente
-   - Desbloqueia casos difíceis
-   - Alta taxa de acerto
+4. **Detetive I**
+  - Investigador experiente
+  - Ganha acesso aos casos difíceis
+  - **Requisito:** 6 casos concluídos (mínimo 2 entre médio/difícil)
 
-5. **Detetive Sênior** (5000-8000 XP)
-   - Domínio dos fundamentos
-   - Muitos casos resolvidos
-   - Casos difíceis acessíveis
+5. **Detetive Sênior**
+  - Domina os fundamentos
+  - Torna-se elegível para casos difíceis recorrentes
+  - **Requisito:** 10 casos concluídos (mínimo 3 difíceis)
 
-6. **Detetive Líder** (8000-12000 XP)
-   - Investigador especialista
-   - Desbloqueia casos de especialista
-   - Respeitado pelos pares
+6. **Detetive Líder**
+  - Referência técnica
+  - Recebe convites para casos de especialista
+  - **Requisito:** 15 casos concluídos (mínimo 2 especialistas)
 
-7. **Detetive Veterano** (12000-18000 XP)
-   - Status de elite
-   - Casos de especialista se tornam viáveis
-   - Patente rara
+7. **Detetive Veterano**
+  - Status de elite
+  - Casos de especialista parecem alcançáveis
+  - **Requisito:** 21 casos concluídos (mínimo 3 especialistas)
 
-8. **Detetive Mestre** (18000+ XP)
-   - Patente máxima
-   - Todo o conteúdo liberado
-   - Status lendário
-   - <1% dos jogadores
+8. **Detetive Mestre**
+  - Patente máxima do ranking
+  - Todo o conteúdo arquivado liberado
+  - **Requisito:** 28 casos concluídos (mínimo 5 especialistas)
 
-### XP concedido
+### Registro de casos e tempo
 
-**Ao resolver casos:**
-- Fácil: 100-200 XP
-- Médio: 250-400 XP
-- Difícil: 500-750 XP
-- Especialista: 1000-1500 XP
+- Progressão não usa XP ou grind artificial: **cada caso resolvido = 1 avanço real**.
+- Ao enviar o dossiê final correto, salvamos somente:
+  - `caseId`
+  - `difficulty`
+  - `resolvedAt`
+  - `elapsedMinutes` (tempo total gasto naquele caso)
+- O `elapsedMinutes` alimenta o ranking interno e placares opcionais (“melhor tempo do departamento”).
+- O servidor mantém histórico por caso para validar promoções; não somamos XP nem pontos extras.
 
-**Modificadores:**
-- **Primeira tentativa:** bônus de +50%
-- **Sem perícias:** bônus de +25% (raro)
-- **Solução rápida (<2h):** +10%
-- **Explicação minuciosa:** +10%
+### Fluxo de promoção
 
-**Penalidades:**
-- Segunda tentativa: -25% XP
-- Terceira tentativa: -50% XP
-- Caso falho: 0 XP
+1. Jogador resolve um caso arquivado.
+2. Gravamos o tempo total (cronômetro do caso) e acrescentamos +1 ao contador de casos concluídos.
+3. Checamos os requisitos da próxima patente (quantidade total + quotas por dificuldade).
+4. Ao atender aos critérios, o perfil sobe automaticamente e desbloqueia o próximo conjunto de casos.
+5. Histórico de tempo permanece disponível para replays, mas **nenhuma outra estatística é persistida**.
 
 ### Benefícios das patentes
 
@@ -1261,7 +1267,7 @@ O que medimos (com respeito ao jogador):
 3. **Anotações** – notas pessoais em texto livre
 4. **Linha do tempo** – cronologia visual de eventos
 5. **Solução** – enviar culpado + explicação (3 tentativas)
-6. **Progressão** – XP e patentes desbloqueiam casos mais difíceis
+6. **Progressão** – Patentes sobem ao resolver casos; salvamos apenas o tempo total
 
 **Princípios mecânicos:**
 - 🎯 Autêntico (perícias realistas, sem gamificação)
