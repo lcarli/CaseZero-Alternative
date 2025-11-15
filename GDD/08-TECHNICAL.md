@@ -14,7 +14,7 @@ This chapter defines the **technical architecture, technology stack, and impleme
 - React frontend (TypeScript)
 - C# ASP.NET Core backend
 - Azure cloud infrastructure
-- PostgreSQL database
+- Azure SQL Database (SQL Server)
 - Blob storage for assets
 - JWT authentication
 - Real-time forensics via background jobs
@@ -85,12 +85,11 @@ This chapter defines the **technical architecture, technology stack, and impleme
 │              │                               │              │
 │  ┌───────────▼────────────┐    ┌────────────▼──────────┐  │
 │  │ Azure SQL Database      │    │ Azure Blob Storage    │  │
-│  │ (PostgreSQL)            │    │ - Case documents      │  │
-│  │ - User accounts         │    │ - Evidence photos     │  │
-│  │ - Case sessions         │    │ - Forensic reports    │  │
-│  │ - Forensic requests     │    │ - Suspect photos      │  │
-│  │ - Submissions           │    │                       │  │
-│  │ - Progression data      │    │                       │  │
+│  │ (SQL Server)            │    │ - case.json + assets  │  │
+│  │ - Identity + profiles   │    │ - Evidence imagery    │  │
+│  │ - Sessions & progress   │    │ - Forensic reports    │  │
+│  │ - Submissions, forensics│    │ - Suspect photography │  │
+│  │ - Emails & achievements │    │                       │  │
 │  └────────────────────────┘    └───────────────────────┘  │
 │                                                              │
 │  ┌────────────────────────────────────────────────────────┐ │
@@ -206,16 +205,17 @@ This chapter defines the **technical architecture, technology stack, and impleme
 ### Database
 
 **Primary Database:**
-- **PostgreSQL 15+** (via Azure Database for PostgreSQL)
-  - Relational data
-  - ACID transactions
-  - JSON support for case.json storage
+- **Azure SQL Database (SQL Server 2022+)**
+  - Fully managed relational engine
+  - Native support for ASP.NET Identity
+  - NVARCHAR columns store lightweight JSON safely
+  - Always-on backups, geo-replication, point-in-time restore
 
-**Why PostgreSQL:**
-- Open source, widely supported
-- Excellent performance
-- JSON/JSONB for flexible case data
-- Strong Azure integration
+**Why Azure SQL:**
+- First-class integration with Azure AD, Key Vault and monitoring
+- Same provider used in development (`Microsoft.EntityFrameworkCore.SqlServer`)
+- Automatic patching, scaling and high availability without servers to manage
+- Keeps application stack consistent between local and cloud environments
 
 ---
 
@@ -259,131 +259,206 @@ This chapter defines the **technical architecture, technology stack, and impleme
 
 ---
 
-## 8.5 Database Schema
+## 8.5 Data Schema
 
-### Core Tables
+CaseZero follows a **storage-first** model. The CaseGen Azure Function produces the entire case package (`case.json`, `evidence/*.json`, audio, video, reports) and writes it to **Azure Blob Storage**, which becomes the single source of truth for narrative content. The Web API streams that JSON to the frontend, while **Azure SQL Database** tracks only the relational state tied to players, sessions, and telemetry.
 
-**Users**
+### Responsibility split
+
+- **Azure Blob Storage**: immutable case manifests, suspect sheets, evidence assets, localized strings, forensic results. Each `cases/{caseId}` folder can be versioned simply by publishing a new prefix.
+- **Azure SQL Database (SQL Server)**: ASP.NET Identity tables plus player state (sessions, progress, unlocks, submissions, emails, achievements). No narrative text or gameplay assets are duplicated here.
+- **Optional in-memory cache (Redis)**: stores recently requested `case.json` payloads keyed by `CaseId:CaseVersion` to reduce blob fetches.
+
+### Generation & consumption flow
+
+1. **CaseGen.Functions** generates the case and uploads it to the Storage Account.
+2. The backend optionally records a pointer to the blob in SQL (catalog entry) and emits publication events.
+3. The frontend requests `case.json` through the API (which streams the blob) and persists the player’s progress to SQL using only `CaseId` and `CaseVersion` as foreign keys.
+4. When a new revision ships, only the blob changes; existing sessions keep their stored version until they finish or a migration runs.
+
+### Lightweight case catalog (optional)
+
+Even though we do not store narrative content in SQL, keeping a minimal catalog helps with discovery, auditing, and localization fallbacks.
+
 ```sql
-CREATE TABLE Users (
-    UserId UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    Username VARCHAR(50) UNIQUE NOT NULL,
-    Email VARCHAR(255) UNIQUE NOT NULL,
-    PasswordHash VARCHAR(255) NOT NULL,
-    CreatedAt TIMESTAMP NOT NULL DEFAULT NOW(),
-    LastLoginAt TIMESTAMP,
-    IsActive BOOLEAN NOT NULL DEFAULT TRUE
+CREATE TABLE CaseCatalog (
+  CaseId NVARCHAR(64) NOT NULL PRIMARY KEY,
+  BlobContainer NVARCHAR(100) NOT NULL,
+  BlobPath NVARCHAR(200) NOT NULL,
+  Version NVARCHAR(32) NOT NULL,
+  Checksum NVARCHAR(128) NULL,
+  Locale NVARCHAR(10) NOT NULL DEFAULT 'en-US',
+  PublishedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+  IsActive BIT NOT NULL DEFAULT 1
 );
-
-CREATE INDEX idx_users_email ON Users(Email);
-CREATE INDEX idx_users_username ON Users(Username);
 ```
 
-**UserProgress**
+> If we ever decide to enumerate cases directly from Blob Storage, this table can be dropped without touching the rest of the schema because `CaseId` is just a string key everywhere else.
+
+### Player-centric tables
+
+The remaining relational tables reference `CaseId` (and often `CaseVersion`) but never hold the actual case payload. They only describe what a specific user did inside that case.
+
+#### UserCases (assignments)
+
 ```sql
-CREATE TABLE UserProgress (
-    UserId UUID PRIMARY KEY REFERENCES Users(UserId),
-    CurrentRank VARCHAR(50) NOT NULL DEFAULT 'Rookie',
-    TotalXP INTEGER NOT NULL DEFAULT 0,
-    CasesSolved INTEGER NOT NULL DEFAULT 0,
-    CasesFailed INTEGER NOT NULL DEFAULT 0,
-    FirstAttemptSuccesses INTEGER NOT NULL DEFAULT 0,
-    TotalInvestigationMinutes INTEGER NOT NULL DEFAULT 0,
-    CreatedAt TIMESTAMP NOT NULL DEFAULT NOW(),
-    UpdatedAt TIMESTAMP NOT NULL DEFAULT NOW()
+CREATE TABLE UserCases (
+  UserId NVARCHAR(450) NOT NULL,
+  CaseId NVARCHAR(64) NOT NULL,
+  CaseVersion NVARCHAR(32) NOT NULL,
+  AssignedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+  Role INT NOT NULL,
+  Notes NVARCHAR(MAX) NULL,
+  CONSTRAINT PK_UserCases PRIMARY KEY (UserId, CaseId),
+  CONSTRAINT FK_UserCases_User FOREIGN KEY (UserId) REFERENCES AspNetUsers(Id) ON DELETE CASCADE,
+  CONSTRAINT FK_UserCases_Case FOREIGN KEY (CaseId) REFERENCES CaseCatalog(CaseId)
 );
 ```
 
-**Cases** (Metadata)
-```sql
-CREATE TABLE Cases (
-    CaseId VARCHAR(50) PRIMARY KEY,
-    Title VARCHAR(255) NOT NULL,
-    Difficulty VARCHAR(20) NOT NULL CHECK (Difficulty IN ('Easy', 'Medium', 'Hard', 'Expert')),
-    EstimatedTimeHours DECIMAL(4,1) NOT NULL,
-    Status VARCHAR(20) NOT NULL DEFAULT 'Published',
-    CaseDataJson JSONB NOT NULL, -- Full case.json stored here
-    CreatedAt TIMESTAMP NOT NULL DEFAULT NOW(),
-    UpdatedAt TIMESTAMP NOT NULL DEFAULT NOW()
-);
+#### CaseSessions
 
-CREATE INDEX idx_cases_difficulty ON Cases(Difficulty);
-CREATE INDEX idx_cases_status ON Cases(Status);
-```
-
-**CaseSessions** (Player progress per case)
 ```sql
 CREATE TABLE CaseSessions (
-    SessionId UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    UserId UUID NOT NULL REFERENCES Users(UserId),
-    CaseId VARCHAR(50) NOT NULL REFERENCES Cases(CaseId),
-    Status VARCHAR(20) NOT NULL DEFAULT 'Active' CHECK (Status IN ('Active', 'Solved', 'Failed')),
-    StartedAt TIMESTAMP NOT NULL DEFAULT NOW(),
-    CompletedAt TIMESTAMP,
-    TotalTimeMinutes INTEGER NOT NULL DEFAULT 0,
-    SubmissionAttempts INTEGER NOT NULL DEFAULT 0,
-    NotesText TEXT,
-    UNIQUE(UserId, CaseId)
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  SessionId UNIQUEIDENTIFIER NOT NULL DEFAULT NEWSEQUENTIALID(),
+  UserId NVARCHAR(450) NOT NULL REFERENCES AspNetUsers(Id) ON DELETE CASCADE,
+  CaseId NVARCHAR(64) NOT NULL,
+  CaseVersion NVARCHAR(32) NOT NULL,
+  Status INT NOT NULL,
+  StartedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+  CompletedAt DATETIME2 NULL,
+  TotalTimeMinutes INT NOT NULL DEFAULT 0,
+  SubmissionAttempts INT NOT NULL DEFAULT 0,
+  LastCheckpoint NVARCHAR(128) NULL,
+  Notes NVARCHAR(MAX) NULL
 );
 
-CREATE INDEX idx_sessions_user ON CaseSessions(UserId);
-CREATE INDEX idx_sessions_status ON CaseSessions(Status);
+CREATE UNIQUE INDEX IX_CaseSessions_UserCase ON CaseSessions(UserId, CaseId) WHERE Status = 0; -- enforce a single active session
 ```
 
-**ForensicRequests** (Real-time timer tracking)
+#### CaseProgress snapshots
+
 ```sql
-CREATE TABLE ForensicRequests (
-    RequestId UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    SessionId UUID NOT NULL REFERENCES CaseSessions(SessionId),
-    EvidenceId VARCHAR(50) NOT NULL,
-    AnalysisType VARCHAR(50) NOT NULL,
-    RequestedAt TIMESTAMP NOT NULL DEFAULT NOW(),
-    CompletesAt TIMESTAMP NOT NULL,
-    CompletedAt TIMESTAMP,
-    Status VARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (Status IN ('Pending', 'Completed', 'Cancelled')),
-    ResultBlobPath VARCHAR(500) -- Path to forensic report PDF
+CREATE TABLE CaseProgresses (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  SessionId INT NOT NULL REFERENCES CaseSessions(Id) ON DELETE CASCADE,
+  CaseId NVARCHAR(64) NOT NULL,
+  UserId NVARCHAR(450) NOT NULL,
+  UnlockedContentJson NVARCHAR(MAX) NOT NULL,
+  EvidenceCount INT NOT NULL DEFAULT 0,
+  InterviewsCompleted INT NOT NULL DEFAULT 0,
+  Notes NVARCHAR(MAX) NULL,
+  LastActivity DATETIME2 NOT NULL DEFAULT GETUTCDATE()
 );
 
-CREATE INDEX idx_forensics_session ON ForensicRequests(SessionId);
-CREATE INDEX idx_forensics_status ON ForensicRequests(Status);
-CREATE INDEX idx_forensics_completes_at ON ForensicRequests(CompletesAt) WHERE Status = 'Pending';
+CREATE INDEX IX_CaseProgresses_Session ON CaseProgresses(SessionId);
 ```
 
-**CaseSubmissions** (Solution attempts)
+#### EvidenceUnlocks telemetry
+
+```sql
+CREATE TABLE EvidenceUnlocks (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  SessionId INT NOT NULL REFERENCES CaseSessions(Id) ON DELETE CASCADE,
+  CaseId NVARCHAR(64) NOT NULL,
+  EvidenceId NVARCHAR(64) NOT NULL,
+  UnlockedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+  Source NVARCHAR(50) NOT NULL,
+  PayloadJson NVARCHAR(MAX) NULL
+);
+
+CREATE INDEX IX_EvidenceUnlocks_Session ON EvidenceUnlocks(SessionId);
+```
+
+#### ForensicAnalyses
+
+```sql
+CREATE TABLE ForensicAnalyses (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  SessionId INT NOT NULL REFERENCES CaseSessions(Id) ON DELETE CASCADE,
+  CaseId NVARCHAR(64) NOT NULL,
+  EvidenceId NVARCHAR(64) NOT NULL,
+  RequestedByUserId NVARCHAR(450) NOT NULL REFERENCES AspNetUsers(Id),
+  AnalysisType NVARCHAR(50) NOT NULL,
+  Status INT NOT NULL,
+  RequestedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+  CompletesAt DATETIME2 NOT NULL,
+  CompletedAt DATETIME2 NULL,
+  ResultBlobPath NVARCHAR(500) NULL,
+  ResultSummary NVARCHAR(MAX) NULL
+);
+
+CREATE INDEX IX_Forensics_Status ON ForensicAnalyses(Status);
+```
+
+#### CaseSubmissions
+
 ```sql
 CREATE TABLE CaseSubmissions (
-    SubmissionId UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    SessionId UUID NOT NULL REFERENCES CaseSessions(SessionId),
-    SubmittedAt TIMESTAMP NOT NULL DEFAULT NOW(),
-    CulpritSelected VARCHAR(50) NOT NULL,
-    MotiveExplanation TEXT NOT NULL,
-    MethodExplanation TEXT NOT NULL,
-    EvidenceSelected JSONB NOT NULL, -- Array of evidence IDs
-    IsCorrect BOOLEAN NOT NULL,
-    XPAwarded INTEGER NOT NULL,
-    FeedbackJson JSONB -- Detailed feedback
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  SessionId INT NOT NULL REFERENCES CaseSessions(Id) ON DELETE CASCADE,
+  CaseId NVARCHAR(64) NOT NULL,
+  SubmittedByUserId NVARCHAR(450) NOT NULL REFERENCES AspNetUsers(Id) ON DELETE CASCADE,
+  SuspectExternalId NVARCHAR(64) NOT NULL,
+  Motive NVARCHAR(MAX) NOT NULL,
+  Method NVARCHAR(MAX) NOT NULL,
+  EvidenceSelectedJson NVARCHAR(MAX) NOT NULL,
+  CaseVersion NVARCHAR(32) NOT NULL,
+  SubmittedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+  Status INT NOT NULL,
+  Score FLOAT NOT NULL DEFAULT 0,
+  FeedbackJson NVARCHAR(MAX) NULL,
+  EvaluatedAt DATETIME2 NULL,
+  EvaluatedByUserId NVARCHAR(450) NULL REFERENCES AspNetUsers(Id)
 );
 
-CREATE INDEX idx_submissions_session ON CaseSubmissions(SessionId);
-CREATE INDEX idx_submissions_submitted_at ON CaseSubmissions(SubmittedAt);
+CREATE INDEX IX_CaseSubmissions_Session ON CaseSubmissions(SessionId, SubmittedAt);
 ```
 
-**Achievements** (Optional)
+#### Emails
+
+```sql
+CREATE TABLE Emails (
+  Id INT IDENTITY(1,1) PRIMARY KEY,
+  CaseId NVARCHAR(64) NULL,
+  CaseVersion NVARCHAR(32) NULL,
+  ToUserId NVARCHAR(450) NOT NULL REFERENCES AspNetUsers(Id),
+  FromUserId NVARCHAR(450) NOT NULL REFERENCES AspNetUsers(Id),
+  Subject NVARCHAR(200) NOT NULL,
+  Content NVARCHAR(MAX) NOT NULL,
+  Preview NVARCHAR(280) NULL,
+  SentAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+  IsRead BIT NOT NULL DEFAULT 0,
+  Type INT NOT NULL,
+  AttachmentsJson NVARCHAR(MAX) NULL,
+  IsSystemGenerated BIT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IX_Emails_User ON Emails(ToUserId, IsRead);
+```
+
+#### Achievements (optional)
+
 ```sql
 CREATE TABLE Achievements (
-    AchievementId VARCHAR(50) PRIMARY KEY,
-    Name VARCHAR(100) NOT NULL,
-    Description TEXT NOT NULL,
-    BadgeIcon VARCHAR(100)
+  AchievementId NVARCHAR(50) PRIMARY KEY,
+  Name NVARCHAR(100) NOT NULL,
+  Description NVARCHAR(400) NOT NULL,
+  BadgeIcon NVARCHAR(200) NULL
 );
 
 CREATE TABLE UserAchievements (
-    UserId UUID NOT NULL REFERENCES Users(UserId),
-    AchievementId VARCHAR(50) NOT NULL REFERENCES Achievements(AchievementId),
-    UnlockedAt TIMESTAMP NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (UserId, AchievementId)
+  UserId NVARCHAR(450) NOT NULL REFERENCES AspNetUsers(Id) ON DELETE CASCADE,
+  AchievementId NVARCHAR(50) NOT NULL REFERENCES Achievements(AchievementId) ON DELETE CASCADE,
+  CaseId NVARCHAR(64) NULL,
+  UnlockedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+  PRIMARY KEY (UserId, AchievementId)
 );
 ```
+
+> `CaseId` inside `UserAchievements` is purely referential: it lets us run analytics per case without storing case payloads in SQL.
+
+---
 
 ---
 
@@ -1191,8 +1266,8 @@ _logger.LogInformation(
 **Prerequisites:**
 - Node.js 18+
 - .NET 9 SDK
-- Docker Desktop
-- PostgreSQL (via Docker)
+- Docker Desktop (optional)
+- Access to Azure SQL Database **or** local SQL Server (Azure SQL Edge / container)
 
 **Setup:**
 ```bash
@@ -1206,8 +1281,11 @@ cd backend
 dotnet restore
 dotnet run
 
-# Database (Docker)
-docker-compose up -d postgres
+# Database (optional via Docker)
+docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=YourStrong!Pass123' \
+  -p 1433:1433 -d mcr.microsoft.com/mssql/server:2022-latest
+
+# Apply EF migrations against the configured instance
 dotnet ef database update
 ```
 
@@ -1220,7 +1298,7 @@ VITE_CDN_URL=http://localhost:5000/assets
 # Backend (appsettings.Development.json)
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Database=casezero_dev;..."
+    "DefaultConnection": "Server=localhost,1433;Database=CaseZeroDev;User ID=sa;Password=YourStrong!Pass123;Encrypt=False;TrustServerCertificate=True"
   },
   "JwtSettings": {
     "Secret": "dev-secret-key-32-chars-min",
@@ -1274,7 +1352,7 @@ dotnet test
 **Production:**
 - Microsoft.AspNetCore.App
 - Microsoft.EntityFrameworkCore
-- Npgsql.EntityFrameworkCore.PostgreSQL
+- Microsoft.EntityFrameworkCore.SqlServer
 - Microsoft.AspNetCore.Authentication.JwtBearer
 - Serilog
 - Azure.Storage.Blobs
@@ -1292,7 +1370,7 @@ dotnet test
 **Architecture:**
 - **Frontend:** React SPA (TypeScript) with Redux
 - **Backend:** ASP.NET Core REST API (C#)
-- **Database:** PostgreSQL (Azure)
+- **Database:** Azure SQL Database (SQL Server)
 - **Storage:** Azure Blob Storage + CDN
 - **Serverless:** Azure Functions for forensic timers
 
