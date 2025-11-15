@@ -400,6 +400,20 @@ export interface NormalizedCaseBundle {
   }
 }
 
+export interface ForensicRequestDTO {
+  id?: number
+  caseId: string
+  evidenceId: string
+  evidenceName: string
+  analysisType: 'DNA' | 'Fingerprint' | 'DigitalForensics' | 'Ballistics'
+  requestedAt: string // ISO string
+  estimatedCompletionTime: string // ISO string
+  completedAt?: string // ISO string
+  status: 'pending' | 'in-progress' | 'completed' | 'cancelled'
+  resultDocumentId?: string
+  notes?: string
+}
+
 export const caseFilesApi = {
   /**
    * Get all files for a specific case from the normalized bundle
@@ -423,4 +437,63 @@ export const caseFilesApi = {
   }
 }
 
+export const forensicRequestApi = {
+  /**
+   * Get all forensic requests for a case
+   */
+  getForensicRequests: async (caseId: string): Promise<ForensicRequestDTO[]> => {
+    return apiFetch(`/forensicrequest/${caseId}`)
+  },
+
+  /**
+   * Get pending forensic requests for a case
+   */
+  getPendingForensicRequests: async (caseId: string): Promise<ForensicRequestDTO[]> => {
+    return apiFetch(`/forensicrequest/${caseId}/pending`)
+  },
+
+  /**
+   * Get a specific forensic request
+   */
+  getForensicRequest: async (caseId: string, id: number): Promise<ForensicRequestDTO> => {
+    return apiFetch(`/forensicrequest/${caseId}/${id}`)
+  },
+
+  /**
+   * Create a new forensic request
+   */
+  createForensicRequest: async (request: ForensicRequestDTO): Promise<ForensicRequestDTO> => {
+    return apiFetch('/forensicrequest', {
+      method: 'POST',
+      body: JSON.stringify(request),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+  },
+
+  /**
+   * Update a forensic request
+   */
+  updateForensicRequest: async (caseId: string, id: number, request: ForensicRequestDTO): Promise<void> => {
+    return apiFetch(`/forensicrequest/${caseId}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+  },
+
+  /**
+   * Delete a forensic request
+   */
+  deleteForensicRequest: async (caseId: string, id: number): Promise<void> => {
+    return apiFetch(`/forensicrequest/${caseId}/${id}`, {
+      method: 'DELETE'
+    })
+  }
+}
+
 export { ApiError }
+

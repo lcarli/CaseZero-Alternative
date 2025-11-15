@@ -5,10 +5,12 @@ import type {
   Suspect, 
   FileItem, 
   EmailItem,
-  TemporalEvent
+  TemporalEvent,
+  ForensicRequest
 } from '../types/case'
 import { PoliceRank, getRankFromString, hasRequiredRank } from '../types/ranks'
 import { caseFilesApi, type FileViewerItem } from '../services/api'
+import { forensicsService } from '../services/forensicsService'
 
 /**
  * Central Game Engine - manages all case state, evidence unlocking, and business logic
@@ -17,6 +19,8 @@ import { caseFilesApi, type FileViewerItem } from '../services/api'
 export class CaseEngine {
   private state: CaseState
   private listeners: ((state: CaseState) => void)[] = []
+  private forensicCheckInterval: number | null = null
+  private lastCheckedTime: Date | null = null
 
   constructor(caseData: CaseData, playerRank: PoliceRank = PoliceRank.DETECTIVE) {
     this.state = {
@@ -39,6 +43,11 @@ export class CaseEngine {
    * Initialize case - unlock immediately available evidence and suspects
    */
   private initializeCase(): void {
+    if (!this.state.caseData) {
+      console.error('Cannot initialize case: caseData is undefined')
+      return
+    }
+
     // Check rank requirement
     const requiredRank = getRankFromString(this.state.caseData.metadata.minRankRequired)
     if (!hasRequiredRank(this.state.playerRank, requiredRank)) {
@@ -46,14 +55,14 @@ export class CaseEngine {
     }
 
     // Unlock evidence with immediate conditions
-    this.state.caseData.evidences.forEach(evidence => {
+    this.state.caseData.evidences?.forEach(evidence => {
       if (evidence.unlockConditions.immediate || evidence.isUnlocked) {
         this.state.unlockedEvidences.add(evidence.id)
       }
     })
 
     // Unlock suspects with immediate conditions  
-    this.state.caseData.suspects.forEach(suspect => {
+    this.state.caseData.suspects?.forEach(suspect => {
       if (suspect.unlockConditions.immediate) {
         this.state.unlockedSuspects.add(suspect.id)
       }
@@ -218,13 +227,30 @@ export class CaseEngine {
   public updateGameTime(newTime: Date): void {
     this.state.currentGameTime = newTime
     this.checkTemporalEvents()
+    this.checkForensicRequests()
     this.notifyListeners()
+  }
+
+  /**
+   * Get current game time
+   */
+  public getCurrentGameTime(): Date {
+    return this.state.currentGameTime
+  }
+
+  /**
+   * Get game start time
+   */
+  public getGameStartTime(): Date {
+    return this.state.gameStartTime
   }
 
   /**
    * Check progression rules and unlock new content
    */
   private checkProgressionRules(triggerType: string, targetId: string): void {
+    if (!this.state.caseData?.unlockLogic?.progressionRules) return
+
     this.state.caseData.unlockLogic.progressionRules.forEach(rule => {
       if (rule.condition === triggerType && rule.target === targetId) {
         // Apply delay if specified
@@ -253,6 +279,8 @@ export class CaseEngine {
    * Check temporal events based on elapsed time
    */
   private checkTemporalEvents(): void {
+    if (!this.state.caseData?.temporalEvents) return
+
     const elapsedMinutes = Math.floor(
       (this.state.currentGameTime.getTime() - this.state.gameStartTime.getTime()) / (1000 * 60)
     )
@@ -346,6 +374,8 @@ export class CaseEngine {
   }
 
   private updateAvailableFiles(): void {
+    if (!this.state.caseData) return
+
     const files: FileItem[] = []
 
     // Add evidence files
@@ -365,7 +395,7 @@ export class CaseEngine {
 
     // Add forensic analysis results
     this.state.completedAnalyses.forEach(analysisId => {
-      const analysis = this.state.caseData.forensicAnalyses.find(a => 
+      const analysis = this.state.caseData?.forensicAnalyses?.find(a => 
         `${a.evidenceId}-${a.analysisType}` === analysisId
       )
       if (analysis) {
@@ -440,5 +470,129 @@ export class CaseEngine {
    */
   public getState(): CaseState {
     return { ...this.state }
+  }
+
+  /**
+   * Check forensic requests and complete those that are ready
+   * This is called automatically when game time updates
+   */
+  private async checkForensicRequests(): Promise<void> {
+    // Avoid checking too frequently (once per game minute is enough)
+    if (this.lastCheckedTime) {
+      const timeDiff = this.state.currentGameTime.getTime() - this.lastCheckedTime.getTime()
+      if (timeDiff < 60000) { // Less than 1 minute
+        return
+      }
+    }
+
+    this.lastCheckedTime = this.state.currentGameTime
+
+    try {
+      const completedRequests = await forensicsService.checkCompletedRequests(
+        this.state.caseData.caseId,
+        this.state.currentGameTime
+      )
+
+      for (const request of completedRequests) {
+        await this.handleForensicRequestCompletion(request)
+      }
+    } catch (error) {
+      console.error('Error checking forensic requests:', error)
+    }
+  }
+
+  /**
+   * Handle completion of a forensic request
+   */
+  private async handleForensicRequestCompletion(request: ForensicRequest): Promise<void> {
+    try {
+      // Generate result document ID (in real scenario, backend would do this)
+      const resultDocumentId = `forensic-result-${request.id}`
+
+      // Complete the request in the backend
+      await forensicsService.completeForensicRequest(
+        request.caseId,
+        request.id,
+        this.state.currentGameTime,
+        resultDocumentId
+      )
+
+      // Mark analysis as completed in local state
+      this.state.completedAnalyses.add(request.evidenceId)
+
+      // Refresh available files to show new forensic report
+      await this.updateAvailableFiles()
+
+      // Trigger notification (could be enhanced with a notification system)
+      console.log(`Forensic analysis completed: ${request.analysisType} for ${request.evidenceName}`)
+
+      this.notifyListeners()
+    } catch (error) {
+      console.error('Error handling forensic request completion:', error)
+    }
+  }
+
+  /**
+   * Request a forensic analysis for an evidence
+   */
+  public async requestForensicAnalysis(
+    evidenceId: string,
+    analysisType: 'DNA' | 'Fingerprint' | 'DigitalForensics' | 'Ballistics',
+    notes?: string
+  ): Promise<ForensicRequest> {
+    const evidence = this.state.caseData.evidences.find(e => e.id === evidenceId)
+    if (!evidence) {
+      throw new Error(`Evidence ${evidenceId} not found`)
+    }
+
+    const request = await forensicsService.requestForensicAnalysis(
+      this.state.caseData.caseId,
+      evidenceId,
+      evidence.name,
+      analysisType,
+      this.state.currentGameTime,
+      notes
+    )
+
+    this.notifyListeners()
+    return request
+  }
+
+  /**
+   * Get all forensic requests for this case
+   */
+  public async getForensicRequests(): Promise<ForensicRequest[]> {
+    return forensicsService.getForensicRequests(this.state.caseData.caseId)
+  }
+
+  /**
+   * Get pending forensic requests for this case
+   */
+  public async getPendingForensicRequests(): Promise<ForensicRequest[]> {
+    return forensicsService.getPendingForensicRequests(this.state.caseData.caseId)
+  }
+
+  /**
+   * Start periodic forensic check (called when engine initializes)
+   */
+  public startForensicChecks(): void {
+    if (this.forensicCheckInterval) {
+      return // Already running
+    }
+
+    // Check every 30 seconds in real time
+    this.forensicCheckInterval = window.setInterval(() => {
+      this.checkForensicRequests()
+    }, 30000)
+  }
+
+  /**
+   * Stop periodic forensic checks (called when engine is disposed)
+   */
+  public stopForensicChecks(): void {
+    if (this.forensicCheckInterval) {
+      clearInterval(this.forensicCheckInterval)
+      this.forensicCheckInterval = null
+    }
   }
 }

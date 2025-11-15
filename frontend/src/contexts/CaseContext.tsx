@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { CaseEngine } from '../engine/CaseEngine'
 import { CaseDataService } from '../services/caseDataService'
 import { PoliceRank } from '../types/ranks'
-import type { FileItem, EmailItem } from '../types/case'
+import type { FileItem, EmailItem, ForensicRequest } from '../types/case'
 
 interface CaseContextType {
   currentCase: string | null
@@ -18,6 +18,19 @@ interface CaseContextType {
   examineEvidence: (evidenceId: string) => void
   downloadAttachment: (attachmentName: string) => void
   requestAnalysis: (evidenceId: string, analysisType: string) => boolean
+  
+  // Time synchronization methods
+  getCurrentGameTime: () => Date | null
+  updateGameTime: (newTime: Date) => void
+  
+  // Forensic request methods
+  requestForensicAnalysis: (
+    evidenceId: string,
+    analysisType: 'DNA' | 'Fingerprint' | 'DigitalForensics' | 'Ballistics',
+    notes?: string
+  ) => Promise<ForensicRequest>
+  getForensicRequests: () => Promise<ForensicRequest[]>
+  getPendingForensicRequests: () => Promise<ForensicRequest[]>
 }
 
 const CaseContext = createContext<CaseContextType | undefined>(undefined)
@@ -62,6 +75,9 @@ export const CaseProvider: React.FC<CaseProviderProps> = ({
         // Load files from API (documents and media)
         await newEngine.loadFilesFromApi(caseId)
         
+        // Start forensic checks
+        newEngine.startForensicChecks()
+        
         setEngine(newEngine)
         setCurrentCase(caseId)
       } catch (err) {
@@ -74,6 +90,13 @@ export const CaseProvider: React.FC<CaseProviderProps> = ({
     }
 
     initializeEngine()
+    
+    // Cleanup: stop forensic checks when component unmounts
+    return () => {
+      if (engine) {
+        engine.stopForensicChecks()
+      }
+    }
   }, [caseId, playerRank])
 
   const setCaseId = (newCaseId: string) => {
@@ -100,6 +123,39 @@ export const CaseProvider: React.FC<CaseProviderProps> = ({
     return engine?.requestAnalysis(evidenceId, analysisType) || false
   }
 
+  const getCurrentGameTime = (): Date | null => {
+    return engine?.getCurrentGameTime() || null
+  }
+
+  const updateGameTime = (newTime: Date): void => {
+    engine?.updateGameTime(newTime)
+  }
+
+  const requestForensicAnalysis = async (
+    evidenceId: string,
+    analysisType: 'DNA' | 'Fingerprint' | 'DigitalForensics' | 'Ballistics',
+    notes?: string
+  ): Promise<ForensicRequest> => {
+    if (!engine) {
+      throw new Error('Case engine not initialized')
+    }
+    return engine.requestForensicAnalysis(evidenceId, analysisType, notes)
+  }
+
+  const getForensicRequests = async (): Promise<ForensicRequest[]> => {
+    if (!engine) {
+      return []
+    }
+    return engine.getForensicRequests()
+  }
+
+  const getPendingForensicRequests = async (): Promise<ForensicRequest[]> => {
+    if (!engine) {
+      return []
+    }
+    return engine.getPendingForensicRequests()
+  }
+
   const contextValue: CaseContextType = {
     currentCase,
     engine,
@@ -110,7 +166,12 @@ export const CaseProvider: React.FC<CaseProviderProps> = ({
     getAvailableEmails,
     examineEvidence,
     downloadAttachment,
-    requestAnalysis
+    requestAnalysis,
+    getCurrentGameTime,
+    updateGameTime,
+    requestForensicAnalysis,
+    getForensicRequests,
+    getPendingForensicRequests
   }
 
   return (

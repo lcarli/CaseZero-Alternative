@@ -20,6 +20,7 @@ namespace CaseZeroApi.Data
         public DbSet<Suspect> Suspects { get; set; }
         public DbSet<Email> Emails { get; set; }
         public DbSet<CaseSession> CaseSessions { get; set; }
+        public DbSet<ForensicRequest> ForensicRequests { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -126,6 +127,12 @@ namespace CaseZeroApi.Data
                 .HasOne(cs => cs.User)
                 .WithMany()
                 .HasForeignKey(cs => cs.UserId);
+
+            // Configure ForensicRequest
+            builder.Entity<ForensicRequest>()
+                .HasOne(fr => fr.User)
+                .WithMany()
+                .HasForeignKey(fr => fr.UserId);
 
             // Note: Seed data moved to DataSeedingService to avoid dynamic values in migrations
             // This allows migrations to be deterministic and avoids PendingModelChangesWarning

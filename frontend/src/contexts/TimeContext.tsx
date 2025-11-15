@@ -1,7 +1,5 @@
 import React, { createContext, useState, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
-import { forensicsService } from '../services/forensicsService'
-import type { ForensicsRequest, ForensicsType } from '../services/forensicsService'
 
 interface TimeContextType {
   gameTime: Date
@@ -14,9 +12,6 @@ interface TimeContextType {
   timeEntries: TimeEntry[]
   getFormattedTime: () => string
   getFormattedDate: () => string
-  submitForensicsAnalysis: (type: ForensicsType, fileName: string) => ForensicsRequest
-  getActiveForensicsRequests: () => ForensicsRequest[]
-  getCompletedForensicsRequests: () => ForensicsRequest[]
 }
 
 export interface TimeEntry {
@@ -33,32 +28,25 @@ const TimeContext = createContext<TimeContextType | undefined>(undefined)
 interface TimeProviderProps {
   children: ReactNode
   caseId?: string
+  initialGameTime?: Date
 }
 
-// Game time runs faster than real time: 1 real minute = 30 game minutes
-const TIME_MULTIPLIER = 30
+// Game time runs faster than real time: 1 real second = 1 game minute (60x multiplier)
+// This means: 1 real minute = 1 game hour, 1 real hour = 60 game hours
+const TIME_MULTIPLIER = 60
 
-export const TimeProvider: React.FC<TimeProviderProps> = ({ children, caseId }) => {
-  const [gameTime, setGameTime] = useState<Date>(new Date())
-  const [startTime, setStartTimeState] = useState<Date>(new Date())
+export const TimeProvider: React.FC<TimeProviderProps> = ({ children, caseId, initialGameTime }) => {
+  const [gameTime, setGameTime] = useState<Date>(initialGameTime || new Date())
+  const [startTime, setStartTimeState] = useState<Date>(initialGameTime || new Date())
   const [isRunning, setIsRunning] = useState<boolean>(true)
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
   const intervalRef = useRef<number | null>(null)
   const lastUpdateRef = useRef<number>(Date.now())
 
-  // Initialize forensics service callbacks
-  useEffect(() => {
-    forensicsService['onAddTimeEntry'] = addTimeEntry
-    forensicsService['onRequestComplete'] = (request: ForensicsRequest) => {
-      // Additional handling for completed forensics requests can be added here
-      console.log('Forensics request completed:', request)
-    }
-  }, [])
-
   // Initialize game time based on case
   useEffect(() => {
-    if (caseId) {
-      // Set start time based on case - for now using a default start time
+    if (caseId && !initialGameTime) {
+      // Only set default time if no initialGameTime was provided
       const caseStartTime = new Date()
       // Set to 8:00 AM of today for the case start
       caseStartTime.setHours(8, 0, 0, 0)
@@ -75,8 +63,19 @@ export const TimeProvider: React.FC<TimeProviderProps> = ({ children, caseId }) 
         priority: 'high'
       }
       setTimeEntries([initialEntry])
+    } else if (caseId && initialGameTime) {
+      // Use provided initialGameTime (from previous session)
+      const resumeEntry: TimeEntry = {
+        id: `resume-${Date.now()}`,
+        timestamp: initialGameTime,
+        type: 'case',
+        message: `Investigação retomada - Caso ${caseId}`,
+        category: 'Retomada do Caso',
+        priority: 'medium'
+      }
+      setTimeEntries(prev => [...prev, resumeEntry])
     }
-  }, [caseId])
+  }, [caseId, initialGameTime])
 
   // Game time ticker
   useEffect(() => {
@@ -143,18 +142,6 @@ export const TimeProvider: React.FC<TimeProviderProps> = ({ children, caseId }) 
     })
   }
 
-  const submitForensicsAnalysis = (type: ForensicsType, fileName: string): ForensicsRequest => {
-    return forensicsService.submitForensicsRequest(type, fileName, gameTime)
-  }
-
-  const getActiveForensicsRequests = (): ForensicsRequest[] => {
-    return forensicsService.getActiveRequests()
-  }
-
-  const getCompletedForensicsRequests = (): ForensicsRequest[] => {
-    return forensicsService.getCompletedRequests()
-  }
-
   const contextValue: TimeContextType = {
     gameTime,
     startTime,
@@ -165,10 +152,7 @@ export const TimeProvider: React.FC<TimeProviderProps> = ({ children, caseId }) 
     addTimeEntry,
     timeEntries,
     getFormattedTime,
-    getFormattedDate,
-    submitForensicsAnalysis,
-    getActiveForensicsRequests,
-    getCompletedForensicsRequests
+    getFormattedDate
   }
 
   return (

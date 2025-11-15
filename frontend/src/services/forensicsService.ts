@@ -1,141 +1,220 @@
-import type { TimeEntry } from '../contexts/TimeContext'
+import type { ForensicRequest, ForensicAnalysisType } from '../types/case'
+import { forensicRequestApi, type ForensicRequestDTO } from './api'
 
-export interface ForensicsRequest {
-  id: string
-  type: ForensicsType
-  fileName: string
-  submittedAt: Date
-  estimatedCompletionTime: Date
-  status: 'pending' | 'processing' | 'completed'
-  results?: string
+/**
+ * Forensic analysis durations in game time (minutes)
+ * These represent realistic forensic laboratory processing times
+ */
+const FORENSIC_DURATIONS: Record<ForensicAnalysisType, { min: number; max: number }> = {
+  DNA: { min: 240, max: 360 },              // 4-6 hours
+  Fingerprint: { min: 120, max: 180 },      // 2-3 hours
+  DigitalForensics: { min: 360, max: 720 }, // 6-12 hours
+  Ballistics: { min: 180, max: 300 }        // 3-5 hours
 }
 
-export type ForensicsType = 'fingerprint' | 'dna' | 'ballistics' | 'chemical' | 'digital'
-
-// Forensics timing in minutes (game time)
-export const FORENSICS_TIMING: Record<ForensicsType, number> = {
-  fingerprint: 30,     // 30 minutes
-  dna: 120,           // 2 hours  
-  ballistics: 90,     // 1.5 hours
-  chemical: 180,      // 3 hours
-  digital: 60         // 1 hour
+/**
+ * Calculate a random duration within the specified range for an analysis type
+ */
+export function calculateForensicDuration(analysisType: ForensicAnalysisType): number {
+  const { min, max } = FORENSIC_DURATIONS[analysisType]
+  return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-export class ForensicsService {
-  private requests: Map<string, ForensicsRequest> = new Map()
-  private onRequestComplete?: (request: ForensicsRequest) => void
-  private onAddTimeEntry?: (entry: TimeEntry) => void
+/**
+ * Calculate the estimated completion time for a forensic request
+ */
+export function calculateEstimatedCompletionTime(
+  requestedAt: Date,
+  analysisType: ForensicAnalysisType
+): Date {
+  const durationMinutes = calculateForensicDuration(analysisType)
+  const completionTime = new Date(requestedAt)
+  completionTime.setMinutes(completionTime.getMinutes() + durationMinutes)
+  return completionTime
+}
 
-  constructor(
-    onRequestComplete?: (request: ForensicsRequest) => void,
-    onAddTimeEntry?: (entry: TimeEntry) => void
-  ) {
-    this.onRequestComplete = onRequestComplete
-    this.onAddTimeEntry = onAddTimeEntry
+/**
+ * Check if a forensic request is complete based on current game time
+ */
+export function isForensicRequestComplete(
+  request: ForensicRequest,
+  currentGameTime: Date
+): boolean {
+  return currentGameTime >= request.estimatedCompletionTime
+}
+
+/**
+ * Convert ForensicRequestDTO from API to ForensicRequest
+ */
+function dtoToForensicRequest(dto: ForensicRequestDTO): ForensicRequest {
+  return {
+    id: dto.id?.toString() || '',
+    caseId: dto.caseId,
+    evidenceId: dto.evidenceId,
+    evidenceName: dto.evidenceName,
+    analysisType: dto.analysisType,
+    requestedAt: new Date(dto.requestedAt),
+    estimatedCompletionTime: new Date(dto.estimatedCompletionTime),
+    completedAt: dto.completedAt ? new Date(dto.completedAt) : undefined,
+    status: dto.status,
+    resultDocumentId: dto.resultDocumentId,
+    notes: dto.notes
   }
+}
 
-  submitForensicsRequest(
-    type: ForensicsType, 
-    fileName: string, 
-    currentTime: Date
-  ): ForensicsRequest {
-    const id = `forensics-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-    const timingMinutes = FORENSICS_TIMING[type]
-    const estimatedCompletionTime = new Date(currentTime.getTime() + (timingMinutes * 60 * 1000))
-    
-    const request: ForensicsRequest = {
-      id,
-      type,
-      fileName,
-      submittedAt: currentTime,
+/**
+ * Convert ForensicRequest to ForensicRequestDTO for API
+ */
+function forensicRequestToDto(request: ForensicRequest): ForensicRequestDTO {
+  return {
+    id: request.id ? parseInt(request.id) : undefined,
+    caseId: request.caseId,
+    evidenceId: request.evidenceId,
+    evidenceName: request.evidenceName,
+    analysisType: request.analysisType,
+    requestedAt: request.requestedAt.toISOString(),
+    estimatedCompletionTime: request.estimatedCompletionTime.toISOString(),
+    completedAt: request.completedAt?.toISOString(),
+    status: request.status,
+    resultDocumentId: request.resultDocumentId,
+    notes: request.notes
+  }
+}
+
+/**
+ * Forensic Request Service
+ * Handles all forensic request operations with proper time calculations
+ */
+export const forensicsService = {
+  /**
+   * Get all forensic requests for a case
+   */
+  async getForensicRequests(caseId: string): Promise<ForensicRequest[]> {
+    const dtos = await forensicRequestApi.getForensicRequests(caseId)
+    return dtos.map(dtoToForensicRequest)
+  },
+
+  /**
+   * Get pending forensic requests for a case
+   */
+  async getPendingForensicRequests(caseId: string): Promise<ForensicRequest[]> {
+    const dtos = await forensicRequestApi.getPendingForensicRequests(caseId)
+    return dtos.map(dtoToForensicRequest)
+  },
+
+  /**
+   * Get a specific forensic request
+   */
+  async getForensicRequest(caseId: string, id: string): Promise<ForensicRequest> {
+    const dto = await forensicRequestApi.getForensicRequest(caseId, parseInt(id))
+    return dtoToForensicRequest(dto)
+  },
+
+  /**
+   * Request a new forensic analysis
+   */
+  async requestForensicAnalysis(
+    caseId: string,
+    evidenceId: string,
+    evidenceName: string,
+    analysisType: ForensicAnalysisType,
+    currentGameTime: Date,
+    notes?: string
+  ): Promise<ForensicRequest> {
+    const estimatedCompletionTime = calculateEstimatedCompletionTime(
+      currentGameTime,
+      analysisType
+    )
+
+    const newRequest: ForensicRequest = {
+      id: '', // Will be assigned by backend
+      caseId,
+      evidenceId,
+      evidenceName,
+      analysisType,
+      requestedAt: currentGameTime,
       estimatedCompletionTime,
-      status: 'pending'
+      status: 'pending',
+      notes
     }
 
-    this.requests.set(id, request)
+    const dto = await forensicRequestApi.createForensicRequest(
+      forensicRequestToDto(newRequest)
+    )
 
-    // Add log entry for submission
-    if (this.onAddTimeEntry) {
-      this.onAddTimeEntry({
-        id: `forensics-submit-${id}`,
-        timestamp: currentTime,
-        type: 'forensics',
-        message: `Arquivo "${fileName}" enviado para análise ${this.getTypeDescription(type)}`,
-        category: 'Perícia',
-        priority: 'medium'
-      })
-    }
+    return dtoToForensicRequest(dto)
+  },
 
-    // Schedule completion
-    this.scheduleCompletion(request)
-
-    return request
-  }
-
-  private scheduleCompletion(request: ForensicsRequest) {
-    const delay = request.estimatedCompletionTime.getTime() - request.submittedAt.getTime()
+  /**
+   * Complete a forensic request
+   */
+  async completeForensicRequest(
+    caseId: string,
+    requestId: string,
+    currentGameTime: Date,
+    resultDocumentId: string
+  ): Promise<void> {
+    const request = await this.getForensicRequest(caseId, requestId)
     
-    setTimeout(() => {
-      request.status = 'completed'
-      request.results = this.generateMockResults(request.type, request.fileName)
-      
-      // Add log entry for completion
-      if (this.onAddTimeEntry) {
-        this.onAddTimeEntry({
-          id: `forensics-complete-${request.id}`,
-          timestamp: new Date(),
-          type: 'forensics',
-          message: `Resultado da análise ${this.getTypeDescription(request.type)} disponível: "${request.fileName}"`,
-          category: 'Perícia',
-          priority: 'high'
-        })
-      }
+    request.status = 'completed'
+    request.completedAt = currentGameTime
+    request.resultDocumentId = resultDocumentId
 
-      if (this.onRequestComplete) {
-        this.onRequestComplete(request)
-      }
-    }, delay)
-  }
+    await forensicRequestApi.updateForensicRequest(
+      caseId,
+      parseInt(requestId),
+      forensicRequestToDto(request)
+    )
+  },
 
-  getActiveRequests(): ForensicsRequest[] {
-    return Array.from(this.requests.values()).filter(req => req.status !== 'completed')
-  }
+  /**
+   * Check for completed forensic requests based on current game time
+   * Returns requests that have just become ready
+   */
+  async checkCompletedRequests(
+    caseId: string,
+    currentGameTime: Date
+  ): Promise<ForensicRequest[]> {
+    const pending = await this.getPendingForensicRequests(caseId)
+    
+    return pending.filter(request => 
+      isForensicRequestComplete(request, currentGameTime) &&
+      request.status === 'pending'
+    )
+  },
 
-  getCompletedRequests(): ForensicsRequest[] {
-    return Array.from(this.requests.values()).filter(req => req.status === 'completed')
-  }
+  /**
+   * Cancel a forensic request
+   */
+  async cancelForensicRequest(caseId: string, requestId: string): Promise<void> {
+    await forensicRequestApi.deleteForensicRequest(caseId, parseInt(requestId))
+  },
 
-  getAllRequests(): ForensicsRequest[] {
-    return Array.from(this.requests.values())
-  }
+  /**
+   * Get time remaining for a forensic request in minutes
+   */
+  getTimeRemaining(request: ForensicRequest, currentGameTime: Date): number {
+    const remaining = request.estimatedCompletionTime.getTime() - currentGameTime.getTime()
+    return Math.max(0, Math.floor(remaining / 1000 / 60)) // Convert to minutes
+  },
 
-  private getTypeDescription(type: ForensicsType): string {
-    switch (type) {
-      case 'fingerprint': return 'de impressões digitais'
-      case 'dna': return 'de DNA'
-      case 'ballistics': return 'balística'
-      case 'chemical': return 'química'
-      case 'digital': return 'digital'
-      default: return 'forense'
+  /**
+   * Get formatted time remaining string
+   */
+  getFormattedTimeRemaining(request: ForensicRequest, currentGameTime: Date): string {
+    const minutes = this.getTimeRemaining(request, currentGameTime)
+    
+    if (minutes === 0) {
+      return 'Ready'
     }
-  }
 
-  private generateMockResults(type: ForensicsType, fileName: string): string {
-    switch (type) {
-      case 'fingerprint':
-        return `Análise de impressões digitais concluída para ${fileName}. 3 impressões parciais identificadas. 2 impressões correspondem ao banco de dados criminal.`
-      case 'dna':
-        return `Análise de DNA finalizada para ${fileName}. Perfil genético extraído com 99.7% de confiabilidade. Correspondência encontrada no banco de dados.`
-      case 'ballistics':
-        return `Análise balística de ${fileName} concluída. Projétil calibre .45 ACP. Marcas de raiamento compatíveis com Glock modelo 21.`
-      case 'chemical':
-        return `Análise química de ${fileName} finalizada. Substância identificada: Cocaína (pureza 87%). Traços de lactose e inositol detectados.`
-      case 'digital':
-        return `Análise forense digital de ${fileName} concluída. 47 arquivos recuperados. Metadados indicam última modificação em 15/01/2024.`
-      default:
-        return `Análise forense de ${fileName} concluída. Resultados disponíveis para revisão.`
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+
+    if (hours > 0) {
+      return `${hours}h ${mins}m`
     }
+
+    return `${mins}m`
   }
 }
-
-export const forensicsService = new ForensicsService()

@@ -183,3 +183,21 @@ export interface AttachmentItem {
   type: string
   evidenceId?: string
 }
+
+// Forensic Request System
+export type ForensicStatus = 'pending' | 'in-progress' | 'completed' | 'cancelled'
+export type ForensicAnalysisType = 'DNA' | 'Fingerprint' | 'DigitalForensics' | 'Ballistics'
+
+export interface ForensicRequest {
+  id: string
+  caseId: string
+  evidenceId: string
+  evidenceName: string
+  analysisType: ForensicAnalysisType
+  requestedAt: Date // gameTime when requested
+  estimatedCompletionTime: Date // gameTime when it will be ready
+  completedAt?: Date // gameTime when actually completed
+  status: ForensicStatus
+  resultDocumentId?: string // reference to the document with results
+  notes?: string
+}
