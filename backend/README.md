@@ -70,14 +70,14 @@ API REST principal do sistema CaseZero, responsável por:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=tcp:your-server.database.windows.net,1433;Database=CaseZeroDb;User ID=your-username;Password=your-password;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+    "DefaultConnection": "Server=tcp:your-server.database.windows.net,1433;Database=casezero-db;User ID=your-username;Password=your-password;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
   }
 }
 ```
 
 2. **Obtenha as credenciais no Azure Portal:**
    - SQL Server: `your-server.database.windows.net`
-   - Database: `CaseZeroDb`
+   - Database: `casezero-db`
    - User ID e Password: Configure no SQL Server
 
 3. **O sistema validará a connection string no startup** e falhará se:

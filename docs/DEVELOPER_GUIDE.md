@@ -77,7 +77,7 @@ Para configurar a conexão com o banco de dados do Azure:
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=tcp:your-server.database.windows.net,1433;Database=CaseZeroDb;User ID=your-username;Password=your-password;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+    "DefaultConnection": "Server=tcp:your-server.database.windows.net,1433;Database=casezero-db;User ID=your-username;Password=your-password;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
   }
 }
 ```
@@ -86,7 +86,7 @@ Para configurar a conexão com o banco de dados do Azure:
    - `your-server`: Nome do seu Azure SQL Server
    - `your-username`: Usuário do banco de dados
    - `your-password`: Senha do usuário
-   - `CaseZeroDb`: Nome do banco de dados
+   - `casezero-db`: Nome do banco de dados
 
 4. **Aplicar migrations:**
 ```bash
@@ -102,7 +102,7 @@ dotnet ef database update
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Server=tcp:casezero-sql-server.database.windows.net,1433;Database=CaseZeroDb;User ID=admin;Password=YourPassword123!;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+    "DefaultConnection": "Server=tcp:casezero-sql-server.database.windows.net,1433;Database=casezero-db;User ID=admin;Password=YourPassword123!;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
   },
   "JwtSettings": {
     "SecretKey": "DevSecretKeyThatShouldBeAtLeast32Characters!",
