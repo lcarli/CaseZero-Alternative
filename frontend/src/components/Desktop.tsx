@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuthContext'
 import { useTimeContext } from '../hooks/useTimeContext'
 import { useLanguage } from '../hooks/useLanguageContext'
 import { caseSessionApi } from '../services/api'
+import logoMetroPolice from '../assets/LogoMetroPolice_transparent.png'
 
 const DesktopContainer = styled.div`
   width: 100vw;
@@ -26,63 +27,22 @@ const DesktopContainer = styled.div`
   &::before {
     content: '';
     position: absolute;
-    top: 20px;
-    left: 20px;
-    width: 80px;
-    height: 80px;
-    background: rgba(52, 152, 219, 0.1);
-    border: 2px solid rgba(52, 152, 219, 0.3);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 32px;
-    color: rgba(52, 152, 219, 0.6);
-    z-index: 1;
-  }
-  
-  &::after {
-    content: '🏛️';
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    width: 80px;
-    height: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 32px;
-    z-index: 2;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    height: 600px;
+    background-image: url(${logoMetroPolice});
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.08;
+    pointer-events: none;
+    z-index: 0;
   }
 `
 
 
-
-const PoliceBadge = styled.div`
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(0, 0, 0, 0.8);
-  border: 2px solid rgba(52, 152, 219, 0.7);
-  border-radius: 8px;
-  padding: 10px 15px;
-  color: rgba(255, 255, 255, 0.95);
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  backdrop-filter: blur(15px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-  z-index: 1;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  
-  &::before {
-    content: '👮';
-    margin-right: 8px;
-    font-size: 16px;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
-  }
-`
 
 const SystemInfo = styled.div`
   position: absolute;
@@ -169,10 +129,6 @@ const Desktop: React.FC = () => {
 
   return (
     <DesktopContainer>
-      <PoliceBadge>
-        Metropolitan Police Dept
-      </PoliceBadge>
-      
       <SystemInfo>
         <div><span className="label">User:</span> {user?.firstName} {user?.lastName}</div>
         <div><span className="label">Unit:</span> {user?.department || 'Investigation Division'}</div>
