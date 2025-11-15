@@ -21,6 +21,7 @@ namespace CaseZeroApi.Data
         public DbSet<Email> Emails { get; set; }
         public DbSet<CaseSession> CaseSessions { get; set; }
         public DbSet<ForensicRequest> ForensicRequests { get; set; }
+        public DbSet<Note> Notes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

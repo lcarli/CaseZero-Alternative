@@ -495,5 +495,72 @@ export const forensicRequestApi = {
   }
 }
 
+// Notes API
+export interface NoteDTO {
+  id: number
+  userId: string
+  caseId: string
+  title: string
+  content: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateNoteRequest {
+  caseId: string
+  title: string
+  content: string
+}
+
+export interface UpdateNoteRequest {
+  title: string
+  content: string
+}
+
+export const notesApi = {
+  /**
+   * Get all notes for a specific case
+   */
+  getNotesByCaseId: async (caseId: string): Promise<NoteDTO[]> => {
+    return apiFetch(`/notes/case/${caseId}`)
+  },
+
+  /**
+   * Get a specific note by ID
+   */
+  getNoteById: async (id: number): Promise<NoteDTO> => {
+    return apiFetch(`/notes/${id}`)
+  },
+
+  /**
+   * Create a new note
+   */
+  createNote: async (request: CreateNoteRequest): Promise<NoteDTO> => {
+    return apiFetch('/notes', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    })
+  },
+
+  /**
+   * Update an existing note
+   */
+  updateNote: async (id: number, request: UpdateNoteRequest): Promise<NoteDTO> => {
+    return apiFetch(`/notes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(request)
+    })
+  },
+
+  /**
+   * Delete a note
+   */
+  deleteNote: async (id: number): Promise<void> => {
+    return apiFetch(`/notes/${id}`, {
+      method: 'DELETE'
+    })
+  }
+}
+
 export { ApiError }
 
