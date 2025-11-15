@@ -31,7 +31,8 @@ const EditorArea = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  overflow: hidden;
+  position: relative;
+  z-index: 1;
 `
 
 const NotebookHeader = styled.div`
@@ -165,6 +166,9 @@ const TextArea = styled.textarea`
   resize: none;
   outline: none;
   overflow-y: auto;
+  pointer-events: auto;
+  position: relative;
+  z-index: 10;
 
   &:focus {
     border-color: #4a9eff;
@@ -327,10 +331,7 @@ const Notebook: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [noteToDelete, setNoteToDelete] = useState<NoteDTO | null>(null)
   
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
-  const textAreaRef = useRef<HTMLTextAreaElement>(null)
-  const originalNoteRef = useRef<{ content: string, title: string } | null>(null)
 
   // Load notes when component mounts or case changes
   useEffect(() => {
@@ -363,82 +364,36 @@ const Notebook: React.FC = () => {
     loadNotes()
   }, [currentCase])
 
-  // Focus textarea when a note is selected
-  useEffect(() => {
-    if (selectedNoteId && textAreaRef.current) {
-      // Small delay to ensure render is complete
-      setTimeout(() => {
-        textAreaRef.current?.focus()
-      }, 50)
-    }
-  }, [selectedNoteId])
+  const handleSaveNote = async () => {
+    if (!selectedNoteId) return
 
-  // Auto-save with debounce
-  useEffect(() => {
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
-    }
-
-    // Don't auto-save if no note is selected
-    if (!selectedNoteId || !originalNoteRef.current) return
-    
-    const contentChanged = currentContent !== originalNoteRef.current.content
-    const titleChanged = currentTitle !== originalNoteRef.current.title
-    
-    // Don't auto-save if nothing changed
-    if (!contentChanged && !titleChanged) return
-
-    // Set saving indicator
-    setIsSaving(true)
-    setShowSaved(false)
-
-    // Create new timeout for auto-save (2 seconds after user stops typing)
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        const updatedNote = await notesApi.updateNote(selectedNoteId, {
-          title: currentTitle,
-          content: currentContent
-        })
-        
-        setNotes(prev => 
-          prev.map(note => 
-            note.id === selectedNoteId ? updatedNote : note
-          )
+    try {
+      setIsSaving(true)
+      setShowSaved(false)
+      
+      const updatedNote = await notesApi.updateNote(selectedNoteId, {
+        title: currentTitle,
+        content: currentContent
+      })
+      
+      setNotes(prev => 
+        prev.map(note => 
+          note.id === selectedNoteId ? updatedNote : note
         )
-        
-        // Update the original ref to the new saved values
-        originalNoteRef.current = {
-          content: updatedNote.content,
-          title: updatedNote.title
-        }
-        
-        setIsSaving(false)
-        setShowSaved(true)
-        
-        // Hide "Saved" indicator after 2 seconds
-        setTimeout(() => setShowSaved(false), 2000)
-      } catch (err) {
-        console.error('Error auto-saving note:', err)
-        setError('Failed to auto-save note')
-        setIsSaving(false)
-      }
-    }, 2000)
-
-    // Cleanup timeout on unmount
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
+      )
+      
+      setIsSaving(false)
+      setShowSaved(true)
+      
+      setTimeout(() => setShowSaved(false), 2000)
+    } catch (err) {
+      console.error('Error saving note:', err)
+      setError('Failed to save note')
+      setIsSaving(false)
     }
-  }, [currentContent, currentTitle, selectedNoteId])
+  }
 
   const handleNoteSelect = (noteId: number) => {
-    // Clear any pending save before switching
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
-    }
-    
     // Close title editing if open
     if (editingTitleId !== null) {
       handleTitleBlur()
@@ -450,8 +405,6 @@ const Notebook: React.FC = () => {
     const title = note?.title || ''
     setCurrentContent(content)
     setCurrentTitle(title)
-    // Store original values for comparison
-    originalNoteRef.current = { content, title }
     setIsSaving(false)
     setShowSaved(false)
   }
@@ -529,12 +482,12 @@ const Notebook: React.FC = () => {
         content: ''
       })
       
+      console.log('New note created:', newNote)
       setNotes(prev => [newNote, ...prev])
       setSelectedNoteId(newNote.id)
       setCurrentContent('')
       setCurrentTitle(newNote.title)
-      // Store original values for comparison
-      originalNoteRef.current = { content: '', title: newNote.title }
+      console.log('State updated - selectedNoteId:', newNote.id)
     } catch (err) {
       console.error('Error creating note:', err)
       setError('Failed to create note')
@@ -611,6 +564,7 @@ const Notebook: React.FC = () => {
             </SaveIndicator>
           )}
           <ControlButton onClick={handleNewNote}>+ New</ControlButton>
+          <ControlButton onClick={handleSaveNote} disabled={!selectedNoteId}>💾 Save</ControlButton>
           <ControlButton onClick={handleDeleteNote}>Delete</ControlButton>
         </NotebookControls>
       </NotebookHeader>
@@ -657,9 +611,16 @@ const Notebook: React.FC = () => {
 
         <EditorArea>
           <TextArea
-            ref={textAreaRef}
             value={currentContent}
-            onChange={(e) => setCurrentContent(e.target.value)}
+            onChange={(e) => {
+              console.log('onChange called:', e.target.value)
+              setCurrentContent(e.target.value)
+            }}
+            onFocus={() => console.log('TextArea focused')}
+            onClick={(e) => {
+              console.log('TextArea clicked, forcing focus')
+              e.currentTarget.focus()
+            }}
             placeholder="Start typing your investigation notes here..."
             disabled={!selectedNoteId}
           />
