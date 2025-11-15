@@ -1,6 +1,6 @@
 import React from 'react'
 import styled from 'styled-components'
-import BlobFileViewer from './apps/BlobFileViewer'
+import EngineFileViewer from './apps/EngineFileViewer'
 import EngineEmail from './apps/EngineEmail'
 import Notebook from './apps/Notebook'
 import SubmitCase from './apps/SubmitCase'
@@ -146,7 +146,7 @@ const Dock: React.FC<DockProps> = ({ onOpenWindow, onCaseDisconnect }) => {
       id: 'file-viewer',
       title: 'File Viewer',
       icon: '📁',
-      component: BlobFileViewer
+      component: EngineFileViewer
     },
     {
       id: 'email',

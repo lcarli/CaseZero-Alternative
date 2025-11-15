@@ -163,6 +163,7 @@ export interface FileItem {
   content: string
   evidenceId?: string
   category: 'evidence' | 'forensic' | 'witness' | 'memo'
+  mediaUrl?: string
 }
 
 export interface EmailItem {

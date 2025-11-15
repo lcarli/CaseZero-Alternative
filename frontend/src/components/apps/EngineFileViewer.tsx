@@ -1,45 +1,57 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
 import { useCase } from '../../hooks/useCaseContext'
+import { useWindowContext } from '../../hooks/useWindowContext'
 import type { FileItem } from '../../types/case'
-import { caseObjectApi } from '../../services/api'
-import { useDualFileViewer } from '../../hooks/useDualFileViewer'
+import { useFavorites } from '../../hooks/useFavorites'
+import { DocumentViewerWindow } from './DocumentViewerWindow'
 
 const FileViewerContainer = styled.div`
   height: 100%;
   display: flex;
   flex-direction: column;
+  padding: 1.5rem;
 `
 
-const TwoColumnLayout = styled.div`
-  display: flex;
-  height: 100%;
-  gap: 1rem;
-  overflow: hidden;
+const HeaderSection = styled.div`
+  margin-bottom: 1.5rem;
 `
 
-const LeftPanel = styled.div`
-  width: 300px;
-  min-width: 250px;
-  max-width: 400px;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  padding-right: 1rem;
+const Title = styled.h3`
+  margin: 0 0 1rem 0;
+  color: #4a9eff;
+  font-size: 18px;
 `
 
-const RightPanel = styled.div`
+const SearchBar = styled.input`
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #4a9eff;
+  }
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+`
+
+const FileExplorerSection = styled.div`
   flex: 1;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  gap: 1.5rem;
 `
 
-const FileExplorer = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-`
+const FolderSection = styled.div``
 
 const FolderHeader = styled.div`
   display: flex;
@@ -71,19 +83,32 @@ const FileList = styled.div`
   padding-left: 1.5rem;
 `
 
-const FileEntry = styled.div`
+const FileEntry = styled.div<{ isSelected?: boolean; isFavorite?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  border-radius: 4px;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s ease;
-  min-height: 40px;
+  transition: all 0.2s ease;
+  min-height: 48px;
+  background: ${({ isSelected, isFavorite }) => {
+    if (isSelected) return 'rgba(74, 158, 255, 0.25)'
+    if (isFavorite) return 'rgba(255, 215, 0, 0.08)'
+    return 'rgba(255, 255, 255, 0.03)'
+  }};
+  border: 1px solid ${({ isSelected, isFavorite }) => {
+    if (isSelected) return 'rgba(74, 158, 255, 0.4)'
+    if (isFavorite) return 'rgba(255, 215, 0, 0.2)'
+    return 'transparent'
+  }};
 
   &:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: ${({ isSelected }) => 
+      isSelected ? 'rgba(74, 158, 255, 0.3)' : 'rgba(255, 255, 255, 0.08)'
+    };
+    border-color: rgba(255, 255, 255, 0.2);
   }
 `
 
@@ -110,129 +135,40 @@ const FileName = styled.span`
 const FileActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.5rem;
 `
 
-const FileStatusBadge = styled.span<{ variant: 'primary' | 'secondary' }>`
-  font-size: 10px;
-  text-transform: uppercase;
-  padding: 0.15rem 0.4rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: ${({ variant }) => (variant === 'primary' ? 'rgba(74, 158, 255, 0.15)' : 'rgba(255, 140, 105, 0.15)')};
-  color: ${({ variant }) => (variant === 'primary' ? '#4a9eff' : '#ff8c69')};
-  letter-spacing: 0.04em;
-`
-
-const FileActionButton = styled.button`
+const StarButton = styled.button<{ isFavorite: boolean }>`
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.8);
-  padding: 0.15rem 0.35rem;
-  border-radius: 4px;
-  font-size: 11px;
+  border: none;
+  font-size: 18px;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
+  padding: 0.25rem;
+  transition: transform 0.2s ease;
+  color: ${({ isFavorite }) => isFavorite ? '#FFD700' : 'rgba(255, 255, 255, 0.3)'};
 
   &:hover {
-    background: rgba(74, 158, 255, 0.2);
-    color: #fff;
+    transform: scale(1.2);
+    color: ${({ isFavorite }) => isFavorite ? '#FFC700' : 'rgba(255, 255, 255, 0.6)'};
   }
 `
 
-const FileContent = styled.div`
-  flex: 1;
-  padding: 1rem;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  overflow-y: auto;
-`
-
-const ImagePreview = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-`
-
-const EvidenceImageContainer = styled.div`
-  width: 100%;
-  max-width: 600px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.3);
-`
-
-const EvidenceImage = styled.img`
-  width: 100%;
-  height: auto;
-  max-height: 500px;
-  object-fit: contain;
-  display: block;
-`
-
-const ImageLoadingPlaceholder = styled.div`
-  width: 100%;
-  height: 300px;
-  background: linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%);
-  border: 2px dashed rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
+const EmptyState = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  padding: 3rem 2rem;
   color: rgba(255, 255, 255, 0.6);
-`
-
-const ImageErrorPlaceholder = styled.div`
-  width: 100%;
-  height: 200px;
-  background: rgba(231, 76, 60, 0.1);
-  border: 2px dashed rgba(231, 76, 60, 0.4);
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  color: rgba(231, 76, 60, 0.8);
-`
-
-const PDFPreview = styled.div`
-  background: white;
-  color: black;
-  border-radius: 4px;
-  padding: 1rem;
-  max-height: 300px;
-  overflow-y: auto;
-  font-family: 'Times New Roman', serif;
-  line-height: 1.6;
-`
-
-const FileInfo = styled.div`
-  display: flex;
+  text-align: center;
   gap: 1rem;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-`
-
-const FileInfoItem = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
 `
 
 const LoadingMessage = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 200px;
+  padding: 3rem;
   color: rgba(255, 255, 255, 0.6);
   font-size: 16px;
 `
@@ -241,251 +177,110 @@ const ErrorMessage = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 200px;
+  padding: 3rem;
   color: rgba(231, 76, 60, 0.9);
   font-size: 16px;
 `
 
-const PanelsContainer = styled.div<{ hasSecondary: boolean }>`
-  flex: 1;
-  display: grid;
-  grid-template-columns: ${({ hasSecondary }) => (hasSecondary ? '1fr 1fr' : '1fr')};
-  gap: 1rem;
-  overflow: hidden;
-
-  @media (max-width: 1100px) {
-    grid-template-columns: 1fr;
-  }
-`
-
-const PanelCard = styled.div`
-  display: flex;
-  flex-direction: column;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  min-height: 0;
-`
-
-const PanelHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  gap: 0.75rem;
-`
-
-const PanelHeaderInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-`
-
-const PanelLabel = styled.span`
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.6);
-`
-
-const PanelTitle = styled.span`
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-  word-break: break-word;
-`
-
-const PanelActions = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-`
-
-const PanelActionButton = styled.button`
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: transparent;
-  color: rgba(255, 255, 255, 0.8);
-  padding: 0.25rem 0.6rem;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-
-  &:hover {
-    background: rgba(74, 158, 255, 0.2);
-    color: #fff;
-  }
-`
-
-const EmptyPanelMessage = styled.div`
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 14px;
-  padding: 1rem;
-`
-
-// Component to load and display evidence images
-const EvidenceImageViewer: React.FC<{ file: FileItem; caseId: string }> = ({ file, caseId }) => {
-  const [imageLoaded, setImageLoaded] = useState(false)
-  const [imageError, setImageError] = useState(false)
-  const [imageUrl, setImageUrl] = useState<string | null>(null)
-
-  React.useEffect(() => {
-    const loadImage = async () => {
-      try {
-        setImageError(false)
-        setImageLoaded(false)
-        
-        // Get the file from the backend
-        const blob = await caseObjectApi.getCaseFile(caseId, `evidence/${file.name}`)
-        const url = URL.createObjectURL(blob)
-        setImageUrl(url)
-        setImageLoaded(true) // Set loaded to true after successful fetch
-      } catch (error) {
-        console.error('Failed to load image:', error)
-        setImageError(true)
-      }
-    }
-
-    if (file.type === 'image') {
-      loadImage()
-    }
-
-    // Cleanup URL when component unmounts
-    return () => {
-      if (imageUrl) {
-        URL.revokeObjectURL(imageUrl)
-      }
-    }
-  }, [file.name, caseId])
-
-  if (imageError) {
-    return (
-      <ImageErrorPlaceholder>
-        <div style={{ fontSize: '48px' }}>❌</div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>Failed to load image</div>
-          <div style={{ fontSize: '11px' }}>File: {file.name}</div>
-        </div>
-      </ImageErrorPlaceholder>
-    )
-  }
-
-  if (!imageLoaded || !imageUrl) {
-    return (
-      <ImageLoadingPlaceholder>
-        <div style={{ fontSize: '48px' }}>⏳</div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>Loading Evidence Image...</div>
-          <div style={{ fontSize: '11px' }}>File: {file.name}</div>
-        </div>
-      </ImageLoadingPlaceholder>
-    )
-  }
-
-  return (
-    <EvidenceImageContainer>
-      <EvidenceImage
-        src={imageUrl}
-        alt={file.name}
-        onLoad={() => setImageLoaded(true)}
-        onError={() => setImageError(true)}
-      />
-    </EvidenceImageContainer>
-  )
+interface FileViewerState {
+  openFolders: Set<string>
+  searchQuery: string
+  selectedFile: string | null
 }
 
 const EngineFileViewer: React.FC = () => {
   const { currentCase, getAvailableFiles, examineEvidence, isLoading, error } = useCase()
+  const { openWindow } = useWindowContext()
   const caseId = currentCase || ''
   const availableFiles = getAvailableFiles()
+  const { toggleFavorite, isFavorite } = useFavorites(caseId)
 
-  const registerEvidenceView = React.useCallback((file: FileItem | null) => {
-    if (file?.evidenceId) {
-      examineEvidence(file.evidenceId)
-    }
-  }, [examineEvidence])
-
-  const {
-    primaryFile,
-    secondaryFile,
-    openFolders,
-    groupedFiles,
-    selectPrimary,
-    openInSecondary,
-    toggleFolder,
-    swapPanels,
-    closeSecondary,
-    isPrimary,
-    isSecondary
-  } = useDualFileViewer<FileItem>({
-    files: availableFiles,
-    defaultOpenFolders: ['evidence'],
-    onPrimaryChange: registerEvidenceView,
-    onSecondaryChange: registerEvidenceView
+  const [state, setState] = useState<FileViewerState>({
+    openFolders: new Set(['evidence', 'forensic', 'memo', 'witness']),
+    searchQuery: '',
+    selectedFile: null
   })
 
-  if (isLoading) {
-    return (
-      <FileViewerContainer>
-        <LoadingMessage>Loading case files...</LoadingMessage>
-      </FileViewerContainer>
-    )
+  // Group files by category
+  const groupedFiles = React.useMemo(() => {
+    const groups = new Map<string, FileItem[]>()
+    
+    availableFiles.forEach(file => {
+      const category = file.category || 'other'
+      if (!groups.has(category)) {
+        groups.set(category, [])
+      }
+      groups.get(category)!.push(file)
+    })
+
+    return Array.from(groups.entries()).map(([category, files]) => ({
+      category,
+      files: files.sort((a, b) => {
+        // Favorites first
+        const aFav = isFavorite(a.id)
+        const bFav = isFavorite(b.id)
+        if (aFav && !bFav) return -1
+        if (!aFav && bFav) return 1
+        // Then by name
+        return a.name.localeCompare(b.name)
+      })
+    }))
+  }, [availableFiles, isFavorite])
+
+  // Filter files by search query
+  const filteredGroups = React.useMemo(() => {
+    if (!state.searchQuery.trim()) return groupedFiles
+
+    const query = state.searchQuery.toLowerCase()
+    return groupedFiles.map(group => ({
+      ...group,
+      files: group.files.filter(file => 
+        file.name.toLowerCase().includes(query) ||
+        file.type.toLowerCase().includes(query) ||
+        (file.evidenceId && file.evidenceId.toLowerCase().includes(query))
+      )
+    })).filter(group => group.files.length > 0)
+  }, [groupedFiles, state.searchQuery])
+
+  const toggleFolder = (category: string) => {
+    setState(prev => {
+      const next = new Set(prev.openFolders)
+      if (next.has(category)) {
+        next.delete(category)
+      } else {
+        next.add(category)
+      }
+      return { ...prev, openFolders: next }
+    })
   }
 
-  if (error) {
-    return (
-      <FileViewerContainer>
-        <ErrorMessage>Error: {error}</ErrorMessage>
-      </FileViewerContainer>
-    )
+  const handleFileClick = (file: FileItem) => {
+    setState(prev => ({ ...prev, selectedFile: file.id }))
   }
 
-  const renderFileContent = (file: FileItem) => {
-    switch (file.type) {
-      case 'image':
-        return (
-          <ImagePreview>
-            <EvidenceImageViewer file={file} caseId={caseId} />
-            <div style={{ textAlign: 'center', fontSize: '13px', lineHeight: '1.4' }}>
-              <strong>Evidence Description:</strong><br />
-              {file.content}
-            </div>
-          </ImagePreview>
-        )
-      case 'pdf':
-        return (
-          <PDFPreview>
-            <div style={{ marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid #ccc' }}>
-              <strong>📋 PDF Document - {file.name}</strong>
-            </div>
-            <div style={{ whiteSpace: 'pre-wrap', fontSize: '13px', lineHeight: '1.6' }}>
-              {file.content}
-            </div>
-          </PDFPreview>
-        )
-      default:
-        return (
-          <pre style={{
-            margin: 0,
-            whiteSpace: 'pre-wrap',
-            fontFamily: 'monospace',
-            fontSize: '13px',
-            lineHeight: '1.4',
-            color: 'rgba(255, 255, 255, 0.9)'
-          }}>
-            {file.content}
-          </pre>
-        )
+  const handleFileDoubleClick = (file: FileItem) => {
+    // Register evidence view
+    if (file.evidenceId) {
+      examineEvidence(file.evidenceId)
     }
+
+    // Open document viewer in a new window
+    openWindow(
+      `document-${file.id}`,
+      file.name,
+      DocumentViewerWindow,
+      { fileData: file, caseId }
+    )
+  }
+
+  const handleFavoriteClick = (e: React.MouseEvent, fileId: string) => {
+    e.stopPropagation()
+    toggleFavorite(fileId)
   }
 
   const getFolderIcon = (category: string): string => {
     switch (category) {
-      case 'evidence': return '📁'
+      case 'evidence': return '🔍'
       case 'forensic': return '🔬'
       case 'memo': return '📋'
       case 'witness': return '👤'
@@ -503,180 +298,106 @@ const EngineFileViewer: React.FC = () => {
     }
   }
 
-  const getFileEntryBackground = (fileId: string) => {
-    if (isPrimary(fileId)) {
-      return 'rgba(74, 158, 255, 0.2)'
-    }
-    if (isSecondary(fileId)) {
-      return 'rgba(255, 140, 105, 0.15)'
-    }
-    return 'transparent'
-  }
-
-  const renderFileMetadata = (file: FileItem) => (
-    <FileInfo>
-      <FileInfoItem>
-        <span>📊</span>
-        {file.size}
-      </FileInfoItem>
-      <FileInfoItem>
-        <span>📅</span>
-        {new Date(file.modified).toLocaleString()}
-      </FileInfoItem>
-      <FileInfoItem>
-        <span>📄</span>
-        {file.type.toUpperCase()}
-      </FileInfoItem>
-      {file.evidenceId && (
-        <FileInfoItem>
-          <span>🔍</span>
-          Evidence ID: {file.evidenceId}
-        </FileInfoItem>
-      )}
-    </FileInfo>
-  )
-
-  const renderPanel = (
-    file: FileItem | null,
-    label: string,
-    actions: React.ReactNode,
-    emptyMessage: string
-  ) => (
-    <PanelCard>
-      <PanelHeader>
-        <PanelHeaderInfo>
-          <PanelLabel>{label}</PanelLabel>
-          <PanelTitle>{file ? file.name : 'No file selected'}</PanelTitle>
-        </PanelHeaderInfo>
-        <PanelActions>{actions}</PanelActions>
-      </PanelHeader>
-      {file ? (
-        <>
-          {renderFileMetadata(file)}
-          <FileContent>{renderFileContent(file)}</FileContent>
-        </>
-      ) : (
-        <EmptyPanelMessage>{emptyMessage}</EmptyPanelMessage>
-      )}
-    </PanelCard>
-  )
-
-  const renderPrimaryActions = () => {
-    if (!primaryFile) return null
-
+  if (isLoading) {
     return (
-      <>
-        <PanelActionButton onClick={() => openInSecondary(primaryFile.id)}>
-          Open in Panel B
-        </PanelActionButton>
-        {secondaryFile && (
-          <>
-            <PanelActionButton onClick={swapPanels}>Swap Panels</PanelActionButton>
-            <PanelActionButton onClick={closeSecondary}>Close Panel B</PanelActionButton>
-          </>
-        )}
-      </>
+      <FileViewerContainer>
+        <LoadingMessage>⏳ Loading case files...</LoadingMessage>
+      </FileViewerContainer>
     )
   }
 
-  const renderSecondaryActions = () => {
-    if (!secondaryFile) return null
-
+  if (error) {
     return (
-      <>
-        <PanelActionButton onClick={() => selectPrimary(secondaryFile.id)}>
-          Make Primary
-        </PanelActionButton>
-        <PanelActionButton onClick={swapPanels}>Swap Panels</PanelActionButton>
-        <PanelActionButton onClick={closeSecondary}>Close Panel B</PanelActionButton>
-      </>
+      <FileViewerContainer>
+        <ErrorMessage>❌ Error: {error}</ErrorMessage>
+      </FileViewerContainer>
     )
   }
 
   return (
     <FileViewerContainer>
-      <h3 style={{ margin: '0 0 1rem 0' }}>Police File System - {currentCase || 'No Case'}</h3>
+      <HeaderSection>
+        <Title>📂 Case Files - {currentCase || 'No Case'}</Title>
+        <SearchBar
+          type="text"
+          placeholder="🔍 Search files by name, type, or evidence ID..."
+          value={state.searchQuery}
+          onChange={e => setState(prev => ({ ...prev, searchQuery: e.target.value }))}
+        />
+      </HeaderSection>
 
-      <TwoColumnLayout>
-        <LeftPanel>
-          <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>Files & Folders</h4>
-          <FileExplorer>
-            {groupedFiles.map(({ category, files }) => (
-              <div key={category}>
-                <FolderHeader onClick={() => toggleFolder(category)}>
-                  <FolderIcon>{openFolders.has(category) ? '📂' : getFolderIcon(category)}</FolderIcon>
-                  <FolderName>
-                    {getFolderName(category)} ({files.length})
-                  </FolderName>
-                </FolderHeader>
-                {openFolders.has(category) && (
-                  <FileList>
-                    {files.map(file => (
-                      <FileEntry
-                        key={file.id}
-                        onClick={() => selectPrimary(file.id)}
-                        style={{ background: getFileEntryBackground(file.id) }}
+      <FileExplorerSection>
+        {filteredGroups.length === 0 && state.searchQuery && (
+          <EmptyState>
+            <div style={{ fontSize: '48px' }}>🔍</div>
+            <div>
+              <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                No files found
+              </div>
+              <div style={{ fontSize: '13px' }}>
+                Try a different search term
+              </div>
+            </div>
+          </EmptyState>
+        )}
+
+        {filteredGroups.length === 0 && !state.searchQuery && (
+          <EmptyState>
+            <div style={{ fontSize: '48px' }}>📂</div>
+            <div>
+              <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>
+                No files available
+              </div>
+              <div style={{ fontSize: '13px' }}>
+                Complete case objectives to unlock evidence and documents
+              </div>
+            </div>
+          </EmptyState>
+        )}
+
+        {filteredGroups.map(({ category, files }) => (
+          <FolderSection key={category}>
+            <FolderHeader onClick={() => toggleFolder(category)}>
+              <FolderIcon>
+                {state.openFolders.has(category) ? '📂' : getFolderIcon(category)}
+              </FolderIcon>
+              <FolderName>
+                {getFolderName(category)} ({files.length})
+              </FolderName>
+            </FolderHeader>
+            
+            {state.openFolders.has(category) && (
+              <FileList>
+                {files.map(file => (
+                  <FileEntry
+                    key={file.id}
+                    isSelected={state.selectedFile === file.id}
+                    isFavorite={isFavorite(file.id)}
+                    onClick={() => handleFileClick(file)}
+                    onDoubleClick={() => handleFileDoubleClick(file)}
+                    title="Double-click to open"
+                  >
+                    <FileEntryMain>
+                      <FileIcon>{file.icon}</FileIcon>
+                      <FileName>{file.name}</FileName>
+                    </FileEntryMain>
+                    
+                    <FileActions>
+                      <StarButton
+                        isFavorite={isFavorite(file.id)}
+                        onClick={e => handleFavoriteClick(e, file.id)}
+                        title={isFavorite(file.id) ? 'Remove from favorites' : 'Add to favorites'}
                       >
-                        <FileEntryMain>
-                          <FileIcon>{file.icon}</FileIcon>
-                          <FileName>{file.name}</FileName>
-                        </FileEntryMain>
-                        <FileActions>
-                          {isPrimary(file.id) && (
-                            <FileStatusBadge variant="primary">Panel A</FileStatusBadge>
-                          )}
-                          {isSecondary(file.id) && (
-                            <FileStatusBadge variant="secondary">Panel B</FileStatusBadge>
-                          )}
-                          {!isSecondary(file.id) && (
-                            <FileActionButton
-                              onClick={event => {
-                                event.stopPropagation()
-                                openInSecondary(file.id)
-                              }}
-                            >
-                              Panel B
-                            </FileActionButton>
-                          )}
-                        </FileActions>
-                      </FileEntry>
-                    ))}
-                  </FileList>
-                )}
-              </div>
-            ))}
-            {groupedFiles.length === 0 && (
-              <div
-                style={{
-                  color: 'rgba(255, 255, 255, 0.6)',
-                  textAlign: 'center',
-                  padding: '2rem',
-                  fontStyle: 'italic'
-                }}
-              >
-                No files available. Complete case objectives to unlock evidence.
-              </div>
+                        {isFavorite(file.id) ? '⭐' : '☆'}
+                      </StarButton>
+                    </FileActions>
+                  </FileEntry>
+                ))}
+              </FileList>
             )}
-          </FileExplorer>
-        </LeftPanel>
-
-        <RightPanel>
-          <PanelsContainer hasSecondary={Boolean(secondaryFile)}>
-            {renderPanel(
-              primaryFile,
-              'Panel A',
-              renderPrimaryActions(),
-              'Select a file from the navigator to open it in Panel A.'
-            )}
-            {secondaryFile && renderPanel(
-              secondaryFile,
-              'Panel B',
-              renderSecondaryActions(),
-              'Open any file with the "Panel B" action to compare side by side.'
-            )}
-          </PanelsContainer>
-        </RightPanel>
-      </TwoColumnLayout>
+          </FolderSection>
+        ))}
+      </FileExplorerSection>
     </FileViewerContainer>
   )
 }

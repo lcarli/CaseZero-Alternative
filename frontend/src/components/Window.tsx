@@ -4,7 +4,8 @@ import styled from 'styled-components'
 export interface WindowData {
   id: string
   title: string
-  component: React.ComponentType
+  component: React.ComponentType<any>
+  componentProps?: Record<string, any>
   isOpen: boolean
   position: { x: number; y: number }
   size: { width: number; height: number }
@@ -234,7 +235,7 @@ const Window: React.FC<WindowProps> = ({
         </WindowControls>
       </WindowHeader>
       <WindowContent $isResizing={isResizing}>
-        <Component />
+        <Component {...(window.componentProps || {})} />
       </WindowContent>
       {!window.isMaximized && <ResizeHandle onMouseDown={handleResizeMouseDown} />}
     </WindowContainer>

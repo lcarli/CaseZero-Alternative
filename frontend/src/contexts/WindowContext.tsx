@@ -5,7 +5,7 @@ import type { WindowData } from '../components/Window'
 interface WindowContextType {
   windows: WindowData[]
   highestZIndex: number
-  openWindow: (id: string, title: string, component: React.ComponentType) => void
+  openWindow: (id: string, title: string, component: React.ComponentType<any>, componentProps?: Record<string, any>) => void
   closeWindow: (id: string) => void
   bringToFront: (id: string) => void
   updateWindowPosition: (id: string, position: { x: number; y: number }) => void
@@ -26,7 +26,7 @@ export const WindowProvider: React.FC<WindowProviderProps> = ({ children }) => {
   const [windows, setWindows] = useState<WindowData[]>([])
   const [highestZIndex, setHighestZIndex] = useState(1000)
 
-  const openWindow = (id: string, title: string, component: React.ComponentType) => {
+  const openWindow = (id: string, title: string, component: React.ComponentType<any>, componentProps?: Record<string, any>) => {
     const existingWindow = windows.find(w => w.id === id)
     
     if (existingWindow) {
@@ -39,6 +39,7 @@ export const WindowProvider: React.FC<WindowProviderProps> = ({ children }) => {
       id,
       title,
       component,
+      componentProps,
       isOpen: true,
       position: { 
         x: Math.random() * 300 + 100, 

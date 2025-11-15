@@ -8,6 +8,7 @@ import type {
   TemporalEvent
 } from '../types/case'
 import { PoliceRank, getRankFromString, hasRequiredRank } from '../types/ranks'
+import { caseFilesApi, type FileViewerItem } from '../services/api'
 
 /**
  * Central Game Engine - manages all case state, evidence unlocking, and business logic
@@ -100,6 +101,24 @@ export class CaseEngine {
    */
   public getAvailableFiles(): FileItem[] {
     return this.state.availableFiles
+  }
+
+  /**
+   * Load files from API (documents and media from normalized bundle)
+   */
+  public async loadFilesFromApi(caseId: string): Promise<void> {
+    try {
+      const response = await caseFilesApi.getCaseFiles(caseId)
+      
+      // Convert FileViewerItem to FileItem
+      this.state.availableFiles = response.files.map(file => this.convertToFileItem(file))
+      
+      this.notifyListeners()
+    } catch (error) {
+      console.error('Failed to load case files from API:', error)
+      // Fallback to evidence-based files if API fails
+      this.updateAvailableFiles()
+    }
   }
 
   /**
@@ -269,6 +288,63 @@ export class CaseEngine {
   /**
    * Update available files based on unlocked evidence
    */
+  /**
+   * Convert API FileViewerItem to engine FileItem
+   */
+  private convertToFileItem(apiFile: FileViewerItem): FileItem {
+    return {
+      id: apiFile.id,
+      name: apiFile.title || apiFile.name,
+      type: this.mapApiTypeToFileType(apiFile.type),
+      icon: apiFile.icon,
+      size: apiFile.size,
+      modified: apiFile.modified || apiFile.timestamp || new Date().toISOString(),
+      content: apiFile.content,
+      evidenceId: apiFile.evidenceId,
+      category: this.mapApiCategoryToEngineCategory(apiFile.category),
+      mediaUrl: apiFile.mediaUrl
+    }
+  }
+
+  /**
+   * Map API file type to engine file type
+   */
+  private mapApiTypeToFileType(apiType: string): 'text' | 'image' | 'pdf' | 'video' | 'audio' {
+    const normalized = apiType.toLowerCase()
+    if (normalized.includes('image') || normalized.includes('photo') || normalized.includes('picture')) {
+      return 'image'
+    }
+    if (normalized.includes('video') || normalized.includes('mp4') || normalized.includes('mov')) {
+      return 'video'
+    }
+    if (normalized.includes('audio') || normalized.includes('mp3') || normalized.includes('wav')) {
+      return 'audio'
+    }
+    if (normalized.includes('pdf')) {
+      return 'pdf'
+    }
+    return 'text'
+  }
+
+  /**
+   * Map API category to engine category
+   */
+  private mapApiCategoryToEngineCategory(
+    apiCategory: string
+  ): 'evidence' | 'forensic' | 'witness' | 'memo' {
+    const normalized = apiCategory.toLowerCase()
+    if (normalized.includes('forensic') || normalized.includes('analysis')) {
+      return 'forensic'
+    }
+    if (normalized.includes('witness') || normalized.includes('interview')) {
+      return 'witness'
+    }
+    if (normalized.includes('memo') || normalized.includes('note')) {
+      return 'memo'
+    }
+    return 'evidence'
+  }
+
   private updateAvailableFiles(): void {
     const files: FileItem[] = []
 

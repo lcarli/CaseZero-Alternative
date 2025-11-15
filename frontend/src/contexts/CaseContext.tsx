@@ -59,6 +59,9 @@ export const CaseProvider: React.FC<CaseProviderProps> = ({
           forceUpdate({})
         })
         
+        // Load files from API (documents and media)
+        await newEngine.loadFilesFromApi(caseId)
+        
         setEngine(newEngine)
         setCurrentCase(caseId)
       } catch (err) {
