@@ -8,6 +8,30 @@ const NotebookContainer = styled.div`
   height: 100%;
   display: flex;
   flex-direction: column;
+  gap: 1rem;
+`
+
+const NotebookContent = styled.div`
+  flex: 1;
+  display: flex;
+  gap: 1rem;
+  overflow: hidden;
+`
+
+const Sidebar = styled.div`
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: hidden;
+`
+
+const EditorArea = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: hidden;
 `
 
 const NotebookHeader = styled.div`
@@ -58,10 +82,27 @@ const ControlButton = styled.button`
 `
 
 const NotesList = styled.div`
-  flex: 0 0 auto;
-  margin-bottom: 1rem;
-  max-height: 120px;
+  flex: 1;
   overflow-y: auto;
+  padding-right: 0.25rem;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(74, 158, 255, 0.3);
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(74, 158, 255, 0.5);
+  }
 `
 
 const NoteItem = styled.div<{ $isSelected: boolean }>`
@@ -123,6 +164,7 @@ const TextArea = styled.textarea`
   line-height: 1.5;
   resize: none;
   outline: none;
+  overflow-y: auto;
 
   &:focus {
     border-color: #4a9eff;
@@ -131,6 +173,24 @@ const TextArea = styled.textarea`
 
   &::placeholder {
     color: rgba(255, 255, 255, 0.4);
+  }
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(74, 158, 255, 0.3);
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(74, 158, 255, 0.5);
   }
 `
 
@@ -555,50 +615,56 @@ const Notebook: React.FC = () => {
         </NotebookControls>
       </NotebookHeader>
 
-      <NotesList>
-        {notes.length === 0 ? (
-          <LoadingMessage style={{ padding: '1rem' }}>No notes yet. Click "+ New" to create one.</LoadingMessage>
-        ) : (
-          notes.map(note => (
-            <NoteItem
-              key={note.id}
-              $isSelected={note.id === selectedNoteId}
-              onClick={() => handleNoteSelect(note.id)}
-            >
-              {editingTitleId === note.id ? (
-                <NoteTitleInput
-                  ref={titleInputRef}
-                  value={editingTitleValue}
-                  onChange={handleTitleChange}
-                  onBlur={handleTitleBlur}
-                  onKeyDown={handleTitleKeyDown}
-                  placeholder="Note title..."
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <NoteTitle 
-                  onDoubleClick={(e) => {
-                    e.stopPropagation()
-                    handleTitleDoubleClick(note.id, note.title)
-                  }}
-                  title="Double-click to edit"
+      <NotebookContent>
+        <Sidebar>
+          <NotesList>
+            {notes.length === 0 ? (
+              <LoadingMessage style={{ padding: '1rem' }}>No notes yet. Click "+ New" to create one.</LoadingMessage>
+            ) : (
+              notes.map(note => (
+                <NoteItem
+                  key={note.id}
+                  $isSelected={note.id === selectedNoteId}
+                  onClick={() => handleNoteSelect(note.id)}
                 >
-                  {note.title}
-                </NoteTitle>
-              )}
-              <NoteDate>{new Date(note.updatedAt).toLocaleDateString()}</NoteDate>
-            </NoteItem>
-          ))
-        )}
-      </NotesList>
+                  {editingTitleId === note.id ? (
+                    <NoteTitleInput
+                      ref={titleInputRef}
+                      value={editingTitleValue}
+                      onChange={handleTitleChange}
+                      onBlur={handleTitleBlur}
+                      onKeyDown={handleTitleKeyDown}
+                      placeholder="Note title..."
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <NoteTitle 
+                      onDoubleClick={(e) => {
+                        e.stopPropagation()
+                        handleTitleDoubleClick(note.id, note.title)
+                      }}
+                      title="Double-click to edit"
+                    >
+                      {note.title}
+                    </NoteTitle>
+                  )}
+                  <NoteDate>{new Date(note.updatedAt).toLocaleDateString()}</NoteDate>
+                </NoteItem>
+              ))
+            )}
+          </NotesList>
+        </Sidebar>
 
-      <TextArea
-        ref={textAreaRef}
-        value={currentContent}
-        onChange={(e) => setCurrentContent(e.target.value)}
-        placeholder="Start typing your investigation notes here..."
-        disabled={!selectedNoteId}
-      />
+        <EditorArea>
+          <TextArea
+            ref={textAreaRef}
+            value={currentContent}
+            onChange={(e) => setCurrentContent(e.target.value)}
+            placeholder="Start typing your investigation notes here..."
+            disabled={!selectedNoteId}
+          />
+        </EditorArea>
+      </NotebookContent>
 
       {showDeleteModal && noteToDelete && (
         <ModalOverlay onClick={cancelDeleteNote}>
