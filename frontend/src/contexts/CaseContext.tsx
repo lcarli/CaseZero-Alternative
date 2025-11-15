@@ -1,9 +1,10 @@
-import React, { createContext, useState, useEffect } from 'react'
+import React, { createContext, useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { CaseEngine } from '../engine/CaseEngine'
 import { CaseDataService } from '../services/caseDataService'
 import { PoliceRank } from '../types/ranks'
 import type { FileItem, EmailItem, ForensicRequest } from '../types/case'
+import { forensicsSignalR } from '../services/forensicsSignalR'
 
 interface CaseContextType {
   currentCase: string | null
@@ -50,7 +51,38 @@ export const CaseProvider: React.FC<CaseProviderProps> = ({
   const [engine, setEngine] = useState<CaseEngine | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [, forceUpdate] = useState({})
+  const [, setUpdateTrigger] = useState(0)
+
+  // Force re-render helper
+  const forceUpdate = () => setUpdateTrigger(prev => prev + 1)
+
+  // Connect to SignalR for real-time forensic notifications
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const connectSignalR = async () => {
+      try {
+        await forensicsSignalR.connect(token)
+        
+        // Listen for forensic completion events
+        const unsubscribe = forensicsSignalR.onForensicCompleted((data) => {
+          console.log('Forensic completed:', data)
+          // Force re-render to update UI
+          forceUpdate()
+        })
+
+        return () => {
+          unsubscribe()
+          forensicsSignalR.disconnect()
+        }
+      } catch (error) {
+        console.error('Failed to connect SignalR:', error)
+      }
+    }
+
+    connectSignalR()
+  }, [])
 
   // Initialize engine when case changes
   useEffect(() => {
@@ -69,7 +101,7 @@ export const CaseProvider: React.FC<CaseProviderProps> = ({
         
         // Add listener to force re-render when engine state changes
         newEngine.addListener(() => {
-          forceUpdate({})
+          forceUpdate()
         })
         
         // Load files from API (documents and media)
@@ -124,12 +156,12 @@ export const CaseProvider: React.FC<CaseProviderProps> = ({
   }
 
   const getCurrentGameTime = (): Date | null => {
-    return engine?.getCurrentGameTime() || null
+    return engine?.getCurrentGameTime() ?? null
   }
 
-  const updateGameTime = (newTime: Date): void => {
+  const updateGameTime = useCallback((newTime: Date): void => {
     engine?.updateGameTime(newTime)
-  }
+  }, [engine])
 
   const requestForensicAnalysis = async (
     evidenceId: string,

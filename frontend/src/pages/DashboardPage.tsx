@@ -280,21 +280,23 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const loadDashboard = async () => {
+      console.log('Loading dashboard...')
       setIsLoading(true)
       setError('')
       try {
         const data = await casesApi.getDashboard()
+        console.log('Dashboard data:', data)
         setDashboard(data)
       } catch (err) {
-        setError(t('error'))
         console.error('Dashboard error:', err)
+        setError(t('error'))
       } finally {
         setIsLoading(false)
       }
     }
 
     loadDashboard()
-  }, [t]) // Adding t as dependency to refresh when language changes, and will also refresh on mount
+  }, [t])
 
   const handleLogout = () => {
     logout()

@@ -94,6 +94,12 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Configure SignalR
+builder.Services.AddSignalR();
+
+// Register Background Services
+builder.Services.AddHostedService<CaseZeroApi.Services.ForensicsBackgroundService>();
+
 // Configure Rate Limiting
 builder.Services.AddMemoryCache();
 builder.Services.Configure<IpRateLimitOptions>(options =>
@@ -214,6 +220,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<CaseZeroApi.Hubs.ForensicsHub>("/hubs/forensics");
 
 // Check if --seed-only argument is provided
 var seedOnly = args.Contains("--seed-only");

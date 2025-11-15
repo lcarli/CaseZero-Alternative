@@ -109,19 +109,37 @@ const Desktop: React.FC = () => {
   }, [])
 
   const handleCaseDisconnect = async () => {
+    console.log('🚪 Case disconnect button clicked!')
+    console.log('📋 Current case:', currentCase)
+    console.log('⏰ Current gameTime:', gameTime)
+    
     try {
       // Save current session time if we have a case and game time
       if (currentCase && gameTime) {
-        await caseSessionApi.endSession(currentCase, {
+        const token = localStorage.getItem('token')
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5187'
+        console.log('🔑 Token exists:', !!token)
+        console.log('🌐 API URL:', `${apiUrl}/api/casesession/end/${currentCase}`)
+        console.log('📡 Calling endSession API...')
+        
+        const result = await caseSessionApi.endSession(currentCase, {
           gameTimeAtEnd: gameTime.toISOString()
         })
-        console.log('Session saved successfully for case:', currentCase)
+        console.log('✅ Session saved successfully:', result)
       }
       
       // Navigate to dashboard without logging out (keep user authenticated)
+      console.log('🏠 Navigating to dashboard...')
       navigate('/dashboard')
     } catch (error) {
-      console.error('Error during case disconnect:', error)
+      console.error('❌ Error during case disconnect:', error)
+      if (error instanceof Error) {
+        console.error('Error type:', error.constructor.name)
+        console.error('Error message:', error.message)
+        if ('response' in error) {
+          console.error('Response:', (error as any).response)
+        }
+      }
       // Still navigate to dashboard even if session save fails
       navigate('/dashboard')
     }

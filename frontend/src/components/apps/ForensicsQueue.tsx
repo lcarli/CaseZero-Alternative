@@ -185,10 +185,7 @@ const ForensicsQueue: React.FC = () => {
 
   useEffect(() => {
     loadRequests()
-    
-    // Refresh every 10 seconds
-    const interval = setInterval(loadRequests, 10000)
-    return () => clearInterval(interval)
+    // No polling - will be updated via SignalR notifications
   }, [currentCase])
 
   const loadRequests = async () => {

@@ -89,22 +89,32 @@ namespace CaseZeroApi.Controllers
         [HttpPost("end/{caseId}")]
         public async Task<IActionResult> EndSession(string caseId, [FromBody] EndCaseSessionRequest request)
         {
+            _logger.LogInformation("🚪 EndSession called for caseId: {CaseId}", caseId);
+            
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            _logger.LogInformation("👤 UserId from token: {UserId}", userId);
+            
             if (string.IsNullOrEmpty(userId))
             {
+                _logger.LogWarning("⚠️ Unauthorized - no userId in token");
                 return Unauthorized();
             }
 
             try
             {
+                _logger.LogInformation("🔍 Looking for active session for userId: {UserId}, caseId: {CaseId}", userId, caseId);
+                
                 var activeSession = await _context.CaseSessions
                     .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == caseId && cs.IsActive);
 
                 if (activeSession == null)
                 {
+                    _logger.LogWarning("❌ No active session found for userId: {UserId}, caseId: {CaseId}", userId, caseId);
                     return NotFound("No active session found for this case");
                 }
 
+                _logger.LogInformation("✅ Active session found: {SessionId}", activeSession.Id);
+                
                 activeSession.IsActive = false;
                 activeSession.SessionEnd = DateTime.UtcNow;
                 activeSession.GameTimeAtEnd = request.GameTimeAtEnd;
@@ -112,6 +122,8 @@ namespace CaseZeroApi.Controllers
                     (int)(activeSession.SessionEnd.Value - activeSession.SessionStart).TotalMinutes;
 
                 await _context.SaveChangesAsync();
+                
+                _logger.LogInformation("💾 Session saved successfully: {SessionId}", activeSession.Id);
 
                 var sessionDto = new CaseSessionDto
                 {

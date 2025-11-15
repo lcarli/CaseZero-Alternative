@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import styled from 'styled-components'
 import { useTimeContext } from '../hooks/useTimeContext'
-import { useCase } from '../hooks/useCaseContext'
 
 const ClockContainer = styled.div`
   position: relative;
@@ -86,7 +85,7 @@ const StatusIndicator = styled.div.withConfig({
 const ExpandedClock = styled.div`
   position: absolute;
   bottom: 80px;
-  right: 0;
+  right: 100px; /* Don't overlap the disconnect button */
   background: rgba(0, 0, 0, 0.9);
   border: 2px solid rgba(52, 152, 219, 0.6);
   border-radius: 8px;
@@ -135,75 +134,11 @@ const InfoRow = styled.div`
   }
 `
 
-const ForensicsBadge = styled.div<{ count: number }>`
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background: ${props => props.count > 0 ? 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)' : 'rgba(149, 165, 166, 0.3)'};
-  color: white;
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: 50%;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  animation: ${props => props.count > 0 ? 'pulse 2s infinite' : 'none'};
-
-  @keyframes pulse {
-    0%, 100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-    50% {
-      transform: scale(1.1);
-      opacity: 0.9;
-    }
-  }
-`
-
-const ForensicsInfo = styled.div`
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(52, 152, 219, 0.3);
-`
-
-const ForensicsTitle = styled.div`
-  font-size: 12px;
-  color: rgba(241, 196, 15, 0.9);
-  margin-bottom: 8px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-`
-
 const Clock: React.FC = () => {
   const { getFormattedTime, getFormattedDate, isRunning, startTime, gameTime } = useTimeContext()
-  const { getPendingForensicRequests, currentCase } = useCase()
   const [isExpanded, setIsExpanded] = useState(false)
-  const [pendingCount, setPendingCount] = useState(0)
 
-  useEffect(() => {
-    const updatePendingCount = async () => {
-      if (!currentCase) return
-      
-      try {
-        const pending = await getPendingForensicRequests()
-        setPendingCount(pending.length)
-      } catch (error) {
-        console.error('Error fetching pending forensics:', error)
-      }
-    }
-
-    updatePendingCount()
-    
-    // Update every 30 seconds
-    const interval = setInterval(updatePendingCount, 30000)
-    return () => clearInterval(interval)
-  }, [currentCase, getPendingForensicRequests])
+  // Forensic badge removed - handled by ForensicsQueue app directly
 
   const handleClick = () => {
     setIsExpanded(!isExpanded)
@@ -219,9 +154,6 @@ const Clock: React.FC = () => {
   return (
     <ClockContainer onClick={handleClick}>
       <StatusIndicator isRunning={isRunning} />
-      <ForensicsBadge count={pendingCount}>
-        {pendingCount > 0 ? pendingCount : '✓'}
-      </ForensicsBadge>
       <TimeDisplay>
         <TimeText>{getFormattedTime()}</TimeText>
         <DateText>{getFormattedDate()}</DateText>
@@ -248,20 +180,6 @@ const Clock: React.FC = () => {
               <span className="value">60x tempo real</span>
             </InfoRow>
           </ClockInfo>
-          
-          {pendingCount > 0 && (
-            <ForensicsInfo>
-              <ForensicsTitle>
-                🔬 Perícias em Andamento
-              </ForensicsTitle>
-              <InfoRow>
-                <span className="label">Perícias Pendentes:</span>
-                <span className="value" style={{ color: '#f39c12', fontWeight: '700' }}>
-                  {pendingCount}
-                </span>
-              </InfoRow>
-            </ForensicsInfo>
-          )}
         </ExpandedClock>
       )}
     </ClockContainer>

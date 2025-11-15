@@ -19,8 +19,7 @@ import { forensicsService } from '../services/forensicsService'
 export class CaseEngine {
   private state: CaseState
   private listeners: ((state: CaseState) => void)[] = []
-  private forensicCheckInterval: number | null = null
-  private lastCheckedTime: Date | null = null
+  // Forensic polling removed - using SignalR instead
 
   constructor(caseData: CaseData, playerRank: PoliceRank = PoliceRank.DETECTIVE) {
     this.state = {
@@ -227,7 +226,7 @@ export class CaseEngine {
   public updateGameTime(newTime: Date): void {
     this.state.currentGameTime = newTime
     this.checkTemporalEvents()
-    this.checkForensicRequests()
+    // checkForensicRequests removed - backend will notify via SignalR
     this.notifyListeners()
   }
 
@@ -473,66 +472,6 @@ export class CaseEngine {
   }
 
   /**
-   * Check forensic requests and complete those that are ready
-   * This is called automatically when game time updates
-   */
-  private async checkForensicRequests(): Promise<void> {
-    // Avoid checking too frequently (once per game minute is enough)
-    if (this.lastCheckedTime) {
-      const timeDiff = this.state.currentGameTime.getTime() - this.lastCheckedTime.getTime()
-      if (timeDiff < 60000) { // Less than 1 minute
-        return
-      }
-    }
-
-    this.lastCheckedTime = this.state.currentGameTime
-
-    try {
-      const completedRequests = await forensicsService.checkCompletedRequests(
-        this.state.caseData.caseId,
-        this.state.currentGameTime
-      )
-
-      for (const request of completedRequests) {
-        await this.handleForensicRequestCompletion(request)
-      }
-    } catch (error) {
-      console.error('Error checking forensic requests:', error)
-    }
-  }
-
-  /**
-   * Handle completion of a forensic request
-   */
-  private async handleForensicRequestCompletion(request: ForensicRequest): Promise<void> {
-    try {
-      // Generate result document ID (in real scenario, backend would do this)
-      const resultDocumentId = `forensic-result-${request.id}`
-
-      // Complete the request in the backend
-      await forensicsService.completeForensicRequest(
-        request.caseId,
-        request.id,
-        this.state.currentGameTime,
-        resultDocumentId
-      )
-
-      // Mark analysis as completed in local state
-      this.state.completedAnalyses.add(request.evidenceId)
-
-      // Refresh available files to show new forensic report
-      await this.updateAvailableFiles()
-
-      // Trigger notification (could be enhanced with a notification system)
-      console.log(`Forensic analysis completed: ${request.analysisType} for ${request.evidenceName}`)
-
-      this.notifyListeners()
-    } catch (error) {
-      console.error('Error handling forensic request completion:', error)
-    }
-  }
-
-  /**
    * Request a forensic analysis for an evidence
    */
   public async requestForensicAnalysis(
@@ -573,26 +512,17 @@ export class CaseEngine {
   }
 
   /**
-   * Start periodic forensic check (called when engine initializes)
+   * Start periodic forensic check (DISABLED - now using SignalR)
    */
   public startForensicChecks(): void {
-    if (this.forensicCheckInterval) {
-      return // Already running
-    }
-
-    // Check every 30 seconds in real time
-    this.forensicCheckInterval = window.setInterval(() => {
-      this.checkForensicRequests()
-    }, 30000)
+    // Polling disabled - using SignalR for real-time updates
+    console.log('Forensic checks disabled - using SignalR for real-time notifications')
   }
 
   /**
-   * Stop periodic forensic checks (called when engine is disposed)
+   * Stop periodic forensic checks (DISABLED - now using SignalR)
    */
   public stopForensicChecks(): void {
-    if (this.forensicCheckInterval) {
-      clearInterval(this.forensicCheckInterval)
-      this.forensicCheckInterval = null
-    }
+    // Nothing to stop - polling disabled
   }
 }
