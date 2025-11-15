@@ -182,7 +182,18 @@ const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     throw new ApiError(response.status, errorMessage)
   }
   
-  return response.json()
+  // Handle 204 No Content (e.g., DELETE operations)
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return null
+  }
+  
+  // Check if response has content
+  const contentType = response.headers.get('content-type')
+  if (contentType && contentType.includes('application/json')) {
+    return response.json()
+  }
+  
+  return null
 }
 
 // Authentication API

@@ -269,7 +269,8 @@ const Notebook: React.FC = () => {
   
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
-  const selectedNote = notes.find(note => note.id === selectedNoteId)
+  const textAreaRef = useRef<HTMLTextAreaElement>(null)
+  const originalNoteRef = useRef<{ content: string, title: string } | null>(null)
 
   // Load notes when component mounts or case changes
   useEffect(() => {
@@ -302,6 +303,16 @@ const Notebook: React.FC = () => {
     loadNotes()
   }, [currentCase])
 
+  // Focus textarea when a note is selected
+  useEffect(() => {
+    if (selectedNoteId && textAreaRef.current) {
+      // Small delay to ensure render is complete
+      setTimeout(() => {
+        textAreaRef.current?.focus()
+      }, 50)
+    }
+  }, [selectedNoteId])
+
   // Auto-save with debounce
   useEffect(() => {
     // Clear existing timeout
@@ -309,12 +320,13 @@ const Notebook: React.FC = () => {
       clearTimeout(saveTimeoutRef.current)
     }
 
-    // Don't auto-save if no note is selected or if content hasn't changed
-    if (!selectedNoteId || !selectedNote) return
+    // Don't auto-save if no note is selected
+    if (!selectedNoteId || !originalNoteRef.current) return
     
-    const contentChanged = currentContent !== selectedNote.content
-    const titleChanged = currentTitle !== selectedNote.title
+    const contentChanged = currentContent !== originalNoteRef.current.content
+    const titleChanged = currentTitle !== originalNoteRef.current.title
     
+    // Don't auto-save if nothing changed
     if (!contentChanged && !titleChanged) return
 
     // Set saving indicator
@@ -335,6 +347,12 @@ const Notebook: React.FC = () => {
           )
         )
         
+        // Update the original ref to the new saved values
+        originalNoteRef.current = {
+          content: updatedNote.content,
+          title: updatedNote.title
+        }
+        
         setIsSaving(false)
         setShowSaved(true)
         
@@ -353,7 +371,7 @@ const Notebook: React.FC = () => {
         clearTimeout(saveTimeoutRef.current)
       }
     }
-  }, [currentContent, currentTitle, selectedNoteId, selectedNote])
+  }, [currentContent, currentTitle, selectedNoteId])
 
   const handleNoteSelect = (noteId: number) => {
     // Clear any pending save before switching
@@ -368,8 +386,12 @@ const Notebook: React.FC = () => {
     
     setSelectedNoteId(noteId)
     const note = notes.find(n => n.id === noteId)
-    setCurrentContent(note?.content || '')
-    setCurrentTitle(note?.title || '')
+    const content = note?.content || ''
+    const title = note?.title || ''
+    setCurrentContent(content)
+    setCurrentTitle(title)
+    // Store original values for comparison
+    originalNoteRef.current = { content, title }
     setIsSaving(false)
     setShowSaved(false)
   }
@@ -451,6 +473,8 @@ const Notebook: React.FC = () => {
       setSelectedNoteId(newNote.id)
       setCurrentContent('')
       setCurrentTitle(newNote.title)
+      // Store original values for comparison
+      originalNoteRef.current = { content: '', title: newNote.title }
     } catch (err) {
       console.error('Error creating note:', err)
       setError('Failed to create note')
@@ -569,6 +593,7 @@ const Notebook: React.FC = () => {
       </NotesList>
 
       <TextArea
+        ref={textAreaRef}
         value={currentContent}
         onChange={(e) => setCurrentContent(e.target.value)}
         placeholder="Start typing your investigation notes here..."
