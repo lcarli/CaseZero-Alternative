@@ -14,15 +14,18 @@ public class CaseGenerationStepsFunction
     private readonly ILogger<CaseGenerationStepsFunction> _logger;
     private readonly ICaseGenerationService _caseGenerationService;
     private readonly IStorageService _storageService;
+    private readonly ICaseLoggingService _caseLogging;
 
     public CaseGenerationStepsFunction(
         ILogger<CaseGenerationStepsFunction> logger,
         ICaseGenerationService caseGenerationService,
-        IStorageService storageService)
+        IStorageService storageService,
+        ICaseLoggingService caseLogging)
     {
         _logger = logger;
         _caseGenerationService = caseGenerationService;
         _storageService = storageService;
+        _caseLogging = caseLogging;
     }
 
     [Function("PlanStep")]
@@ -70,6 +73,8 @@ public class CaseGenerationStepsFunction
     public async Task<HttpResponseData> PlanStepOnly(
         [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
     {
+        string? caseId = null;
+        string? traceId = null;
         try
         {
             var requestBody = await req.ReadAsStringAsync();
@@ -82,21 +87,95 @@ public class CaseGenerationStepsFunction
                 return errorResponse;
             }
 
-            var caseId = $"CASE-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8]}";
+            caseId = $"CASE-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8]}";
             var startTime = DateTime.UtcNow;
+            var difficulty = request.Difficulty ?? "Rookie";
+            var timezone = request.Timezone ?? "UTC";
+            traceId = Guid.NewGuid().ToString("N");
             
             _logger.LogInformation("[STEP-BY-STEP] Starting PlanStepOnly for case {CaseId} - Difficulty: {Difficulty}", 
-                caseId, request.Difficulty ?? "Rookie");
+                caseId, difficulty);
 
-            var planResult = await _caseGenerationService.PlanCaseAsync(request, caseId);
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Plan,
+                Step = "PlanStepOnly",
+                Activity = "PlanCaseAsync",
+                TraceId = traceId,
+                Status = "Started",
+                TimestampUtc = startTime,
+                Message = "PlanStepOnly invoked",
+                Data = new
+                {
+                    difficulty,
+                    timezone,
+                    request.Title,
+                    request.Difficulty,
+                    request.Timezone
+                }
+            });
+
+            var planCallStart = DateTime.UtcNow;
+            var planResult = await _caseGenerationService.PlanCaseAsync(request, caseId)
+                ?? throw new InvalidOperationException("Plan generation returned null response");
+            var planCallDuration = DateTime.UtcNow - planCallStart;
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Plan,
+                Step = "PlanStepOnly",
+                Activity = "PlanCaseAsync",
+                TraceId = traceId,
+                Status = "Completed",
+                DurationMs = Math.Round(planCallDuration.TotalMilliseconds, 2),
+                Message = "PlanStepOnly generation finished",
+                Data = new
+                {
+                    difficulty,
+                    timezone,
+                    outputLength = planResult.Length
+                }
+            });
             
             // Save plan.json to storage
-            await _storageService.SaveFileAsync("cases", $"{caseId}/plan.json", planResult);
+            var planPath = $"{caseId}/plan.json";
+            await _storageService.SaveFileAsync("cases", planPath, planResult);
             _logger.LogInformation("[STEP-BY-STEP] Saved plan.json to storage for case {CaseId}", caseId);
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.Payload,
+                Step = "PlanStepOnly",
+                Message = "plan.json saved via PlanStepOnly",
+                PayloadReference = $"cases/{planPath}"
+            });
             
             var duration = DateTime.UtcNow - startTime;
             _logger.LogInformation("[STEP-BY-STEP] PlanStepOnly completed for case {CaseId} - Duration: {Duration}s", 
                 caseId, duration.TotalSeconds);
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Plan,
+                Step = "PlanStepOnly",
+                TraceId = traceId,
+                Status = "Completed",
+                DurationMs = Math.Round(duration.TotalMilliseconds, 2),
+                Message = "PlanStepOnly request completed",
+                Data = new
+                {
+                    durationSeconds = duration.TotalSeconds,
+                    difficulty,
+                    timezone
+                }
+            });
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
@@ -116,6 +195,20 @@ public class CaseGenerationStepsFunction
         catch (Exception ex)
         {
             _logger.LogError(ex, "[STEP-BY-STEP] Failed to execute PlanStepOnly");
+            if (!string.IsNullOrWhiteSpace(caseId))
+            {
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.Plan,
+                    Step = "PlanStepOnly",
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "PlanStepOnly failed",
+                    Error = ex.Message
+                });
+            }
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             await errorResponse.WriteStringAsync($"Error: {ex.Message}");
             return errorResponse;
