@@ -179,7 +179,7 @@ jobs:
           path: ./frontend
 
       - name: 🔐 Azure Login
-        uses: azure/login@v1
+        uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_PROD }}
 
