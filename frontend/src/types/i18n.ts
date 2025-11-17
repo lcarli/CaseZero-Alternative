@@ -157,6 +157,7 @@ export interface Translations {
   // Login page specific
   systemAccess: string;
   metropolitanPoliceDept: string;
+  coldCaseUnit: string;
   emailOrId: string;
   enterPassword: string;
   enterSystem: string;
@@ -165,6 +166,13 @@ export interface Translations {
   requestRegistration: string;
   testCredentials: string;
   backToHome: string;
+  loginBadgeSecure: string;
+  loginBadgeInternal: string;
+  loginBadgeMonitored: string;
+  loginSecurityTitle: string;
+  loginSecurityDesc: string;
+  loginSupportTitle: string;
+  loginSupportDesc: string;
   
   // Register page specific
   registrationRequest: string;

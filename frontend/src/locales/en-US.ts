@@ -152,7 +152,8 @@ export const enUS: Translations = {
   
   // Login page specific
   systemAccess: 'System Access',
-  metropolitanPoliceDept: 'Metropolitan Police Department',
+  metropolitanPoliceDept: 'Metro Police Department',
+  coldCaseUnit: 'Cold Case Unit',
   emailOrId: 'Email or Identification Number',
   enterPassword: 'Enter your password',
   enterSystem: 'Enter System',
@@ -161,6 +162,13 @@ export const enUS: Translations = {
   requestRegistration: 'Request Registration',
   testCredentials: 'Test Credentials:',
   backToHome: 'Back to home',
+  loginBadgeSecure: 'Encrypted tunnel',
+  loginBadgeInternal: 'Internal use only',
+  loginBadgeMonitored: 'Live monitoring',
+  loginSecurityTitle: 'Security posture',
+  loginSecurityDesc: 'All access is logged and audited under departmental policy.',
+  loginSupportTitle: 'Need authorization?',
+  loginSupportDesc: 'Request onboarding through your supervisor or submit the registration form.',
   
   // Register page specific
   registrationRequest: 'Registration Request',

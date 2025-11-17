@@ -152,7 +152,8 @@ export const ptBR: Translations = {
   
   // Login page specific
   systemAccess: 'Acesso ao Sistema',
-  metropolitanPoliceDept: 'Metropolitan Police Department',
+  metropolitanPoliceDept: 'Metro Police Department',
+  coldCaseUnit: 'Cold Case Unit',
   emailOrId: 'Email ou Número de Identificação',
   enterPassword: 'Digite sua senha',
   enterSystem: 'Entrar no Sistema',
@@ -161,6 +162,13 @@ export const ptBR: Translations = {
   requestRegistration: 'Solicitar Registro',
   testCredentials: 'Credenciais de Teste:',
   backToHome: 'Voltar ao início',
+  loginBadgeSecure: 'Túnel criptografado',
+  loginBadgeInternal: 'Uso interno restrito',
+  loginBadgeMonitored: 'Monitoramento ativo',
+  loginSecurityTitle: 'Postura de segurança',
+  loginSecurityDesc: 'Todo acesso é registrado e auditado conforme a política do departamento.',
+  loginSupportTitle: 'Precisa de autorização?',
+  loginSupportDesc: 'Solicite onboarding ao seu supervisor ou envie o formulário de registro.',
   
   // Register page specific
   registrationRequest: 'Solicitação de Registro',

@@ -152,7 +152,8 @@ export const frFR: Translations = {
   
   // Login page specific
   systemAccess: 'Accès au Système',
-  metropolitanPoliceDept: 'Metropolitan Police Department',
+  metropolitanPoliceDept: 'Metro Police Department',
+  coldCaseUnit: 'Cold Case Unit',
   emailOrId: 'Email ou Numéro d\'Identification',
   enterPassword: 'Entrez votre mot de passe',
   enterSystem: 'Entrer dans le Système',
@@ -161,6 +162,13 @@ export const frFR: Translations = {
   requestRegistration: 'Demander l\'Inscription',
   testCredentials: 'Identifiants de Test:',
   backToHome: 'Retour à l\'accueil',
+  loginBadgeSecure: 'Tunnel chiffré',
+  loginBadgeInternal: 'Usage interne uniquement',
+  loginBadgeMonitored: 'Surveillance active',
+  loginSecurityTitle: 'Posture de sécurité',
+  loginSecurityDesc: 'Chaque accès est journalisé et audité selon la politique du département.',
+  loginSupportTitle: "Besoin d'autorisation ?",
+  loginSupportDesc: "Demandez l'onboarding à votre supérieur ou envoyez le formulaire d'inscription.",
   
   // Register page specific
   registrationRequest: 'Demande d\'Inscription',
