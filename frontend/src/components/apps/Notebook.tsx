@@ -16,6 +16,7 @@ const NotebookContent = styled.div`
   display: flex;
   gap: 1rem;
   overflow: hidden;
+  min-height: 0;
 `
 
 const Sidebar = styled.div`
@@ -24,6 +25,7 @@ const Sidebar = styled.div`
   flex-direction: column;
   gap: 0.75rem;
   overflow: hidden;
+  min-height: 0;
 `
 
 const EditorArea = styled.div`
@@ -33,6 +35,7 @@ const EditorArea = styled.div`
   gap: 0.5rem;
   position: relative;
   z-index: 1;
+  min-height: 0;
 `
 
 const NotebookHeader = styled.div`
@@ -332,6 +335,10 @@ const Notebook: React.FC = () => {
   const [noteToDelete, setNoteToDelete] = useState<NoteDTO | null>(null)
   
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const textAreaRef = useRef<HTMLTextAreaElement>(null)
+
+  const sortNotesDesc = (list: NoteDTO[]) =>
+    [...list].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 
   // Load notes when component mounts or case changes
   useEffect(() => {
@@ -344,7 +351,7 @@ const Notebook: React.FC = () => {
       try {
         setIsLoading(true)
         setError(null)
-        const fetchedNotes = await notesApi.getNotesByCaseId(currentCase)
+        const fetchedNotes = sortNotesDesc(await notesApi.getNotesByCaseId(currentCase))
         setNotes(fetchedNotes)
         
         // Select first note if available
@@ -364,6 +371,19 @@ const Notebook: React.FC = () => {
     loadNotes()
   }, [currentCase])
 
+  useEffect(() => {
+    if (!selectedNoteId || !textAreaRef.current) return
+    const textarea = textAreaRef.current
+    // Defer focus to next frame so DOM is ready
+    const handle = requestAnimationFrame(() => {
+      textarea.focus()
+      // Move caret to end for better UX
+      const length = textarea.value.length
+      textarea.setSelectionRange(length, length)
+    })
+    return () => cancelAnimationFrame(handle)
+  }, [selectedNoteId])
+
   const handleSaveNote = async () => {
     if (!selectedNoteId) return
 
@@ -377,9 +397,9 @@ const Notebook: React.FC = () => {
       })
       
       setNotes(prev => 
-        prev.map(note => 
+        sortNotesDesc(prev.map(note => 
           note.id === selectedNoteId ? updatedNote : note
-        )
+        ))
       )
       
       setIsSaving(false)
@@ -482,12 +502,10 @@ const Notebook: React.FC = () => {
         content: ''
       })
       
-      console.log('New note created:', newNote)
-      setNotes(prev => [newNote, ...prev])
+      setNotes(prev => sortNotesDesc([newNote, ...prev]))
       setSelectedNoteId(newNote.id)
       setCurrentContent('')
       setCurrentTitle(newNote.title)
-      console.log('State updated - selectedNoteId:', newNote.id)
     } catch (err) {
       console.error('Error creating note:', err)
       setError('Failed to create note')
@@ -510,7 +528,7 @@ const Notebook: React.FC = () => {
     try {
       await notesApi.deleteNote(noteToDelete.id)
       
-      const remainingNotes = notes.filter(note => note.id !== noteToDelete.id)
+      const remainingNotes = sortNotesDesc(notes.filter(note => note.id !== noteToDelete.id))
       setNotes(remainingNotes)
       
       if (remainingNotes.length > 0) {
@@ -611,16 +629,9 @@ const Notebook: React.FC = () => {
 
         <EditorArea>
           <TextArea
+            ref={textAreaRef}
             value={currentContent}
-            onChange={(e) => {
-              console.log('onChange called:', e.target.value)
-              setCurrentContent(e.target.value)
-            }}
-            onFocus={() => console.log('TextArea focused')}
-            onClick={(e) => {
-              console.log('TextArea clicked, forcing focus')
-              e.currentTarget.focus()
-            }}
+            onChange={(e) => setCurrentContent(e.target.value)}
             placeholder="Start typing your investigation notes here..."
             disabled={!selectedNoteId}
           />
