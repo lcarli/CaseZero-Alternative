@@ -146,7 +146,7 @@ const Navigation: React.FC<NavigationProps> = ({ showAuth = true }) => {
         {showAuth && (
           <NavMenu role="menubar">
             <LanguageSelectorWrapper>
-              <LanguageSelector />
+              <LanguageSelector appearance="landing" />
             </LanguageSelectorWrapper>
             <NavButton 
               to="/login" 
