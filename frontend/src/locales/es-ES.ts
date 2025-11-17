@@ -90,6 +90,12 @@ export const esES: Translations = {
   recentHistory: 'Historial Reciente',
   lastSession: 'Última sesión',
   priority: 'Prioridad',
+  divisionHeatmap: 'Mapa de calor de divisiones',
+  evidenceProgress: 'Progreso de evidencias',
+  commandBulletins: 'Boletines de mando',
+  noRecentActivity: 'No hay actividad reciente registrada.',
+  noDataAvailable: 'No hay datos operativos disponibles.',
+  viewDossier: 'Ver dossier',
   
   // Desktop
   evidence: 'Evidencias',

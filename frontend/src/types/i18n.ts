@@ -113,6 +113,12 @@ export interface Translations {
   recentHistory: string;
   lastSession: string;
   priority: string;
+  divisionHeatmap: string;
+  evidenceProgress: string;
+  commandBulletins: string;
+  noRecentActivity: string;
+  noDataAvailable: string;
+  viewDossier: string;
   
   // Footer
   currentLanguage: string;

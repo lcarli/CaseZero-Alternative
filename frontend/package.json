@@ -16,6 +16,7 @@
     "@microsoft/signalr": "^10.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-feather": "^2.0.10",
     "react-router-dom": "^7.7.1",
     "styled-components": "^6.1.19"
   },

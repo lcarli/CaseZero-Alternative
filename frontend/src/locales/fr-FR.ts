@@ -90,6 +90,12 @@ export const frFR: Translations = {
   recentHistory: 'Historique Récent',
   lastSession: 'Dernière session',
   priority: 'Priorité',
+  divisionHeatmap: 'Carte thermique des divisions',
+  evidenceProgress: 'Progression des preuves',
+  commandBulletins: 'Bulletins de commandement',
+  noRecentActivity: 'Aucune activité récente enregistrée.',
+  noDataAvailable: 'Aucune donnée opérationnelle disponible.',
+  viewDossier: 'Voir le dossier',
   
   // Desktop
   evidence: 'Preuves',

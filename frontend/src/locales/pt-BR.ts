@@ -90,6 +90,12 @@ export const ptBR: Translations = {
   recentHistory: 'Histórico Recente',
   lastSession: 'Última sessão',
   priority: 'Prioridade',
+  divisionHeatmap: 'Mapa de calor das divisões',
+  evidenceProgress: 'Progresso de evidências',
+  commandBulletins: 'Boletins de comando',
+  noRecentActivity: 'Nenhuma atividade recente registrada.',
+  noDataAvailable: 'Nenhum dado operacional disponível.',
+  viewDossier: 'Ver dossiê',
   
   // Desktop
   evidence: 'Evidências',
