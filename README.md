@@ -59,7 +59,7 @@ Um sistema imersivo de investigação detetivesca onde você assume o papel de u
 
 ### Arquitetura de Serviços:
 ```
-CaseGen.Functions/Services/CaseGeneration/
+functions/CaseGen.Functions/Services/CaseGeneration/
 ├── PlanGenerationService.cs      (282 lines) - Planejamento hierárquico
 ├── ExpandService.cs              (513 lines) - Expansão de conteúdo
 ├── DesignService.cs              (361 lines) - Design visual
@@ -244,21 +244,22 @@ curl -H "Authorization: Bearer $TOKEN" \
 │   │   ├── hooks/                # Custom hooks
 │   │   ├── pages/                # Páginas da aplicação
 │   │   └── services/             # API services
-├── backend/                      # .NET backend
+├── backend/                      # .NET backend API only
 │   ├── CaseZeroApi/             # Web API (.NET 8)
 │   │   ├── Controllers/         # API controllers
 │   │   ├── Models/              # Modelos de dados
 │   │   ├── DTOs/                # Data Transfer Objects
 │   │   ├── Data/                # DbContext
 │   │   └── Services/            # Business logic
-│   ├── CaseGen.Functions/       # Azure Functions (.NET 9)
-│   │   ├── Functions/           # Function endpoints
-│   │   ├── Services/
-│   │   │   └── CaseGeneration/ # 6 serviços especializados
-│   │   ├── Models/              # Domain models
-│   │   └── Schemas/             # JSON schemas
 │   ├── CaseZeroApi.Tests/       # Unit tests (API)
 │   └── CaseZeroApi.IntegrationTests/  # Integration tests
+├── functions/                   # Azure Functions case generator
+│   └── CaseGen.Functions/       # Durable pipeline (.NET 9)
+│       ├── Functions/           # Function endpoints
+│       ├── Services/
+│       │   └── CaseGeneration/ # 6 serviços especializados
+│       ├── Models/              # Domain models
+│       └── Schemas/             # JSON schemas
 ├── cases/                        # Casos investigativos
 │   ├── CASE-2024-001/           # Exemplo: Homicídio Corporativo
 │   ├── CASE-2024-002/           # Exemplo: Roubo em Clínica

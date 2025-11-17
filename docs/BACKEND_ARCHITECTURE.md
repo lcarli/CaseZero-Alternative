@@ -37,7 +37,7 @@ backend/CaseZeroApi/
 Sistema de geração automática de casos com Azure Functions e AI (**.NET 9.0**):
 
 ```
-backend/CaseGen.Functions/
+functions/CaseGen.Functions/
 ├── Functions/                 # Azure Functions endpoints
 │   ├── GenerateCaseFunction.cs    # Main orchestration
 │   ├── PlanFunction.cs            # Planning phase
@@ -1142,7 +1142,7 @@ A partir de **outubro 2025**, o sistema CaseGen.Functions foi refatorado de um m
 
 ### 1. PlanGenerationService (282 linhas)
 
-**Arquivo:** `backend/CaseGen.Functions/Services/CaseGeneration/PlanGenerationService.cs`
+**Arquivo:** `functions/CaseGen.Functions/Services/CaseGeneration/PlanGenerationService.cs`
 
 **Fase:** 2 - Planning
 
@@ -1169,7 +1169,7 @@ Task<string> PlanEvidenceAsync(string caseId, CancellationToken cancellationToke
 
 ### 2. ExpandService (513 linhas)
 
-**Arquivo:** `backend/CaseGen.Functions/Services/CaseGeneration/ExpandService.cs`
+**Arquivo:** `functions/CaseGen.Functions/Services/CaseGeneration/ExpandService.cs`
 
 **Fase:** 3 - Expansion
 
@@ -1194,7 +1194,7 @@ Task<string> SynthesizeRelationsAsync(string caseId, CancellationToken cancellat
 
 ### 3. DesignService (361 linhas)
 
-**Arquivo:** `backend/CaseGen.Functions/Services/CaseGeneration/DesignService.cs`
+**Arquivo:** `functions/CaseGen.Functions/Services/CaseGeneration/DesignService.cs`
 
 **Fase:** 4 - Design
 
@@ -1216,7 +1216,7 @@ Task GenerateMasterReferencesAsync(string caseId, CancellationToken cancellation
 
 ### 4. DocumentGenerationService (219 linhas)
 
-**Arquivo:** `backend/CaseGen.Functions/Services/CaseGeneration/DocumentGenerationService.cs`
+**Arquivo:** `functions/CaseGen.Functions/Services/CaseGeneration/DocumentGenerationService.cs`
 
 **Fase:** 5 - Document Generation
 
@@ -1256,7 +1256,7 @@ Task RenderDocumentFromJsonAsync(
 
 ### 5. MediaGenerationService (149 linhas)
 
-**Arquivo:** `backend/CaseGen.Functions/Services/CaseGeneration/MediaGenerationService.cs`
+**Arquivo:** `functions/CaseGen.Functions/Services/CaseGeneration/MediaGenerationService.cs`
 
 **Fase:** 5 - Media Generation
 
@@ -1296,7 +1296,7 @@ Task RenderMediaFromJsonAsync(
 
 ### 6. ValidationService (218 linhas)
 
-**Arquivo:** `backend/CaseGen.Functions/Services/CaseGeneration/ValidationService.cs`
+**Arquivo:** `functions/CaseGen.Functions/Services/CaseGeneration/ValidationService.cs`
 
 **Fase:** 6 - Validation
 
@@ -1343,7 +1343,7 @@ Task<string> FixCaseAsync(
 
 ### Main Coordinator
 
-**Arquivo:** `backend/CaseGen.Functions/Services/CaseGenerationService.cs` (~300 linhas)
+**Arquivo:** `functions/CaseGen.Functions/Services/CaseGenerationService.cs` (~300 linhas)
 
 Após a refatoração, o `CaseGenerationService` original tornou-se um **coordinator** que:
 - Injeta os 6 serviços especializados via constructor DI
@@ -1382,7 +1382,7 @@ builder.Services
 
 O **PdfRenderingService** é o componente responsável por gerar PDFs profissionais de documentos policiais usando a biblioteca **QuestPDF 2025.7.1**.
 
-**Arquivo:** `backend/CaseGen.Functions/Services/PdfRenderingService.cs` (~3200 lines)
+**Arquivo:** `functions/CaseGen.Functions/Services/PdfRenderingService.cs` (~3200 lines)
 
 ### Implemented Templates (7 types)
 

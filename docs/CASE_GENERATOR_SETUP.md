@@ -86,7 +86,7 @@ Implante as Case Generator Functions:
 # Clique em "Run workflow" e selecione ambiente "development"
 
 # Opção 2: Implantação manual
-cd backend/CaseGen.Functions
+cd functions/CaseGen.Functions
 func azure functionapp publish casezero-func-dev
 ```
 
@@ -154,7 +154,7 @@ Configure os seguintes segredos no seu repositório GitHub:
 
 1. **Construir Functions Localmente**
    ```bash
-   cd backend/CaseGen.Functions
+   cd functions/CaseGen.Functions
    dotnet restore
    dotnet build --configuration Release
    dotnet publish --configuration Release --output ./publish
@@ -278,7 +278,7 @@ az functionapp cors add --name $FUNC_NAME --resource-group casezero-dev-rg --all
 ### Testes Unitários
 
 ```bash
-cd backend/CaseGen.Functions
+cd functions/CaseGen.Functions
 dotnet test
 ```
 
@@ -403,7 +403,7 @@ Para implantações de emergência:
 
 ```bash
 # Implantação rápida de function
-cd backend/CaseGen.Functions
+cd functions/CaseGen.Functions
 func azure functionapp publish $FUNC_NAME --force
 ```
 

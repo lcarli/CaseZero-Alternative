@@ -25,7 +25,7 @@ http-requests/
 ### Prerequisites
 
 - **CaseGen.Functions**: Must be running locally or deployed to Azure
-  - Local: `func start` in `backend/CaseGen.Functions/bin/Debug/net9.0`
+  - Local: `func start` in `functions/CaseGen.Functions/bin/Debug/net9.0`
   - Port: 7071 (default)
 
 - **CaseZeroApi**: Must be running locally or deployed

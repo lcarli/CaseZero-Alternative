@@ -15,7 +15,7 @@ Este documento descreve o plano completo para implementar emails gerados por IA 
 
 ### ✅ Concluído
 - **Tarefa 1**: Estrutura de modelo `NormalizedEmail` criada
-  - Records em `CaseGen.Functions/Models/CaseGenerationModels.cs`
+  - Records em `functions/CaseGen.Functions/Models/CaseGenerationModels.cs`
   - Classes em `CaseZeroApi/Models/NormalizedCaseBundle.cs`
   - Campos: `emailId`, `from`, `to`, `subject`, `content`, `sentAt`, `priority`, `attachments`, `gated`, `gatingRule`, `metadata`
 
@@ -40,7 +40,7 @@ Este documento descreve o plano completo para implementar emails gerados por IA 
 
 ### **Tarefa 3 (RE-FAZER)**: Criar método GenerateEmailDesigns
 
-**Arquivo**: `backend/CaseGen.Functions/Services/CaseGenerationService.cs`
+**Arquivo**: `functions/CaseGen.Functions/Services/CaseGenerationService.cs`
 
 **Localização**: Adicionar após o método `DesignMediaTypeAsync()` (aproximadamente linha 1534)
 
@@ -80,7 +80,7 @@ public async Task<string> GenerateEmailDesignsAsync(string caseId, CancellationT
 
 ### **Tarefa 4 (RE-FAZER)**: Criar método ExpandEmails
 
-**Arquivo**: `backend/CaseGen.Functions/Services/CaseGenerationService.cs`
+**Arquivo**: `functions/CaseGen.Functions/Services/CaseGenerationService.cs`
 
 **Localização**: Logo após `GenerateEmailDesignsAsync()`
 
@@ -108,7 +108,7 @@ public async Task<string> ExpandEmailsAsync(string caseId, CancellationToken can
 
 ### **Tarefa 5**: Criar método NormalizeEmails
 
-**Arquivo**: `backend/CaseGen.Functions/Services/CaseGenerationService.cs`
+**Arquivo**: `functions/CaseGen.Functions/Services/CaseGenerationService.cs`
 
 **Localização**: Logo após `ExpandEmailsAsync()`
 
@@ -139,8 +139,8 @@ public async Task<string> NormalizeEmailsAsync(string caseId, CancellationToken 
 ### **Tarefa 6**: Integrar email generation na pipeline principal
 
 **Arquivos**:
-- `backend/CaseGen.Functions/Services/CaseGenerationService.cs` (método de orquestração principal)
-- `backend/CaseGen.Functions/Services/NormalizerService.cs`
+- `functions/CaseGen.Functions/Services/CaseGenerationService.cs` (método de orquestração principal)
+- `functions/CaseGen.Functions/Services/NormalizerService.cs`
 
 **O que fazer**:
 
@@ -156,7 +156,7 @@ await _caseGenerationService.NormalizeEmailsAsync(caseId, cancellationToken);
 ```
 
 #### 6.2. Atualizar NormalizerService
-**Arquivo**: `backend/CaseGen.Functions/Services/NormalizerService.cs`
+**Arquivo**: `functions/CaseGen.Functions/Services/NormalizerService.cs`
 
 Modificar `CreateNormalizedBundle` (linha ~909):
 - Remover: `Emails = Array.Empty<NormalizedEmail>()`
@@ -421,7 +421,7 @@ const EmailViewer: React.FC = () => {
 
 ### **Tarefa 11**: Criar endpoint de teste TestGenerateEmails
 
-**Arquivo**: `backend/CaseGen.Functions/Functions/TestGenerateEmails.cs` (CRIAR NOVO)
+**Arquivo**: `functions/CaseGen.Functions/Functions/TestGenerateEmails.cs` (CRIAR NOVO)
 
 **O que fazer**:
 
@@ -873,7 +873,7 @@ cases/
 # 1. Corrigir erro de build na linha 3852
 # 2. Implementar Tarefas 3-5
 # 3. Compilar projeto
-cd backend/CaseGen.Functions
+cd functions/CaseGen.Functions
 dotnet build
 
 # 4. Executar Function

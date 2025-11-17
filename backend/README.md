@@ -1,9 +1,6 @@
 # Backend - CaseZero
 
-Este diretório contém toda a lógica de servidor e APIs do projeto CaseZero, dividido em **dois projetos principais**:
-
-1. **CaseZeroApi** - Web API REST (.NET 8)
-2. **CaseGen.Functions** - Azure Functions para geração de casos com IA (.NET 9)
+Este diretório contém a Web API principal e seus testes automatizados. O pipeline **CaseGen.Functions** agora vive no diretório raiz `functions/CaseGen.Functions`.
 
 ## 📁 Estrutura
 
@@ -16,25 +13,6 @@ backend/
 │   ├── Data/                         # Entity Framework DbContext
 │   ├── Services/                     # Business logic services
 │   └── Program.cs                    # App configuration
-│
-├── CaseGen.Functions/                # Azure Functions (.NET 9)
-│   ├── Functions/                    # Function endpoints
-│   │   ├── GenerateCaseFunction.cs  # Main case generation
-│   │   ├── PlanFunction.cs          # Planning endpoints
-│   │   ├── ExpandFunction.cs        # Expansion endpoints
-│   │   └── RenderFunction.cs        # PDF/Image rendering
-│   ├── Services/
-│   │   └── CaseGeneration/          # 🆕 6 specialized services
-│   │       ├── PlanGenerationService.cs      (282 lines)
-│   │       ├── ExpandService.cs              (513 lines)
-│   │       ├── DesignService.cs              (361 lines)
-│   │       ├── DocumentGenerationService.cs  (219 lines)
-│   │       ├── MediaGenerationService.cs     (149 lines)
-│   │       └── ValidationService.cs          (218 lines)
-│   ├── Models/                       # Domain models
-│   ├── Schemas/                      # JSON schemas
-│   └── Program.cs                    # DI configuration
-│
 ├── CaseZeroApi.Tests/                # Unit tests (API)
 ├── CaseZeroApi.IntegrationTests/     # Integration tests
 └── README.md                         # Este arquivo
@@ -144,6 +122,8 @@ dotnet test
 
 ## 🤖 CaseGen.Functions - Case Generator AI
 
+> 📁 Código fonte: `functions/CaseGen.Functions`
+
 ### 📋 Propósito
 
 Sistema de geração automática de casos detetivescos usando IA, baseado em Azure Functions com arquitetura modular.
@@ -224,7 +204,7 @@ POST /api/ValidateCase          # Fase 6: Validation
 ### 🔧 Como Executar Localmente
 
 ```bash
-cd CaseGen.Functions
+cd ../functions/CaseGen.Functions
 
 # Restaurar dependências
 dotnet restore
@@ -312,7 +292,7 @@ CaseGeneration Services (1,742 lines total):
 
 ### Adicionando Novos Serviços
 
-1. Criar serviço em `CaseGen.Functions/Services/CaseGeneration/`
+1. Criar serviço em `functions/CaseGen.Functions/Services/CaseGeneration/`
 2. Implementar interface com métodos async
 3. Injetar dependências via constructor
 4. Registrar no `Program.cs`:

@@ -435,7 +435,7 @@ PdfRenderingService.cs (~3200+ lines)
 ```
 
 **QuestPDF Version:** 2025.7.1 (Community License)  
-**File Location:** `backend/CaseGen.Functions/Services/PdfRenderingService.cs`
+**File Location:** `functions/CaseGen.Functions/Services/PdfRenderingService.cs`
 
 ### Content Generation Strategy
 
