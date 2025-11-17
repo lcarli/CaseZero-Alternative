@@ -172,6 +172,15 @@ export const ptBR: Translations = {
   
   // Register page specific
   registrationRequest: 'Solicitação de Registro',
+  registrationFormSubtitle: 'Processo de credenciamento oficial',
+  registrationChecklistTitle: 'Checklist de autorização',
+  registrationChecklistDesc: 'Informe apenas dados oficiais emitidos pelo departamento.',
+  registrationChecklistItem1: 'Use seu e-mail institucional e identificação.',
+  registrationChecklistItem2: 'Informe o número do crachá ou divisão para verificação.',
+  registrationChecklistItem3: 'Crie uma senha segura com pelo menos 8 caracteres.',
+  registrationChecklistItem4: 'Solicitações são validadas pelo comando antes da ativação.',
+  registrationSupportTitle: 'Já possui autorização?',
+  registrationSupportDesc: 'Autentique-se com as credenciais emitidas pelo departamento.',
   importantNote: 'Importante:',
   systemRestricted: 'Este sistema é restrito a funcionários autorizados do departamento de polícia. Todas as solicitações passam por verificação antes da aprovação.',
   institutionalEmail: 'Email Institucional',

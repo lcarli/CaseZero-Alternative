@@ -172,6 +172,15 @@ export const esES: Translations = {
   
   // Register page specific
   registrationRequest: 'Solicitud de Registro',
+  registrationFormSubtitle: 'Proceso oficial de incorporación',
+  registrationChecklistTitle: 'Lista de verificación de autorización',
+  registrationChecklistDesc: 'Envía únicamente datos oficiales emitidos por el departamento.',
+  registrationChecklistItem1: 'Usa tu correo institucional e identificación.',
+  registrationChecklistItem2: 'Proporciona número de placa o división para verificación.',
+  registrationChecklistItem3: 'Crea una contraseña segura con al menos 8 caracteres.',
+  registrationChecklistItem4: 'Las solicitudes se validan con el mando antes de la activación.',
+  registrationSupportTitle: '¿Ya estás autorizado?',
+  registrationSupportDesc: 'Inicia sesión con las credenciales emitidas por el departamento.',
   importantNote: 'Importante:',
   systemRestricted: 'Este sistema está restringido a empleados autorizados del departamento de policía. Todas las solicitudes pasan por verificación antes de la aprobación.',
   institutionalEmail: 'Email Institucional',

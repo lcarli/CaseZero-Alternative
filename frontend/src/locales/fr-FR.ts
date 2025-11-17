@@ -172,6 +172,15 @@ export const frFR: Translations = {
   
   // Register page specific
   registrationRequest: 'Demande d\'Inscription',
+  registrationFormSubtitle: "Processus officiel d'habilitation",
+  registrationChecklistTitle: "Liste de contrôle d'autorisation",
+  registrationChecklistDesc: "Transmettez uniquement les données officielles émises par le département.",
+  registrationChecklistItem1: "Utilisez votre e-mail institutionnel et votre identification.",
+  registrationChecklistItem2: "Fournissez le numéro de badge ou la division pour vérification.",
+  registrationChecklistItem3: "Créez un mot de passe sécurisé d'au moins 8 caractères.",
+  registrationChecklistItem4: "Les demandes sont validées par le commandement avant activation.",
+  registrationSupportTitle: 'Déjà autorisé ?',
+  registrationSupportDesc: 'Connectez-vous avec les identifiants fournis par le département.',
   importantNote: 'Important:',
   systemRestricted: 'Ce système est réservé aux employés autorisés du département de police. Toutes les demandes sont vérifiées avant approbation.',
   institutionalEmail: 'Email Institutionnel',

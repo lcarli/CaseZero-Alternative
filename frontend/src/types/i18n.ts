@@ -176,6 +176,15 @@ export interface Translations {
   
   // Register page specific
   registrationRequest: string;
+  registrationFormSubtitle: string;
+  registrationChecklistTitle: string;
+  registrationChecklistDesc: string;
+  registrationChecklistItem1: string;
+  registrationChecklistItem2: string;
+  registrationChecklistItem3: string;
+  registrationChecklistItem4: string;
+  registrationSupportTitle: string;
+  registrationSupportDesc: string;
   importantNote: string;
   systemRestricted: string;
   institutionalEmail: string;

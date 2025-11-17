@@ -172,6 +172,15 @@ export const enUS: Translations = {
   
   // Register page specific
   registrationRequest: 'Registration Request',
+  registrationFormSubtitle: 'Authorized personnel onboarding',
+  registrationChecklistTitle: 'Pre-clearance checklist',
+  registrationChecklistDesc: 'Submit only official information issued by the department.',
+  registrationChecklistItem1: 'Use your institutional email and identification.',
+  registrationChecklistItem2: 'Provide badge or division assignment for verification.',
+  registrationChecklistItem3: 'Create a secure password with at least 8 characters.',
+  registrationChecklistItem4: 'Requests are validated by command before activation.',
+  registrationSupportTitle: 'Already authorized?',
+  registrationSupportDesc: 'Authenticate with your issued credentials in the secure portal.',
   importantNote: 'Important:',
   systemRestricted: 'This system is restricted to authorized police department employees. All requests undergo verification before approval.',
   institutionalEmail: 'Institutional Email',
