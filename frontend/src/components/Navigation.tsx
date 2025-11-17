@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import { useLanguage } from '../hooks/useLanguageContext'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardNavigation'
 import LanguageSelector from './LanguageSelector'
+import logoImage from '../assets/Logo-With-Name-Transparent2.png'
 
 const NavContainer = styled.nav`
   position: fixed;
@@ -46,8 +47,10 @@ const Logo = styled(Link)`
   }
 `
 
-const LogoIcon = styled.span`
-  font-size: 1.5rem;
+const LogoImage = styled.img`
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
 `
 
 const NavMenu = styled.div`
@@ -135,9 +138,9 @@ const Navigation: React.FC<NavigationProps> = ({ showAuth = true }) => {
   return (
     <NavContainer ref={navRef} role="navigation" aria-label="Main navigation">
       <NavContent>
-        <Logo to="/" aria-label={`${t('home')} - CaseZero`}>
-          <LogoIcon>🏛️</LogoIcon>
-          CaseZero
+        <Logo to="/" aria-label={`${t('home')} - CASE ZERO`}>
+          <LogoImage src={logoImage} alt="CASE ZERO" />
+          CASE ZERO
         </Logo>
         
         {showAuth && (
