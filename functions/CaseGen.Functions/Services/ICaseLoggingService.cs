@@ -1,3 +1,5 @@
+using CaseGen.Functions.Models;
+
 namespace CaseGen.Functions.Services;
 
 public interface ICaseLoggingService
@@ -16,6 +18,11 @@ public interface ICaseLoggingService
     /// Logs detailed information to blob storage (verbose logging)
     /// </summary>
     Task LogDetailedAsync(string caseId, string source, string level, string message, object? data = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Emits a structured log entry (NDJSON friendly) to blob storage
+    /// </summary>
+    Task LogStructuredAsync(StructuredLogEntry entry, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Logs LLM interaction details to blob storage

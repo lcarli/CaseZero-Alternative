@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using CaseGen.Functions.Models;
 using CaseGen.Functions.Services;
 using System.Text.Json;
+using System.Linq;
 
 namespace CaseGen.Functions.Functions;
 
@@ -108,8 +109,11 @@ public class CaseGeneratorOrchestrator
             Status = "Running",
             StartTime = startTime,
             TotalSteps = CaseGenerationSteps.AllSteps.Length,
-            CompletedSteps = Array.Empty<string>()
+            CompletedSteps = Array.Empty<string>(),
+            StepDurationsSeconds = new Dictionary<string, double>()
         };
+
+        var stepDurations = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
@@ -118,34 +122,62 @@ public class CaseGeneratorOrchestrator
             _caseLogging.LogOrchestratorStep(caseId, "WORKFLOW_START", "Beginning case generation workflow");
 
             // Step 1: Plan (Hierarchical - 4 sub-activities)
-            status = status with { CurrentStep = CaseGenerationSteps.Plan, Progress = 0.05 };
+            status = status with { CurrentStep = CaseGenerationSteps.Plan, Progress = 0.05, StepDurationsSeconds = SnapshotStepDurations(stepDurations) };
             context.SetCustomStatus(status);
             _caseLogging.LogOrchestratorStep(caseId, "PLAN_START", "Creating hierarchical case plan");
 
             // 1.1: Generate core case structure
-            await context.CallActivityAsync<string>("PlanCoreActivity", 
-                new PlanCoreActivityModel { Request = request, CaseId = caseId });
+            await TrackActivityAsync(
+                context,
+                caseId,
+                "PLAN_CORE",
+                () => context.CallActivityAsync<string>(
+                    "PlanCoreActivity",
+                    new PlanCoreActivityModel { Request = request, CaseId = caseId }),
+                stepDurations,
+                phase: CaseGenerationSteps.Plan);
             _caseLogging.LogOrchestratorStep(caseId, "PLAN_CORE_COMPLETE", "Core structure generated");
 
             // 1.2: Generate suspects based on core
-            status = status with { Progress = 0.08 };
+            status = status with { Progress = 0.08, StepDurationsSeconds = SnapshotStepDurations(stepDurations) };
             context.SetCustomStatus(status);
-            await context.CallActivityAsync<string>("PlanSuspectsActivity", 
-                new PlanSuspectsActivityModel { CorePlanRef = "@plan/core", CaseId = caseId });
+            await TrackActivityAsync(
+                context,
+                caseId,
+                "PLAN_SUSPECTS",
+                () => context.CallActivityAsync<string>(
+                    "PlanSuspectsActivity",
+                    new PlanSuspectsActivityModel { CorePlanRef = "@plan/core", CaseId = caseId }),
+                stepDurations,
+                phase: CaseGenerationSteps.Plan);
             _caseLogging.LogOrchestratorStep(caseId, "PLAN_SUSPECTS_COMPLETE", "Suspects generated");
 
             // 1.3: Generate timeline based on core + suspects
-            status = status with { Progress = 0.09 };
+            status = status with { Progress = 0.09, StepDurationsSeconds = SnapshotStepDurations(stepDurations) };
             context.SetCustomStatus(status);
-            await context.CallActivityAsync<string>("PlanTimelineActivity", 
-                new PlanTimelineActivityModel { CorePlanRef = "@plan/core", SuspectsRef = "@plan/suspects", CaseId = caseId });
+            await TrackActivityAsync(
+                context,
+                caseId,
+                "PLAN_TIMELINE",
+                () => context.CallActivityAsync<string>(
+                    "PlanTimelineActivity",
+                    new PlanTimelineActivityModel { CorePlanRef = "@plan/core", SuspectsRef = "@plan/suspects", CaseId = caseId }),
+                stepDurations,
+                phase: CaseGenerationSteps.Plan);
             _caseLogging.LogOrchestratorStep(caseId, "PLAN_TIMELINE_COMPLETE", "Timeline generated");
 
             // 1.4: Generate evidence plan based on all previous
-            status = status with { Progress = 0.1 };
+            status = status with { Progress = 0.1, StepDurationsSeconds = SnapshotStepDurations(stepDurations) };
             context.SetCustomStatus(status);
-            await context.CallActivityAsync<string>("PlanEvidenceActivity", 
-                new PlanEvidenceActivityModel { CorePlanRef = "@plan/core", SuspectsRef = "@plan/suspects", TimelineRef = "@plan/timeline", CaseId = caseId });
+            await TrackActivityAsync(
+                context,
+                caseId,
+                "PLAN_EVIDENCE",
+                () => context.CallActivityAsync<string>(
+                    "PlanEvidenceActivity",
+                    new PlanEvidenceActivityModel { CorePlanRef = "@plan/core", SuspectsRef = "@plan/suspects", TimelineRef = "@plan/timeline", CaseId = caseId }),
+                stepDurations,
+                phase: CaseGenerationSteps.Plan);
             
             completedSteps.Add(CaseGenerationSteps.Plan);
             _caseLogging.LogOrchestratorStep(caseId, "PLAN_COMPLETE", "Hierarchical plan completed");
@@ -304,6 +336,7 @@ public class CaseGeneratorOrchestrator
                             if (docSpec != null) allDocSpecs.Add(docSpec);
                         }
                     }
+
                 }
                 catch (Exception ex)
                 {
@@ -872,5 +905,50 @@ public class CaseGeneratorOrchestrator
                 EstimatedCompletion = context.CurrentUtcDateTime
             };
         }
+    }
+
+    private async Task<T> TrackActivityAsync<T>(
+        TaskOrchestrationContext context,
+        string caseId,
+        string stepKey,
+        Func<Task<T>> activityCall,
+        IDictionary<string, double> stepDurations,
+        string? phase = null)
+    {
+        var traceId = context.NewGuid().ToString("N");
+        var start = context.CurrentUtcDateTime;
+        var result = await activityCall();
+        var completedAt = context.CurrentUtcDateTime;
+        var durationSeconds = (completedAt - start).TotalSeconds;
+        stepDurations[stepKey] = durationSeconds;
+        _caseLogging.LogOrchestratorStep(caseId, $"{stepKey}_DURATION", $"{durationSeconds:F2}s");
+
+        var entry = new StructuredLogEntry
+        {
+            CaseId = caseId,
+            Category = LogCategory.WorkflowStep,
+            Phase = phase,
+            Step = stepKey,
+            Activity = stepKey,
+            TraceId = traceId,
+            DurationMs = System.Math.Round(durationSeconds * 1000, 2),
+            Status = "Completed",
+            Message = "Activity completed",
+            TimestampUtc = completedAt,
+            Data = new
+            {
+                startedAt = start,
+                completedAt,
+                durationSeconds
+            }
+        };
+
+        await context.CallActivityAsync("RecordStructuredLogActivity", entry);
+        return result;
+    }
+
+    private static Dictionary<string, double> SnapshotStepDurations(IDictionary<string, double> source)
+    {
+        return source.ToDictionary(kvp => kvp.Key, kvp => Math.Round(kvp.Value, 3));
     }
 }

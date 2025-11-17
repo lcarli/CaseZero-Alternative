@@ -380,6 +380,9 @@ public record CaseGenerationStatus
     
     [JsonPropertyName("output")]
     public CaseGenerationOutput? Output { get; init; }
+
+    [JsonPropertyName("stepDurationsSeconds")]
+    public Dictionary<string, double> StepDurationsSeconds { get; init; } = new();
 }
 
 public record CaseGenerationOutput

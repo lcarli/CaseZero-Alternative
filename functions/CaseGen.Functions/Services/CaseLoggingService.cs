@@ -1,9 +1,11 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Specialized;
+using CaseGen.Functions.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace CaseGen.Functions.Services;
 
@@ -12,6 +14,12 @@ public class CaseLoggingService : ICaseLoggingService
     private readonly BlobServiceClient _blobServiceClient;
     private readonly ILogger<CaseLoggingService> _logger;
     private readonly string _logsContainer;
+    private static readonly JsonSerializerOptions StructuredJsonOptions = new()
+    {
+        WriteIndented = false,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     public CaseLoggingService(IConfiguration configuration, ILogger<CaseLoggingService> logger)
     {
@@ -45,25 +53,38 @@ public class CaseLoggingService : ICaseLoggingService
     {
         try
         {
-            var logEntry = new
+            await LogStructuredAsync(new StructuredLogEntry
             {
-                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC"),
-                caseId = caseId,
-                source = source,
-                level = level,
-                message = message,
-                data = data,
-                logType = "detailed"
-            };
-
-            // Create a structured log with clear separation
-            var logText = CreateStructuredLogEntry("DETAILED", logEntry) + Environment.NewLine;
-
-            await AppendToLogBlobAsync(caseId, logText, cancellationToken);
+                CaseId = caseId,
+                Category = LogCategory.Detailed,
+                Level = level,
+                Source = source,
+                Message = message,
+                Data = data
+            }, cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to log detailed entry for case {CaseId}", caseId);
+        }
+    }
+
+    public async Task LogStructuredAsync(StructuredLogEntry entry, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(entry.CaseId))
+            {
+                throw new ArgumentException("Structured log entry requires a case identifier", nameof(entry));
+            }
+
+            var normalized = NormalizeEntry(entry);
+            var json = JsonSerializer.Serialize(normalized, StructuredJsonOptions) + "\n";
+            await AppendToLogBlobAsync(normalized.CaseId, json, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to write structured log entry for case {CaseId}", entry.CaseId);
         }
     }
 
@@ -74,15 +95,16 @@ public class CaseLoggingService : ICaseLoggingService
             // Extract only the properties content for cleaner logs
             var cleanedResponse = ExtractPropertiesFromStructuredResponse(response, promptType);
             
-            var interaction = new
+            await LogStructuredAsync(new StructuredLogEntry
             {
-                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC"),
-                caseId = caseId,
-                logType = "llm_interaction",
-                interaction = new
+                CaseId = caseId,
+                Category = LogCategory.LlmInteraction,
+                Source = provider,
+                Message = $"{promptType} interaction",
+                Tokens = tokenCount.HasValue ? new TokenUsageSummary { TotalTokens = tokenCount } : null,
+                Data = new
                 {
-                    provider = provider,
-                    promptType = promptType,
+                    promptType,
                     metrics = new
                     {
                         promptLength = prompt.Length,
@@ -91,20 +113,16 @@ public class CaseLoggingService : ICaseLoggingService
                     },
                     preview = new
                     {
-                        prompt = prompt.Length > 200 ? prompt.Substring(0, 200) + "..." : prompt,
-                        response = cleanedResponse.Length > 500 ? cleanedResponse.Substring(0, 500) + "..." : cleanedResponse
+                        prompt = prompt.Length > 200 ? prompt[..200] + "..." : prompt,
+                        response = cleanedResponse.Length > 500 ? cleanedResponse[..500] + "..." : cleanedResponse
                     },
                     fullContent = new
                     {
-                        prompt = prompt,
+                        prompt,
                         response = cleanedResponse
                     }
                 }
-            };
-
-            var logText = CreateStructuredLogEntry("LLM_INTERACTION", interaction) + Environment.NewLine;
-
-            await AppendToLogBlobAsync(caseId, logText, cancellationToken);
+            }, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -131,6 +149,15 @@ public class CaseLoggingService : ICaseLoggingService
             await blobClient.UploadAsync(stream, overwrite: true, cancellationToken: cancellationToken);
             
             _logger.LogInformation("📁 Saved {StepName} response to {BlobName}", stepName, blobName);
+
+            await LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.Payload,
+                Step = stepName,
+                Message = "Step response saved",
+                PayloadReference = blobName
+            }, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -160,6 +187,16 @@ public class CaseLoggingService : ICaseLoggingService
             await blobClient.UploadAsync(stream, overwrite: true, cancellationToken: cancellationToken);
             
             _logger.LogInformation("📊 Saved {StepName} metadata to {BlobName}", stepName, blobName);
+
+            await LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.Metadata,
+                Step = stepName,
+                Message = "Step metadata saved",
+                PayloadReference = blobName,
+                Data = metadata
+            }, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -290,56 +327,21 @@ public class CaseLoggingService : ICaseLoggingService
     }
 
     /// <summary>
-    /// Creates a well-structured, readable log entry with clear visual separation
-    /// </summary>
-    private static string CreateStructuredLogEntry(string entryType, object logData)
-    {
-        var separator = new string('=', 80);
-        var subSeparator = new string('-', 40);
-        
-        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC");
-        
-        var sb = new StringBuilder();
-        sb.AppendLine(separator);
-        sb.AppendLine($"📋 {entryType} - {timestamp}");
-        sb.AppendLine(separator);
-        
-        var jsonOptions = new JsonSerializerOptions 
-        { 
-            WriteIndented = true,
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-        };
-        
-        var jsonContent = JsonSerializer.Serialize(logData, jsonOptions);
-        sb.AppendLine(jsonContent);
-        sb.AppendLine(separator);
-        sb.AppendLine(); // Empty line for separation
-        
-        return sb.ToString();
-    }
-
-    /// <summary>
     /// Logs a workflow step with clear phase tracking
     /// </summary>
     public async Task LogWorkflowStepAsync(string caseId, string phase, string step, object? stepData = null, CancellationToken cancellationToken = default)
     {
         try
         {
-            var workflowEntry = new
+            await LogStructuredAsync(new StructuredLogEntry
             {
-                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC"),
-                caseId = caseId,
-                logType = "workflow_step",
-                workflow = new
-                {
-                    phase = phase,
-                    step = step,
-                    stepData = stepData
-                }
-            };
-
-            var logText = CreateStructuredLogEntry($"WORKFLOW - {phase.ToUpper()}", workflowEntry) + Environment.NewLine;
-            await AppendToLogBlobAsync(caseId, logText, cancellationToken);
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = phase,
+                Step = step,
+                Message = $"Workflow step {step}",
+                Data = stepData
+            }, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -354,21 +356,19 @@ public class CaseLoggingService : ICaseLoggingService
     {
         try
         {
-            var transitionEntry = new
+            await LogStructuredAsync(new StructuredLogEntry
             {
-                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC"),
-                caseId = caseId,
-                logType = "phase_transition",
-                transition = new
+                CaseId = caseId,
+                Category = LogCategory.PhaseTransition,
+                Phase = toPhase,
+                Message = $"Transition {fromPhase} -> {toPhase}",
+                Data = new
                 {
                     from = fromPhase,
                     to = toPhase,
-                    phaseData = phaseData
+                    phaseData
                 }
-            };
-
-            var logText = CreateStructuredLogEntry("PHASE_TRANSITION", transitionEntry) + Environment.NewLine;
-            await AppendToLogBlobAsync(caseId, logText, cancellationToken);
+            }, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -383,23 +383,27 @@ public class CaseLoggingService : ICaseLoggingService
     {
         try
         {
-            var summary = new
+            await LogStructuredAsync(new StructuredLogEntry
             {
-                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC"),
-                caseId = caseId,
-                logType = "executive_summary",
-                summary = summaryData
-            };
-
-            var logText = CreateStructuredLogEntry("EXECUTIVE_SUMMARY", summary) + Environment.NewLine;
-            await AppendToLogBlobAsync(caseId, logText, cancellationToken);
+                CaseId = caseId,
+                Category = LogCategory.ExecutiveSummary,
+                Message = "Executive summary created",
+                Data = summaryData
+            }, cancellationToken);
 
             // Also save as separate summary file
             var containerClient = await GetLogsContainerAsync(cancellationToken);
             var summaryBlobName = $"{caseId}/{caseId}_EXECUTIVE_SUMMARY.json";
             var summaryBlobClient = containerClient.GetBlobClient(summaryBlobName);
+            var summaryDocument = new
+            {
+                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff UTC"),
+                caseId,
+                logType = "executive_summary",
+                summary = summaryData
+            };
             
-            var summaryJson = JsonSerializer.Serialize(summary, new JsonSerializerOptions 
+            var summaryJson = JsonSerializer.Serialize(summaryDocument, new JsonSerializerOptions 
             { 
                 WriteIndented = true,
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
@@ -408,10 +412,29 @@ public class CaseLoggingService : ICaseLoggingService
             var bytes = Encoding.UTF8.GetBytes(summaryJson);
             using var stream = new MemoryStream(bytes);
             await summaryBlobClient.UploadAsync(stream, overwrite: true, cancellationToken: cancellationToken);
+
+            await LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.Metadata,
+                Message = "Executive summary stored",
+                PayloadReference = summaryBlobName
+            }, cancellationToken);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to create executive summary for case {CaseId}", caseId);
         }
+    }
+
+    private static StructuredLogEntry NormalizeEntry(StructuredLogEntry entry)
+    {
+        var timestamp = entry.TimestampUtc == default ? DateTime.UtcNow : entry.TimestampUtc;
+        var level = string.IsNullOrWhiteSpace(entry.Level) ? "Information" : entry.Level;
+        return entry with
+        {
+            TimestampUtc = timestamp,
+            Level = level
+        };
     }
 }

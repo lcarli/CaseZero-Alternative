@@ -202,6 +202,12 @@ public class CaseGeneratorActivities
         _logger.LogInformation("Activity: RenderDocumentItem [{DocId}]", input.DocId);
         return await _caseGenerationService.RenderDocumentFromJsonAsync(input.DocId, input.DocumentJson, input.CaseId);
     }
+    
+    [Function("RecordStructuredLogActivity")]
+    public async Task RecordStructuredLogActivity([ActivityTrigger] StructuredLogEntry entry)
+    {
+        await _caseLogging.LogStructuredAsync(entry);
+    }
 
     [Function("RenderMediaItemActivity")]
     public async Task<string> RenderMediaItemActivity([ActivityTrigger] RenderMediaItemInput input)
