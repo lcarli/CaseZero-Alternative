@@ -231,6 +231,34 @@ export interface Translations {
   careerProgression: string;
   justiceSystem: string;
   justiceSystemDesc: string;
+  landingBadgeSecurity: string;
+  landingBadgeCompliance: string;
+  landingBadgeInternalUse: string;
+  landingHighlightsTitle: string;
+  landingHighlightEvidenceTitle: string;
+  landingHighlightEvidenceDesc: string;
+  landingHighlightCollaborationTitle: string;
+  landingHighlightCollaborationDesc: string;
+  landingHighlightAutomationTitle: string;
+  landingHighlightAutomationDesc: string;
+  landingFeatureIntelligenceTitle: string;
+  landingFeatureIntelligenceDesc: string;
+  landingFeatureCoordinationTitle: string;
+  landingFeatureCoordinationDesc: string;
+  landingFeatureEvidenceTitle: string;
+  landingFeatureEvidenceDesc: string;
+  landingFeatureTrainingTitle: string;
+  landingFeatureTrainingDesc: string;
+  landingProcessTitle: string;
+  landingProcessDescription: string;
+  landingProcessStepIntakeTitle: string;
+  landingProcessStepIntakeDesc: string;
+  landingProcessStepAnalysisTitle: string;
+  landingProcessStepAnalysisDesc: string;
+  landingProcessStepDecisionTitle: string;
+  landingProcessStepDecisionDesc: string;
+  landingCTAHeadline: string;
+  landingCTADescription: string;
   
   // Game mechanics
   howItWorks: string;
