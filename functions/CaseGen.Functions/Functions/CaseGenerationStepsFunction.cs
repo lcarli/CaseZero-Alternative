@@ -111,9 +111,9 @@ public class CaseGenerationStepsFunction
                 {
                     difficulty,
                     timezone,
-                    request.Title,
-                    request.Difficulty,
-                    request.Timezone
+                    requestTitle = request.Title,
+                    requestDifficulty = request.Difficulty,
+                    requestTimezone = request.Timezone
                 }
             });
 

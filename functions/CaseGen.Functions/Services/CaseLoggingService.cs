@@ -115,11 +115,6 @@ public class CaseLoggingService : ICaseLoggingService
                     {
                         prompt = prompt.Length > 200 ? prompt[..200] + "..." : prompt,
                         response = cleanedResponse.Length > 500 ? cleanedResponse[..500] + "..." : cleanedResponse
-                    },
-                    fullContent = new
-                    {
-                        prompt,
-                        response = cleanedResponse
                     }
                 }
             }, cancellationToken);
