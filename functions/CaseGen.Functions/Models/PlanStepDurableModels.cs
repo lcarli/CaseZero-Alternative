@@ -254,6 +254,12 @@ public record GenerateStepDurableResult
 
     [JsonPropertyName("renderFiles")]
     public bool RenderFiles { get; init; }
+
+    [JsonPropertyName("renderedDocuments")]
+    public IReadOnlyList<RenderedArtifactSummary> RenderedDocuments { get; init; } = Array.Empty<RenderedArtifactSummary>();
+
+    [JsonPropertyName("renderedMedia")]
+    public IReadOnlyList<RenderedArtifactSummary> RenderedMedia { get; init; } = Array.Empty<RenderedArtifactSummary>();
 }
 
 public record LoadDesignSpecsActivityInput
@@ -374,4 +380,34 @@ public record GenerateMediaDurableActivityInput
 
     [JsonPropertyName("difficultyOverride")]
     public string? DifficultyOverride { get; init; }
+}
+
+public record RenderGeneratedDocumentInput
+{
+    [JsonPropertyName("caseId")]
+    public string CaseId { get; init; } = string.Empty;
+
+    [JsonPropertyName("docId")]
+    public string DocId { get; init; } = string.Empty;
+}
+
+public record RenderGeneratedMediaInput
+{
+    [JsonPropertyName("caseId")]
+    public string CaseId { get; init; } = string.Empty;
+
+    [JsonPropertyName("evidenceId")]
+    public string EvidenceId { get; init; } = string.Empty;
+}
+
+public record RenderedArtifactSummary
+{
+    [JsonPropertyName("id")]
+    public string Id { get; init; } = string.Empty;
+
+    [JsonPropertyName("path")]
+    public string Path { get; init; } = string.Empty;
+
+    [JsonPropertyName("kind")]
+    public string Kind { get; init; } = string.Empty;
 }

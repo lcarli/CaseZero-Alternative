@@ -7,6 +7,7 @@ using CaseGen.Functions.Models;
 using CaseGen.Functions.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.DurableTask;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace CaseGen.Functions.Functions;
@@ -80,6 +81,58 @@ public class GenerateStepDurableOrchestrator
                 : Array.Empty<GenerateMediaTaskSummary>();
         }
 
+        var renderedDocumentSummaries = new List<RenderedArtifactSummary>();
+        if (input.RenderFiles && documentResults.Length > 0)
+        {
+            var renderTasks = documentResults
+                .Where(d => d.Success)
+                .Select(d => context.CallActivityAsync<RenderedArtifactSummary>(
+                    nameof(RenderGeneratedDocumentActivity),
+                    new RenderGeneratedDocumentInput
+                    {
+                        CaseId = input.CaseId,
+                        DocId = d.DocId
+                    }))
+                .ToList();
+
+            if (renderTasks.Count > 0)
+            {
+                var renderedDocs = await Task.WhenAll(renderTasks);
+                renderedDocumentSummaries.AddRange(renderedDocs);
+            }
+
+            replayLogger.LogInformation(
+                "[GenerateStep] Rendered {RenderedCount} PDF files for case {CaseId}",
+                renderedDocumentSummaries.Count,
+                input.CaseId);
+        }
+
+        var renderedMediaSummaries = new List<RenderedArtifactSummary>();
+        if (input.GenerateImages && mediaResults.Count > 0)
+        {
+            var renderMediaTasks = mediaResults
+                .Where(m => m.Success)
+                .Select(m => context.CallActivityAsync<RenderedArtifactSummary>(
+                    nameof(RenderGeneratedMediaActivity),
+                    new RenderGeneratedMediaInput
+                    {
+                        CaseId = input.CaseId,
+                        EvidenceId = m.EvidenceId
+                    }))
+                .ToList();
+
+            if (renderMediaTasks.Count > 0)
+            {
+                var renderedMedia = await Task.WhenAll(renderMediaTasks);
+                renderedMediaSummaries.AddRange(renderedMedia);
+            }
+
+            replayLogger.LogInformation(
+                "[GenerateStep] Generated {RenderedCount} image files for case {CaseId}",
+                renderedMediaSummaries.Count,
+                input.CaseId);
+        }
+
         var completedAt = context.CurrentUtcDateTime;
         var durationSeconds = (completedAt - input.RequestedAtUtc).TotalSeconds;
 
@@ -95,7 +148,9 @@ public class GenerateStepDurableOrchestrator
             Documents = documentResults,
             Media = mediaResults,
             GenerateImages = input.GenerateImages,
-            RenderFiles = input.RenderFiles
+            RenderFiles = input.RenderFiles,
+            RenderedDocuments = renderedDocumentSummaries,
+            RenderedMedia = renderedMediaSummaries
         };
 
         replayLogger.LogInformation(
@@ -178,16 +233,22 @@ public class LoadDesignSpecsActivity
 public class GenerateDocumentDurableActivity
 {
     private readonly ICaseGenerationService _caseGenerationService;
+    private readonly IStorageService _storageService;
     private readonly ICaseLoggingService _caseLogging;
+    private readonly string _casesContainer;
     private readonly ILogger<GenerateDocumentDurableActivity> _logger;
 
     public GenerateDocumentDurableActivity(
         ICaseGenerationService caseGenerationService,
+        IStorageService storageService,
         ICaseLoggingService caseLogging,
+        IConfiguration configuration,
         ILogger<GenerateDocumentDurableActivity> logger)
     {
         _caseGenerationService = caseGenerationService;
+        _storageService = storageService;
         _caseLogging = caseLogging;
+        _casesContainer = configuration["CaseGeneratorStorage:CasesContainer"] ?? "cases";
         _logger = logger;
     }
 
@@ -216,13 +277,17 @@ public class GenerateDocumentDurableActivity
                 }
             }).ConfigureAwait(false);
 
-            await _caseGenerationService.GenerateDocumentFromSpecAsync(
+            var documentJson = await _caseGenerationService.GenerateDocumentFromSpecAsync(
                 input.Spec,
                 designJson: string.Empty,
                 input.CaseId,
                 planJson: null,
                 expandJson: null,
                 input.DifficultyOverride).ConfigureAwait(false);
+
+            var documentPath = $"{input.CaseId}/generate/documents/{input.Spec.DocId}.json";
+            await _storageService.SaveFileAsync(_casesContainer, documentPath, documentJson).ConfigureAwait(false);
+            _logger.LogInformation("[GenerateStep] Stored document JSON at {Path}", documentPath);
 
             var duration = DateTime.UtcNow - start;
 
@@ -285,15 +350,21 @@ public class GenerateMediaDurableActivity
 {
     private readonly ICaseGenerationService _caseGenerationService;
     private readonly ICaseLoggingService _caseLogging;
+    private readonly IStorageService _storageService;
+    private readonly string _casesContainer;
     private readonly ILogger<GenerateMediaDurableActivity> _logger;
 
     public GenerateMediaDurableActivity(
         ICaseGenerationService caseGenerationService,
         ICaseLoggingService caseLogging,
+        IStorageService storageService,
+        IConfiguration configuration,
         ILogger<GenerateMediaDurableActivity> logger)
     {
         _caseGenerationService = caseGenerationService;
         _caseLogging = caseLogging;
+        _storageService = storageService;
+        _casesContainer = configuration["CaseGeneratorStorage:CasesContainer"] ?? "cases";
         _logger = logger;
     }
 
@@ -322,13 +393,17 @@ public class GenerateMediaDurableActivity
                 }
             }).ConfigureAwait(false);
 
-            await _caseGenerationService.GenerateMediaFromSpecAsync(
+            var mediaJson = await _caseGenerationService.GenerateMediaFromSpecAsync(
                 input.Spec,
                 designJson: string.Empty,
                 input.CaseId,
                 planJson: null,
                 expandJson: null,
                 input.DifficultyOverride).ConfigureAwait(false);
+
+            var mediaPath = $"{input.CaseId}/generate/media/{input.Spec.EvidenceId}.json";
+            await _storageService.SaveFileAsync(_casesContainer, mediaPath, mediaJson).ConfigureAwait(false);
+            _logger.LogInformation("[GenerateStep] Stored media JSON at {Path}", mediaPath);
 
             var duration = DateTime.UtcNow - start;
 
@@ -384,5 +459,84 @@ public class GenerateMediaDurableActivity
                 DurationSeconds = duration.TotalSeconds
             };
         }
+    }
+}
+
+public class RenderGeneratedDocumentActivity
+{
+    private readonly IStorageService _storageService;
+    private readonly ICaseGenerationService _caseGenerationService;
+    private readonly string _casesContainer;
+    private readonly ILogger<RenderGeneratedDocumentActivity> _logger;
+
+    public RenderGeneratedDocumentActivity(
+        IStorageService storageService,
+        ICaseGenerationService caseGenerationService,
+        IConfiguration configuration,
+        ILogger<RenderGeneratedDocumentActivity> logger)
+    {
+        _storageService = storageService;
+        _caseGenerationService = caseGenerationService;
+        _casesContainer = configuration["CaseGeneratorStorage:CasesContainer"] ?? "cases";
+        _logger = logger;
+    }
+
+    [Function(nameof(RenderGeneratedDocumentActivity))]
+    public async Task<RenderedArtifactSummary> RunAsync([ActivityTrigger] RenderGeneratedDocumentInput input)
+    {
+        var documentPath = $"{input.CaseId}/generate/documents/{input.DocId}.json";
+        _logger.LogInformation("[GenerateStep] Loading document JSON from {Path}", documentPath);
+
+        var documentJson = await _storageService.GetFileAsync(_casesContainer, documentPath).ConfigureAwait(false);
+        var renderedPath = await _caseGenerationService.RenderDocumentFromJsonAsync(input.DocId, documentJson, input.CaseId).ConfigureAwait(false);
+
+        return new RenderedArtifactSummary
+        {
+            Id = input.DocId,
+            Path = renderedPath,
+            Kind = "pdf"
+        };
+    }
+}
+
+public class RenderGeneratedMediaActivity
+{
+    private readonly IStorageService _storageService;
+    private readonly ICaseGenerationService _caseGenerationService;
+    private readonly string _casesContainer;
+    private readonly ILogger<RenderGeneratedMediaActivity> _logger;
+
+    public RenderGeneratedMediaActivity(
+        IStorageService storageService,
+        ICaseGenerationService caseGenerationService,
+        IConfiguration configuration,
+        ILogger<RenderGeneratedMediaActivity> logger)
+    {
+        _storageService = storageService;
+        _caseGenerationService = caseGenerationService;
+        _casesContainer = configuration["CaseGeneratorStorage:CasesContainer"] ?? "cases";
+        _logger = logger;
+    }
+
+    [Function(nameof(RenderGeneratedMediaActivity))]
+    public async Task<RenderedArtifactSummary> RunAsync([ActivityTrigger] RenderGeneratedMediaInput input)
+    {
+        var mediaPath = $"{input.CaseId}/generate/media/{input.EvidenceId}.json";
+        _logger.LogInformation("[GenerateStep] Loading media JSON from {Path}", mediaPath);
+
+        var mediaJson = await _storageService.GetFileAsync(_casesContainer, mediaPath).ConfigureAwait(false);
+        var mediaSpec = JsonSerializer.Deserialize<MediaSpec>(mediaJson, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        }) ?? throw new InvalidOperationException($"Unable to parse media spec for {input.EvidenceId}");
+
+        var renderedPath = await _caseGenerationService.RenderMediaFromJsonAsync(mediaSpec, input.CaseId).ConfigureAwait(false);
+
+        return new RenderedArtifactSummary
+        {
+            Id = input.EvidenceId,
+            Path = renderedPath,
+            Kind = mediaSpec.Kind
+        };
     }
 }

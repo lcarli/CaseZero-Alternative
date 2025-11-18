@@ -17,11 +17,11 @@
 @baseUrl = http://localhost:7071
 
 # ⚠️ IMPORTANTE: Atualize este caseId após executar o Step 1 (PlanStepOnly)
-@caseId = CASE-20251118-cad4fbdc
-@planInstanceId = 79fb3e94538143a7a9d3212bb83cc009
-@expandInstanceId = 13f17fa4af1242b1a82d67970eebbfe0
-@designInstanceId = 52d459a45207474dbbd5faeb1f91f50a
-@generateInstanceId = e8d1675b37c1496d9b99e834cf3a8d3f
+@caseId = CASE-20251118-cab70d1f
+@planInstanceId = fc65ae2486f34222b38026633a99e98a
+@expandInstanceId = 0d4eb8cd4c224aba87eeeb2d283fa363
+@designInstanceId = 9b169946f653478fbf2d00e6c50bd800
+@generateInstanceId = 4e1344279cab4012aed26d0bfc23b41e
 
 ################################################################################
 # 📝 STEP 1: PLAN - Criar caso e gerar plano inicial
@@ -103,6 +103,8 @@ GET {{baseUrl}}/api/DesignStepStatus/{{designInstanceId}}
 # Retorno: 202 Accepted + instanceId; monitore com STEP 4-STATUS. A execução
 # pode durar vários minutos (cada documento leva 2-3 minutos, mas agora roda em
 # paralelo com Durables e sem timeouts HTTP).
+# • `generateImages: true` -> além dos metadados JSON, gera os PNGs reais (usa o serviço de imagens)
+# • `renderFiles: true` -> além dos JSONs, renderiza cada documento em PDF com o motor de templates
 
 
 ### STEP 4 - Generate (use o caseId dos steps anteriores)
