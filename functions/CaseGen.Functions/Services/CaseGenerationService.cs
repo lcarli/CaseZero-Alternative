@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text;
 using System;
 using System.Text.RegularExpressions;
+using System.Linq;
 
 namespace CaseGen.Functions.Services;
 
@@ -395,7 +396,11 @@ OUTPUT FORMAT: ONLY JSON valid by PlanEvidence schema.";
             - ONLY JSON valid by the **Plan** schema (no comments).";
 
         var jsonSchema = _schemaProvider.GetSchema("Plan");
-        return await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+        var planResult = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+
+        await PersistPlanContextAsync(caseId, planResult, cancellationToken);
+
+        return planResult;
     }
 
     // ========== Phase 3: Hierarchical Expand Methods ==========
@@ -901,6 +906,96 @@ Generate the complete relationship synthesis with:
         var json = System.Text.Json.JsonSerializer.Serialize(item);
         _logger.LogInformation("LOAD-CONTEXT-DEBUG: Serialized object to JSON, length={Length}", json.Length);
         return json;
+    }
+
+    private async Task PersistPlanContextAsync(string caseId, string planJson, CancellationToken cancellationToken)
+    {
+        using var doc = JsonDocument.Parse(planJson);
+        var root = doc.RootElement;
+        await _contextManager.SaveContextAsync(caseId, "plan/core", planJson, cancellationToken);
+
+        if (root.TryGetProperty("suspects", out var suspectsElement) && suspectsElement.ValueKind == JsonValueKind.Array)
+        {
+            await _contextManager.SaveContextAsync(caseId, "plan/suspects", suspectsElement.GetRawText(), cancellationToken);
+        }
+
+        if (root.TryGetProperty("timeline", out var timelineElement) && timelineElement.ValueKind == JsonValueKind.Array)
+        {
+            await _contextManager.SaveContextAsync(caseId, "plan/timeline", timelineElement.GetRawText(), cancellationToken);
+        }
+
+        if (root.TryGetProperty("mainElements", out var evidenceElement) && evidenceElement.ValueKind == JsonValueKind.Array)
+        {
+            await _contextManager.SaveContextAsync(caseId, "plan/evidence", evidenceElement.GetRawText(), cancellationToken);
+        }
+    }
+
+    private async Task PersistExpandContextsAsync(string caseId, string expandJson, CancellationToken cancellationToken)
+    {
+        using var doc = JsonDocument.Parse(expandJson);
+        var root = doc.RootElement;
+
+        if (root.TryGetProperty("suspects", out var suspectsElement) && suspectsElement.ValueKind == JsonValueKind.Array)
+        {
+            var suspects = suspectsElement.EnumerateArray().ToArray();
+            for (int index = 0; index < suspects.Length; index++)
+            {
+                var item = suspects[index];
+                var id = item.TryGetProperty("id", out var idProp) ? idProp.GetString() : $"S{index + 1:000}";
+                await _contextManager.SaveContextAsync(caseId, $"expand/suspects/{id}", item.GetRawText(), cancellationToken);
+            }
+            await _contextManager.SaveContextAsync(caseId, "expand/suspects", suspectsElement.GetRawText(), cancellationToken);
+        }
+
+        if (root.TryGetProperty("evidences", out var evidencesElement) && evidencesElement.ValueKind == JsonValueKind.Array)
+        {
+            var evidences = evidencesElement.EnumerateArray().ToArray();
+            for (int index = 0; index < evidences.Length; index++)
+            {
+                var item = evidences[index];
+                var id = item.TryGetProperty("id", out var idProp) ? idProp.GetString() : $"E{index + 1:000}";
+                await _contextManager.SaveContextAsync(caseId, $"expand/evidence/{id}", item.GetRawText(), cancellationToken);
+            }
+            await _contextManager.SaveContextAsync(caseId, "expand/evidence", evidencesElement.GetRawText(), cancellationToken);
+        }
+
+        if (root.TryGetProperty("timeline", out var timelineElement) && timelineElement.ValueKind == JsonValueKind.Array)
+        {
+            await _contextManager.SaveContextAsync(caseId, "expand/timeline", timelineElement.GetRawText(), cancellationToken);
+        }
+    }
+
+    private async Task PersistDesignSpecsAsync(string caseId, string designJson, CancellationToken cancellationToken)
+    {
+        using var doc = JsonDocument.Parse(designJson);
+        var root = doc.RootElement;
+
+        if (root.TryGetProperty("documentSpecs", out var docSpecs) && docSpecs.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var grouping in docSpecs.EnumerateArray().Select(e => JsonDocument.Parse(e.GetRawText()).RootElement).GroupBy(e => e.TryGetProperty("type", out var typeProp) ? typeProp.GetString() ?? "unknown" : "unknown"))
+            {
+                var payload = JsonSerializer.Serialize(new
+                {
+                    docType = grouping.Key,
+                    specifications = grouping.Select(g => g).ToArray()
+                });
+                await _contextManager.SaveContextAsync(caseId, $"design/documents/{grouping.Key}", payload, cancellationToken);
+            }
+        }
+
+        if (root.TryGetProperty("mediaSpecs", out var mediaSpecs) && mediaSpecs.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var grouping in mediaSpecs.EnumerateArray().Select(e => JsonDocument.Parse(e.GetRawText()).RootElement).GroupBy(e => e.TryGetProperty("kind", out var kindProp) ? kindProp.GetString() ?? "photo" : "photo"))
+            {
+                var payload = JsonSerializer.Serialize(new
+                {
+                    kind = grouping.Key,
+                    specs = grouping.Select(g => g).ToArray()
+                });
+                await _contextManager.SaveContextAsync(caseId, $"design/media/{grouping.Key}", payload, cancellationToken);
+            }
+        }
+        await _contextManager.SaveContextAsync(caseId, "design/specs", designJson, cancellationToken);
     }
 
     // ========== Phase 4: Design by Document Type ==========
@@ -1605,7 +1700,11 @@ Generate the specification now.";
 
         var jsonSchema = _schemaProvider.GetSchema("Expand");
 
-        return await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+        var expandResult = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
+
+        await PersistExpandContextsAsync(caseId, expandResult, cancellationToken);
+
+        return expandResult;
     }
 
     /// <summary>
@@ -2087,7 +2186,12 @@ OUTPUT: ONLY valid JSON conforming to VisualConsistencyRegistry schema.
         _logger.LogInformation("Designing case structure");
 
         using var planDoc = JsonDocument.Parse(planJson);
+        var planSnapshot = planDoc.RootElement.Clone();
         var planDifficulty = planDoc.RootElement.GetProperty("difficulty").GetString() ?? "Rookie";
+        await PersistPlanContextAsync(caseId, planSnapshot.GetRawText(), cancellationToken);
+        using var expandDoc = JsonDocument.Parse(expandedJson);
+        var expandSnapshot = expandDoc.RootElement.Clone();
+        await PersistExpandContextsAsync(caseId, expandSnapshot.GetRawText(), cancellationToken);
 
         // Get the actual difficulty profile for dynamic validation
         var difficultyProfile = DifficultyLevels.GetProfile(difficulty ?? planDifficulty);
@@ -2185,7 +2289,14 @@ OUTPUT: ONLY valid JSON conforming to VisualConsistencyRegistry schema.
             {
                 var response = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);
                 var validationResult = await _schemaValidationService.ParseAndValidateAsync(response, difficulty ?? planDifficulty);
-                if (validationResult != null) return response;
+                if (validationResult != null)
+                {
+                    // Persist canonical contexts for downstream Generate step
+                    await PersistPlanContextAsync(caseId, planSnapshot.GetRawText(), cancellationToken);
+                    await PersistExpandContextsAsync(caseId, expandSnapshot.GetRawText(), cancellationToken);
+                    await PersistDesignSpecsAsync(caseId, response, cancellationToken);
+                    return response;
+                }
                 if (attempt == maxRetries) throw new InvalidOperationException("Design specs failed validation after retries");
             }
             catch when (attempt < maxRetries) { /* retry */ }

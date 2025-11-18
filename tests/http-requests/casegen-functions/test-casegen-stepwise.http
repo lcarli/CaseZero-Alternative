@@ -17,14 +17,18 @@
 @baseUrl = http://localhost:7071
 
 # ⚠️ IMPORTANTE: Atualize este caseId após executar o Step 1 (PlanStepOnly)
-@caseId = CASE-20251113-098f27e8
+@caseId = CASE-20251118-61a3ae6e
+@planInstanceId = 78180ea26f1d465283cd4450285f122d
+@expandInstanceId = 0851bf2e4c474327a441f5751fde00b8
+@designInstanceId = d9c5665416c24aceadf458e3c08eae33
+@generateInstanceId = f38691a92b5c47faabedd7e78ec34fca
 
 ################################################################################
 # 📝 STEP 1: PLAN - Criar caso e gerar plano inicial
 ################################################################################
-# Cria um novo caso e executa apenas a etapa de planejamento.
-# Retorna: caseId (use-o nos próximos steps!)
-# Duração: ~30-60 segundos
+# Cria um novo caso e executa apenas a etapa de planejamento de forma assíncrona (Durable).
+# Retorna: 202 Accepted + caseId + instanceId (use caseId nos próximos steps e o instanceId para checar status!)
+# Duração: ~30-60 segundos (monitoração via PlanStepStatus)
 # Storage: Salva plan.json no blob
 
 ### STEP 1A - Plan para caso Rookie (fácil)
@@ -35,6 +39,10 @@ Content-Type: application/json
   "difficulty": "Rookie",
   "timezone": "America/Toronto"
 }
+
+### STEP 1-STATUS - Verificar status do Plan (Durable)
+# Atualize @planInstanceId com o valor retornado pelo Step 1
+GET {{baseUrl}}/api/PlanStepStatus/{{planInstanceId}}
 
 ### STEP 1B - Plan para caso Detective (médio)
 POST {{baseUrl}}/api/PlanStepOnly
@@ -58,12 +66,13 @@ Content-Type: application/json
 ################################################################################
 # 🔍 STEP 2: EXPAND - Expandir detalhes do caso
 ################################################################################
-# Busca o plan.json do storage e expande os detalhes:
+# Busca o plan.json do storage e expande os detalhes (agora via Durable Functions):
 #   - Suspeitos (perfis detalhados)
 #   - Evidências (descrições completas)
 #   - Timeline (sequência de eventos)
 #   - Testemunhas
-# Duração: ~60-90 segundos
+# Retorno: 202 Accepted + instanceId; monitore com STEP 2-STATUS
+# Duração: ~60-90 segundos (acompanhe via status)
 # Storage: Salva expand/*.json (suspects, evidence, timeline, witnesses)
 
 ### STEP 2 - Expand (use o caseId do Step 1)
@@ -74,16 +83,21 @@ Content-Type: application/json
   "caseId": "{{caseId}}"
 }
 
+### STEP 2-STATUS - Verificar status do Expand (Durable)
+# Atualize @expandInstanceId com o valor retornado pelo Step 2
+GET {{baseUrl}}/api/ExpandStepStatus/{{expandInstanceId}}
+
 
 ################################################################################
 # 🎨 STEP 3: DESIGN - Design de documentos e mídias
 ################################################################################
-# Busca plan.json e expand/*.json do storage e cria o design:
+# Busca plan.json e expand/*.json do storage e cria o design (Durable Functions):
 #   - Catálogo de documentos (relatórios, entrevistas, etc)
 #   - Catálogo de mídias (fotos, vídeos, áudios)
 #   - Especificações visuais
 #   - Estrutura narrativa
-# Duração: ~90-120 segundos
+# Retorno: 202 Accepted + instanceId; monitore com STEP 3-STATUS
+# Duração: ~90-120 segundos (acompanhe via status)
 # Storage: Salva design/*.json (documents, media, specs)
 
 ### STEP 3 - Design (use o caseId dos steps anteriores)
@@ -94,138 +108,37 @@ Content-Type: application/json
   "caseId": "{{caseId}}"
 }
 
+### STEP 3-STATUS - Verificar status do Design (Durable)
+# Atualize @designInstanceId com o valor retornado pelo Step 3
+GET {{baseUrl}}/api/DesignStepStatus/{{designInstanceId}}
+
 
 ################################################################################
-# ✨ STEP 4: GENERATE - Gerar conteúdo final
+# ✨ STEP 4: GENERATE - Gerar conteúdo final (Durable)
 ################################################################################
-# 🎯 STEP 4: GENERATE - Gerar conteúdo detalhado
-################################################################################
-# IMPORTANTE: A geração de documentos é LENTA (2-3 minutos por documento)!
-# 
-# Recomendação: Use a OPÇÃO D para gerar documento por documento
-# - Evita timeouts HTTP
-# - Permite acompanhar progresso em tempo real
-# - Pode pausar e continuar quando quiser
+# Busca design.json do storage, gera documentos e mídias em fan-out paralelo e
+# grava os arquivos do caso em `cases/{caseId}/generate/*`.
+# Retorno: 202 Accepted + instanceId; monitore com STEP 4-STATUS. A execução
+# pode durar vários minutos (cada documento leva 2-3 minutos, mas agora roda em
+# paralelo com Durables e sem timeouts HTTP).
 
-################################################################################
-# 🔹 STEP 4 - OPÇÃO D: Generate UM DOCUMENTO POR VEZ (RECOMENDADO)
-################################################################################
-# Gera apenas 1 documento por requisição (~2-3 minutos cada)
-# Use o índice (0-based) para especificar qual documento gerar
 
-### STEP 4D-1 - Gerar documento 0 (primeiro documento)
-POST {{baseUrl}}/api/GenerateSingleDocumentByCaseId
+### STEP 4 - Generate (use o caseId dos steps anteriores)
+POST {{baseUrl}}/api/GenerateStepByCaseId
 Content-Type: application/json
 
 {
   "caseId": "{{caseId}}",
-  "documentIndex": 0
+  "generateImages": true,
+  "renderFiles": false
 }
 
-### STEP 4D-2 - Gerar documento 1 (segundo documento)
-POST {{baseUrl}}/api/GenerateSingleDocumentByCaseId
-Content-Type: application/json
+### STEP 4-STATUS - Verificar status do Generate (Durable)
+# Atualize @generateInstanceId com o valor retornado pelo Step 4
+GET {{baseUrl}}/api/GenerateStepStatus/{{generateInstanceId}}
 
-{
-  "caseId": "{{caseId}}",
-  "documentIndex": 1
-}
-
-### STEP 4D-3 - Gerar documento 2 (terceiro documento)
-POST {{baseUrl}}/api/GenerateSingleDocumentByCaseId
-Content-Type: application/json
-
-{
-  "caseId": "{{caseId}}",
-  "documentIndex": 2
-}
-
-### STEP 4D-4 - Gerar documento 3 (quarto documento)
-POST {{baseUrl}}/api/GenerateSingleDocumentByCaseId
-Content-Type: application/json
-
-{
-  "caseId": "{{caseId}}",
-  "documentIndex": 3
-}
-
-### STEP 4D-5 - Gerar documento 4 (quinto documento)
-POST {{baseUrl}}/api/GenerateSingleDocumentByCaseId
-Content-Type: application/json
-
-{
-  "caseId": "{{caseId}}",
-  "documentIndex": 4
-}
-
-### STEP 4D-6 - Gerar documento 5 (sexto documento)
-POST {{baseUrl}}/api/GenerateSingleDocumentByCaseId
-Content-Type: application/json
-
-{
-  "caseId": "{{caseId}}",
-  "documentIndex": 5
-}
-
-### STEP 4D-MEDIA-1 - Gerar media 0 (primeira mídia)
-POST {{baseUrl}}/api/GenerateSingleMediaByCaseId
-Content-Type: application/json
-
-{
-  "caseId": "{{caseId}}",
-  "mediaIndex": 0
-}
-
-### STEP 4D-MEDIA-2 - Gerar media 1 (segunda mídia)
-POST {{baseUrl}}/api/GenerateSingleMediaByCaseId
-Content-Type: application/json
-
-{
-  "caseId": "{{caseId}}",
-  "mediaIndex": 1
-}
-
-
-################################################################################
-# 🔹 STEP 4 - OPÇÃO A: Generate COMPLETO (ORIGINAL - vai dar timeout!)
-################################################################################
-# NÃO USE ESTA OPÇÃO - deixada apenas para referência
-# Tenta gerar tudo de uma vez - SEMPRE dá timeout em casos grandes
-
-### STEP 4A-1 - Generate SEM imagens (AINDA MUITO LENTO)
-# POST {{baseUrl}}/api/GenerateStepByCaseId
-# Content-Type: application/json
-# 
-# {
-#   "caseId": "{{caseId}}",
-#   "generateImages": false,
-#   "renderFiles": false
-# }
-
-
-################################################################################
-# 🔹 STEP 4 - OPÇÃO B: Generate POR LOTES (VAI DAR TIMEOUT - NÃO USE)
-################################################################################
-# NÃO USE ESTA OPÇÃO - lotes de 3 documentos ainda demoram ~8 minutos
-# Deixada apenas para referência
-
-### STEP 4B-1 - Gerar lote 0-3 (VAI DAR TIMEOUT)
-# POST {{baseUrl}}/api/GenerateDocumentsStepByCaseId
-# Content-Type: application/json
-# 
-# {
-#   "caseId": "{{caseId}}",
-#   "batchStart": 0,
-#   "batchEnd": 3
-# }
-
-
-################################################################################
-# 🔹 STEP 4 - OPÇÃO C: Progress Check
-################################################################################
-# Verifica quantos documentos e media já foram gerados.
-
-### STEP 4C - Verificar progresso da geração
+### STEP 4 - Progress Snapshot (opcional)
+# Endpoint auxiliar que inspeciona blobs para ver o que já foi gerado
 POST {{baseUrl}}/api/GetGenerateProgressByCaseId
 Content-Type: application/json
 
