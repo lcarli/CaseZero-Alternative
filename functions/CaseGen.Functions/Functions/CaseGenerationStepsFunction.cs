@@ -259,6 +259,8 @@ public class CaseGenerationStepsFunction
     public async Task<HttpResponseData> ExpandStepByCaseId(
         [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
     {
+        string? caseId = null;
+        string? traceId = null;
         try
         {
             var requestBody = await req.ReadAsStringAsync();
@@ -271,46 +273,133 @@ public class CaseGenerationStepsFunction
                 return errorResponse;
             }
 
+            caseId = request.CaseId;
             var startTime = DateTime.UtcNow;
-            _logger.LogInformation("[STEP-BY-STEP] Starting ExpandStepByCaseId for case {CaseId}", request.CaseId);
+            traceId = Guid.NewGuid().ToString("N");
+            _logger.LogInformation("[STEP-BY-STEP] Starting ExpandStepByCaseId for case {CaseId}", caseId);
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Expand,
+                Step = "ExpandStepByCaseId",
+                TraceId = traceId,
+                Status = "Started",
+                TimestampUtc = startTime,
+                Message = "ExpandStepByCaseId invoked",
+                Data = new
+                {
+                    filesToLoad = new[] { $"cases/{caseId}/plan.json" }
+                }
+            });
 
             // Load plan.json from storage
             string planJson;
+            var planPath = $"{caseId}/plan.json";
             try
             {
-                planJson = await _storageService.GetFileAsync("cases", $"{request.CaseId}/plan.json");
-                _logger.LogInformation("[STEP-BY-STEP] Loaded plan.json from storage for case {CaseId}", request.CaseId);
+                planJson = await _storageService.GetFileAsync("cases", planPath);
+                _logger.LogInformation("[STEP-BY-STEP] Loaded plan.json from storage for case {CaseId}", caseId);
+
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.Metadata,
+                    Step = "ExpandStepByCaseId",
+                    Message = "plan.json loaded",
+                    PayloadReference = $"cases/{planPath}"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[STEP-BY-STEP] Failed to load plan.json for case {CaseId}", request.CaseId);
+                _logger.LogError(ex, "[STEP-BY-STEP] Failed to load plan.json for case {CaseId}", caseId);
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.Expand,
+                    Step = "ExpandStepByCaseId",
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "Failed to load plan.json",
+                    Error = ex.Message
+                });
                 var errorResponse = req.CreateResponse(HttpStatusCode.NotFound);
-                await errorResponse.WriteStringAsync($"Plan not found for case {request.CaseId}. Make sure PlanStepOnly was executed first.");
+                await errorResponse.WriteStringAsync($"Plan not found for case {caseId}. Make sure PlanStepOnly was executed first.");
                 return errorResponse;
             }
 
             // Execute expand
-            var expandResult = await _caseGenerationService.ExpandCaseAsync(planJson, request.CaseId);
+            var expandCallStart = DateTime.UtcNow;
+            var expandResult = await _caseGenerationService.ExpandCaseAsync(planJson, caseId)
+                ?? throw new InvalidOperationException("Expand generation returned null response");
+            var expandCallDuration = DateTime.UtcNow - expandCallStart;
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Expand,
+                Step = "ExpandStepByCaseId",
+                Activity = "ExpandCaseAsync",
+                TraceId = traceId,
+                Status = "Completed",
+                DurationMs = Math.Round(expandCallDuration.TotalMilliseconds, 2),
+                Message = "ExpandCaseAsync completed",
+                Data = new
+                {
+                    outputLength = expandResult.Length
+                }
+            });
             
             // Save expand.json to storage
-            await _storageService.SaveFileAsync("cases", $"{request.CaseId}/expand.json", expandResult);
-            _logger.LogInformation("[STEP-BY-STEP] Saved expand.json to storage for case {CaseId}", request.CaseId);
+            var expandPath = $"{caseId}/expand.json";
+            await _storageService.SaveFileAsync("cases", expandPath, expandResult);
+            _logger.LogInformation("[STEP-BY-STEP] Saved expand.json to storage for case {CaseId}", caseId);
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.Payload,
+                Step = "ExpandStepByCaseId",
+                Message = "expand.json saved via ExpandStepByCaseId",
+                PayloadReference = $"cases/{expandPath}"
+            });
 
             var duration = DateTime.UtcNow - startTime;
             _logger.LogInformation("[STEP-BY-STEP] ExpandStepByCaseId completed for case {CaseId} - Duration: {Duration}s", 
-                request.CaseId, duration.TotalSeconds);
+                caseId, duration.TotalSeconds);
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Expand,
+                Step = "ExpandStepByCaseId",
+                TraceId = traceId,
+                Status = "Completed",
+                DurationMs = Math.Round(duration.TotalMilliseconds, 2),
+                Message = "ExpandStepByCaseId request completed",
+                Data = new
+                {
+                    durationSeconds = duration.TotalSeconds,
+                    filesLoaded = new[] { "plan.json" },
+                    filesSaved = new[] { "expand.json" }
+                }
+            });
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
             {
-                caseId = request.CaseId,
+                caseId,
                 step = "expand",
                 durationSeconds = duration.TotalSeconds,
                 filesLoaded = new[] { "plan.json" },
                 filesSaved = new[] { "expand/suspects.json", "expand/evidence.json", "expand/timeline.json", "expand/witnesses.json" },
                 result = JsonSerializer.Deserialize<object>(expandResult),
                 raw = expandResult,
-                nextStep = $"Use this caseId in DesignStepByCaseId: {request.CaseId}"
+                nextStep = $"Use this caseId in DesignStepByCaseId: {caseId}"
             });
 
             return response;
@@ -318,6 +407,20 @@ public class CaseGenerationStepsFunction
         catch (Exception ex)
         {
             _logger.LogError(ex, "[STEP-BY-STEP] Failed to execute ExpandStepByCaseId");
+            if (!string.IsNullOrEmpty(caseId))
+            {
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.Expand,
+                    Step = "ExpandStepByCaseId",
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "ExpandStepByCaseId failed",
+                    Error = ex.Message
+                });
+            }
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             await errorResponse.WriteStringAsync($"Error: {ex.Message}");
             return errorResponse;
@@ -450,6 +553,8 @@ public class CaseGenerationStepsFunction
     public async Task<HttpResponseData> DesignStepByCaseId(
         [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
     {
+        string? caseId = null;
+        string? traceId = null;
         try
         {
             var requestBody = await req.ReadAsStringAsync();
@@ -462,61 +567,173 @@ public class CaseGenerationStepsFunction
                 return errorResponse;
             }
 
+            caseId = request.CaseId;
             var startTime = DateTime.UtcNow;
-            _logger.LogInformation("[STEP-BY-STEP] Starting DesignStepByCaseId for case {CaseId}", request.CaseId);
+            traceId = Guid.NewGuid().ToString("N");
+            _logger.LogInformation("[STEP-BY-STEP] Starting DesignStepByCaseId for case {CaseId}", caseId);
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Design,
+                Step = "DesignStepByCaseId",
+                TraceId = traceId,
+                Status = "Started",
+                TimestampUtc = startTime,
+                Message = "DesignStepByCaseId invoked",
+                Data = new
+                {
+                    filesToLoad = new[] 
+                    {
+                        $"cases/{caseId}/plan.json",
+                        $"cases/{caseId}/expand.json"
+                    }
+                }
+            });
 
             // Load plan.json from storage
+            var planPath = $"{caseId}/plan.json";
             string planJson;
             try
             {
-                planJson = await _storageService.GetFileAsync("cases", $"{request.CaseId}/plan.json");
-                _logger.LogInformation("[STEP-BY-STEP] Loaded plan.json from storage for case {CaseId}", request.CaseId);
+                planJson = await _storageService.GetFileAsync("cases", planPath);
+                _logger.LogInformation("[STEP-BY-STEP] Loaded plan.json from storage for case {CaseId}", caseId);
+
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.Metadata,
+                    Step = "DesignStepByCaseId",
+                    Message = "plan.json loaded",
+                    PayloadReference = $"cases/{planPath}"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[STEP-BY-STEP] Failed to load plan.json for case {CaseId}", request.CaseId);
+                _logger.LogError(ex, "[STEP-BY-STEP] Failed to load plan.json for case {CaseId}", caseId);
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.Design,
+                    Step = "DesignStepByCaseId",
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "Failed to load plan.json",
+                    Error = ex.Message
+                });
                 var errorResponse = req.CreateResponse(HttpStatusCode.NotFound);
-                await errorResponse.WriteStringAsync($"Plan not found for case {request.CaseId}. Make sure PlanStepOnly was executed first.");
+                await errorResponse.WriteStringAsync($"Plan not found for case {caseId}. Make sure PlanStepOnly was executed first.");
                 return errorResponse;
             }
 
             // Load expand.json from storage
+            var expandPath = $"{caseId}/expand.json";
             string expandJson;
             try
             {
-                expandJson = await _storageService.GetFileAsync("cases", $"{request.CaseId}/expand.json");
-                _logger.LogInformation("[STEP-BY-STEP] Loaded expand.json from storage for case {CaseId}", request.CaseId);
+                expandJson = await _storageService.GetFileAsync("cases", expandPath);
+                _logger.LogInformation("[STEP-BY-STEP] Loaded expand.json from storage for case {CaseId}", caseId);
+
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.Metadata,
+                    Step = "DesignStepByCaseId",
+                    Message = "expand.json loaded",
+                    PayloadReference = $"cases/{expandPath}"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[STEP-BY-STEP] Failed to load expand.json for case {CaseId}", request.CaseId);
+                _logger.LogError(ex, "[STEP-BY-STEP] Failed to load expand.json for case {CaseId}", caseId);
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.Design,
+                    Step = "DesignStepByCaseId",
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "Failed to load expand.json",
+                    Error = ex.Message
+                });
                 var errorResponse = req.CreateResponse(HttpStatusCode.NotFound);
-                await errorResponse.WriteStringAsync($"Expand not found for case {request.CaseId}. Make sure ExpandStepByCaseId was executed first.");
+                await errorResponse.WriteStringAsync($"Expand not found for case {caseId}. Make sure ExpandStepByCaseId was executed first.");
                 return errorResponse;
             }
 
             // Execute design
-            var designResult = await _caseGenerationService.DesignCaseAsync(planJson, expandJson, request.CaseId);
+            var designCallStart = DateTime.UtcNow;
+            var designResult = await _caseGenerationService.DesignCaseAsync(planJson, expandJson, caseId)
+                ?? throw new InvalidOperationException("Design generation returned null response");
+            var designCallDuration = DateTime.UtcNow - designCallStart;
+            
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Design,
+                Step = "DesignStepByCaseId",
+                Activity = "DesignCaseAsync",
+                TraceId = traceId,
+                Status = "Completed",
+                DurationMs = Math.Round(designCallDuration.TotalMilliseconds, 2),
+                Message = "DesignCaseAsync completed",
+                Data = new
+                {
+                    outputLength = designResult.Length
+                }
+            });
             
             // Save design.json to storage
-            await _storageService.SaveFileAsync("cases", $"{request.CaseId}/design.json", designResult);
-            _logger.LogInformation("[STEP-BY-STEP] Saved design.json to storage for case {CaseId}", request.CaseId);
+            var designPath = $"{caseId}/design.json";
+            await _storageService.SaveFileAsync("cases", designPath, designResult);
+            _logger.LogInformation("[STEP-BY-STEP] Saved design.json to storage for case {CaseId}", caseId);
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.Payload,
+                Step = "DesignStepByCaseId",
+                Message = "design.json saved via DesignStepByCaseId",
+                PayloadReference = $"cases/{designPath}"
+            });
 
             var duration = DateTime.UtcNow - startTime;
             _logger.LogInformation("[STEP-BY-STEP] DesignStepByCaseId completed for case {CaseId} - Duration: {Duration}s", 
-                request.CaseId, duration.TotalSeconds);
+                caseId, duration.TotalSeconds);
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Design,
+                Step = "DesignStepByCaseId",
+                TraceId = traceId,
+                Status = "Completed",
+                DurationMs = Math.Round(duration.TotalMilliseconds, 2),
+                Message = "DesignStepByCaseId request completed",
+                Data = new
+                {
+                    durationSeconds = duration.TotalSeconds,
+                    filesLoaded = new[] { "plan.json", "expand.json" },
+                    filesSaved = new[] { "design.json" }
+                }
+            });
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
             {
-                caseId = request.CaseId,
+                caseId,
                 step = "design",
                 durationSeconds = duration.TotalSeconds,
                 filesLoaded = new[] { "plan.json", "expand.json" },
                 filesSaved = new[] { "design.json" },
                 result = JsonSerializer.Deserialize<object>(designResult),
                 raw = designResult,
-                nextStep = $"Use this caseId in GenerateStepByCaseId: {request.CaseId}"
+                nextStep = $"Use this caseId in GenerateStepByCaseId: {caseId}"
             });
 
             return response;
@@ -524,6 +741,20 @@ public class CaseGenerationStepsFunction
         catch (Exception ex)
         {
             _logger.LogError(ex, "[STEP-BY-STEP] Failed to execute DesignStepByCaseId");
+            if (!string.IsNullOrEmpty(caseId))
+            {
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.Design,
+                    Step = "DesignStepByCaseId",
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "DesignStepByCaseId failed",
+                    Error = ex.Message
+                });
+            }
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             await errorResponse.WriteStringAsync($"Error: {ex.Message}");
             return errorResponse;
@@ -588,6 +819,8 @@ public class CaseGenerationStepsFunction
     public async Task<HttpResponseData> GenerateStepByCaseId(
         [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
     {
+        string? caseId = null;
+        string? traceId = null;
         try
         {
             var requestBody = await req.ReadAsStringAsync();
@@ -600,26 +833,68 @@ public class CaseGenerationStepsFunction
                 return errorResponse;
             }
 
+            caseId = request.CaseId;
             var startTime = DateTime.UtcNow;
+            traceId = Guid.NewGuid().ToString("N");
             _logger.LogInformation("[STEP-BY-STEP] Starting GenerateStepByCaseId for case {CaseId} - generateImages: {GenerateImages}, renderFiles: {RenderFiles}", 
-                request.CaseId, request.GenerateImages, request.RenderFiles);
+                caseId, request.GenerateImages, request.RenderFiles);
 
-            // Load design.json from storage
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.GenDocs,
+                Step = "GenerateStepByCaseId",
+                TraceId = traceId,
+                Status = "Started",
+                TimestampUtc = startTime,
+                Message = "GenerateStepByCaseId invoked",
+                Data = new
+                {
+                    filesToLoad = new[] { $"cases/{caseId}/design.json" },
+                    options = new
+                    {
+                        request.GenerateImages,
+                        request.RenderFiles
+                    }
+                }
+            });
+
+            var designPath = $"{caseId}/design.json";
             string designJson;
             try
             {
-                designJson = await _storageService.GetFileAsync("cases", $"{request.CaseId}/design.json");
-                _logger.LogInformation("[STEP-BY-STEP] Loaded design.json from storage for case {CaseId}", request.CaseId);
+                designJson = await _storageService.GetFileAsync("cases", designPath);
+                _logger.LogInformation("[STEP-BY-STEP] Loaded design.json from storage for case {CaseId}", caseId);
+
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.Metadata,
+                    Step = "GenerateStepByCaseId",
+                    Message = "design.json loaded",
+                    PayloadReference = $"cases/{designPath}"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[STEP-BY-STEP] Failed to load design.json for case {CaseId}", request.CaseId);
+                _logger.LogError(ex, "[STEP-BY-STEP] Failed to load design.json for case {CaseId}", caseId);
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.GenDocs,
+                    Step = "GenerateStepByCaseId",
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "Failed to load design.json",
+                    Error = ex.Message
+                });
                 var errorResponse = req.CreateResponse(HttpStatusCode.NotFound);
-                await errorResponse.WriteStringAsync($"Design not found for case {request.CaseId}. Make sure DesignStepByCaseId was executed first.");
+                await errorResponse.WriteStringAsync($"Design not found for case {caseId}. Make sure DesignStepByCaseId was executed first.");
                 return errorResponse;
             }
 
-            // Parse design to get specs
             DocumentAndMediaSpecs? specs;
             try
             {
@@ -637,10 +912,34 @@ public class CaseGenerationStepsFunction
                 
                 _logger.LogInformation("[STEP-BY-STEP] Parsed design: {DocCount} documents, {MediaCount} media items", 
                     specs.DocumentSpecs.Length, specs.MediaSpecs.Length);
+
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.Metadata,
+                    Step = "GenerateStepByCaseId",
+                    Message = "Design parsed for generation",
+                    Data = new
+                    {
+                        documents = specs.DocumentSpecs.Length,
+                        media = specs.MediaSpecs.Length
+                    }
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[STEP-BY-STEP] Failed to parse design.json for case {CaseId}", request.CaseId);
+                _logger.LogError(ex, "[STEP-BY-STEP] Failed to parse design.json for case {CaseId}", caseId);
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.GenDocs,
+                    Step = "GenerateStepByCaseId",
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "Invalid design.json format",
+                    Error = ex.Message
+                });
                 var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
                 await errorResponse.WriteStringAsync($"Invalid design.json format: {ex.Message}");
                 return errorResponse;
@@ -649,14 +948,14 @@ public class CaseGenerationStepsFunction
             var generatedDocs = 0;
             var generatedMedia = 0;
 
-            // Generate Documents
             _logger.LogInformation("[STEP-BY-STEP] Generating {Count} documents...", specs.DocumentSpecs.Length);
+            var documentsStart = DateTime.UtcNow;
             foreach (var docSpec in specs.DocumentSpecs)
             {
                 try
                 {
                     var documentJson = await _caseGenerationService.GenerateDocumentFromSpecAsync(
-                        docSpec, string.Empty, request.CaseId, null, null, null);
+                        docSpec, string.Empty, caseId, null, null, null);
                     generatedDocs++;
                     
                     if (generatedDocs % 5 == 0)
@@ -667,19 +966,50 @@ public class CaseGenerationStepsFunction
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "[STEP-BY-STEP] Failed to generate document {DocId}", docSpec.DocId);
+                    await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                    {
+                        CaseId = caseId,
+                        Category = LogCategory.WorkflowStep,
+                        Phase = CaseGenerationSteps.GenDocs,
+                        Step = "GenerateStepByCaseId",
+                        TraceId = traceId,
+                        Status = "Warning",
+                        Message = $"Failed to generate document {docSpec.DocId}",
+                        Error = ex.Message
+                    });
                 }
             }
+            var documentsDuration = DateTime.UtcNow - documentsStart;
 
-            // Generate Media (only if requested)
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.GenDocs,
+                Step = "GenerateStepByCaseId",
+                Activity = "GenerateDocumentBatch",
+                TraceId = traceId,
+                Status = "Completed",
+                DurationMs = Math.Round(documentsDuration.TotalMilliseconds, 2),
+                Message = "Document generation batch completed",
+                Data = new
+                {
+                    requested = specs.DocumentSpecs.Length,
+                    generated = generatedDocs,
+                    failures = Math.Max(0, specs.DocumentSpecs.Length - generatedDocs)
+                }
+            });
+
             if (request.GenerateImages)
             {
                 _logger.LogInformation("[STEP-BY-STEP] Generating {Count} media items...", specs.MediaSpecs.Length);
+                var mediaStart = DateTime.UtcNow;
                 foreach (var mediaSpec in specs.MediaSpecs)
                 {
                     try
                     {
                         var mediaJson = await _caseGenerationService.GenerateMediaFromSpecAsync(
-                            mediaSpec, string.Empty, request.CaseId, null, null, null);
+                            mediaSpec, string.Empty, caseId, null, null, null);
                         generatedMedia++;
                         
                         if (generatedMedia % 5 == 0)
@@ -690,22 +1020,89 @@ public class CaseGenerationStepsFunction
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "[STEP-BY-STEP] Failed to generate media {EvidenceId}", mediaSpec.EvidenceId);
+                        await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                        {
+                            CaseId = caseId,
+                            Category = LogCategory.WorkflowStep,
+                            Phase = CaseGenerationSteps.GenMedia,
+                            Step = "GenerateStepByCaseId",
+                            TraceId = traceId,
+                            Status = "Warning",
+                            Message = $"Failed to generate media {mediaSpec.EvidenceId}",
+                            Error = ex.Message
+                        });
                     }
                 }
+                var mediaDuration = DateTime.UtcNow - mediaStart;
+
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.GenMedia,
+                    Step = "GenerateStepByCaseId",
+                    Activity = "GenerateMediaBatch",
+                    TraceId = traceId,
+                    Status = "Completed",
+                    DurationMs = Math.Round(mediaDuration.TotalMilliseconds, 2),
+                    Message = "Media generation batch completed",
+                    Data = new
+                    {
+                        requested = specs.MediaSpecs.Length,
+                        generated = generatedMedia,
+                        failures = Math.Max(0, specs.MediaSpecs.Length - generatedMedia)
+                    }
+                });
             }
             else
             {
                 _logger.LogInformation("[STEP-BY-STEP] Skipping image generation (generateImages=false)");
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.Metadata,
+                    Step = "GenerateStepByCaseId",
+                    Message = "Image generation skipped",
+                    Data = new { request.GenerateImages }
+                });
             }
 
             var duration = DateTime.UtcNow - startTime;
             _logger.LogInformation("[STEP-BY-STEP] GenerateStepByCaseId completed for case {CaseId} - Duration: {Duration}s", 
-                request.CaseId, duration.TotalSeconds);
+                caseId, duration.TotalSeconds);
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = request.GenerateImages ? CaseGenerationSteps.GenMedia : CaseGenerationSteps.GenDocs,
+                Step = "GenerateStepByCaseId",
+                TraceId = traceId,
+                Status = "Completed",
+                DurationMs = Math.Round(duration.TotalMilliseconds, 2),
+                Message = "GenerateStepByCaseId request completed",
+                Data = new
+                {
+                    durationSeconds = duration.TotalSeconds,
+                    filesLoaded = new[] { "design.json" },
+                    generated = new
+                    {
+                        documents = generatedDocs,
+                        media = generatedMedia,
+                        total = generatedDocs + generatedMedia
+                    },
+                    options = new
+                    {
+                        request.GenerateImages,
+                        request.RenderFiles
+                    }
+                }
+            });
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
             {
-                caseId = request.CaseId,
+                caseId,
                 step = "generate",
                 durationSeconds = duration.TotalSeconds,
                 filesLoaded = new[] { "design.json" },
@@ -720,7 +1117,7 @@ public class CaseGenerationStepsFunction
                     generateImages = request.GenerateImages,
                     renderFiles = request.RenderFiles
                 },
-                nextStep = $"Use this caseId in NormalizeStepByCaseId: {request.CaseId}"
+                nextStep = $"Use this caseId in NormalizeStepByCaseId: {caseId}"
             });
 
             return response;
@@ -728,6 +1125,20 @@ public class CaseGenerationStepsFunction
         catch (Exception ex)
         {
             _logger.LogError(ex, "[STEP-BY-STEP] Failed to execute GenerateStepByCaseId");
+            if (!string.IsNullOrEmpty(caseId))
+            {
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.GenDocs,
+                    Step = "GenerateStepByCaseId",
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "GenerateStepByCaseId failed",
+                    Error = ex.Message
+                });
+            }
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             await errorResponse.WriteStringAsync($"Error: {ex.Message}");
             return errorResponse;
@@ -1455,6 +1866,8 @@ public class CaseGenerationStepsFunction
     public async Task<HttpResponseData> NormalizeStepByCaseId(
         [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
     {
+        string? caseId = null;
+        string? traceId = null;
         try
         {
             var requestBody = await req.ReadAsStringAsync();
@@ -1467,33 +1880,80 @@ public class CaseGenerationStepsFunction
                 return errorResponse;
             }
 
+            caseId = request.CaseId;
             var startTime = DateTime.UtcNow;
-            _logger.LogInformation("[STEP-BY-STEP] Starting NormalizeStepByCaseId for case {CaseId}", request.CaseId);
+            traceId = Guid.NewGuid().ToString("N");
+            _logger.LogInformation("[STEP-BY-STEP] Starting NormalizeStepByCaseId for case {CaseId}", caseId);
 
-            // Load plan.json, expand.json, design.json
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Normalize,
+                Step = "NormalizeStepByCaseId",
+                TraceId = traceId,
+                Status = "Started",
+                TimestampUtc = startTime,
+                Message = "NormalizeStepByCaseId invoked",
+                Data = new
+                {
+                    filesToLoad = new[]
+                    {
+                        $"cases/{caseId}/plan.json",
+                        $"cases/{caseId}/expand.json",
+                        $"cases/{caseId}/design.json",
+                        $"cases/{caseId}/generate/documents/*",
+                        $"cases/{caseId}/generate/media/*"
+                    }
+                }
+            });
+
             string? planJson = null;
             string? expandJson = null;
             string? designJson = null;
 
-            try
+            async Task<string?> TryGetFileAsync(string relativePath, string label)
             {
-                planJson = await _storageService.GetFileAsync("cases", $"{request.CaseId}/plan.json");
-                expandJson = await _storageService.GetFileAsync("cases", $"{request.CaseId}/expand.json");
-                designJson = await _storageService.GetFileAsync("cases", $"{request.CaseId}/design.json");
-                _logger.LogInformation("[STEP-BY-STEP] Loaded plan, expand, and design from storage");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[STEP-BY-STEP] Could not load all context files (plan/expand/design) - proceeding without them");
+                try
+                {
+                    var content = await _storageService.GetFileAsync("cases", relativePath);
+                    await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                    {
+                        CaseId = caseId,
+                        Category = LogCategory.Metadata,
+                        Step = "NormalizeStepByCaseId",
+                        Message = $"{label} loaded",
+                        PayloadReference = $"cases/{relativePath}"
+                    });
+                    return content;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[STEP-BY-STEP] Failed to load {Label} for case {CaseId}", label, caseId);
+                    await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                    {
+                        CaseId = caseId,
+                        Category = LogCategory.WorkflowStep,
+                        Phase = CaseGenerationSteps.Normalize,
+                        Step = "NormalizeStepByCaseId",
+                        TraceId = traceId,
+                        Status = "Warning",
+                        Message = $"Failed to load {label}",
+                        Error = ex.Message
+                    });
+                    return null;
+                }
             }
 
-            // List all generated documents in generate/documents/
+            planJson = await TryGetFileAsync($"{caseId}/plan.json", "plan.json");
+            expandJson = await TryGetFileAsync($"{caseId}/expand.json", "expand.json");
+            designJson = await TryGetFileAsync($"{caseId}/design.json", "design.json");
+
             var documentsList = new List<string>();
             try
             {
-                var prefix = $"{request.CaseId}/generate/documents/";
+                var prefix = $"{caseId}/generate/documents/";
                 var fileNames = await _storageService.ListFilesAsync("cases", prefix);
-                
                 foreach (var fileName in fileNames)
                 {
                     if (fileName.EndsWith(".json"))
@@ -1502,21 +1962,42 @@ public class CaseGenerationStepsFunction
                         documentsList.Add(content);
                     }
                 }
-                
+
                 _logger.LogInformation("[STEP-BY-STEP] Found {Count} generated documents", documentsList.Count);
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.Metadata,
+                    Step = "NormalizeStepByCaseId",
+                    Message = "Generated documents loaded",
+                    Data = new
+                    {
+                        prefix = $"cases/{prefix}",
+                        count = documentsList.Count
+                    }
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[STEP-BY-STEP] Failed to list generated documents");
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.Normalize,
+                    Step = "NormalizeStepByCaseId",
+                    TraceId = traceId,
+                    Status = "Warning",
+                    Message = "Failed to list generated documents",
+                    Error = ex.Message
+                });
             }
 
-            // List all generated media in generate/media/
             var mediaList = new List<string>();
             try
             {
-                var prefix = $"{request.CaseId}/generate/media/";
+                var prefix = $"{caseId}/generate/media/";
                 var fileNames = await _storageService.ListFilesAsync("cases", prefix);
-                
                 foreach (var fileName in fileNames)
                 {
                     if (fileName.EndsWith(".json"))
@@ -1525,25 +2006,57 @@ public class CaseGenerationStepsFunction
                         mediaList.Add(content);
                     }
                 }
-                
+
                 _logger.LogInformation("[STEP-BY-STEP] Found {Count} generated media items", mediaList.Count);
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.Metadata,
+                    Step = "NormalizeStepByCaseId",
+                    Message = "Generated media loaded",
+                    Data = new
+                    {
+                        prefix = $"cases/{prefix}",
+                        count = mediaList.Count
+                    }
+                });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[STEP-BY-STEP] Failed to list generated media");
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.Normalize,
+                    Step = "NormalizeStepByCaseId",
+                    TraceId = traceId,
+                    Status = "Warning",
+                    Message = "Failed to list generated media",
+                    Error = ex.Message
+                });
             }
 
             if (documentsList.Count == 0 && mediaList.Count == 0)
             {
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.Normalize,
+                    Step = "NormalizeStepByCaseId",
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "No generated content found"
+                });
                 var errorResponse = req.CreateResponse(HttpStatusCode.NotFound);
-                await errorResponse.WriteStringAsync($"No generated content found for case {request.CaseId}. Make sure GenerateStepByCaseId was executed first.");
+                await errorResponse.WriteStringAsync($"No generated content found for case {caseId}. Make sure GenerateStepByCaseId was executed first.");
                 return errorResponse;
             }
 
-            // Create normalization input
             var normalizationInput = new NormalizationInput
             {
-                CaseId = request.CaseId,
+                CaseId = caseId,
                 Documents = documentsList.ToArray(),
                 Media = mediaList.ToArray(),
                 PlanJson = planJson,
@@ -1553,20 +2066,76 @@ public class CaseGenerationStepsFunction
                 Timezone = "UTC"
             };
 
-            // Execute normalization
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.Metadata,
+                Step = "NormalizeStepByCaseId",
+                Message = "Normalization input prepared",
+                Data = new
+                {
+                    documents = documentsList.Count,
+                    media = mediaList.Count,
+                    hasPlan = planJson != null,
+                    hasExpand = expandJson != null,
+                    hasDesign = designJson != null
+                }
+            });
+
             _logger.LogInformation("[STEP-BY-STEP] Starting normalization with {DocCount} docs and {MediaCount} media", 
                 documentsList.Count, mediaList.Count);
-            
+
+            var normalizeStart = DateTime.UtcNow;
             var normalizeResult = await _caseGenerationService.NormalizeCaseDeterministicAsync(normalizationInput);
+            var normalizeDuration = DateTime.UtcNow - normalizeStart;
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Normalize,
+                Step = "NormalizeStepByCaseId",
+                Activity = "NormalizeCaseDeterministicAsync",
+                TraceId = traceId,
+                Status = "Completed",
+                DurationMs = Math.Round(normalizeDuration.TotalMilliseconds, 2),
+                Message = "Normalization completed",
+                Data = new
+                {
+                    manifestDocuments = normalizeResult.Manifest.Documents.Length,
+                    manifestMedia = normalizeResult.Manifest.Media.Length,
+                    bundleCount = normalizeResult.Manifest.BundlePaths.Length,
+                    validationEntries = normalizeResult.Log.ValidationResults.Length
+                }
+            });
 
             var duration = DateTime.UtcNow - startTime;
             _logger.LogInformation("[STEP-BY-STEP] NormalizeStepByCaseId completed for case {CaseId} - Duration: {Duration}s", 
-                request.CaseId, duration.TotalSeconds);
+                caseId, duration.TotalSeconds);
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Normalize,
+                Step = "NormalizeStepByCaseId",
+                TraceId = traceId,
+                Status = "Completed",
+                DurationMs = Math.Round(duration.TotalMilliseconds, 2),
+                Message = "NormalizeStepByCaseId request completed",
+                Data = new
+                {
+                    durationSeconds = duration.TotalSeconds,
+                    filesLoaded = new[] { "plan.json", "expand.json", "design.json" },
+                    generatedCounts = new { documents = documentsList.Count, media = mediaList.Count },
+                    filesSaved = new[] { "bundle.zip", "manifest.json" }
+                }
+            });
 
             var response = req.CreateResponse(HttpStatusCode.OK);
             await response.WriteAsJsonAsync(new
             {
-                caseId = request.CaseId,
+                caseId = caseId,
                 step = "normalize",
                 durationSeconds = duration.TotalSeconds,
                 filesLoaded = new[] { "plan.json", "expand.json", "design.json", $"{documentsList.Count} documents", $"{mediaList.Count} media" },
@@ -1584,6 +2153,20 @@ public class CaseGenerationStepsFunction
         catch (Exception ex)
         {
             _logger.LogError(ex, "[STEP-BY-STEP] Failed to execute NormalizeStepByCaseId");
+            if (!string.IsNullOrEmpty(caseId))
+            {
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.Normalize,
+                    Step = "NormalizeStepByCaseId",
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "NormalizeStepByCaseId failed",
+                    Error = ex.Message
+                });
+            }
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             await errorResponse.WriteStringAsync($"Error: {ex.Message}");
             return errorResponse;
