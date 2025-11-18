@@ -17,11 +17,11 @@
 @baseUrl = http://localhost:7071
 
 # ⚠️ IMPORTANTE: Atualize este caseId após executar o Step 1 (PlanStepOnly)
-@caseId = CASE-20251118-61a3ae6e
-@planInstanceId = 78180ea26f1d465283cd4450285f122d
-@expandInstanceId = 0851bf2e4c474327a441f5751fde00b8
-@designInstanceId = d9c5665416c24aceadf458e3c08eae33
-@generateInstanceId = f38691a92b5c47faabedd7e78ec34fca
+@caseId = CASE-20251118-cad4fbdc
+@planInstanceId = 79fb3e94538143a7a9d3212bb83cc009
+@expandInstanceId = 13f17fa4af1242b1a82d67970eebbfe0
+@designInstanceId = 52d459a45207474dbbd5faeb1f91f50a
+@generateInstanceId = e8d1675b37c1496d9b99e834cf3a8d3f
 
 ################################################################################
 # 📝 STEP 1: PLAN - Criar caso e gerar plano inicial
@@ -43,24 +43,6 @@ Content-Type: application/json
 ### STEP 1-STATUS - Verificar status do Plan (Durable)
 # Atualize @planInstanceId com o valor retornado pelo Step 1
 GET {{baseUrl}}/api/PlanStepStatus/{{planInstanceId}}
-
-### STEP 1B - Plan para caso Detective (médio)
-POST {{baseUrl}}/api/PlanStepOnly
-Content-Type: application/json
-
-{
-  "difficulty": "Detective",
-  "timezone": "America/Toronto"
-}
-
-### STEP 1C - Plan para caso Sergeant (avançado)
-POST {{baseUrl}}/api/PlanStepOnly
-Content-Type: application/json
-
-{
-  "difficulty": "Sergeant",
-  "timezone": "America/New_York"
-}
 
 
 ################################################################################

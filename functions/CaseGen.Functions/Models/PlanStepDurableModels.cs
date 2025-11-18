@@ -283,6 +283,81 @@ public record GenerateDocumentDurableActivityInput
     public string? DifficultyOverride { get; init; }
 }
 
+public record NormalizeStepDurableInput
+{
+    [JsonPropertyName("caseId")]
+    public string CaseId { get; init; } = string.Empty;
+
+    [JsonPropertyName("traceId")]
+    public string TraceId { get; init; } = string.Empty;
+
+    [JsonPropertyName("requestedAtUtc")]
+    public DateTime RequestedAtUtc { get; init; } = DateTime.UtcNow;
+
+    [JsonPropertyName("timezone")]
+    public string Timezone { get; init; } = "UTC";
+
+    [JsonPropertyName("difficulty")]
+    public string? Difficulty { get; init; }
+}
+
+public record NormalizeCaseDurableActivityResult
+{
+    [JsonPropertyName("caseId")]
+    public required string CaseId { get; init; }
+
+    [JsonPropertyName("durationSeconds")]
+    public double DurationSeconds { get; init; }
+
+    [JsonPropertyName("documentsLoaded")]
+    public int DocumentsLoaded { get; init; }
+
+    [JsonPropertyName("mediaLoaded")]
+    public int MediaLoaded { get; init; }
+
+    [JsonPropertyName("manifest")]
+    public required CaseManifest Manifest { get; init; }
+
+    [JsonPropertyName("log")]
+    public required NormalizationLog Log { get; init; }
+
+    [JsonPropertyName("filesSaved")]
+    public IReadOnlyList<string> FilesSaved { get; init; } = Array.Empty<string>();
+}
+
+public record NormalizeStepDurableResult
+{
+    [JsonPropertyName("caseId")]
+    public required string CaseId { get; init; }
+
+    [JsonPropertyName("instanceId")]
+    public required string InstanceId { get; init; }
+
+    [JsonPropertyName("requestedAtUtc")]
+    public DateTime RequestedAtUtc { get; init; }
+
+    [JsonPropertyName("completedAtUtc")]
+    public DateTime CompletedAtUtc { get; init; }
+
+    [JsonPropertyName("durationSeconds")]
+    public double DurationSeconds { get; init; }
+
+    [JsonPropertyName("documentsLoaded")]
+    public int DocumentsLoaded { get; init; }
+
+    [JsonPropertyName("mediaLoaded")]
+    public int MediaLoaded { get; init; }
+
+    [JsonPropertyName("manifest")]
+    public required CaseManifest Manifest { get; init; }
+
+    [JsonPropertyName("log")]
+    public required NormalizationLog Log { get; init; }
+
+    [JsonPropertyName("filesSaved")]
+    public IReadOnlyList<string> FilesSaved { get; init; } = Array.Empty<string>();
+}
+
 public record GenerateMediaDurableActivityInput
 {
     [JsonPropertyName("caseId")]

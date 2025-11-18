@@ -72,6 +72,15 @@ public class CaseGenerationStepsFunction
         return await BuildStatusResponseAsync<GenerateStepDurableResult>(req, instanceId, durableClient, "GenerateStep");
     }
 
+    [Function("NormalizeStepStatus")]
+    public async Task<HttpResponseData> NormalizeStepStatus(
+        [HttpTrigger(AuthorizationLevel.Function, "get", Route = "NormalizeStepStatus/{instanceId}")] HttpRequestData req,
+        string instanceId,
+        [DurableClient] DurableTaskClient durableClient)
+    {
+        return await BuildStatusResponseAsync<NormalizeStepDurableResult>(req, instanceId, durableClient, "NormalizeStep");
+    }
+
     private static async Task<HttpResponseData> BuildStatusResponseAsync<TResult>(
         HttpRequestData req,
         string instanceId,
@@ -114,6 +123,107 @@ public class CaseGenerationStepsFunction
         }
     }
 
+    [Function("PlanStepOnly")]
+    public async Task<HttpResponseData> PlanStepOnly(
+        [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req,
+        [DurableClient] DurableTaskClient durableClient)
+    {
+        CaseGenerationRequest? request = null;
+        string? caseId = null;
+        string? traceId = null;
+        try
+        {
+            var requestBody = await req.ReadAsStringAsync();
+            request = JsonSerializer.Deserialize<CaseGenerationRequest>(requestBody ?? "{}");
+
+            if (request == null)
+            {
+                var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await errorResponse.WriteStringAsync("Invalid request body");
+                return errorResponse;
+            }
+
+            caseId = $"CASE-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8]}";
+            traceId = Guid.NewGuid().ToString("N");
+            var requestedAt = DateTime.UtcNow;
+            var difficulty = request.Difficulty ?? "Rookie";
+            var timezone = request.Timezone ?? "UTC";
+
+            _logger.LogInformation(
+                "[STEP-BY-STEP] Queueing PlanStepOnly for case {CaseId} ({Difficulty}/{Timezone})",
+                caseId,
+                difficulty,
+                timezone);
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Plan,
+                Step = "PlanStepOnly",
+                Activity = nameof(PlanStepDurableOrchestrator),
+                TraceId = traceId,
+                Status = "Queued",
+                TimestampUtc = requestedAt,
+                Message = "PlanStepOnly enqueued for Durable execution",
+                Data = new
+                {
+                    request.Title,
+                    request.Difficulty,
+                    request.Timezone
+                }
+            });
+
+            var input = new PlanStepDurableInput
+            {
+                CaseId = caseId,
+                TraceId = traceId,
+                RequestedAtUtc = requestedAt,
+                Request = request
+            };
+
+            var instanceId = await durableClient.ScheduleNewOrchestrationInstanceAsync(
+                nameof(PlanStepDurableOrchestrator),
+                input);
+
+            var statusUri = BuildStatusUri(req, "PlanStepStatus", instanceId);
+            var response = req.CreateResponse(HttpStatusCode.Accepted);
+            await response.WriteAsJsonAsync(new
+            {
+                message = "Plan step accepted. Poll the status URL to track progress.",
+                caseId,
+                instanceId,
+                statusQueryGetUri = statusUri,
+                nextStep = "Call ExpandStepByCaseId once plan status reports Completed."
+            });
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[STEP-BY-STEP] Failed to queue PlanStepOnly");
+            if (!string.IsNullOrEmpty(caseId))
+            {
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.Plan,
+                    Step = "PlanStepOnly",
+                    Activity = nameof(PlanStepDurableOrchestrator),
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "PlanStepOnly queueing failed",
+                    Error = ex.Message
+                });
+            }
+
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
     [Function("PlanStep")]
     public async Task<HttpResponseData> PlanStep(
         [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
@@ -149,6 +259,100 @@ public class CaseGenerationStepsFunction
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to execute plan step");
+            var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
+            await errorResponse.WriteStringAsync($"Error: {ex.Message}");
+            return errorResponse;
+        }
+    }
+
+    [Function("ExpandStepByCaseId")]
+    public async Task<HttpResponseData> ExpandStepByCaseId(
+        [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req,
+        [DurableClient] DurableTaskClient durableClient)
+    {
+        string? caseId = null;
+        string? traceId = null;
+        try
+        {
+            var requestBody = await req.ReadAsStringAsync();
+            var request = JsonSerializer.Deserialize<CaseIdOnlyRequest>(requestBody ?? "{}");
+
+            if (request == null || string.IsNullOrEmpty(request.CaseId))
+            {
+                var errorResponse = req.CreateResponse(HttpStatusCode.BadRequest);
+                await errorResponse.WriteStringAsync("Invalid request body. Required: caseId");
+                return errorResponse;
+            }
+
+            caseId = request.CaseId;
+            traceId = Guid.NewGuid().ToString("N");
+            var requestedAt = DateTime.UtcNow;
+
+            _logger.LogInformation("[STEP-BY-STEP] Queueing ExpandStepByCaseId for case {CaseId}", caseId);
+
+            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+            {
+                CaseId = caseId,
+                Category = LogCategory.WorkflowStep,
+                Phase = CaseGenerationSteps.Expand,
+                Step = "ExpandStepByCaseId",
+                Activity = nameof(ExpandStepDurableOrchestrator),
+                TraceId = traceId,
+                Status = "Queued",
+                TimestampUtc = requestedAt,
+                Message = "ExpandStepByCaseId enqueued for Durable execution",
+                Data = new
+                {
+                    filesToLoad = new[]
+                    {
+                        $"cases/{caseId}/plan.json"
+                    }
+                }
+            });
+
+            var input = new ExpandStepDurableInput
+            {
+                CaseId = caseId,
+                TraceId = traceId,
+                RequestedAtUtc = requestedAt
+            };
+
+            var instanceId = await durableClient.ScheduleNewOrchestrationInstanceAsync(
+                nameof(ExpandStepDurableOrchestrator),
+                input);
+
+            var statusUri = BuildStatusUri(req, "ExpandStepStatus", instanceId);
+            var response = req.CreateResponse(HttpStatusCode.Accepted);
+            await response.WriteAsJsonAsync(new
+            {
+                message = "Expand step accepted. Poll the status URL to track progress.",
+                caseId,
+                instanceId,
+                statusQueryGetUri = statusUri,
+                nextStep = "Call DesignStepByCaseId after the expand status reports Completed."
+            });
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[STEP-BY-STEP] Failed to queue ExpandStepByCaseId");
+            if (!string.IsNullOrEmpty(caseId))
+            {
+                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
+                {
+                    CaseId = caseId,
+                    Category = LogCategory.WorkflowStep,
+                    Phase = CaseGenerationSteps.Expand,
+                    Step = "ExpandStepByCaseId",
+                    Activity = nameof(ExpandStepDurableOrchestrator),
+                    TraceId = traceId,
+                    Status = "Failed",
+                    Message = "ExpandStepByCaseId queueing failed",
+                    Error = ex.Message
+                });
+            }
+
             var errorResponse = req.CreateResponse(HttpStatusCode.InternalServerError);
             await errorResponse.WriteStringAsync($"Error: {ex.Message}");
             return errorResponse;
@@ -509,7 +713,8 @@ public class CaseGenerationStepsFunction
 
     [Function("NormalizeStepByCaseId")]
     public async Task<HttpResponseData> NormalizeStepByCaseId(
-        [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req,
+        [DurableClient] DurableTaskClient durableClient)
     {
         string? caseId = null;
         string? traceId = null;
@@ -526,9 +731,10 @@ public class CaseGenerationStepsFunction
             }
 
             caseId = request.CaseId;
-            var startTime = DateTime.UtcNow;
             traceId = Guid.NewGuid().ToString("N");
-            _logger.LogInformation("[STEP-BY-STEP] Starting NormalizeStepByCaseId for case {CaseId}", caseId);
+            var requestedAt = DateTime.UtcNow;
+
+            _logger.LogInformation("[STEP-BY-STEP] Queueing NormalizeStepByCaseId for case {CaseId}", caseId);
 
             await _caseLogging.LogStructuredAsync(new StructuredLogEntry
             {
@@ -536,10 +742,11 @@ public class CaseGenerationStepsFunction
                 Category = LogCategory.WorkflowStep,
                 Phase = CaseGenerationSteps.Normalize,
                 Step = "NormalizeStepByCaseId",
+                Activity = nameof(NormalizeStepDurableOrchestrator),
                 TraceId = traceId,
-                Status = "Started",
-                TimestampUtc = startTime,
-                Message = "NormalizeStepByCaseId invoked",
+                Status = "Queued",
+                TimestampUtc = requestedAt,
+                Message = "NormalizeStepByCaseId enqueued for Durable execution",
                 Data = new
                 {
                     filesToLoad = new[]
@@ -553,251 +760,46 @@ public class CaseGenerationStepsFunction
                 }
             });
 
-            string? planJson = null;
-            string? expandJson = null;
-            string? designJson = null;
-
-            async Task<string?> TryGetFileAsync(string relativePath, string label)
-            {
-                try
-                {
-                    var content = await _storageService.GetFileAsync("cases", relativePath);
-                    await _caseLogging.LogStructuredAsync(new StructuredLogEntry
-                    {
-                        CaseId = caseId,
-                        Category = LogCategory.Metadata,
-                        Step = "NormalizeStepByCaseId",
-                        Message = $"{label} loaded",
-                        PayloadReference = $"cases/{relativePath}"
-                    });
-                    return content;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "[STEP-BY-STEP] Failed to load {Label} for case {CaseId}", label, caseId);
-                    await _caseLogging.LogStructuredAsync(new StructuredLogEntry
-                    {
-                        CaseId = caseId,
-                        Category = LogCategory.WorkflowStep,
-                        Phase = CaseGenerationSteps.Normalize,
-                        Step = "NormalizeStepByCaseId",
-                        TraceId = traceId,
-                        Status = "Warning",
-                        Message = $"Failed to load {label}",
-                        Error = ex.Message
-                    });
-                    return null;
-                }
-            }
-
-            planJson = await TryGetFileAsync($"{caseId}/plan.json", "plan.json");
-            expandJson = await TryGetFileAsync($"{caseId}/expand.json", "expand.json");
-            designJson = await TryGetFileAsync($"{caseId}/design.json", "design.json");
-
-            var documentsList = new List<string>();
-            try
-            {
-                var prefix = $"{caseId}/generate/documents/";
-                var fileNames = await _storageService.ListFilesAsync("cases", prefix);
-                foreach (var fileName in fileNames)
-                {
-                    if (fileName.EndsWith(".json"))
-                    {
-                        var content = await _storageService.GetFileAsync("cases", fileName);
-                        documentsList.Add(content);
-                    }
-                }
-
-                _logger.LogInformation("[STEP-BY-STEP] Found {Count} generated documents", documentsList.Count);
-                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
-                {
-                    CaseId = caseId,
-                    Category = LogCategory.Metadata,
-                    Step = "NormalizeStepByCaseId",
-                    Message = "Generated documents loaded",
-                    Data = new
-                    {
-                        prefix = $"cases/{prefix}",
-                        count = documentsList.Count
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[STEP-BY-STEP] Failed to list generated documents");
-                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
-                {
-                    CaseId = caseId,
-                    Category = LogCategory.WorkflowStep,
-                    Phase = CaseGenerationSteps.Normalize,
-                    Step = "NormalizeStepByCaseId",
-                    TraceId = traceId,
-                    Status = "Warning",
-                    Message = "Failed to list generated documents",
-                    Error = ex.Message
-                });
-            }
-
-            var mediaList = new List<string>();
-            try
-            {
-                var prefix = $"{caseId}/generate/media/";
-                var fileNames = await _storageService.ListFilesAsync("cases", prefix);
-                foreach (var fileName in fileNames)
-                {
-                    if (fileName.EndsWith(".json"))
-                    {
-                        var content = await _storageService.GetFileAsync("cases", fileName);
-                        mediaList.Add(content);
-                    }
-                }
-
-                _logger.LogInformation("[STEP-BY-STEP] Found {Count} generated media items", mediaList.Count);
-                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
-                {
-                    CaseId = caseId,
-                    Category = LogCategory.Metadata,
-                    Step = "NormalizeStepByCaseId",
-                    Message = "Generated media loaded",
-                    Data = new
-                    {
-                        prefix = $"cases/{prefix}",
-                        count = mediaList.Count
-                    }
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[STEP-BY-STEP] Failed to list generated media");
-                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
-                {
-                    CaseId = caseId,
-                    Category = LogCategory.WorkflowStep,
-                    Phase = CaseGenerationSteps.Normalize,
-                    Step = "NormalizeStepByCaseId",
-                    TraceId = traceId,
-                    Status = "Warning",
-                    Message = "Failed to list generated media",
-                    Error = ex.Message
-                });
-            }
-
-            if (documentsList.Count == 0 && mediaList.Count == 0)
-            {
-                await _caseLogging.LogStructuredAsync(new StructuredLogEntry
-                {
-                    CaseId = caseId,
-                    Category = LogCategory.WorkflowStep,
-                    Phase = CaseGenerationSteps.Normalize,
-                    Step = "NormalizeStepByCaseId",
-                    TraceId = traceId,
-                    Status = "Failed",
-                    Message = "No generated content found"
-                });
-                var errorResponse = req.CreateResponse(HttpStatusCode.NotFound);
-                await errorResponse.WriteStringAsync($"No generated content found for case {caseId}. Make sure GenerateStepByCaseId was executed first.");
-                return errorResponse;
-            }
-
-            var normalizationInput = new NormalizationInput
+            var inputPayload = new NormalizeStepDurableInput
             {
                 CaseId = caseId,
-                Documents = documentsList.ToArray(),
-                Media = mediaList.ToArray(),
-                PlanJson = planJson,
-                ExpandedJson = expandJson,
-                DesignJson = designJson,
-                Difficulty = null,
+                TraceId = traceId,
+                RequestedAtUtc = requestedAt,
                 Timezone = "UTC"
             };
 
-            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
-            {
-                CaseId = caseId,
-                Category = LogCategory.Metadata,
-                Step = "NormalizeStepByCaseId",
-                Message = "Normalization input prepared",
-                Data = new
-                {
-                    documents = documentsList.Count,
-                    media = mediaList.Count,
-                    hasPlan = planJson != null,
-                    hasExpand = expandJson != null,
-                    hasDesign = designJson != null
-                }
-            });
+            var instanceId = await durableClient.ScheduleNewOrchestrationInstanceAsync(
+                nameof(NormalizeStepDurableOrchestrator),
+                inputPayload);
 
-            _logger.LogInformation("[STEP-BY-STEP] Starting normalization with {DocCount} docs and {MediaCount} media", 
-                documentsList.Count, mediaList.Count);
+            _logger.LogInformation(
+                "[STEP-BY-STEP] NormalizeStepByCaseId orchestration started for case {CaseId} (InstanceId: {InstanceId})",
+                caseId,
+                instanceId);
 
-            var normalizeStart = DateTime.UtcNow;
-            var normalizeResult = await _caseGenerationService.NormalizeCaseDeterministicAsync(normalizationInput);
-            var normalizeDuration = DateTime.UtcNow - normalizeStart;
-
-            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
-            {
-                CaseId = caseId,
-                Category = LogCategory.WorkflowStep,
-                Phase = CaseGenerationSteps.Normalize,
-                Step = "NormalizeStepByCaseId",
-                Activity = "NormalizeCaseDeterministicAsync",
-                TraceId = traceId,
-                Status = "Completed",
-                DurationMs = Math.Round(normalizeDuration.TotalMilliseconds, 2),
-                Message = "Normalization completed",
-                Data = new
-                {
-                    manifestDocuments = normalizeResult.Manifest.Documents.Length,
-                    manifestMedia = normalizeResult.Manifest.Media.Length,
-                    bundleCount = normalizeResult.Manifest.BundlePaths.Length,
-                    validationEntries = normalizeResult.Log.ValidationResults.Length
-                }
-            });
-
-            var duration = DateTime.UtcNow - startTime;
-            _logger.LogInformation("[STEP-BY-STEP] NormalizeStepByCaseId completed for case {CaseId} - Duration: {Duration}s", 
-                caseId, duration.TotalSeconds);
-
-            await _caseLogging.LogStructuredAsync(new StructuredLogEntry
-            {
-                CaseId = caseId,
-                Category = LogCategory.WorkflowStep,
-                Phase = CaseGenerationSteps.Normalize,
-                Step = "NormalizeStepByCaseId",
-                TraceId = traceId,
-                Status = "Completed",
-                DurationMs = Math.Round(duration.TotalMilliseconds, 2),
-                Message = "NormalizeStepByCaseId request completed",
-                Data = new
-                {
-                    durationSeconds = duration.TotalSeconds,
-                    filesLoaded = new[] { "plan.json", "expand.json", "design.json" },
-                    generatedCounts = new { documents = documentsList.Count, media = mediaList.Count },
-                    filesSaved = new[] { "bundle.zip", "manifest.json" }
-                }
-            });
-
-            var response = req.CreateResponse(HttpStatusCode.OK);
+            var statusUri = BuildStatusUri(req, "NormalizeStepStatus", instanceId);
+            var response = req.CreateResponse(HttpStatusCode.Accepted);
             await response.WriteAsJsonAsync(new
             {
-                caseId = caseId,
-                step = "normalize",
-                durationSeconds = duration.TotalSeconds,
-                filesLoaded = new[] { "plan.json", "expand.json", "design.json", $"{documentsList.Count} documents", $"{mediaList.Count} media" },
-                filesSaved = new[] { "bundle.zip", "manifest.json" },
-                result = new
+                message = "Normalize step accepted. Poll the status URL to track progress.",
+                caseId,
+                instanceId,
+                statusQueryGetUri = statusUri,
+                filesNeeded = new[]
                 {
-                    manifest = normalizeResult.Manifest,
-                    log = normalizeResult.Log
-                },
-                message = "Case normalized and bundle created successfully"
+                    "plan.json",
+                    "expand.json",
+                    "design.json",
+                    "generate/documents/*.json",
+                    "generate/media/*.json"
+                }
             });
 
             return response;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[STEP-BY-STEP] Failed to execute NormalizeStepByCaseId");
+            _logger.LogError(ex, "[STEP-BY-STEP] Failed to queue NormalizeStepByCaseId");
             if (!string.IsNullOrEmpty(caseId))
             {
                 await _caseLogging.LogStructuredAsync(new StructuredLogEntry
@@ -808,7 +810,7 @@ public class CaseGenerationStepsFunction
                     Step = "NormalizeStepByCaseId",
                     TraceId = traceId,
                     Status = "Failed",
-                    Message = "NormalizeStepByCaseId failed",
+                    Message = "NormalizeStepByCaseId queueing failed",
                     Error = ex.Message
                 });
             }
