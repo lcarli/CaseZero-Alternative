@@ -275,7 +275,7 @@ public class CaseGenerationStepsFunction
         try
         {
             var requestBody = await req.ReadAsStringAsync();
-            var request = JsonSerializer.Deserialize<CaseIdOnlyRequest>(requestBody ?? "{}");
+            var request = JsonSerializer.Deserialize<NormalizeStepDurableRequest>(requestBody ?? "{}");
 
             if (request == null || string.IsNullOrEmpty(request.CaseId))
             {
@@ -733,6 +733,9 @@ public class CaseGenerationStepsFunction
             caseId = request.CaseId;
             traceId = Guid.NewGuid().ToString("N");
             var requestedAt = DateTime.UtcNow;
+            var timezone = string.IsNullOrWhiteSpace(request.Timezone) ? "UTC" : request.Timezone!.Trim();
+            var maxQaIterations = Math.Clamp(request.MaxQaIterations ?? 3, 1, 5);
+            var difficulty = request.Difficulty;
 
             _logger.LogInformation("[STEP-BY-STEP] Queueing NormalizeStepByCaseId for case {CaseId}", caseId);
 
@@ -756,7 +759,10 @@ public class CaseGenerationStepsFunction
                         $"cases/{caseId}/design.json",
                         $"cases/{caseId}/generate/documents/*",
                         $"cases/{caseId}/generate/media/*"
-                    }
+                    },
+                    timezone,
+                    difficulty,
+                    maxQaIterations
                 }
             });
 
@@ -765,7 +771,9 @@ public class CaseGenerationStepsFunction
                 CaseId = caseId,
                 TraceId = traceId,
                 RequestedAtUtc = requestedAt,
-                Timezone = "UTC"
+                Timezone = timezone,
+                Difficulty = difficulty,
+                MaxQaIterations = maxQaIterations
             };
 
             var instanceId = await durableClient.ScheduleNewOrchestrationInstanceAsync(
@@ -785,6 +793,12 @@ public class CaseGenerationStepsFunction
                 caseId,
                 instanceId,
                 statusQueryGetUri = statusUri,
+                options = new
+                {
+                    timezone,
+                    difficulty = difficulty ?? "auto",
+                    maxQaIterations
+                },
                 filesNeeded = new[]
                 {
                     "plan.json",
@@ -828,6 +842,12 @@ public record GenerateStepByCaseIdRequest(
     [property: JsonPropertyName("caseId")] string CaseId,
     [property: JsonPropertyName("generateImages")] bool GenerateImages = false,
     [property: JsonPropertyName("renderFiles")] bool RenderFiles = false);
+
+public record NormalizeStepDurableRequest(
+    [property: JsonPropertyName("caseId")] string CaseId,
+    [property: JsonPropertyName("timezone")] string? Timezone = null,
+    [property: JsonPropertyName("difficulty")] string? Difficulty = null,
+    [property: JsonPropertyName("maxQaIterations")] int? MaxQaIterations = null);
 
 public record ExpandStepRequest(string CaseId, string PlanJson);
 

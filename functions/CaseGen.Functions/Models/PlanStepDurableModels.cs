@@ -305,6 +305,9 @@ public record NormalizeStepDurableInput
 
     [JsonPropertyName("difficulty")]
     public string? Difficulty { get; init; }
+
+    [JsonPropertyName("maxQaIterations")]
+    public int MaxQaIterations { get; init; } = 3;
 }
 
 public record NormalizeCaseDurableActivityResult
@@ -321,11 +324,26 @@ public record NormalizeCaseDurableActivityResult
     [JsonPropertyName("mediaLoaded")]
     public int MediaLoaded { get; init; }
 
+    [JsonPropertyName("normalizedJson")]
+    public string NormalizedJson { get; init; } = string.Empty;
+
     [JsonPropertyName("manifest")]
     public required CaseManifest Manifest { get; init; }
 
     [JsonPropertyName("log")]
     public required NormalizationLog Log { get; init; }
+
+    [JsonPropertyName("documentsPersisted")]
+    public int DocumentsPersisted { get; init; }
+
+    [JsonPropertyName("mediaPersisted")]
+    public int MediaPersisted { get; init; }
+
+    [JsonPropertyName("normalizedContextPath")]
+    public string? NormalizedContextPath { get; init; }
+
+    [JsonPropertyName("manifestContextPath")]
+    public string? ManifestContextPath { get; init; }
 
     [JsonPropertyName("filesSaved")]
     public IReadOnlyList<string> FilesSaved { get; init; } = Array.Empty<string>();
@@ -362,6 +380,75 @@ public record NormalizeStepDurableResult
 
     [JsonPropertyName("filesSaved")]
     public IReadOnlyList<string> FilesSaved { get; init; } = Array.Empty<string>();
+
+    [JsonPropertyName("validation")]
+    public ValidationPhaseResult Validation { get; init; } = new();
+
+    [JsonPropertyName("quality")]
+    public QaPhaseResult Quality { get; init; } = new();
+
+    [JsonPropertyName("packaging")]
+    public PackagingPhaseResult Packaging { get; init; } = new();
+}
+
+public record ValidationPhaseResult
+{
+    [JsonPropertyName("completed")]
+    public bool Completed { get; init; }
+
+    [JsonPropertyName("durationSeconds")]
+    public double DurationSeconds { get; init; }
+
+    [JsonPropertyName("output")]
+    public string? Output { get; init; }
+}
+
+public record QaIterationSummary
+{
+    [JsonPropertyName("iteration")]
+    public int Iteration { get; init; }
+
+    [JsonPropertyName("issuesFound")]
+    public int IssuesFound { get; init; }
+
+    [JsonPropertyName("fixesApplied")]
+    public int FixesApplied { get; init; }
+
+    [JsonPropertyName("remainingIssues")]
+    public IReadOnlyList<string> RemainingIssues { get; init; } = Array.Empty<string>();
+
+    [JsonPropertyName("isCleanAfterIteration")]
+    public bool IsCleanAfterIteration { get; init; }
+}
+
+public record QaPhaseResult
+{
+    [JsonPropertyName("requestedIterations")]
+    public int RequestedIterations { get; init; }
+
+    [JsonPropertyName("executedIterations")]
+    public int ExecutedIterations { get; init; }
+
+    [JsonPropertyName("isCaseClean")]
+    public bool IsCaseClean { get; init; }
+
+    [JsonPropertyName("iterations")]
+    public IReadOnlyList<QaIterationSummary> Iterations { get; init; } = Array.Empty<QaIterationSummary>();
+}
+
+public record PackagingPhaseResult
+{
+    [JsonPropertyName("completed")]
+    public bool Completed { get; init; }
+
+    [JsonPropertyName("bundlePath")]
+    public string? BundlePath { get; init; }
+
+    [JsonPropertyName("manifestPath")]
+    public string? ManifestPath { get; init; }
+
+    [JsonPropertyName("output")]
+    public CaseGenerationOutput? Output { get; init; }
 }
 
 public record GenerateMediaDurableActivityInput

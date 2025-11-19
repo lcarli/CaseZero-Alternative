@@ -119,6 +119,7 @@ public class NormalizerService : INormalizerService
             return new NormalizationResult
             {
                 NormalizedJson = normalizedJson,
+                Bundle = normalizedBundle,
                 Manifest = manifest,
                 Log = log
             };

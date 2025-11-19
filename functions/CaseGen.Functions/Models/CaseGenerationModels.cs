@@ -758,6 +758,7 @@ public record NormalizationInput
 public record NormalizationResult
 {
     public required string NormalizedJson { get; init; }
+    public required NormalizedCaseBundle Bundle { get; init; }
     public required CaseManifest Manifest { get; init; }
     public required NormalizationLog Log { get; init; }
 }
