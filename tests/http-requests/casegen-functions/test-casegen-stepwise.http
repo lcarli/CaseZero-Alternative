@@ -205,5 +205,5 @@ POST http://localhost:7071/api/TempRenderDocument?code=<function-key>
 Content-Type: application/json
 
 {
-  "blobPath": "bundles/CASE-20251118-cab70d1f/documents/doc_kiosk_aw17_003.json"
+  "blobPath": "bundles/CASE-20251118-cab70d1f/documents/doc_kiosk_aw17_006.json"
 }
