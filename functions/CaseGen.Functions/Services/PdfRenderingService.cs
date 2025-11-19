@@ -1,4 +1,6 @@
 using CaseGen.Functions.Models;
+using CaseGen.Functions.Services.Pdf.Models;
+using CaseGen.Functions.Services.Pdf.Parsing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
@@ -69,11 +71,38 @@ public class PdfRenderingService : IPdfRenderingService
 
             var markdownContent = markdownBuilder.ToString();
 
-            // Determine document type from title
+            // Determine document type from explicit type (if provided) or title fallback
             var documentType = DetermineDocumentType(title);
+            if (root.TryGetProperty("type", out var typeProp) && !string.IsNullOrWhiteSpace(typeProp.GetString()))
+            {
+                documentType = typeProp.GetString()!;
+            }
+
+            PoliceReportData? policeReportData = null;
+            EvidenceLogData? evidenceLogData = null;
+
+            if (!string.IsNullOrWhiteSpace(documentType) &&
+                documentType.Equals("police_report", StringComparison.OrdinalIgnoreCase))
+            {
+                policeReportData = PoliceReportParser.TryParse(root, _logger);
+                if (policeReportData != null)
+                {
+                    policeReportData.CaseId = caseId;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(documentType) &&
+                documentType.Equals("evidence_log", StringComparison.OrdinalIgnoreCase))
+            {
+                evidenceLogData = EvidenceLogParser.TryParse(root, _logger);
+                if (evidenceLogData != null)
+                {
+                    evidenceLogData.CaseId = caseId;
+                }
+            }
 
             // Generate realistic PDF using QuestPDF
-            var pdfBytes = GenerateRealisticPdf(title, markdownContent, documentType, caseId, docId);
+            var pdfBytes = GenerateRealisticPdf(title, markdownContent, documentType, caseId, docId, policeReportData, evidenceLogData);
 
             // Save files to bundles container
             var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
@@ -122,7 +151,7 @@ public class PdfRenderingService : IPdfRenderingService
         return Task.FromResult(GenerateRealisticPdf(title, markdownContent, actualDocumentType));
     }
 
-    private byte[] GenerateRealisticPdf(string title, string markdownContent, string documentType = "general", string? caseId = null, string? docId = null)
+    private byte[] GenerateRealisticPdf(string title, string markdownContent, string documentType = "general", string? caseId = null, string? docId = null, PoliceReportData? policeReportData = null, EvidenceLogData? evidenceLogData = null)
     {
         try
         {
@@ -139,7 +168,7 @@ public class PdfRenderingService : IPdfRenderingService
             if (docTypeLower == "evidence_log" || docTypeLower == "evidence_catalog")
             {
                 var template = new CaseGen.Functions.Services.Pdf.Templates.EvidenceLogTemplate(_logger);
-                return template.Generate(title, markdownContent, documentType, caseId, docId);
+                return template.Generate(title, markdownContent, documentType, caseId, docId, evidenceLogData);
             }
             
             if (docTypeLower == "forensics_report" || docTypeLower == "lab_report")
@@ -169,7 +198,7 @@ public class PdfRenderingService : IPdfRenderingService
             if (docTypeLower == "police_report" || docTypeLower == "incident_report")
             {
                 var template = new CaseGen.Functions.Services.Pdf.Templates.PoliceReportTemplate(_logger);
-                return template.Generate(title, markdownContent, documentType, caseId, docId);
+                return template.Generate(title, markdownContent, documentType, caseId, docId, policeReportData);
             }
 
             // Fallback: Generic single-page document with standard letterhead

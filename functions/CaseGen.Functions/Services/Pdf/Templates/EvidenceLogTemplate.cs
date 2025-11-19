@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using CaseGen.Functions.Services.Pdf;
+using CaseGen.Functions.Services.Pdf.Models;
 using Microsoft.Extensions.Logging;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -18,7 +22,7 @@ public class EvidenceLogTemplate
         _logger = logger;
     }
 
-    public byte[] Generate(string title, string markdownContent, string documentType, string? caseId, string? docId)
+    public byte[] Generate(string title, string markdownContent, string documentType, string? caseId, string? docId, EvidenceLogData? structuredData)
     {
         try
         {
@@ -50,7 +54,7 @@ public class EvidenceLogTemplate
                     
                     page.Content().PaddingTop(40).Column(col =>
                     {
-                        RenderCoverPage(col, caseId, docId);
+                        RenderCoverPage(col, caseId, docId, structuredData);
                     });
                     
                     page.Footer().AlignCenter().Text(t =>
@@ -92,7 +96,14 @@ public class EvidenceLogTemplate
                     
                     page.Content().PaddingTop(8).Column(col =>
                     {
-                        RenderEvidenceLogContent(col, markdownContent, caseId, docId);
+                        if (structuredData is not null && structuredData.Items.Count > 0)
+                        {
+                            RenderStructuredEvidenceContent(col, structuredData);
+                        }
+                        else
+                        {
+                            RenderEvidenceLogContent(col, markdownContent, caseId, docId);
+                        }
                     });
                     
                     page.Footer().AlignCenter().Text(t =>
@@ -120,7 +131,7 @@ public class EvidenceLogTemplate
         page.Background().Element(e => PdfCommonComponents.AddWatermark(e, classification));
     }
 
-    private void RenderCoverPage(ColumnDescriptor col, string? caseId, string? docId)
+    private void RenderCoverPage(ColumnDescriptor col, string? caseId, string? docId, EvidenceLogData? data)
     {
         // Case Information Box
         col.Item().AlignCenter().Width(400).Border(2).BorderColor(Colors.Teal.Darken2)
@@ -178,6 +189,20 @@ public class EvidenceLogTemplate
                 t.Line("• Storage conditions must meet department standards");
                 t.Line("• Unauthorized access is strictly prohibited");
             });
+
+            if (!string.IsNullOrWhiteSpace(data?.Summary))
+            {
+                instrCol.Item().PaddingTop(15).Border(1).BorderColor(Colors.Teal.Lighten2)
+                    .Background(Colors.White).Padding(12).Column(summaryCol =>
+                {
+                    summaryCol.Item().Text("INTAKE OVERVIEW").FontSize(11).Bold()
+                        .FontColor(Colors.Teal.Darken2);
+                    summaryCol.Item().PaddingTop(4).Text(data.Summary)
+                        .FontSize(10).LineHeight(1.45f);
+                    summaryCol.Item().PaddingTop(6).Text($"Items Logged: {data.Items.Count}")
+                        .FontSize(9.5f).FontColor(Colors.Grey.Darken2);
+                });
+            }
         });
     }
 
@@ -204,7 +229,152 @@ public class EvidenceLogTemplate
         // Render markdown content (evidence items)
         PdfCommonComponents.RenderMarkdownContent(col, md);
         
-        // Chain of custody certification footer
+        RenderCertification(col);
+    }
+
+    private void RenderStructuredEvidenceContent(ColumnDescriptor col, EvidenceLogData data)
+    {
+        RenderStructuredSummary(col, data);
+        RenderItemsTable(col, data.Items);
+        RenderNarrativeBlock(col, "LABELING & STORAGE", data.LabelingAndStorage);
+        RenderCustodyTable(col, data.CustodyEntries);
+        RenderNarrativeBlock(col, "REMARKS", data.Remarks);
+        RenderCertification(col);
+    }
+
+    private void RenderStructuredSummary(ColumnDescriptor col, EvidenceLogData data)
+    {
+        col.Item().PaddingBottom(12).Background(Colors.Teal.Lighten5)
+            .Border(1).BorderColor(Colors.Teal.Lighten3).Padding(12).Row(row =>
+        {
+            row.RelativeItem().Column(c =>
+            {
+                c.Item().Text("EVIDENCE SUMMARY").FontSize(11).Bold()
+                    .FontColor(Colors.Teal.Darken3);
+                if (!string.IsNullOrWhiteSpace(data.Summary))
+                {
+                    c.Item().PaddingTop(4).Text(data.Summary)
+                        .FontSize(10).LineHeight(1.4f);
+                }
+            });
+
+            row.ConstantItem(12);
+
+            row.RelativeItem().Column(c =>
+            {
+                c.Item().Text("METRICS").FontSize(11).Bold()
+                    .FontColor(Colors.Teal.Darken3);
+                c.Item().PaddingTop(6).Row(r =>
+                {
+                    r.AutoItem().Text("Items Logged:").FontSize(9.5f).Bold();
+                    r.RelativeItem().AlignRight().Text(data.Items.Count.ToString())
+                        .FontSize(11).Bold();
+                });
+                c.Item().PaddingTop(4).Row(r =>
+                {
+                    r.AutoItem().Text("Custody Entries:").FontSize(9.5f).Bold();
+                    r.RelativeItem().AlignRight().Text(data.CustodyEntries.Count.ToString())
+                        .FontSize(10).Bold();
+                });
+            });
+        });
+    }
+
+    private void RenderItemsTable(ColumnDescriptor col, IReadOnlyList<EvidenceItemEntry> items)
+    {
+        col.Item().PaddingTop(12).Text("ITEMIZED CATALOG").FontSize(11).Bold();
+        col.Item().PaddingTop(6).Border(1).BorderColor(Colors.Grey.Lighten2).Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.RelativeColumn(1); // item id
+                columns.RelativeColumn(1.2f); // collected at
+                columns.RelativeColumn(1.2f); // collected by
+                columns.RelativeColumn(2); // description
+                columns.RelativeColumn(1.2f); // storage
+                columns.RelativeColumn(1.2f); // transfers
+            });
+
+            void HeaderCell(string text) => table.Cell()
+                .BorderBottom(1).BorderColor(Colors.Grey.Lighten1)
+                .Background(Colors.Grey.Lighten4).Padding(6)
+                .Text(text).FontSize(9.5f).Bold();
+
+            HeaderCell("Item ID");
+            HeaderCell("Collected At");
+            HeaderCell("Collected By");
+            HeaderCell("Description");
+            HeaderCell("Storage");
+            HeaderCell("Transfers");
+
+            foreach (var item in items)
+            {
+                table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3)
+                    .Padding(6).Text(item.ItemId).FontSize(9.5f);
+                table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3)
+                    .Padding(6).Text(item.CollectedAt).FontSize(9.5f);
+                table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3)
+                    .Padding(6).Text(item.CollectedBy).FontSize(9.5f);
+                table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3)
+                    .Padding(6).Text(item.Description).FontSize(9.5f).LineHeight(1.3f);
+                table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3)
+                    .Padding(6).Text(item.Storage).FontSize(9.5f).LineHeight(1.3f);
+                table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3)
+                    .Padding(6).Text(item.Transfers).FontSize(9.5f).LineHeight(1.3f);
+            }
+        });
+    }
+
+    private void RenderNarrativeBlock(ColumnDescriptor col, string heading, string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return;
+        }
+
+        col.Item().PaddingTop(12).Border(1).BorderColor(Colors.Grey.Lighten2)
+            .Padding(10).Column(c =>
+        {
+            c.Item().Text(heading).FontSize(10.5f).Bold().FontColor(Colors.Grey.Darken3);
+            c.Item().PaddingTop(4).Text(content).FontSize(9.5f).LineHeight(1.4f);
+        });
+    }
+
+    private void RenderCustodyTable(ColumnDescriptor col, IReadOnlyList<CustodyEntry> entries)
+    {
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        col.Item().PaddingTop(12).Text("CHAIN OF CUSTODY").FontSize(11).Bold();
+        col.Item().PaddingTop(6).Border(1).BorderColor(Colors.Grey.Lighten2).Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.RelativeColumn(1);
+                columns.RelativeColumn(3);
+            });
+
+            table.Cell().Background(Colors.Grey.Lighten4).Padding(6)
+                .BorderBottom(1).BorderColor(Colors.Grey.Lighten1)
+                .Text("Item ID").FontSize(9.5f).Bold();
+            table.Cell().Background(Colors.Grey.Lighten4).Padding(6)
+                .BorderBottom(1).BorderColor(Colors.Grey.Lighten1)
+                .Text("Notes").FontSize(9.5f).Bold();
+
+            foreach (var entry in entries)
+            {
+                table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3)
+                    .Padding(6).Text(entry.ItemId).FontSize(9.5f).Bold();
+                table.Cell().BorderBottom(0.5f).BorderColor(Colors.Grey.Lighten3)
+                    .Padding(6).Text(entry.Notes).FontSize(9.5f).LineHeight(1.35f);
+            }
+        });
+    }
+
+    private void RenderCertification(ColumnDescriptor col)
+    {
         col.Item().PaddingTop(20).BorderTop(2).BorderColor(Colors.Teal.Darken2)
             .PaddingTop(15).Column(certCol =>
         {
