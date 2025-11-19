@@ -22,6 +22,7 @@
 @expandInstanceId = 0d4eb8cd4c224aba87eeeb2d283fa363
 @designInstanceId = 9b169946f653478fbf2d00e6c50bd800
 @generateInstanceId = 4e1344279cab4012aed26d0bfc23b41e
+@normalizeInstanceId = 7f5ff2f187ae48c8a03eb6a8cb13124a
 
 ################################################################################
 # 📝 STEP 1: PLAN - Criar caso e gerar plano inicial
@@ -134,38 +135,29 @@ Content-Type: application/json
 ################################################################################
 # 🎯 STEP 5: NORMALIZE - Normalizar e finalizar caso
 ################################################################################
-# Busca todos os dados gerados e executa normalização final:
-#   - Validação de integridade
-#   - Ajustes de formatação
-#   - Geração de metadados finais
-#   - Criação do bundle final
-# Duração: ~10-20 segundos
-# Storage: Salva bundle final compactado
+# Busca todos os dados gerados e executa normalização final via Durable:
+#   - Validação de integridade + QA iterativo
+#   - Ajustes de formatação e consistência
+#   - Geração da coleção final (bundle + manifest)
+#   - Empacotamento dos arquivos finais
+# Configure timezone/difficulty/maxQaIterations conforme o cenário.
+# Duração: ~2-4 minutos (acompanhe via STEP 5-STATUS)
+# Storage: Salva bundle final compactado em cases/{caseId}/normalize/
 
 ### STEP 5 - Normalize (finaliza o caso)
 POST {{baseUrl}}/api/NormalizeStepByCaseId
 Content-Type: application/json
 
 {
-  "caseId": "{{caseId}}"
+  "caseId": "{{caseId}}",
+  "timezone": "America/Toronto",
+  "difficulty": "Detective",
+  "maxQaIterations": 3
 }
 
-
-################################################################################
-# 🔧 UTILITÁRIOS - Helpers para debug
-################################################################################
-
-### Verificar status de um caso no storage
-GET {{baseUrl}}/api/GetCaseStatus?caseId={{caseId}}
-
-### Listar todos os arquivos de um caso no blob storage
-GET {{baseUrl}}/api/ListCaseFiles?caseId={{caseId}}
-
-### Baixar plan.json de um caso específico
-GET {{baseUrl}}/api/GetCaseFile?caseId={{caseId}}&file=plan.json
-
-### Baixar expand completo de um caso
-GET {{baseUrl}}/api/GetCaseFile?caseId={{caseId}}&file=expand/suspects.json
+### STEP 5-STATUS - Verificar status do Normalize (Durable)
+# Atualize @normalizeInstanceId com o valor retornado pelo Step 5
+GET {{baseUrl}}/api/NormalizeStepStatus/{{normalizeInstanceId}}
 
 
 ################################################################################
@@ -177,14 +169,14 @@ GET {{baseUrl}}/api/GetCaseFile?caseId={{caseId}}&file=expand/suspects.json
 # 2. Copie o caseId retornado e atualize @caseId no topo do arquivo
 # 3. Execute STEP 2 (Expand)
 # 4. Execute STEP 3 (Design)
-# 5. Execute STEP 4A (Generate sem imagens)
+# 5. Execute STEP 4 (Generate com generateImages=false/renderFiles=false)
 # 6. Execute STEP 5 (Normalize)
 # Tempo total: ~4-6 minutos
 
 ### FLUXO 2: Produção com Imagens
-# 1. Execute STEP 1B (Plan Detective)
+# 1. Execute STEP 1 ajustando o body para difficulty "Detective"
 # 2. Atualize @caseId
-# 3. Execute STEP 2 → 3 → 4B → 5
+# 3. Execute STEP 2 → 3 → 4 (com generateImages/renderFiles conforme necessário) → 5
 # Tempo total: ~18-30 minutos
 
 ### FLUXO 3: Debug de Etapa Específica
