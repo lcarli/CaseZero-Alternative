@@ -80,6 +80,7 @@ public class PdfRenderingService : IPdfRenderingService
 
             PoliceReportData? policeReportData = null;
             EvidenceLogData? evidenceLogData = null;
+            ForensicsReportData? forensicsReportData = null;
 
             if (!string.IsNullOrWhiteSpace(documentType) &&
                 documentType.Equals("police_report", StringComparison.OrdinalIgnoreCase))
@@ -101,8 +102,19 @@ public class PdfRenderingService : IPdfRenderingService
                 }
             }
 
+            if (!string.IsNullOrWhiteSpace(documentType) &&
+                (documentType.Equals("forensics_report", StringComparison.OrdinalIgnoreCase) ||
+                 documentType.Equals("lab_report", StringComparison.OrdinalIgnoreCase)))
+            {
+                forensicsReportData = ForensicsReportParser.TryParse(root, _logger);
+                if (forensicsReportData != null)
+                {
+                    forensicsReportData.CaseId = caseId;
+                }
+            }
+
             // Generate realistic PDF using QuestPDF
-            var pdfBytes = GenerateRealisticPdf(title, markdownContent, documentType, caseId, docId, policeReportData, evidenceLogData);
+            var pdfBytes = GenerateRealisticPdf(title, markdownContent, documentType, caseId, docId, policeReportData, evidenceLogData, forensicsReportData);
 
             // Save files to bundles container
             var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
@@ -151,7 +163,7 @@ public class PdfRenderingService : IPdfRenderingService
         return Task.FromResult(GenerateRealisticPdf(title, markdownContent, actualDocumentType));
     }
 
-    private byte[] GenerateRealisticPdf(string title, string markdownContent, string documentType = "general", string? caseId = null, string? docId = null, PoliceReportData? policeReportData = null, EvidenceLogData? evidenceLogData = null)
+    private byte[] GenerateRealisticPdf(string title, string markdownContent, string documentType = "general", string? caseId = null, string? docId = null, PoliceReportData? policeReportData = null, EvidenceLogData? evidenceLogData = null, ForensicsReportData? forensicsReportData = null)
     {
         try
         {
@@ -174,7 +186,7 @@ public class PdfRenderingService : IPdfRenderingService
             if (docTypeLower == "forensics_report" || docTypeLower == "lab_report")
             {
                 var template = new CaseGen.Functions.Services.Pdf.Templates.ForensicsReportTemplate(_logger);
-                return template.Generate(title, markdownContent, documentType, caseId, docId);
+                return template.Generate(title, markdownContent, documentType, caseId, docId, forensicsReportData);
             }
             
             if (docTypeLower == "interview" || docTypeLower == "interview_transcript")
