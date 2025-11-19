@@ -22,7 +22,7 @@
 @expandInstanceId = 0d4eb8cd4c224aba87eeeb2d283fa363
 @designInstanceId = 9b169946f653478fbf2d00e6c50bd800
 @generateInstanceId = 4e1344279cab4012aed26d0bfc23b41e
-@normalizeInstanceId = 7f5ff2f187ae48c8a03eb6a8cb13124a
+@normalizeInstanceId = 8c91f9d7e8b04de08ec1fdfd87449f79
 
 ################################################################################
 # 📝 STEP 1: PLAN - Criar caso e gerar plano inicial

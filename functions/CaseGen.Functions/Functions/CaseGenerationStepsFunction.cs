@@ -369,7 +369,7 @@ public class CaseGenerationStepsFunction
         try
         {
             var requestBody = await req.ReadAsStringAsync();
-            var request = JsonSerializer.Deserialize<CaseIdOnlyRequest>(requestBody ?? "{}");
+            var request = JsonSerializer.Deserialize<NormalizeStepDurableRequest>(requestBody ?? "{}");
 
             if (request == null || string.IsNullOrEmpty(request.CaseId))
             {
@@ -618,7 +618,7 @@ public class CaseGenerationStepsFunction
         try
         {
             var requestBody = await req.ReadAsStringAsync();
-            var request = JsonSerializer.Deserialize<CaseIdOnlyRequest>(requestBody ?? "{}");
+            var request = JsonSerializer.Deserialize<NormalizeStepDurableRequest>(requestBody ?? "{}");
 
             if (request == null || string.IsNullOrEmpty(request.CaseId))
             {
@@ -721,7 +721,7 @@ public class CaseGenerationStepsFunction
         try
         {
             var requestBody = await req.ReadAsStringAsync();
-            var request = JsonSerializer.Deserialize<CaseIdOnlyRequest>(requestBody ?? "{}");
+            var request = JsonSerializer.Deserialize<NormalizeStepDurableRequest>(requestBody ?? "{}");
 
             if (request == null || string.IsNullOrEmpty(request.CaseId))
             {
