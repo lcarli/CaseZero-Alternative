@@ -1,0 +1,25 @@
+{
+  "name": "casezero-case-linter",
+  "version": "1.0.0",
+  "description": "Linter and validator for CaseZero case.json files",
+  "main": "case-linter.js",
+  "bin": {
+    "case-linter": "./case-linter.js"
+  },
+  "scripts": {
+    "lint": "node case-linter.js",
+    "test": "node case-linter.js ../cases/samples/case.sample.json"
+  },
+  "keywords": [
+    "casezero",
+    "linter",
+    "validator",
+    "json-schema"
+  ],
+  "author": "CaseZero Dev Team",
+  "license": "MIT",
+  "dependencies": {
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1"
+  }
+}

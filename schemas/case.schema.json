@@ -1,0 +1,523 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://casezero.dev/schemas/case.v1.schema.json",
+  "title": "CaseZero Case v1.0 Schema",
+  "description": "Schema de validação para arquivos case.json v1.0",
+  "type": "object",
+  "required": [
+    "version",
+    "caseId",
+    "metadata",
+    "assets",
+    "emails",
+    "suspects",
+    "rules",
+    "forensicsDefaults"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Versão do schema (sempre '1.0')"
+    },
+    "caseId": {
+      "type": "string",
+      "pattern": "^case_[a-z0-9_]+$",
+      "description": "ID único do caso (formato: case_nnn)"
+    },
+    "metadata": {
+      "$ref": "#/definitions/Metadata"
+    },
+    "assets": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/Asset"
+      },
+      "description": "Lista de assets (evidências, documentos, mídia)"
+    },
+    "emails": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/Email"
+      },
+      "description": "Lista de emails"
+    },
+    "suspects": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/Suspect"
+      },
+      "description": "Lista de suspeitos"
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Rule"
+      },
+      "description": "Regras de progressão (server-side APENAS)"
+    },
+    "forensicsDefaults": {
+      "$ref": "#/definitions/ForensicsDefaults"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Metadata": {
+      "type": "object",
+      "required": [
+        "title",
+        "description",
+        "difficulty",
+        "estimatedTimeMinutes",
+        "requiredRank",
+        "location",
+        "incidentDate",
+        "category",
+        "briefing"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 100,
+          "description": "Título do caso"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 20,
+          "maxLength": 500,
+          "description": "Descrição curta do caso"
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["Rookie", "Intermediate", "Advanced", "Expert"],
+          "description": "Nível de dificuldade"
+        },
+        "estimatedTimeMinutes": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 240,
+          "description": "Tempo estimado em minutos reais"
+        },
+        "requiredRank": {
+          "type": "string",
+          "enum": [
+            "Cadet",
+            "Officer",
+            "Detective",
+            "Sergeant",
+            "Lieutenant",
+            "Captain",
+            "Chief"
+          ],
+          "description": "Rank mínimo necessário"
+        },
+        "location": {
+          "type": "string",
+          "description": "Cidade/estado do caso"
+        },
+        "incidentDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Data/hora do incidente (ISO 8601)"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Murder", "Theft", "Missing Person", "Fraud", "Assault"],
+          "description": "Categoria do crime"
+        },
+        "briefing": {
+          "type": "string",
+          "minLength": 200,
+          "maxLength": 2000,
+          "description": "Texto do briefing inicial"
+        },
+        "victim": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "age": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "occupation": {
+              "type": "string"
+            },
+            "lastSeen": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": ["name", "age"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Asset": {
+      "type": "object",
+      "required": [
+        "assetId",
+        "name",
+        "type",
+        "category",
+        "description",
+        "filePath",
+        "visibility"
+      ],
+      "properties": {
+        "assetId": {
+          "type": "string",
+          "pattern": "^asset\\.[a-z0-9_]+$",
+          "description": "ID único do asset (formato: asset.nome_descritivo)"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 100,
+          "description": "Nome amigável do asset"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["document", "image", "video", "audio", "physical", "digital"],
+          "description": "Tipo de asset"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "Document",
+            "Digital",
+            "Physical",
+            "Biological",
+            "Communication",
+            "Technical"
+          ],
+          "description": "Categoria do asset"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 500,
+          "description": "Descrição detalhada"
+        },
+        "filePath": {
+          "type": "string",
+          "pattern": "^/cases/[a-z0-9_]+/assets/[a-zA-Z0-9_\\-\\.]+$",
+          "description": "Caminho relativo no Blob Storage"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["initial", "hidden"],
+          "description": "Visibilidade inicial do asset"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Metadados específicos do tipo"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Email": {
+      "type": "object",
+      "required": [
+        "emailId",
+        "from",
+        "to",
+        "subject",
+        "sentAt",
+        "priority",
+        "visibility",
+        "content"
+      ],
+      "properties": {
+        "emailId": {
+          "type": "string",
+          "pattern": "^email\\.[a-z0-9_]+$",
+          "description": "ID único do email (formato: email.nome_descritivo)"
+        },
+        "from": {
+          "type": "string",
+          "pattern": "^.+ <[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}>$",
+          "description": "Remetente (formato: Nome <email@domain>)"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^.+ <[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}>$",
+          "description": "Destinatário (formato: Nome <email@domain>)"
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 200,
+          "description": "Assunto do email"
+        },
+        "sentAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp ISO 8601"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["normal", "high", "urgent"],
+          "description": "Prioridade do email"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["initial", "hidden"],
+          "description": "Visibilidade inicial do email"
+        },
+        "content": {
+          "type": "string",
+          "minLength": 50,
+          "maxLength": 5000,
+          "description": "Corpo do email"
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^asset\\.[a-z0-9_]+$"
+          },
+          "description": "Array de assetIds anexados"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Metadados adicionais"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Suspect": {
+      "type": "object",
+      "required": [
+        "suspectId",
+        "name",
+        "age",
+        "occupation",
+        "relationship",
+        "motive",
+        "alibi",
+        "alibiVerified",
+        "background",
+        "visibility"
+      ],
+      "properties": {
+        "suspectId": {
+          "type": "string",
+          "pattern": "^suspect\\.[a-z0-9_]+$",
+          "description": "ID único do suspeito (formato: suspect.nome_completo)"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 100,
+          "description": "Nome completo"
+        },
+        "age": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 120,
+          "description": "Idade"
+        },
+        "occupation": {
+          "type": "string",
+          "description": "Profissão/ocupação"
+        },
+        "relationship": {
+          "type": "string",
+          "description": "Relação com vítima/caso"
+        },
+        "motive": {
+          "type": "string",
+          "description": "Possível motivo"
+        },
+        "alibi": {
+          "type": "string",
+          "description": "Álibi alegado"
+        },
+        "alibiVerified": {
+          "type": "boolean",
+          "description": "Se o álibi foi verificado"
+        },
+        "background": {
+          "type": "string",
+          "minLength": 100,
+          "maxLength": 2000,
+          "description": "Background detalhado"
+        },
+        "linkedAssets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^asset\\.[a-z0-9_]+$"
+          },
+          "description": "Array de assetIds relacionados"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": ["initial", "hidden"],
+          "description": "Visibilidade inicial do suspeito"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Rule": {
+      "type": "object",
+      "required": ["ruleId", "trigger", "actions"],
+      "properties": {
+        "ruleId": {
+          "type": "string",
+          "pattern": "^rule\\.[a-z0-9_]+$",
+          "description": "ID único da regra (formato: rule.nome_descritivo)"
+        },
+        "trigger": {
+          "$ref": "#/definitions/Trigger"
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/Action"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Trigger": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "forensics_complete",
+            "attachment_download",
+            "asset_viewed",
+            "email_opened",
+            "time_elapsed"
+          ]
+        },
+        "inputAssetId": {
+          "type": "string",
+          "pattern": "^asset\\.[a-z0-9_]+$"
+        },
+        "analysisType": {
+          "type": "string"
+        },
+        "emailId": {
+          "type": "string",
+          "pattern": "^email\\.[a-z0-9_]+$"
+        },
+        "assetId": {
+          "type": "string",
+          "pattern": "^asset\\.[a-z0-9_]+$"
+        },
+        "gameTimeMinutes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "Action": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "reveal_email",
+            "reveal_asset",
+            "reveal_suspect",
+            "send_notification"
+          ]
+        },
+        "emailId": {
+          "type": "string",
+          "pattern": "^email\\.[a-z0-9_]+$"
+        },
+        "assetId": {
+          "type": "string",
+          "pattern": "^asset\\.[a-z0-9_]+$"
+        },
+        "suspectId": {
+          "type": "string",
+          "pattern": "^suspect\\.[a-z0-9_]+$"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ForensicsDefaults": {
+      "type": "object",
+      "required": ["analysisTypes", "noFindingsEmail"],
+      "properties": {
+        "analysisTypes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/AnalysisType"
+          }
+        },
+        "noFindingsEmail": {
+          "type": "object",
+          "required": ["template", "from", "subject"],
+          "properties": {
+            "template": {
+              "type": "string",
+              "description": "Template do email de 'sem achados' (pode usar {{assetName}})"
+            },
+            "from": {
+              "type": "string",
+              "pattern": "^.+ <[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}>$"
+            },
+            "subject": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "AnalysisType": {
+      "type": "object",
+      "required": ["type", "durationMinutes", "availableFor"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "DNA",
+            "Fingerprint",
+            "DigitalForensics",
+            "Ballistics",
+            "Toxicology",
+            "HandwritingAnalysis",
+            "VoiceAnalysis",
+            "Trace"
+          ]
+        },
+        "durationMinutes": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 720,
+          "description": "Duração da análise em minutos de jogo"
+        },
+        "availableFor": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "Lista de tipos de assets compatíveis"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
