@@ -4,6 +4,7 @@ using System.Text.Json;
 using Xunit;
 using CaseZeroApi.DTOs;
 using CaseZeroApi.Models;
+using CaseZeroApi.Services;
 using Microsoft.Extensions.DependencyInjection;
 using CaseZeroApi.Data;
 using Microsoft.EntityFrameworkCore;
@@ -232,7 +233,17 @@ namespace CaseZeroApi.IntegrationTests
             // Criar usuário via banco diretamente
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var jwtService = scope.ServiceProvider.GetRequiredService<IJwtService>();
             
+            // Verificar se usuário já existe
+            var existingUser = await context.Users.FirstOrDefaultAsync(u => u.Id == _testUserId);
+            if (existingUser != null)
+            {
+                // Usuário já existe, apenas gerar token
+                return jwtService.GenerateToken(existingUser);
+            }
+            
+            // Criar novo usuário
             var user = new User
             {
                 Id = _testUserId,
@@ -248,16 +259,8 @@ namespace CaseZeroApi.IntegrationTests
             context.Users.Add(user);
             await context.SaveChangesAsync();
 
-            // Simular login e obter token (simplificado para testes)
-            var loginRequest = new LoginRequestDto
-            {
-                Email = email,
-                Password = "TestPassword123!"
-            };
-
-            // Para testes de integração, vamos usar um token mock ou configurar Identity corretamente
-            // Por enquanto, retornar um token válido para os testes
-            return "mock-jwt-token-for-testing";
+            // Gerar token JWT real usando o MockJwtService
+            return jwtService.GenerateToken(user);
         }
 
         private async Task CreateActiveSessionForUser(string userId, string caseId)
@@ -265,16 +268,38 @@ namespace CaseZeroApi.IntegrationTests
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             
-            var session = new CaseSession
+            // Conceder acesso ao caso primeiro (se ainda não existe)
+            var existingUserCase = await context.UserCases
+                .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
+            
+            if (existingUserCase == null)
             {
-                UserId = userId,
-                CaseId = caseId,
-                SessionStart = DateTime.UtcNow,
-                GameTimeAtStart = "00:00:00",
-                Status = SessionStatus.Active
-            };
-
-            context.CaseSessions.Add(session);
+                var userCase = new UserCase
+                {
+                    UserId = userId,
+                    CaseId = caseId,
+                    AssignedAt = DateTime.UtcNow
+                };
+                context.UserCases.Add(userCase);
+            }
+            
+            // Criar sessão ativa (se ainda não existe)
+            var existingSession = await context.CaseSessions
+                .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == caseId && cs.Status == SessionStatus.Active);
+            
+            if (existingSession == null)
+            {
+                var session = new CaseSession
+                {
+                    UserId = userId,
+                    CaseId = caseId,
+                    SessionStart = DateTime.UtcNow,
+                    GameTimeAtStart = "00:00:00",
+                    Status = SessionStatus.Active
+                };
+                context.CaseSessions.Add(session);
+            }
+            
             await context.SaveChangesAsync();
         }
 
@@ -283,15 +308,21 @@ namespace CaseZeroApi.IntegrationTests
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             
-            var visibleAsset = new CaseSessionVisibleAsset
+            // Verificar se o asset já está visível
+            var existingAsset = await context.CaseSessionVisibleAssets
+                .FirstOrDefaultAsync(va => va.UserId == userId && va.CaseId == caseId && va.AssetId == assetId);
+            
+            if (existingAsset == null)
             {
-                UserId = userId,
-                CaseId = caseId,
-                AssetId = assetId
-            };
-
-            context.CaseSessionVisibleAssets.Add(visibleAsset);
-            await context.SaveChangesAsync();
+                var visibleAsset = new CaseSessionVisibleAsset
+                {
+                    UserId = userId,
+                    CaseId = caseId,
+                    AssetId = assetId
+                };
+                context.CaseSessionVisibleAssets.Add(visibleAsset);
+                await context.SaveChangesAsync();
+            }
         }
 
         private async Task GrantUserCaseAccess(string userId, string caseId)
@@ -299,15 +330,21 @@ namespace CaseZeroApi.IntegrationTests
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             
-            var userCase = new UserCase
+            // Verificar se o acesso já foi concedido
+            var existingUserCase = await context.UserCases
+                .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
+            
+            if (existingUserCase == null)
             {
-                UserId = userId,
-                CaseId = caseId,
-                AssignedAt = DateTime.UtcNow
-            };
-
-            context.UserCases.Add(userCase);
-            await context.SaveChangesAsync();
+                var userCase = new UserCase
+                {
+                    UserId = userId,
+                    CaseId = caseId,
+                    AssignedAt = DateTime.UtcNow
+                };
+                context.UserCases.Add(userCase);
+                await context.SaveChangesAsync();
+            }
         }
     }
 }

@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using CaseZeroApi.Data;
+using CaseZeroApi.Services;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -15,31 +18,52 @@ namespace CaseZeroApi.IntegrationTests
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
-            // Set environment variable to signal we're in test mode
-            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
+            builder.UseEnvironment("Testing");
             
             builder.ConfigureServices(services =>
             {
-                // Remove all existing DbContext registrations
-                var dbContextDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ApplicationDbContext));
-                if (dbContextDescriptor != null)
+                // Remove ALL existing DbContext registrations (both options and context itself)
+                var descriptorsToRemove = services
+                    .Where(d => d.ServiceType == typeof(ApplicationDbContext) ||
+                               d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>) ||
+                               (d.ServiceType.IsGenericType && 
+                                d.ServiceType.GetGenericTypeDefinition() == typeof(DbContextOptions<>)))
+                    .ToList();
+
+                foreach (var descriptor in descriptorsToRemove)
                 {
-                    services.Remove(dbContextDescriptor);
+                    services.Remove(descriptor);
                 }
 
-                var dbContextOptionsDescriptor = services.FirstOrDefault(d => 
-                    d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
-                if (dbContextOptionsDescriptor != null)
-                {
-                    services.Remove(dbContextOptionsDescriptor);
-                }
-
-                // Add ApplicationDbContext using an in-memory database for testing
-                services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
+                // Add ApplicationDbContext using ONLY in-memory database for testing
+                services.AddDbContext<ApplicationDbContext>(options =>
                 {
                     options.UseInMemoryDatabase("InMemoryDbForTesting")
-                           .EnableSensitiveDataLogging()
-                           .UseInternalServiceProvider(null); // Don't use an internal service provider
+                           .EnableSensitiveDataLogging();
+                });
+
+                // Replace IJwtService with mock implementation
+                var jwtServiceDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IJwtService));
+                if (jwtServiceDescriptor != null)
+                {
+                    services.Remove(jwtServiceDescriptor);
+                }
+                services.AddScoped<IJwtService, MockJwtService>();
+
+                // Configure JWT authentication for tests
+                services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(MockJwtService.GetTestSecretKey())),
+                        ValidateIssuer = true,
+                        ValidIssuer = "CaseZeroTestIssuer",
+                        ValidateAudience = true,
+                        ValidAudience = "CaseZeroTestAudience",
+                        ValidateLifetime = true,
+                        ClockSkew = TimeSpan.Zero
+                    };
                 });
             });
 
@@ -48,7 +72,8 @@ namespace CaseZeroApi.IntegrationTests
                 // Override configuration for testing
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["ConnectionStrings:DefaultConnection"] = "InMemory"
+                    ["ConnectionStrings:DefaultConnection"] = "InMemory",
+                    ["ASPNETCORE_ENVIRONMENT"] = "Testing"
                 });
             });
         }

@@ -16,32 +16,40 @@ builder.Services.AddControllers();
 // Configure Entity Framework - Always use Azure SQL Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-if (string.IsNullOrEmpty(connectionString))
+// Skip validation in Testing environment (used by integration tests)
+var isTestingEnvironment = builder.Environment.EnvironmentName == "Testing";
+
+if (string.IsNullOrEmpty(connectionString) && !isTestingEnvironment)
 {
     throw new InvalidOperationException(
         "Database connection string 'DefaultConnection' is not configured. " +
         "Please set it in appsettings.json or appsettings.Development.json with your Azure SQL Database connection string.");
 }
 
-// Validate that it's not the placeholder value
-if (connectionString.Contains("your-server") || connectionString.Contains("your-username"))
+// Validate that it's not the placeholder value (skip in Testing environment)
+if (!isTestingEnvironment && !string.IsNullOrEmpty(connectionString) && 
+    (connectionString.Contains("your-server") || connectionString.Contains("your-username")))
 {
     throw new InvalidOperationException(
         "Database connection string contains placeholder values. " +
         "Please update appsettings.json or appsettings.Development.json with your actual Azure SQL Database credentials.");
 }
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+// Configure DbContext (tests will override this configuration)
+if (!isTestingEnvironment)
 {
-    options.UseSqlServer(connectionString, sqlOptions =>
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
     {
-        sqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null);
-        sqlOptions.CommandTimeout(60);
+        options.UseSqlServer(connectionString, sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+            sqlOptions.CommandTimeout(60);
+        });
     });
-});
+}
 
 // Configure Identity
 builder.Services.AddIdentity<User, IdentityRole>(options =>
@@ -230,27 +238,30 @@ app.MapHub<CaseZeroApi.Hubs.ForensicsHub>("/hubs/forensics");
 // Check if --seed-only argument is provided
 var seedOnly = args.Contains("--seed-only");
 
-// Initialize database
-using (var scope = app.Services.CreateScope())
+// Initialize database (skip in Testing environment - tests manage their own database)
+var environment = app.Services.GetRequiredService<IHostEnvironment>();
+if (environment.EnvironmentName != "Testing")
 {
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    
-    // Always use migrations for SQL Server
-    logger.LogInformation("🗄️ Applying SQL Server migrations...");
-    context.Database.Migrate();
-    
-    // Seed test users if none exist
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-    if (!userManager.Users.Any())
+    using (var scope = app.Services.CreateScope())
     {
-        // Primary test user following new pattern
-        var testUser1 = new User
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        
+        // Always use migrations for SQL Server
+        logger.LogInformation("🗄️ Applying SQL Server migrations...");
+        context.Database.Migrate();
+        
+        // Seed test users if none exist
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+        if (!userManager.Users.Any())
         {
-            UserName = "john.doe@fic-police.gov",
-            Email = "john.doe@fic-police.gov",
-            FirstName = "John",
-            LastName = "Doe",
+            // Primary test user following new pattern
+            var testUser1 = new User
+            {
+                UserName = "john.doe@fic-police.gov",
+                Email = "john.doe@fic-police.gov",
+                FirstName = "John",
+                LastName = "Doe",
             PersonalEmail = "john.doe.personal@example.com",
             Department = "ColdCase",
             Position = "rook",
@@ -319,6 +330,12 @@ using (var scope = app.Services.CreateScope())
         logger.LogInformation("✅ Database seeding completed. Exiting (--seed-only mode).");
         Environment.Exit(0);
     }
+    }
+}
+else
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("🧪 Testing environment - skipping database initialization");
 }
 
 app.Run();
