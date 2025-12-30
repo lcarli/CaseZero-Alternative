@@ -27,6 +27,7 @@ namespace CaseZeroApi.Data
         public DbSet<CaseSessionVisibleAsset> CaseSessionVisibleAssets { get; set; }
         public DbSet<CaseSessionVisibleEmail> CaseSessionVisibleEmails { get; set; }
         public DbSet<CaseSessionEmailState> CaseSessionEmailStates { get; set; }
+        public DbSet<EmailAttachmentDownloaded> EmailAttachmentsDownloaded { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -139,6 +140,12 @@ namespace CaseZeroApi.Data
                 .HasOne(fr => fr.User)
                 .WithMany()
                 .HasForeignKey(fr => fr.UserId);
+
+            // Configure EmailAttachmentDownloaded
+            builder.Entity<EmailAttachmentDownloaded>()
+                .HasOne(ead => ead.User)
+                .WithMany()
+                .HasForeignKey(ead => ead.UserId);
 
             // Note: Seed data moved to DataSeedingService to avoid dynamic values in migrations
             // This allows migrations to be deterministic and avoids PendingModelChangesWarning

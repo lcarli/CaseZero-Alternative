@@ -42,11 +42,13 @@
 9. ✅ 🟢 Criar tabela `CaseSessionVisibleAssets` (UserId, CaseId, AssetId)
 10. ✅ 🟢 Criar tabela `CaseSessionVisibleEmails` (UserId, CaseId, EmailId)
 11. ✅ 🟢 Criar tabela `CaseSessionEmailState` (UserId, CaseId, EmailId, ReadAt, OpenCount)
-12. 🟡 **Adaptar** ForensicAnalysis existente → ForensicsRequests:
-    - Já tem: RequestId, UserId, CaseId, EvidenceId, AnalysisType, Status, RequestedAt, CompletedAt
-    - Adicionar: ResultEmailId (referência ao email gerado)
-    - Renomear: EvidenceId → InputAssetId
-13. 🟢 Criar tabela `EmailAttachmentsDownloaded` (UserId, CaseId, EmailId, AssetId, DownloadedAt)
+12. ✅ 🟡 **Adaptar** ForensicAnalysis existente → ForensicsRequests:
+    - ✅ Já tem: RequestId, UserId, CaseId, EvidenceId, AnalysisType, Status, RequestedAt, CompletedAt
+    - ✅ Adicionar: ResultEmailId (referência ao email gerado)
+    - ✅ Renomear: EvidenceId → InputAssetId, EvidenceName → InputAssetName
+    - **Implementado**: Modelo refatorado, migration aplicada
+13. ✅ 🟢 Criar tabela `EmailAttachmentsDownloaded` (UserId, CaseId, EmailId, AssetId, DownloadedAt)
+    - **Implementado**: Tabela criada com foreign key para User, migration aplicada
 14. ✅ 🟡 **Estender** migrations EF existentes e rodar local
 
 ---

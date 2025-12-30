@@ -66,7 +66,7 @@ namespace CaseZeroApi.Services
                     {
                         id = request.Id,
                         caseId = request.CaseId,
-                        evidenceId = request.EvidenceId,
+                        evidenceId = request.InputAssetId, // Updated from EvidenceId
                         analysisType = request.AnalysisType,
                         completedAt = request.CompletedAt
                     });
