@@ -18,15 +18,18 @@ namespace CaseZeroApi.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ICaseAccessService _caseAccessService;
         private readonly ILogger<ForensicController> _logger;
+        private readonly IForensicQueueService _forensicQueueService;
 
         public ForensicController(
             ApplicationDbContext context, 
             ICaseAccessService caseAccessService,
-            ILogger<ForensicController> logger)
+            ILogger<ForensicController> logger,
+            IForensicQueueService forensicQueueService)
         {
             _context = context;
             _caseAccessService = caseAccessService;
             _logger = logger;
+            _forensicQueueService = forensicQueueService;
         }
 
         [HttpPost("request-analysis")]
@@ -426,14 +429,14 @@ namespace CaseZeroApi.Controllers
                 _logger.LogInformation("Forensic request created: Id {Id}, User {UserId}, Case {CaseId}, Asset {AssetId}, Type {AnalysisType}",
                     forensicRequest.Id, userId, request.CaseId, request.InputAssetId, request.AnalysisType);
 
-                // 4. TODO (tarefa 35): Enfileirar em Azure Storage Queue
-                // await _queueService.EnqueueForensicRequestAsync(new {
-                //     RequestId = forensicRequest.Id,
-                //     CaseId = request.CaseId,
-                //     UserId = userId,
-                //     InputAssetId = request.InputAssetId,
-                //     AnalysisType = request.AnalysisType
-                // });
+                // 4. ✅ Tarefa 35: Enfileirar em Azure Storage Queue para processamento assíncrono
+                await _forensicQueueService.EnqueueForensicRequestAsync(
+                    forensicRequest.Id,
+                    request.CaseId,
+                    userId,
+                    request.InputAssetId,
+                    request.AnalysisType
+                );
 
                 return Ok(new
                 {

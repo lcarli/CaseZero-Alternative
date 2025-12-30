@@ -168,6 +168,7 @@ builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<ICaseV1SanitizerService, CaseV1SanitizerService>();
 builder.Services.AddScoped<ICaseV1StorageService, CaseV1StorageService>();
 builder.Services.AddScoped<IVisibilityService, VisibilityService>();
+builder.Services.AddSingleton<IForensicQueueService, ForensicQueueService>();
 
 // Register background services
 builder.Services.AddHostedService<CaseProcessingBackgroundService>();

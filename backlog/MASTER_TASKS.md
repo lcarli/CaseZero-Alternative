@@ -140,7 +140,14 @@
     - ✅ Já cria com status pending
     - ✅ Adicionar campo: ResultEmailId (NULL inicialmente)
     - **Implementado**: ForensicRequest criado com todos os campos
-35. 🟢 **Adicionar** enfileiramento em Azure Storage Queue:
+35. ✅ 🟢 **Adicionar** enfileiramento em Azure Storage Queue:
+    - ✅ Criar serviço IForensicQueueService
+    - ✅ Implementar ForensicQueueService com QueueClient
+    - ✅ Usar mesma connection string que BlobStorageService (Azurite ou Azure)
+    - ✅ Queue name: "forensic-requests"
+    - ✅ Integrar no endpoint: após criar registro, enfileirar mensagem
+    - **Implementado**: Serviço registrado como Singleton, mensagens enviadas à fila
+36. 🟢 **Criar** Azure Function com Queue Trigger:
     - Mensagem: `{ RequestId, CaseId, UserId, InputAssetId, AnalysisType }`
 36. 🟢 Criar Azure Function com Queue Trigger:
     - Ler mensagem → buscar request no SQL → marcar Status = processing
