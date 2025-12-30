@@ -9,6 +9,7 @@ import { useAuth } from '../hooks/useAuthContext'
 import { useTimeContext } from '../hooks/useTimeContext'
 import { useLanguage } from '../hooks/useLanguageContext'
 import { caseSessionApi, assetsApi, emailsApi, forensicsApi } from '../services/api'
+import { forensicsSignalR } from '../services/forensicsSignalR'
 import logoMetroPolice from '../assets/LogoMetroPolice_transparent.png'
 
 const DesktopContainer = styled.div`
@@ -148,27 +149,76 @@ const Desktop: React.FC = () => {
     loadSessionData()
   }, [currentCase])
 
-  // Task 51: Poll for forensic updates every 30 seconds
+  // Task 52: SignalR Hub for real-time forensic updates (replaces Task 51 polling)
   useEffect(() => {
     if (!currentCase) return
 
-    const pollForensics = setInterval(async () => {
-      try {
-        const forensicsData = await forensicsApi.getPendingRequests(currentCase)
-        setForensics(forensicsData)
-        
-        // If any forensic completed, refetch emails
-        const hasCompleted = forensicsData.some((f: any) => f.status === 'completed')
-        if (hasCompleted) {
-          const emailsData = await emailsApi.getEmails(currentCase)
-          setEmails(emailsData)
-        }
-      } catch (error) {
-        console.error('❌ Failed to poll forensics:', error)
-      }
-    }, 30000) // 30 seconds
+    const token = localStorage.getItem('token')
+    if (!token) {
+      console.warn('No token found, cannot connect to SignalR')
+      return
+    }
 
-    return () => clearInterval(pollForensics)
+    let cleanupListener: (() => void) | null = null
+
+    const initSignalR = async () => {
+      try {
+        await forensicsSignalR.connect(token)
+        console.log('✅ SignalR connected for case:', currentCase)
+
+        // Listen for forensic completion events
+        cleanupListener = forensicsSignalR.onForensicCompleted(async (data) => {
+          console.log('🔔 Forensic completed notification:', data)
+          
+          // Refetch forensics and emails
+          try {
+            const [forensicsData, emailsData] = await Promise.all([
+              forensicsApi.getPendingRequests(currentCase),
+              emailsApi.getEmails(currentCase)
+            ])
+            setForensics(forensicsData)
+            setEmails(emailsData)
+            console.log('✅ Data refreshed after forensic completion')
+          } catch (error) {
+            console.error('❌ Failed to refresh data after forensic completion:', error)
+          }
+        })
+      } catch (error) {
+        console.error('❌ Failed to connect to SignalR:', error)
+        // Fallback to polling if SignalR fails
+        console.log('⚠️ Falling back to polling mode')
+        startPolling()
+      }
+    }
+
+    // Fallback polling function
+    const startPolling = () => {
+      const pollForensics = setInterval(async () => {
+        try {
+          const forensicsData = await forensicsApi.getPendingRequests(currentCase)
+          setForensics(forensicsData)
+          
+          const hasCompleted = forensicsData.some((f: any) => f.status === 'completed')
+          if (hasCompleted) {
+            const emailsData = await emailsApi.getEmails(currentCase)
+            setEmails(emailsData)
+          }
+        } catch (error) {
+          console.error('❌ Failed to poll forensics:', error)
+        }
+      }, 30000)
+
+      return () => clearInterval(pollForensics)
+    }
+
+    initSignalR()
+
+    return () => {
+      if (cleanupListener) {
+        cleanupListener()
+      }
+      forensicsSignalR.disconnect()
+    }
   }, [currentCase])
 
   // Task 50: Refetch assets after attachment download

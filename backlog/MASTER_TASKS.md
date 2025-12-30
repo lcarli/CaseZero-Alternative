@@ -232,10 +232,12 @@
 
 ## H) Frontend — Integração (Desktop)
 
-46. 🔵 **Refatorar** lógica de start case:
-    - Já chama /api/casesession/start (manter)
-    - Já redireciona pra /desktop (manter)
-    - Adicionar: aguardar resposta do /session antes de renderizar
+46. ✅ 🔵 **Refatorar** lógica de start case:
+    - ✅ Já chama /api/casesession/start (mantido)
+    - ✅ Já redireciona pra /desktop (mantido)
+    - ✅ Aguarda resposta do /session antes de renderizar (isLoadingSession state)
+    - ✅ Loading screen enquanto inicializa sessão
+    - **Implementado**: DesktopPage.tsx já contém toda a lógica necessária
 47. ✅ 🔵 **Refatorar** Desktop.tsx (já existe):
     - ✅ Adicionar chamadas: GET /session, GET /assets, GET /emails no useEffect
     - ✅ Carregamento paralelo com Promise.all()
@@ -268,7 +270,21 @@
     - ✅ Quando completar: refetch GET /emails
     - ✅ Implementado no Desktop.tsx useEffect com setInterval
     - **Implementado**: Polling automático a cada 30s, refetch emails quando status=completed
-52. 🟡 (Opcional) SignalR Hub: adaptar se existe, criar se não
+52. ✅ 🟡 (Opcional) SignalR Hub: adaptar se existe, criar se não
+    - ✅ Integrado forensicsSignalR service existente
+    - ✅ Conecta ao hub /hubs/forensics com token
+    - ✅ Escuta evento 'ForensicCompleted'
+    - ✅ Refetch forensics + emails ao receber notificação
+    - ✅ Fallback automático para polling se SignalR falhar
+    - ✅ Cleanup adequado (disconnect no unmount)
+    - **Implementado**: Real-time updates via SignalR com fallback para polling
+
+**Section H - Frontend Integration: COMPLETA ✅**
+- Todas as tasks implementadas (46-52)
+- Desktop carrega dados automaticamente (assets, emails, forensics)
+- FileViewer usa API /assets com props injection
+- EmailApp completo com inbox/reader e download de attachments
+- Real-time updates via SignalR ou polling fallback
 
 **Notas de implementação Tasks 47-48-51:**
 - Desktop.tsx agora é o centro de controle de dados
