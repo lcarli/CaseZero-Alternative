@@ -86,11 +86,13 @@
     - ✅ Filtrar por CaseSessionVisibleAssets (🔒 CRÍTICO)
     - ✅ Já retorna metadata (manter formato)
     - **Implementado**: AssetsController criado, retorna apenas assets visíveis na sessão ativa
-23. 🟡 **Adaptar** endpoint de download de evidências:
-    - Renomear: GET /api/cases/{caseId}/assets/{assetId}/download
-    - Já usa Blob Storage (manter)
-24. 🟢 **Adicionar** middleware de autorização:
-    - Verificar se assetId está em CaseSessionVisibleAssets antes do download
+23. ✅ 🟡 **Adaptar** endpoint de download de evidências:
+    - ✅ Renomear: GET /api/cases/{caseId}/assets/{assetId}/download
+    - ✅ Já usa Blob Storage (manter)
+    - **Implementado**: Download com validação de visibilidade antes do stream
+24. ✅ 🟢 **Adicionar** middleware de autorização:
+    - ✅ Verificar se assetId está em CaseSessionVisibleAssets antes do download
+    - **Implementado**: Validação integrada no endpoint de download (linha 109-115 AssetsController)
 25. 🟢 Implementar cache in-memory do case.json (IMemoryCache do .NET)
 
 ---
