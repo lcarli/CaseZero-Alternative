@@ -4,7 +4,7 @@
   "metadata": {
     "title": "The Missing Heir",
     "description": "Investigate the disappearance of a wealthy businessman's son who vanished under mysterious circumstances",
-    "difficulty": "Intermediate",
+    "difficulty": 5,
     "estimatedTimeMinutes": 90,
     "requiredRank": "Detective",
     "location": "Portland, Oregon",

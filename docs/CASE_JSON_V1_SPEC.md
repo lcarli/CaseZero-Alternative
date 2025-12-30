@@ -52,7 +52,7 @@ O **case.json v1.0** é o novo modelo de dados para casos investigativos no Case
   "metadata": {
     "title": "The Missing Heir",
     "description": "Investigate the disappearance of a wealthy businessman's son",
-    "difficulty": "Intermediate",
+    "difficulty": "Medium",
     "estimatedTimeMinutes": 90,
     "requiredRank": "Detective",
     "location": "Portland, Oregon",
@@ -75,9 +75,9 @@ O **case.json v1.0** é o novo modelo de dados para casos investigativos no Case
 |-------|------|-------------|---------|-----------|
 | `title` | string | ✅ | - | Título do caso |
 | `description` | string | ✅ | - | Descrição curta (1-2 frases) |
-| `difficulty` | string | ✅ | Rookie, Intermediate, Advanced, Expert | Nível de dificuldade |
+| `difficulty` | number | ✅ | 1-10 | Difficulty level (1=easiest, 10=hardest) |
 | `estimatedTimeMinutes` | number | ✅ | 30-240 | Tempo estimado em minutos reais |
-| `requiredRank` | string | ✅ | Cadet, Officer, Detective, Sergeant, Lieutenant, Captain, Chief | Rank mínimo necessário |
+| `requiredRank` | string | ✅ | Cadet, Junior Detective, Detective, Senior Detective, Lead Detective, Chief Inspector, Legendary Detective | Rank mínimo necessário (GDD) |
 | `location` | string | ✅ | - | Cidade/estado do caso |
 | `incidentDate` | string | ✅ | ISO 8601 | Data/hora do incidente |
 | `category` | string | ✅ | Murder, Theft, Missing Person, Fraud, Assault | Categoria do crime |

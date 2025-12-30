@@ -165,6 +165,7 @@ builder.Services.AddSingleton(serviceProvider =>
 builder.Services.AddScoped<ICaseGenerationService, CaseGenerationService>();
 builder.Services.AddScoped<ICaseFormatService, CaseFormatService>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
+builder.Services.AddScoped<ICaseV1SanitizerService, CaseV1SanitizerService>();
 builder.Services.AddScoped<ICaseV1StorageService, CaseV1StorageService>();
 
 // Register background services

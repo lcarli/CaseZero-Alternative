@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Script para fazer upload de um caso (case_*/) para Azure Blob Storage
+ * Script para fazer upload de um caso (case_* /) para Azure Blob Storage
  * 
  * Uso:
  *   node upload-case-to-blob.js case_001
