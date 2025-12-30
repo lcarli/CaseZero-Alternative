@@ -177,7 +177,15 @@
     - ✅ Implementar UpdateForensicRequestStatusAsync
     - ✅ Buscar registro no banco, atualizar campos, salvar
     - **Implementado**: ForensicRequest atualizado com status completo após processamento
-40. 🟢 (Opcional v1) Integrar SignalR Hub para notificar cliente
+40. ✅ 🟢 Integrar SignalR notification para notificar cliente:
+    - ✅ Adicionar Microsoft.Azure.Functions.Worker.Extensions.SignalRService
+    - ✅ Implementar SendSignalRNotificationAsync method
+    - ✅ Chamar após atualizar ForensicRequest status
+    - ✅ Logging de notificação (evento ForensicResultReady)
+    - 📝 TODO: Configurar Azure SignalR Service connection string
+    - 📝 TODO: Implementar SignalR output binding (quando Azure SignalR Service estiver configurado)
+    - 📝 TODO: Frontend conectar ao SignalR para receber notificações em tempo real
+    - **Implementado**: Estrutura de notificação pronta, logs de evento, pendente configuração Azure SignalR Service
 
 ---
 

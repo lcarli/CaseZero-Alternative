@@ -4,6 +4,7 @@ using System.Text.Json;
 using CaseGen.Functions.Services;
 using CaseGen.Functions.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Azure.Functions.Worker.Http;
 
 namespace CaseGen.Functions.Functions;
 
@@ -81,8 +82,8 @@ public class ForensicProcessorFunction
             // Task 39: Update ForensicRequest status to "completed"
             await UpdateForensicRequestStatusAsync(request.RequestId, "completed", matchingRule.EmailId);
 
-            // TODO (Task 40): Send SignalR notification to client
-            // await _signalRHub.Clients.User(request.UserId).SendAsync("ForensicResultReady", request.RequestId);
+            // Task 40: Send SignalR notification to client
+            await SendSignalRNotificationAsync(request.UserId, request.RequestId, request.CaseId);
 
             _logger.LogInformation(
                 "Forensic request processing completed for RequestId={RequestId}",
@@ -231,6 +232,45 @@ public class ForensicProcessorFunction
                 "Failed to update ForensicRequest: RequestId={RequestId}",
                 requestId);
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Task 40: Send SignalR notification to client using Azure SignalR Service.
+    /// Note: This is a placeholder - actual implementation depends on Azure SignalR Service configuration.
+    /// For now, we log the notification event.
+    /// </summary>
+    private async Task SendSignalRNotificationAsync(string userId, int requestId, string caseId)
+    {
+        try
+        {
+            // TODO: Implement SignalR notification using Azure SignalR Service output binding
+            // This requires:
+            // 1. Azure SignalR Service connection string in local.settings.json / App Settings
+            // 2. SignalR output binding configuration
+            // 3. Frontend SignalR client connection
+            
+            // For now, log the notification
+            _logger.LogInformation(
+                "SignalR notification: UserId={UserId}, RequestId={RequestId}, CaseId={CaseId}, Event=ForensicResultReady",
+                userId, requestId, caseId);
+            
+            // Placeholder for actual SignalR message:
+            // var message = new SignalRMessage
+            // {
+            //     UserId = userId,
+            //     Target = "ForensicResultReady",
+            //     Arguments = new object[] { new { RequestId = requestId, CaseId = caseId } }
+            // };
+            
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, 
+                "Failed to send SignalR notification: UserId={UserId}, RequestId={RequestId}",
+                userId, requestId);
+            // Don't throw - notification failure shouldn't fail the entire process
         }
     }
 
