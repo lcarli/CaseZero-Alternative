@@ -9,6 +9,11 @@ namespace CaseZeroApi.Services;
 public interface ICaseV1SanitizerService
 {
     /// <summary>
+    /// Sanitiza um caso removendo dados sensíveis (sem session tracking)
+    /// </summary>
+    CaseV1 Sanitize(CaseV1 caseData);
+    
+    /// <summary>
     /// Sanitiza um caso removendo dados sensíveis e aplicando filtros de visibilidade
     /// </summary>
     CaseV1 SanitizeCaseForClient(CaseV1 caseData, string userId, string caseSessionId);
@@ -21,6 +26,29 @@ public class CaseV1SanitizerService : ICaseV1SanitizerService
     public CaseV1SanitizerService(ILogger<CaseV1SanitizerService> logger)
     {
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Sanitização básica - apenas remove rules e filtra por visibility="initial"
+    /// </summary>
+    public CaseV1 Sanitize(CaseV1 caseData)
+    {
+        if (caseData == null)
+        {
+            throw new ArgumentNullException(nameof(caseData));
+        }
+
+        return new CaseV1
+        {
+            Version = caseData.Version,
+            CaseId = caseData.CaseId,
+            Metadata = caseData.Metadata,
+            ForensicsDefaults = caseData.ForensicsDefaults,
+            Rules = null, // 🔒 NUNCA expor ao cliente
+            Assets = caseData.Assets.Where(a => a.Visibility == "initial").ToList(),
+            Emails = caseData.Emails.Where(e => e.Visibility == "initial").ToList(),
+            Suspects = caseData.Suspects.Where(s => s.Visibility == "initial").ToList()
+        };
     }
 
     public CaseV1 SanitizeCaseForClient(CaseV1 caseData, string userId, string caseSessionId)

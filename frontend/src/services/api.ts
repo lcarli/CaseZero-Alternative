@@ -321,6 +321,69 @@ export const caseObjectApi = {
   }
 }
 
+// Cases V1 API - for case.json v1.0 cases from Azure Blob Storage
+export const casesV1Api = {
+  listCases: async (): Promise<Array<{
+    caseId: string
+    title: string
+    description: string
+    difficulty: string
+    category: string
+    estimatedTimeMinutes: number
+  }>> => {
+    return apiFetch('/cases/v1')
+  },
+
+  getCase: async (caseId: string): Promise<any> => {
+    return apiFetch(`/cases/v1/${caseId}`)
+  },
+
+  getCaseRaw: async (caseId: string): Promise<any> => {
+    return apiFetch(`/cases/v1/${caseId}/raw`)
+  },
+
+  getAsset: async (caseId: string, assetId: string): Promise<Blob> => {
+    const url = `${API_BASE_URL}/cases/v1/${caseId}/assets/${assetId}`
+    const token = tokenStorage.get()
+    
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    })
+    
+    if (!response.ok) {
+      throw new ApiError(response.status, `Failed to load asset: ${assetId}`)
+    }
+    
+    return response.blob()
+  },
+
+  getAssetUrl: (caseId: string, assetId: string): string => {
+    const token = tokenStorage.get()
+    const url = `${API_BASE_URL}/cases/v1/${caseId}/assets/${assetId}`
+    return token ? `${url}?token=${token}` : url
+  },
+
+  caseExists: async (caseId: string): Promise<boolean> => {
+    try {
+      const url = `${API_BASE_URL}/cases/v1/${caseId}`
+      const token = tokenStorage.get()
+      
+      const response = await fetch(url, {
+        method: 'HEAD',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      })
+      
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+}
+
 // Case Generation API
 export const caseGenerationApi = {
   generateCase: async (request: GenerateCaseRequest): Promise<CasePackage> => {
