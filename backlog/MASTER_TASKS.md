@@ -71,7 +71,8 @@
 20. ✅ **Refatorar** POST /api/casesession/end existente:
     - ✅ Já salva GameTimeAtEnd
     - ✅ Status = SessionStatus.Paused implementado
-21. 🟢 Criar endpoint POST /api/cases/{caseId}/resume (marca status active)
+21. ✅ Criar endpoint POST /api/cases/{caseId}/resume (marca status active)
+    - **Implementado**: Busca sessão pausada mais recente e marca como Active
 
 ---
 

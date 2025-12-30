@@ -328,5 +328,60 @@ namespace CaseZeroApi.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
+
+        /// <summary>
+        /// Resume a paused case session
+        /// </summary>
+        [HttpPost("/api/cases/{caseId}/resume")]
+        public async Task<IActionResult> ResumeSession(string caseId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                // Find the most recent paused session
+                var pausedSession = await _context.CaseSessions
+                    .Where(cs => cs.UserId == userId && cs.CaseId == caseId && cs.Status == SessionStatus.Paused)
+                    .OrderByDescending(cs => cs.SessionStart)
+                    .FirstOrDefaultAsync();
+
+                if (pausedSession == null)
+                {
+                    return NotFound("No paused session found for this case");
+                }
+
+                // Mark as active
+                pausedSession.Status = SessionStatus.Active;
+                pausedSession.SessionEnd = null; // Clear end time since we're resuming
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("✅ Resumed session {SessionId} for user {UserId} on case {CaseId}", 
+                    pausedSession.Id, userId, caseId);
+
+                var sessionDto = new CaseSessionDto
+                {
+                    Id = pausedSession.Id,
+                    UserId = pausedSession.UserId,
+                    CaseId = pausedSession.CaseId,
+                    SessionStart = pausedSession.SessionStart,
+                    SessionEnd = pausedSession.SessionEnd,
+                    SessionDurationMinutes = pausedSession.SessionDurationMinutes,
+                    GameTimeAtStart = pausedSession.GameTimeAtStart,
+                    GameTimeAtEnd = pausedSession.GameTimeAtEnd,
+                    Status = pausedSession.Status
+                };
+
+                return Ok(sessionDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resuming session for user {UserId} and case {CaseId}", userId, caseId);
+                return StatusCode(500, "Internal server error");
+            }
+        }
     }
 }
