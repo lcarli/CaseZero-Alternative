@@ -182,4 +182,19 @@ namespace CaseZeroApi.DTOs
     {
         public string? GameTimeAtEnd { get; set; }
     }
+
+    public class CaseSessionStateDto
+    {
+        public CaseSessionDto? Session { get; set; }
+        public List<string> VisibleAssetIds { get; set; } = new();
+        public List<string> VisibleEmailIds { get; set; } = new();
+        public Dictionary<string, EmailStateDto> EmailStates { get; set; } = new();
+    }
+
+    public class EmailStateDto
+    {
+        public string EmailId { get; set; } = string.Empty;
+        public DateTime? ReadAt { get; set; }
+        public int OpenCount { get; set; }
+    }
 }
