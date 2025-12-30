@@ -103,9 +103,10 @@
 
 ## E) API — Email App (somente visível)
 
-26. 🟢 Criar endpoint GET /api/cases/{caseId}/emails:
-    - Integrar com EMAIL_SYSTEM (modelo NormalizedEmail já existe)
-    - Filtrar por CaseSessionVisibleEmails (🔒 CRÍTICO)
+26. ✅ 🟢 Criar endpoint GET /api/cases/{caseId}/emails:
+    - ✅ Integrar com EMAIL_SYSTEM (modelo Email do CaseV1 usado)
+    - ✅ Filtrar por CaseSessionVisibleEmails (🔒 CRÍTICO)
+    - **Implementado**: EmailsController retorna emails visíveis com estados (lido, aberturas)
 27. 🟢 Criar endpoint POST /api/cases/{caseId}/emails/{emailId}/open:
     - Inserir/atualizar CaseSessionEmailState (ReadAt, OpenCount)
 28. 🟢 Criar endpoint GET /api/cases/{caseId}/emails/{emailId}:

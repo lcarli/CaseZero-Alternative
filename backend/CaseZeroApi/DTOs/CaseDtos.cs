@@ -210,4 +210,23 @@ namespace CaseZeroApi.DTOs
         public string Type { get; set; } = string.Empty;
         public bool IsVisible { get; set; }
     }
+
+    /// <summary>
+    /// DTO para emails do EMAIL_SYSTEM (case.json v1.0)
+    /// Representa emails filtrados por visibilidade
+    /// </summary>
+    public class CaseEmailDto
+    {
+        public string EmailId { get; set; } = string.Empty;
+        public string From { get; set; } = string.Empty;
+        public string To { get; set; } = string.Empty;
+        public string Subject { get; set; } = string.Empty;
+        public string SentAt { get; set; } = string.Empty;
+        public string Priority { get; set; } = string.Empty;
+        public bool HasAttachments { get; set; }
+        public int AttachmentCount { get; set; }
+        public bool IsRead { get; set; }
+        public DateTime? ReadAt { get; set; }
+        public int OpenCount { get; set; }
+    }
 }
