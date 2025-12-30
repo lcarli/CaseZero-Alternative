@@ -93,7 +93,11 @@
 24. ✅ 🟢 **Adicionar** middleware de autorização:
     - ✅ Verificar se assetId está em CaseSessionVisibleAssets antes do download
     - **Implementado**: Validação integrada no endpoint de download (linha 109-115 AssetsController)
-25. 🟢 Implementar cache in-memory do case.json (IMemoryCache do .NET)
+25. ✅ 🟢 Implementar cache in-memory do case.json (IMemoryCache do .NET)
+    - **Implementado**: Cache no CaseV1StorageService.GetCaseRawAsync
+    - Sliding expiration: 30 minutos
+    - Absolute expiration: 2 horas
+    - Cache key: case_v1_{caseId}
 
 ---
 

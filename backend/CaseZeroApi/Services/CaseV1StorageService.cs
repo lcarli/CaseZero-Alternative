@@ -2,6 +2,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using System.Text.Json;
 using CaseZeroApi.Models.CaseV1;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace CaseZeroApi.Services;
 
@@ -10,12 +11,14 @@ public class CaseV1StorageService : ICaseV1StorageService
     private readonly BlobServiceClient _blobServiceClient;
     private readonly ICaseV1SanitizerService _sanitizer;
     private readonly ILogger<CaseV1StorageService> _logger;
+    private readonly IMemoryCache _cache;
     private readonly string _casesContainer;
 
     public CaseV1StorageService(
         IConfiguration configuration,
         ICaseV1SanitizerService sanitizer,
-        ILogger<CaseV1StorageService> logger)
+        ILogger<CaseV1StorageService> logger,
+        IMemoryCache cache)
     {
         // Try multiple sources for connection string, with Azurite as fallback for local development
         var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
@@ -26,6 +29,7 @@ public class CaseV1StorageService : ICaseV1StorageService
         _blobServiceClient = new BlobServiceClient(connectionString);
         _sanitizer = sanitizer;
         _logger = logger;
+        _cache = cache;
         _casesContainer = configuration["CaseGeneratorStorage:CasesContainer"] ?? "cases";
         
         _logger.LogInformation("CaseV1StorageService initialized with container: {Container}", _casesContainer);
@@ -95,6 +99,18 @@ public class CaseV1StorageService : ICaseV1StorageService
 
     public async Task<CaseV1?> GetCaseRawAsync(string caseId, CancellationToken cancellationToken = default)
     {
+        // 🚀 Cache key for this case
+        var cacheKey = $"case_v1_{caseId}";
+
+        // Try to get from cache first
+        if (_cache.TryGetValue<CaseV1>(cacheKey, out var cachedCase))
+        {
+            _logger.LogDebug("Cache hit for case {CaseId}", caseId);
+            return cachedCase;
+        }
+
+        _logger.LogDebug("Cache miss for case {CaseId}, loading from blob storage", caseId);
+
         try
         {
             var containerClient = _blobServiceClient.GetBlobContainerClient(_casesContainer);
@@ -111,6 +127,18 @@ public class CaseV1StorageService : ICaseV1StorageService
             var caseData = JsonSerializer.Deserialize<CaseV1>(
                 response.Value.Content.ToString(),
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (caseData != null)
+            {
+                // Store in cache with sliding expiration (30 minutes)
+                var cacheOptions = new MemoryCacheEntryOptions()
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(30))
+                    .SetAbsoluteExpiration(TimeSpan.FromHours(2))
+                    .SetSize(1); // Size for cache size limit
+
+                _cache.Set(cacheKey, caseData, cacheOptions);
+                _logger.LogInformation("Cached case {CaseId} for 30 minutes sliding / 2 hours absolute", caseId);
+            }
 
             return caseData;
         }
