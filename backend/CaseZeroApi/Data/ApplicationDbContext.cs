@@ -22,6 +22,11 @@ namespace CaseZeroApi.Data
         public DbSet<CaseSession> CaseSessions { get; set; }
         public DbSet<ForensicRequest> ForensicRequests { get; set; }
         public DbSet<Note> Notes { get; set; }
+        
+        // Case Session Visibility Tables
+        public DbSet<CaseSessionVisibleAsset> CaseSessionVisibleAssets { get; set; }
+        public DbSet<CaseSessionVisibleEmail> CaseSessionVisibleEmails { get; set; }
+        public DbSet<CaseSessionEmailState> CaseSessionEmailStates { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

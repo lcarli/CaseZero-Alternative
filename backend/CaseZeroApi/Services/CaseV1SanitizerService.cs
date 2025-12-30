@@ -1,4 +1,6 @@
 using CaseZeroApi.Models.CaseV1;
+using CaseZeroApi.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace CaseZeroApi.Services;
 
@@ -16,16 +18,20 @@ public interface ICaseV1SanitizerService
     /// <summary>
     /// Sanitiza um caso removendo dados sensíveis e aplicando filtros de visibilidade
     /// </summary>
-    CaseV1 SanitizeCaseForClient(CaseV1 caseData, string userId, string caseSessionId);
+    Task<CaseV1> SanitizeCaseForClientAsync(CaseV1 caseData, string userId, string caseId);
 }
 
 public class CaseV1SanitizerService : ICaseV1SanitizerService
 {
     private readonly ILogger<CaseV1SanitizerService> _logger;
+    private readonly ApplicationDbContext _context;
 
-    public CaseV1SanitizerService(ILogger<CaseV1SanitizerService> logger)
+    public CaseV1SanitizerService(
+        ILogger<CaseV1SanitizerService> logger,
+        ApplicationDbContext context)
     {
         _logger = logger;
+        _context = context;
     }
 
     /// <summary>
@@ -51,7 +57,7 @@ public class CaseV1SanitizerService : ICaseV1SanitizerService
         };
     }
 
-    public CaseV1 SanitizeCaseForClient(CaseV1 caseData, string userId, string caseSessionId)
+    public async Task<CaseV1> SanitizeCaseForClientAsync(CaseV1 caseData, string userId, string caseId)
     {
         if (caseData == null)
         {
@@ -59,10 +65,22 @@ public class CaseV1SanitizerService : ICaseV1SanitizerService
         }
 
         _logger.LogInformation(
-            "Sanitizing case {CaseId} for user {UserId} session {SessionId}",
-            caseData.CaseId, userId, caseSessionId);
+            "Sanitizing case {CaseId} for user {UserId}",
+            caseData.CaseId, userId);
 
-        // Criar cópia para não modificar o original
+        // Buscar assets visíveis do usuário para este caso
+        var visibleAssetIds = await _context.CaseSessionVisibleAssets
+            .Where(va => va.UserId == userId && va.CaseId == caseId)
+            .Select(va => va.AssetId)
+            .ToListAsync();
+
+        // Buscar emails visíveis do usuário para este caso
+        var visibleEmailIds = await _context.CaseSessionVisibleEmails
+            .Where(ve => ve.UserId == userId && ve.CaseId == caseId)
+            .Select(ve => ve.EmailId)
+            .ToListAsync();
+
+        // Criar cópia sanitizada
         var sanitized = new CaseV1
         {
             Version = caseData.Version,
@@ -71,30 +89,26 @@ public class CaseV1SanitizerService : ICaseV1SanitizerService
             ForensicsDefaults = caseData.ForensicsDefaults
         };
 
-        // 🔒 CRÍTICO: REMOVER RULES (server-side apenas)
+        // 🔒 CRÍTICO: NUNCA expor rules ao cliente
         sanitized.Rules = null;
 
-        // TODO: Filtrar assets por visibilidade da sessão
-        // Por enquanto, retornar apenas assets com visibility="initial"
+        // Filtrar assets: apenas os visíveis na sessão
         sanitized.Assets = caseData.Assets
-            .Where(a => a.Visibility == "initial")
+            .Where(a => visibleAssetIds.Contains(a.AssetId))
             .ToList();
 
-        // TODO: Filtrar emails por visibilidade da sessão
-        // Por enquanto, retornar apenas emails com visibility="initial"
+        // Filtrar emails: apenas os visíveis na sessão
         sanitized.Emails = caseData.Emails
-            .Where(e => e.Visibility == "initial")
+            .Where(e => visibleEmailIds.Contains(e.EmailId))
             .ToList();
 
-        // TODO: Filtrar suspects por visibilidade da sessão
-        // Por enquanto, retornar apenas suspects com visibility="initial"
-        sanitized.Suspects = caseData.Suspects
-            .Where(s => s.Visibility == "initial")
-            .ToList();
+        // Suspects sempre visíveis (podem ter conditional visibility futuramente)
+        sanitized.Suspects = caseData.Suspects.ToList();
 
         _logger.LogInformation(
-            "Case sanitized: {AssetsCount} assets, {EmailsCount} emails, {SuspectsCount} suspects visible",
-            sanitized.Assets.Count, sanitized.Emails.Count, sanitized.Suspects.Count);
+            "Case sanitized: {AssetsCount}/{TotalAssets} assets, {EmailsCount}/{TotalEmails} emails visible",
+            sanitized.Assets.Count, caseData.Assets.Count,
+            sanitized.Emails.Count, caseData.Emails.Count);
 
         return sanitized;
     }
