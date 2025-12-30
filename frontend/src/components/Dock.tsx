@@ -1,7 +1,7 @@
 import React from 'react'
 import styled from 'styled-components'
 import EngineFileViewer from './apps/EngineFileViewer'
-import EngineEmail from './apps/EngineEmail'
+import EmailApp from './apps/EmailApp'
 import Notebook from './apps/Notebook'
 import SubmitCase from './apps/SubmitCase'
 import Logs from './apps/Logs'
@@ -149,10 +149,10 @@ const Dock: React.FC<DockProps> = ({ onOpenWindow, onCaseDisconnect }) => {
       component: EngineFileViewer
     },
     {
-      id: 'email',
+      id: 'email-app',
       title: 'Email',
       icon: '📧',
-      component: EngineEmail
+      component: EmailApp
     },
     {
       id: 'forensic',

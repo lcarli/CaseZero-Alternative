@@ -249,12 +249,20 @@
     - ✅ Desktop wrapper injeta assets em FileViewer windows
     - ✅ UI simplificada: lista de assets com seleção e detalhes
     - **Implementado**: FileViewer usa API real e recebe dados via props
-49. 🟢 Criar EmailApp component:
-    - Lista emails de GET /emails
-    - Ao clicar: POST /emails/{emailId}/open → GET /emails/{emailId}
-50. 🟢 **Adicionar** lógica no EmailApp:
-    - Botão "Download Attachment" → POST /attachments/{assetId}/download
-    - Após success: refetch GET /assets
+49. ✅ 🟢 Criar EmailApp component:
+    - ✅ Lista emails de GET /emails (recebe via props do Desktop)
+    - ✅ Ao clicar: POST /emails/{emailId}/open → GET /emails/{emailId}
+    - ✅ Mostra from, to, subject, timestamp
+    - ✅ Marca emails não lidos com borda azul
+    - ✅ Renderiza body HTML com dangerouslySetInnerHTML
+    - ✅ Mostra attachments com botão Download
+    - **Implementado**: EmailApp completo com UI inbox/reader
+50. ✅ 🟢 **Adicionar** lógica no EmailApp:
+    - ✅ Botão "Download Attachment" → POST /attachments/{assetId}/download
+    - ✅ Após success: refetch GET /assets (Desktop.refetchAssets())
+    - ✅ Desktop wrapper injeta emails, caseId, onRefetchAssets
+    - ✅ Loading states e disabled button durante download
+    - **Implementado**: Download de attachments funcional com refetch automático
 51. ✅ 🔵 **Adaptar** ForensicsQueue existente (já existe):
     - ✅ Adicionar polling: GET /forensicrequest/{caseId}/pending (30s)
     - ✅ Quando completar: refetch GET /emails

@@ -171,12 +171,33 @@ const Desktop: React.FC = () => {
     return () => clearInterval(pollForensics)
   }, [currentCase])
 
-  // Task 48: Wrapper to inject assets into FileViewer windows
+  // Task 50: Refetch assets after attachment download
+  const refetchAssets = async () => {
+    if (!currentCase) return
+    try {
+      const assetsData = await assetsApi.getAssets(currentCase)
+      setAssets(assetsData)
+      console.log('✅ Assets refetched:', assetsData.length)
+    } catch (error) {
+      console.error('❌ Failed to refetch assets:', error)
+    }
+  }
+
+  // Task 48-49: Wrapper to inject props into app windows
   const handleOpenWindow = (id: string, title: string, component: React.ComponentType<any>) => {
     // If opening FileViewer, pass assets as props
     if (id === 'file-viewer') {
       openWindow(id, title, component, { assets })
-    } else {
+    } 
+    // If opening EmailApp, pass emails and caseId
+    else if (id === 'email-app') {
+      openWindow(id, title, component, { 
+        emails: _emails, 
+        caseId: currentCase,
+        onRefetchAssets: refetchAssets 
+      })
+    } 
+    else {
       openWindow(id, title, component)
     }
   }
