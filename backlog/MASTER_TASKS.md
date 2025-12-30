@@ -81,10 +81,11 @@
 
 ## D) API — File Viewer (somente visível)
 
-22. 🔵 **Refatorar** endpoint GET /api/evidence/{caseId}:
-    - Renomear rota: GET /api/cases/{caseId}/assets
-    - Filtrar por CaseSessionVisibleAssets (🔒 CRÍTICO)
-    - Já retorna metadata (manter formato)
+22. ✅ 🔵 **Refatorar** endpoint GET /api/evidence/{caseId}:
+    - ✅ Renomear rota: GET /api/cases/{caseId}/assets
+    - ✅ Filtrar por CaseSessionVisibleAssets (🔒 CRÍTICO)
+    - ✅ Já retorna metadata (manter formato)
+    - **Implementado**: AssetsController criado, retorna apenas assets visíveis na sessão ativa
 23. 🟡 **Adaptar** endpoint de download de evidências:
     - Renomear: GET /api/cases/{caseId}/assets/{assetId}/download
     - Já usa Blob Storage (manter)

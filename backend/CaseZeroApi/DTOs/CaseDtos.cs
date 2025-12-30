@@ -197,4 +197,17 @@ namespace CaseZeroApi.DTOs
         public DateTime? ReadAt { get; set; }
         public int OpenCount { get; set; }
     }
+
+    /// <summary>
+    /// DTO para assets do case.json v1.0
+    /// Representa arquivos no Blob Storage filtrados por visibilidade
+    /// </summary>
+    public class AssetDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string CaseId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Type { get; set; } = string.Empty;
+        public bool IsVisible { get; set; }
+    }
 }
