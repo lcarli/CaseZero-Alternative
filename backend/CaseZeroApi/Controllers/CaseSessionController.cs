@@ -5,6 +5,7 @@ using System.Security.Claims;
 using CaseZeroApi.Data;
 using CaseZeroApi.DTOs;
 using CaseZeroApi.Models;
+using CaseZeroApi.Services;
 
 namespace CaseZeroApi.Controllers
 {
@@ -14,11 +15,16 @@ namespace CaseZeroApi.Controllers
     public class CaseSessionController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IVisibilityService _visibilityService;
         private readonly ILogger<CaseSessionController> _logger;
 
-        public CaseSessionController(ApplicationDbContext context, ILogger<CaseSessionController> logger)
+        public CaseSessionController(
+            ApplicationDbContext context, 
+            IVisibilityService visibilityService,
+            ILogger<CaseSessionController> logger)
         {
             _context = context;
+            _visibilityService = visibilityService;
             _logger = logger;
         }
 
@@ -60,6 +66,18 @@ namespace CaseZeroApi.Controllers
 
                 _context.CaseSessions.Add(newSession);
                 await _context.SaveChangesAsync();
+
+                // Apply initial visibility rules (unlock initial assets/emails)
+                try
+                {
+                    var (assetsUnlocked, emailsUnlocked) = await _visibilityService.ApplyInitialRulesAsync(userId, request.CaseId);
+                    _logger.LogInformation("Initial visibility applied: {Assets} assets, {Emails} emails unlocked", assetsUnlocked, emailsUnlocked);
+                }
+                catch (Exception visEx)
+                {
+                    _logger.LogError(visEx, "Failed to apply initial visibility rules, but session was created");
+                    // Continue - session is valid even if visibility fails
+                }
 
                 var sessionDto = new CaseSessionDto
                 {

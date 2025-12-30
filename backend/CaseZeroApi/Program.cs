@@ -167,6 +167,7 @@ builder.Services.AddScoped<ICaseFormatService, CaseFormatService>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<ICaseV1SanitizerService, CaseV1SanitizerService>();
 builder.Services.AddScoped<ICaseV1StorageService, CaseV1StorageService>();
+builder.Services.AddScoped<IVisibilityService, VisibilityService>();
 
 // Register background services
 builder.Services.AddHostedService<CaseProcessingBackgroundService>();

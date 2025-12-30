@@ -61,10 +61,11 @@
 17. ✅ **Refatorar** POST /api/casesession/start existente:
     - ✅ Já cria sessão com GameTimeAtStart
     - ✅ Campo Status = SessionStatus.Active implementado
-18. 🟢 **Adicionar** lógica ao start:
-    - 18a: 🟡 Adaptar loader existente de case.json (CaseService já faz)
-    - 18b: 🟢 Criar `VisibilityService.ApplyInitialRules()`
-    - 18c: 🟢 Inserir em CaseSessionVisibleAssets/Emails
+18. ✅ **Adicionar** lógica ao start:
+    - 18a: ✅ Adaptar loader existente de case.json (CaseV1StorageService)
+    - 18b: ✅ Criar `VisibilityService.ApplyInitialRules()`
+    - 18c: ✅ Inserir em CaseSessionVisibleAssets/Emails
+    - **Implementado**: VisibilityService filtra assets/emails com visibility="initial" e insere nas tabelas de visibilidade
 19. 🟢 Criar endpoint GET /api/cases/{caseId}/session (retorna estado completo)
 20. ✅ **Refatorar** POST /api/casesession/end existente:
     - ✅ Já salva GameTimeAtEnd
