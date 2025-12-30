@@ -2,6 +2,8 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using CaseGen.Functions.Services;
+using CaseGen.Functions.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace CaseGen.Functions.Functions;
 
@@ -14,13 +16,16 @@ public class ForensicProcessorFunction
 {
     private readonly ILogger<ForensicProcessorFunction> _logger;
     private readonly IStorageService _storageService;
+    private readonly ApplicationDbContext _dbContext;
 
     public ForensicProcessorFunction(
         ILogger<ForensicProcessorFunction> logger,
-        IStorageService storageService)
+        IStorageService storageService,
+        ApplicationDbContext dbContext)
     {
         _logger = logger;
         _storageService = storageService;
+        _dbContext = dbContext;
     }
 
     [Function(nameof(ForensicProcessorFunction))]
@@ -67,13 +72,14 @@ public class ForensicProcessorFunction
                 "Found matching rule: Action={Action}, EmailId={EmailId}",
                 matchingRule.Action, matchingRule.EmailId);
 
-            // TODO (Task 38): Execute reveal_email action
-            // if (matchingRule.Action == "reveal_email") {
-            //     await RevealEmailAsync(request.UserId, request.CaseId, matchingRule.EmailId);
-            // }
+            // Task 38: Execute reveal_email action
+            if (matchingRule.Action == "reveal_email" && !string.IsNullOrEmpty(matchingRule.EmailId))
+            {
+                await RevealEmailAsync(request.UserId, request.CaseId, matchingRule.EmailId);
+            }
 
-            // TODO (Task 39): Update ForensicRequest status to "completed"
-            // await UpdateForensicRequestStatusAsync(request.RequestId, "completed", matchingRule.EmailId);
+            // Task 39: Update ForensicRequest status to "completed"
+            await UpdateForensicRequestStatusAsync(request.RequestId, "completed", matchingRule.EmailId);
 
             // TODO (Task 40): Send SignalR notification to client
             // await _signalRHub.Clients.User(request.UserId).SendAsync("ForensicResultReady", request.RequestId);
@@ -147,6 +153,84 @@ public class ForensicProcessorFunction
         {
             _logger.LogError(ex, "Error finding matching rule");
             return null;
+        }
+    }
+/// <summary>
+    /// Task 38: Execute reveal_email action by inserting emailId into CaseSessionVisibleEmails.
+    /// </summary>
+    private async Task RevealEmailAsync(string userId, string caseId, string emailId)
+    {
+        try
+        {
+            // Check if already visible
+            var existingRecord = await _dbContext.CaseSessionVisibleEmails
+                .FirstOrDefaultAsync(e => e.UserId == userId && e.CaseId == caseId && e.EmailId == emailId);
+
+            if (existingRecord != null)
+            {
+                _logger.LogInformation(
+                    "Email already visible: UserId={UserId}, CaseId={CaseId}, EmailId={EmailId}",
+                    userId, caseId, emailId);
+                return;
+            }
+
+            // Insert new visible email
+            var visibleEmail = new Models.CaseSessionVisibleEmails
+            {
+                UserId = userId,
+                CaseId = caseId,
+                EmailId = emailId,
+                RevealedAt = DateTime.UtcNow
+            };
+
+            _dbContext.CaseSessionVisibleEmails.Add(visibleEmail);
+            await _dbContext.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Email revealed successfully: UserId={UserId}, CaseId={CaseId}, EmailId={EmailId}",
+                userId, caseId, emailId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, 
+                "Failed to reveal email: UserId={UserId}, CaseId={CaseId}, EmailId={EmailId}",
+                userId, caseId, emailId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Task 39: Update ForensicRequest status to completed and set ResultEmailId.
+    /// </summary>
+    private async Task UpdateForensicRequestStatusAsync(int requestId, string status, string? resultEmailId)
+    {
+        try
+        {
+            var forensicRequest = await _dbContext.ForensicRequests
+                .FirstOrDefaultAsync(r => r.Id == requestId);
+
+            if (forensicRequest == null)
+            {
+                _logger.LogWarning("ForensicRequest not found: RequestId={RequestId}", requestId);
+                return;
+            }
+
+            forensicRequest.Status = status;
+            forensicRequest.CompletedAt = DateTime.UtcNow;
+            forensicRequest.ResultEmailId = resultEmailId;
+
+            await _dbContext.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "ForensicRequest updated: RequestId={RequestId}, Status={Status}, ResultEmailId={ResultEmailId}",
+                requestId, status, resultEmailId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, 
+                "Failed to update ForensicRequest: RequestId={RequestId}",
+                requestId);
+            throw;
         }
     }
 

@@ -6,7 +6,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Azure.Functions.Worker.Builder;
 using CaseGen.Functions.Services;
 using CaseGen.Functions.Services.CaseGeneration;
+using CaseGen.Functions.Data;
 using Azure.Storage.Blobs;
+using Microsoft.EntityFrameworkCore;
 
 
 var builder = FunctionsApplication.CreateBuilder(args);
@@ -16,6 +18,23 @@ builder.Configuration.AddJsonFile("local.settings.json", optional: true, reloadO
 builder.Configuration.AddEnvironmentVariables();
 
 builder.ConfigureFunctionsWebApplication();
+
+// Configure SQL Database (for forensic processing - Task 38)
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (!string.IsNullOrEmpty(connectionString))
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    {
+        options.UseSqlServer(connectionString, sqlOptions =>
+        {
+            sqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorNumbersToAdd: null);
+            sqlOptions.CommandTimeout(60);
+        });
+    });
+}
 
 builder.Services
     .AddApplicationInsightsTelemetryWorkerService()

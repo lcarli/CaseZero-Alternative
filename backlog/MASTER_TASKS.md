@@ -161,20 +161,22 @@
     - ✅ FindMatchingRule: buscar em rules.forensics[] por inputAssetId + analysisType
     - ✅ Logging detalhado de matching rule ou warning se não encontrar
     - **Implementado**: Function carrega case.json e encontra regra matching
-38. 🔵 **Implementar** ação reveal_email:
-    - Mensagem: `{ RequestId, CaseId, UserId, InputAssetId, AnalysisType }`
-36. 🟢 Criar Azure Function com Queue Trigger:
-    - Ler mensagem → buscar request no SQL → marcar Status = processing
-37. 🟢 **Adicionar** lógica na Function:
-    - Carregar case.json (cache ou Blob)
-    - Buscar regra matching (inputAssetId + analysisType)
-    - Fallback: email "no findings" se não encontrar regra
-38. 🟢 **Adicionar** action `reveal_email`:
-    - Inserir emailId em CaseSessionVisibleEmails
-    - Criar NormalizedEmail se necessário
-39. 🔵 **Adaptar** conclusão:
-    - Já marca CompletedAt
-    - Adicionar: Status = completed, ResultEmailId
+38. ✅ 🟢 **Implementar** ação reveal_email:
+    - ✅ Adicionar EF Core 9.0 ao projeto de Functions (compatível com .NET 9)
+    - ✅ Criar modelos CaseSessionVisibleEmails e ForensicRequest (matching backend schema)
+    - ✅ Criar ApplicationDbContext com DbSets e configuração de tabelas
+    - ✅ Registrar DbContext em Program.cs com SQL Server provider + retry logic
+    - ✅ Adicionar ConnectionStrings:DefaultConnection em local.settings.json
+    - ✅ Injetar ApplicationDbContext em ForensicProcessorFunction
+    - ✅ Implementar RevealEmailAsync: inserir emailId em CaseSessionVisibleEmails
+    - ✅ Chamar RevealEmailAsync quando matchingRule.Action == "reveal_email"
+    - **Implementado**: Function tem acesso SQL, insere email visível para o usuário
+39. ✅ 🔵 **Adaptar** conclusão:
+    - ✅ Já marca CompletedAt
+    - ✅ Adicionar: Status = completed, ResultEmailId
+    - ✅ Implementar UpdateForensicRequestStatusAsync
+    - ✅ Buscar registro no banco, atualizar campos, salvar
+    - **Implementado**: ForensicRequest atualizado com status completo após processamento
 40. 🟢 (Opcional v1) Integrar SignalR Hub para notificar cliente
 
 ---

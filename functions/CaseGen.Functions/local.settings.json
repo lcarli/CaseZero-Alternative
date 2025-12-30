@@ -14,5 +14,8 @@
     "AzureFoundry__ModelName": "gpt-5",
     "AzureFoundry__ImageDeploymentName": "gpt-image-1",
     "AzureFoundry__TenantId": "1d70d939-06d2-4348-b658-58cb38886348"
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=tcp:your-server.database.windows.net,1433;Database=casezero-db;User ID=your-username;Password=your-password;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
   }
 }
