@@ -113,14 +113,17 @@
 28. ✅ 🟢 Criar endpoint GET /api/cases/{caseId}/emails/{emailId}:
     - ✅ Retornar email completo + attachments (refs para assets)
     - **Implementado**: Retorna conteúdo, attachments, metadata e estado de leitura
-29. 🟡 **Adaptar** lógica de download de attachments:
-    - Rota: POST /api/cases/{caseId}/emails/{emailId}/attachments/{assetId}/download
-    - Usar Blob Storage existente
-30. 🟢 **Adicionar** hook pós-download:
-    - Inserir em EmailAttachmentsDownloaded
-    - Chamar `RulesEngine.ApplyRule("reveal_asset", assetId)`
-31. 🟢 **Adicionar** validação:
-    - Verificar emailId em CaseSessionVisibleEmails antes de retornar attachments
+29. ✅ 🟡 **Adaptar** lógica de download de attachments:
+    - ✅ Rota: POST /api/cases/{caseId}/emails/{emailId}/attachments/{assetId}/download
+    - ✅ Usar Blob Storage existente
+    - **Implementado**: Download com stream direto do blob
+30. ✅ 🟢 **Adicionar** hook pós-download:
+    - ✅ Inserir em EmailAttachmentsDownloaded
+    - ⏳ Chamar `RulesEngine.ApplyRule("reveal_asset", assetId)` (TODO: implementar RulesEngine)
+    - **Implementado**: Registro de download criado, reveal_asset logado
+31. ✅ 🟢 **Adicionar** validação:
+    - ✅ Verificar emailId em CaseSessionVisibleEmails antes de retornar attachments
+    - **Implementado**: Validação integrada no endpoint de download
 
 ---
 

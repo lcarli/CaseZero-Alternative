@@ -6,6 +6,7 @@ using CaseZeroApi.Data;
 using CaseZeroApi.DTOs;
 using CaseZeroApi.Models;
 using CaseZeroApi.Services;
+using Azure.Storage.Blobs;
 
 namespace CaseZeroApi.Controllers
 {
@@ -17,15 +18,26 @@ namespace CaseZeroApi.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ILogger<EmailsController> _logger;
         private readonly ICaseV1StorageService _caseStorageService;
+        private readonly BlobServiceClient _blobServiceClient;
+        private readonly IConfiguration _configuration;
 
         public EmailsController(
             ApplicationDbContext context,
             ILogger<EmailsController> logger,
-            ICaseV1StorageService caseStorageService)
+            ICaseV1StorageService caseStorageService,
+            IConfiguration configuration)
         {
             _context = context;
             _logger = logger;
             _caseStorageService = caseStorageService;
+            _configuration = configuration;
+            
+            // Initialize BlobServiceClient for attachment downloads
+            var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
+                ?? configuration["AzureWebJobsStorage"]
+                ?? Environment.GetEnvironmentVariable("AzureWebJobsStorage")
+                ?? "UseDevelopmentStorage=true";
+            _blobServiceClient = new BlobServiceClient(connectionString);
         }
 
         /// <summary>
@@ -291,6 +303,116 @@ namespace CaseZeroApi.Controllers
                 _logger.LogError(ex, "Error getting email {EmailId} details for user {UserId} in case {CaseId}",
                     emailId, userId, caseId);
                 return StatusCode(500, new { message = "An error occurred while retrieving email details" });
+            }
+        }
+
+        /// <summary>
+        /// POST /api/cases/{caseId}/emails/{emailId}/attachments/{assetId}/download
+        /// Download de attachment de email com validações e hooks
+        /// CRÍTICO: Valida visibilidade do email, registra download e aplica regras de reveal
+        /// </summary>
+        [HttpPost("{emailId}/attachments/{assetId}/download")]
+        public async Task<IActionResult> DownloadEmailAttachment(string caseId, string emailId, string assetId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            try
+            {
+                // 1. Verificar acesso ao caso
+                var userCase = await _context.UserCases
+                    .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
+
+                if (userCase == null)
+                {
+                    _logger.LogWarning("User {UserId} attempted to download attachment from case {CaseId} without permission",
+                        userId, caseId);
+                    return Forbid("You don't have access to this case");
+                }
+
+                // 2. 🔒 VALIDAÇÃO CRÍTICA: Verificar se email está visível (tarefa 31)
+                var isEmailVisible = await _context.CaseSessionVisibleEmails
+                    .AnyAsync(ve => ve.UserId == userId && ve.CaseId == caseId && ve.EmailId == emailId);
+
+                if (!isEmailVisible)
+                {
+                    _logger.LogWarning("User {UserId} attempted to download attachment from invisible email {EmailId} in case {CaseId}",
+                        userId, emailId, caseId);
+                    return Forbid("Email not visible in current session");
+                }
+
+                // 3. Carregar email para verificar se assetId está nos attachments
+                var caseData = await _caseStorageService.GetCaseAsync(caseId);
+                if (caseData == null || caseData.Emails == null)
+                {
+                    _logger.LogWarning("Case data not found for case {CaseId}", caseId);
+                    return NotFound(new { message = "Case not found" });
+                }
+
+                var email = caseData.Emails.FirstOrDefault(e => e.EmailId == emailId);
+                if (email == null)
+                {
+                    _logger.LogWarning("Email {EmailId} not found in case {CaseId}", emailId, caseId);
+                    return NotFound(new { message = "Email not found" });
+                }
+
+                // 4. Verificar se assetId está nos attachments do email
+                if (email.Attachments == null || !email.Attachments.Contains(assetId))
+                {
+                    _logger.LogWarning("Asset {AssetId} is not an attachment of email {EmailId} in case {CaseId}",
+                        assetId, emailId, caseId);
+                    return BadRequest(new { message = "Asset is not an attachment of this email" });
+                }
+
+                // 5. Download do blob (reutilizando lógica do AssetsController)
+                var containerName = _configuration["CaseGeneratorStorage:CasesContainer"] ?? "cases";
+                var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
+                
+                // Asset path: {caseId}/assets/{assetId}
+                var blobPath = $"{caseId}/assets/{assetId}";
+                var blobClient = containerClient.GetBlobClient(blobPath);
+
+                if (!await blobClient.ExistsAsync())
+                {
+                    _logger.LogWarning("Attachment file not found in blob storage: {BlobPath}", blobPath);
+                    return NotFound(new { message = "Attachment file not found" });
+                }
+
+                // 6. 🎯 HOOK PÓS-DOWNLOAD (tarefa 30): Registrar em EmailAttachmentsDownloaded
+                var downloadRecord = new EmailAttachmentDownloaded
+                {
+                    UserId = userId,
+                    CaseId = caseId,
+                    EmailId = emailId,
+                    AssetId = assetId,
+                    DownloadedAt = DateTime.UtcNow
+                };
+                _context.EmailAttachmentsDownloaded.Add(downloadRecord);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("User {UserId} downloaded attachment {AssetId} from email {EmailId} in case {CaseId}",
+                    userId, assetId, emailId, caseId);
+
+                // 7. 🎯 HOOK: Aplicar regra reveal_asset (tarefa 30)
+                // TODO: Implementar RulesEngine.ApplyRule("reveal_asset", assetId)
+                // Por enquanto, apenas log
+                _logger.LogInformation("Triggering reveal_asset rule for asset {AssetId} in case {CaseId}", assetId, caseId);
+
+                // 8. Stream do arquivo
+                var download = await blobClient.DownloadStreamingAsync();
+                var properties = await blobClient.GetPropertiesAsync();
+                
+                var contentType = properties.Value.ContentType;
+                var fileName = assetId.Contains('/') ? assetId.Split('/').Last() : assetId;
+
+                return File(download.Value.Content, contentType, fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error downloading attachment {AssetId} from email {EmailId} for user {UserId} in case {CaseId}",
+                    assetId, emailId, userId, caseId);
+                return StatusCode(500, new { message = "An error occurred while downloading the attachment" });
             }
         }
     }
