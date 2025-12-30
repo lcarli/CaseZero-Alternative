@@ -236,24 +236,39 @@
     - Já chama /api/casesession/start (manter)
     - Já redireciona pra /desktop (manter)
     - Adicionar: aguardar resposta do /session antes de renderizar
-47. 🔵 **Refatorar** Desktop.tsx (já existe):
-    - Adicionar chamadas: GET /session, GET /assets, GET /emails no useEffect
-    - 🟡 Adaptar CaseEngine existente para receber novos dados
-48. 🔵 **Refatorar** FileViewer existente:
-    - Já lista evidências (manter UI)
-    - Trocar source: /api/evidence → /api/cases/{caseId}/assets
-    - Remover lógica de items "locked" (deletar placeholders)
+47. ✅ 🔵 **Refatorar** Desktop.tsx (já existe):
+    - ✅ Adicionar chamadas: GET /session, GET /assets, GET /emails no useEffect
+    - ✅ Carregamento paralelo com Promise.all()
+    - ✅ State management com useState (assets, emails, forensics)
+    - ✅ Loading state e error handling
+    - **Implementado**: Desktop agora busca dados automaticamente ao montar
+48. ✅ 🔵 **Refatorar** FileViewer existente:
+    - ✅ Trocar source: /api/evidence → /api/cases/{caseId}/assets
+    - ✅ Remover lógica de items "locked" (deletados 500+ linhas de dados hardcoded)
+    - ✅ Recebe assets via props do Desktop
+    - ✅ Desktop wrapper injeta assets em FileViewer windows
+    - ✅ UI simplificada: lista de assets com seleção e detalhes
+    - **Implementado**: FileViewer usa API real e recebe dados via props
 49. 🟢 Criar EmailApp component:
     - Lista emails de GET /emails
     - Ao clicar: POST /emails/{emailId}/open → GET /emails/{emailId}
 50. 🟢 **Adicionar** lógica no EmailApp:
     - Botão "Download Attachment" → POST /attachments/{assetId}/download
     - Após success: refetch GET /assets
-51. 🔵 **Adaptar** ForensicsQueue existente (já existe):
-    - Já mostra "Active Analyses" (manter)
-    - Adicionar polling: GET /forensicrequest/{caseId}/pending (30s)
-    - Quando completar: refetch GET /emails
+51. ✅ 🔵 **Adaptar** ForensicsQueue existente (já existe):
+    - ✅ Adicionar polling: GET /forensicrequest/{caseId}/pending (30s)
+    - ✅ Quando completar: refetch GET /emails
+    - ✅ Implementado no Desktop.tsx useEffect com setInterval
+    - **Implementado**: Polling automático a cada 30s, refetch emails quando status=completed
 52. 🟡 (Opcional) SignalR Hub: adaptar se existe, criar se não
+
+**Notas de implementação Tasks 47-48-51:**
+- Desktop.tsx agora é o centro de controle de dados
+- Três useEffect: mount (desktop-mode class), data loading, forensics polling
+- Estado: assets[], emails[], forensics[], loading
+- handleOpenWindow() wrapper para injetar props em componentes (FileViewer recebe assets)
+- Polling inteligente: detecta forensic completed → refetch emails
+- API services criados: assetsApi, emailsApi, forensicsApi com DTOs completos
 
 ---
 
