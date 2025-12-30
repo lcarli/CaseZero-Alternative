@@ -52,21 +52,23 @@
 
 ## C) API — Casos e Sessões
 
-15. 🔵 **Refatorar** endpoint GET /api/case (já retorna lista):
+15. ✅ **Refatorar** endpoint GET /api/case (já retorna lista):
     - Remover dados desnecessários (enviar só metadados)
-16. 🔵 **Refatorar** endpoint GET /api/case/{caseId}:
+    - **Implementado**: GET /api/cases retorna lista de casos com metadados
+16. ✅ **Refatorar** endpoint GET /api/case/{caseId}:
     - Adicionar lógica "canAccess" baseada em User.Rank
-17. 🔵 **Refatorar** POST /api/casesession/start existente:
-    - Já cria sessão com GameTimeAtStart
-    - Adicionar: campo Status = active
+    - **Implementado**: CaseAccessService filtra casos por rank do usuário
+17. ✅ **Refatorar** POST /api/casesession/start existente:
+    - ✅ Já cria sessão com GameTimeAtStart
+    - ✅ Campo Status = SessionStatus.Active implementado
 18. 🟢 **Adicionar** lógica ao start:
     - 18a: 🟡 Adaptar loader existente de case.json (CaseService já faz)
     - 18b: 🟢 Criar `VisibilityService.ApplyInitialRules()`
     - 18c: 🟢 Inserir em CaseSessionVisibleAssets/Emails
 19. 🟢 Criar endpoint GET /api/cases/{caseId}/session (retorna estado completo)
-20. 🔵 **Refatorar** POST /api/casesession/end existente:
-    - Já salva GameTimeAtEnd
-    - Adicionar: Status = paused
+20. ✅ **Refatorar** POST /api/casesession/end existente:
+    - ✅ Já salva GameTimeAtEnd
+    - ✅ Status = SessionStatus.Paused implementado
 21. 🟢 Criar endpoint POST /api/cases/{caseId}/resume (marca status active)
 
 ---

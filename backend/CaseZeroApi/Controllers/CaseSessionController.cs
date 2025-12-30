@@ -38,11 +38,11 @@ namespace CaseZeroApi.Controllers
             {
                 // End any active session for this user/case
                 var existingSession = await _context.CaseSessions
-                    .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == request.CaseId && cs.IsActive);
+                    .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == request.CaseId && cs.Status == SessionStatus.Active);
 
                 if (existingSession != null)
                 {
-                    existingSession.IsActive = false;
+                    existingSession.Status = SessionStatus.Paused;
                     existingSession.SessionEnd = DateTime.UtcNow;
                     existingSession.SessionDurationMinutes = 
                         (int)(existingSession.SessionEnd.Value - existingSession.SessionStart).TotalMinutes;
@@ -55,7 +55,7 @@ namespace CaseZeroApi.Controllers
                     CaseId = request.CaseId,
                     SessionStart = DateTime.UtcNow,
                     GameTimeAtStart = request.GameTimeAtStart,
-                    IsActive = true
+                    Status = SessionStatus.Active
                 };
 
                 _context.CaseSessions.Add(newSession);
@@ -71,7 +71,7 @@ namespace CaseZeroApi.Controllers
                     SessionDurationMinutes = newSession.SessionDurationMinutes,
                     GameTimeAtStart = newSession.GameTimeAtStart,
                     GameTimeAtEnd = newSession.GameTimeAtEnd,
-                    IsActive = newSession.IsActive
+                    Status = newSession.Status
                 };
 
                 return Ok(sessionDto);
@@ -105,7 +105,7 @@ namespace CaseZeroApi.Controllers
                 _logger.LogInformation("🔍 Looking for active session for userId: {UserId}, caseId: {CaseId}", userId, caseId);
                 
                 var activeSession = await _context.CaseSessions
-                    .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == caseId && cs.IsActive);
+                    .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == caseId && cs.Status == SessionStatus.Active);
 
                 if (activeSession == null)
                 {
@@ -115,7 +115,7 @@ namespace CaseZeroApi.Controllers
 
                 _logger.LogInformation("✅ Active session found: {SessionId}", activeSession.Id);
                 
-                activeSession.IsActive = false;
+                activeSession.Status = SessionStatus.Paused;
                 activeSession.SessionEnd = DateTime.UtcNow;
                 activeSession.GameTimeAtEnd = request.GameTimeAtEnd;
                 activeSession.SessionDurationMinutes = 
@@ -135,7 +135,7 @@ namespace CaseZeroApi.Controllers
                     SessionDurationMinutes = activeSession.SessionDurationMinutes,
                     GameTimeAtStart = activeSession.GameTimeAtStart,
                     GameTimeAtEnd = activeSession.GameTimeAtEnd,
-                    IsActive = activeSession.IsActive
+                    Status = activeSession.Status
                 };
 
                 return Ok(sessionDto);
@@ -181,7 +181,7 @@ namespace CaseZeroApi.Controllers
                     SessionDurationMinutes = lastSession.SessionDurationMinutes,
                     GameTimeAtStart = lastSession.GameTimeAtStart,
                     GameTimeAtEnd = lastSession.GameTimeAtEnd,
-                    IsActive = lastSession.IsActive
+                    Status = lastSession.Status
                 };
 
                 return Ok(sessionDto);
@@ -220,7 +220,7 @@ namespace CaseZeroApi.Controllers
                         SessionDurationMinutes = cs.SessionDurationMinutes,
                         GameTimeAtStart = cs.GameTimeAtStart,
                         GameTimeAtEnd = cs.GameTimeAtEnd,
-                        IsActive = cs.IsActive
+                        Status = cs.Status
                     })
                     .ToListAsync();
 

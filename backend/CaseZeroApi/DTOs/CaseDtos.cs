@@ -169,7 +169,7 @@ namespace CaseZeroApi.DTOs
         public int SessionDurationMinutes { get; set; }
         public string? GameTimeAtStart { get; set; }
         public string? GameTimeAtEnd { get; set; }
-        public bool IsActive { get; set; }
+        public SessionStatus Status { get; set; }
     }
 
     public class StartCaseSessionRequest
