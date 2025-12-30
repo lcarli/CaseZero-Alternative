@@ -1,6 +1,7 @@
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using CaseGen.Functions.Services;
 
 namespace CaseGen.Functions.Functions;
 
@@ -12,10 +13,14 @@ namespace CaseGen.Functions.Functions;
 public class ForensicProcessorFunction
 {
     private readonly ILogger<ForensicProcessorFunction> _logger;
+    private readonly IStorageService _storageService;
 
-    public ForensicProcessorFunction(ILogger<ForensicProcessorFunction> logger)
+    public ForensicProcessorFunction(
+        ILogger<ForensicProcessorFunction> logger,
+        IStorageService storageService)
     {
         _logger = logger;
+        _storageService = storageService;
     }
 
     [Function(nameof(ForensicProcessorFunction))]
@@ -38,25 +43,43 @@ public class ForensicProcessorFunction
                 "Processing forensic request: RequestId={RequestId}, CaseId={CaseId}, AssetId={AssetId}, Type={AnalysisType}",
                 request.RequestId, request.CaseId, request.InputAssetId, request.AnalysisType);
 
-            // TODO (Task 37): Load case.json from blob storage
-            // var caseJson = await _caseV1StorageService.GetCaseRawAsync(request.CaseId);
+            // Task 37: Load case.json from blob storage
+            var caseJson = await LoadCaseJsonAsync(request.CaseId);
+            if (caseJson == null)
+            {
+                _logger.LogError("Failed to load case.json for case {CaseId}", request.CaseId);
+                return;
+            }
 
-            // TODO (Task 37): Find matching rule in case.json
-            // var rule = FindMatchingRule(caseJson, request.InputAssetId, request.AnalysisType);
+            // Task 37: Find matching rule in case.json
+            var matchingRule = FindMatchingRule(caseJson, request.InputAssetId, request.AnalysisType);
+            
+            if (matchingRule == null)
+            {
+                _logger.LogWarning(
+                    "No matching rule found for RequestId={RequestId}, AssetId={AssetId}, AnalysisType={AnalysisType}",
+                    request.RequestId, request.InputAssetId, request.AnalysisType);
+                // Generate "no findings" email (future enhancement)
+                return;
+            }
+
+            _logger.LogInformation(
+                "Found matching rule: Action={Action}, EmailId={EmailId}",
+                matchingRule.Action, matchingRule.EmailId);
 
             // TODO (Task 38): Execute reveal_email action
-            // if (rule?.Action == "reveal_email") {
-            //     await RevealEmailAsync(request.UserId, request.CaseId, rule.EmailId);
+            // if (matchingRule.Action == "reveal_email") {
+            //     await RevealEmailAsync(request.UserId, request.CaseId, matchingRule.EmailId);
             // }
 
             // TODO (Task 39): Update ForensicRequest status to "completed"
-            // await UpdateForensicRequestStatusAsync(request.RequestId, "completed", rule?.EmailId);
+            // await UpdateForensicRequestStatusAsync(request.RequestId, "completed", matchingRule.EmailId);
 
             // TODO (Task 40): Send SignalR notification to client
             // await _signalRHub.Clients.User(request.UserId).SendAsync("ForensicResultReady", request.RequestId);
 
             _logger.LogInformation(
-                "Forensic request processing placeholder completed. RequestId={RequestId}",
+                "Forensic request processing completed for RequestId={RequestId}",
                 request.RequestId);
         }
         catch (Exception ex)
@@ -65,6 +88,69 @@ public class ForensicProcessorFunction
             throw; // Will trigger Azure Functions retry logic
         }
     }
+
+    /// <summary>
+    /// Task 37: Load case.json from blob storage.
+    /// </summary>
+    private async Task<CaseJsonV1?> LoadCaseJsonAsync(string caseId)
+    {
+        try
+        {
+            var containerName = "cases"; // Same as CaseV1StorageService
+            var blobPath = $"{caseId}/case.json";
+            
+            var jsonContent = await _storageService.GetFileAsync(containerName, blobPath);
+            
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            
+            return JsonSerializer.Deserialize<CaseJsonV1>(jsonContent, options);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load case.json for case {CaseId}", caseId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Task 37: Find matching rule based on inputAssetId and analysisType.
+    /// Rules structure: rules.forensics[].inputAssetId + analysisType -> action + emailId
+    /// </summary>
+    private ForensicRule? FindMatchingRule(CaseJsonV1 caseJson, string inputAssetId, string analysisType)
+    {
+        try
+        {
+            var forensicRules = caseJson.Rules?.Forensics;
+            if (forensicRules == null || forensicRules.Count == 0)
+            {
+                _logger.LogWarning("No forensic rules defined in case.json");
+                return null;
+            }
+
+            var rule = forensicRules.FirstOrDefault(r =>
+                r.InputAssetId == inputAssetId &&
+                string.Equals(r.AnalysisType, analysisType, StringComparison.OrdinalIgnoreCase));
+
+            if (rule != null)
+            {
+                _logger.LogInformation(
+                    "Matched rule: InputAssetId={InputAssetId}, AnalysisType={AnalysisType}, Action={Action}, EmailId={EmailId}",
+                    rule.InputAssetId, rule.AnalysisType, rule.Action, rule.EmailId);
+            }
+
+            return rule;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error finding matching rule");
+            return null;
+        }
+    }
+
+    #region DTOs
 
     /// <summary>
     /// Message format matching the queue service in the API.
@@ -78,4 +164,27 @@ public class ForensicProcessorFunction
         public string AnalysisType { get; set; } = string.Empty;
         public DateTime EnqueuedAt { get; set; }
     }
+
+    /// <summary>
+    /// Simplified case.json v1.0 structure for forensic processing.
+    /// </summary>
+    private class CaseJsonV1
+    {
+        public RulesSection? Rules { get; set; }
+    }
+
+    private class RulesSection
+    {
+        public List<ForensicRule>? Forensics { get; set; }
+    }
+
+    private class ForensicRule
+    {
+        public string InputAssetId { get; set; } = string.Empty;
+        public string AnalysisType { get; set; } = string.Empty;
+        public string Action { get; set; } = string.Empty; // "reveal_email"
+        public string? EmailId { get; set; }
+    }
+
+    #endregion
 }

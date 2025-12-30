@@ -154,7 +154,14 @@
     - ✅ Deserializar mensagem da fila (RequestId, CaseId, UserId, InputAssetId, AnalysisType)
     - ✅ Placeholder para tasks 37-40 (load case.json, rules engine, reveal_email, completion)
     - **Implementado**: Function criada, compila com sucesso, pronta para receber mensagens
-37. 🔵 **Carregar** case.json e aplicar regras:
+37. ✅ 🔵 **Carregar** case.json e aplicar regras:
+    - ✅ Injetar IStorageService na Function
+    - ✅ LoadCaseJsonAsync: carregar case.json do blob storage (container "cases")
+    - ✅ Deserializar com JsonSerializer
+    - ✅ FindMatchingRule: buscar em rules.forensics[] por inputAssetId + analysisType
+    - ✅ Logging detalhado de matching rule ou warning se não encontrar
+    - **Implementado**: Function carrega case.json e encontra regra matching
+38. 🔵 **Implementar** ação reveal_email:
     - Mensagem: `{ RequestId, CaseId, UserId, InputAssetId, AnalysisType }`
 36. 🟢 Criar Azure Function com Queue Trigger:
     - Ler mensagem → buscar request no SQL → marcar Status = processing
