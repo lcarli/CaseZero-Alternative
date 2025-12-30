@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
-import { AssetDTO } from '../../services/api'
+import type { AssetDTO } from '../../services/api'
 
 const FileViewerContainer = styled.div`
   height: 100%;
@@ -107,13 +107,6 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets = [] }) => {
       'audio': '🎵',
     }
     return typeMap[type.toLowerCase()] || '📄'
-  }
-
-  const formatSize = (bytes?: number): string => {
-    if (!bytes) return 'Unknown'
-    if (bytes < 1024) return `${bytes} B`
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
   return (

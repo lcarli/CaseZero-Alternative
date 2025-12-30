@@ -476,20 +476,6 @@ export interface NormalizedCaseBundle {
   }
 }
 
-export interface ForensicRequestDTO {
-  id?: number
-  caseId: string
-  evidenceId: string
-  evidenceName: string
-  analysisType: 'DNA' | 'Fingerprint' | 'DigitalForensics' | 'Ballistics'
-  requestedAt: string // ISO string
-  estimatedCompletionTime: string // ISO string
-  completedAt?: string // ISO string
-  status: 'pending' | 'in-progress' | 'completed' | 'cancelled'
-  resultDocumentId?: string
-  notes?: string
-}
-
 export const caseFilesApi = {
   /**
    * Get all files for a specific case from the normalized bundle
@@ -728,11 +714,11 @@ export const emailsApi = {
 
 // Task 51: Forensic Requests API
 export interface ForensicRequestDTO {
-  id: number
+  id?: number
   caseId: string
   userId: string
   inputAssetId: string
-  inputAssetName: string
+  inputAssetName?: string
   analysisType: string
   requestedAt: string
   estimatedCompletionTime: string

@@ -87,17 +87,23 @@ export class CaseDataService {
       temporalEvents: [],
       timeline: [],
       solution: {
-        culpritId: '',
-        evidenceRequired: [],
-        conclusion: ''
+        culprit: '',
+        keyEvidence: '',
+        explanation: '',
+        requiredEvidence: [],
+        minimumScore: 0
       },
       unlockLogic: {
-        progressionType: 'Linear'
+        progressionRules: [],
+        analysisRules: []
       },
       gameMetadata: {
         version: caseV1.version,
         createdAt: new Date().toISOString(),
-        author: 'System'
+        createdBy: 'System',
+        tags: [],
+        difficulty: caseV1.metadata?.difficulty?.toString() || 'Medium',
+        estimatedPlayTime: caseV1.metadata?.estimatedTimeMinutes ? `${caseV1.metadata.estimatedTimeMinutes} minutes` : '60 minutes'
       }
     }
   }

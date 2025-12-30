@@ -50,13 +50,13 @@ function dtoToForensicRequest(dto: ForensicRequestDTO): ForensicRequest {
   return {
     id: dto.id?.toString() || '',
     caseId: dto.caseId,
-    evidenceId: dto.evidenceId,
-    evidenceName: dto.evidenceName,
-    analysisType: dto.analysisType,
+    evidenceId: dto.inputAssetId,
+    evidenceName: dto.inputAssetName || '',
+    analysisType: dto.analysisType as ForensicAnalysisType,
     requestedAt: new Date(dto.requestedAt),
     estimatedCompletionTime: new Date(dto.estimatedCompletionTime),
     completedAt: dto.completedAt ? new Date(dto.completedAt) : undefined,
-    status: dto.status,
+    status: dto.status as any,
     resultDocumentId: dto.resultDocumentId,
     notes: dto.notes
   }
@@ -69,8 +69,9 @@ function forensicRequestToDto(request: ForensicRequest): ForensicRequestDTO {
   return {
     id: request.id ? parseInt(request.id) : undefined,
     caseId: request.caseId,
-    evidenceId: request.evidenceId,
-    evidenceName: request.evidenceName,
+    userId: '', // Will be set by backend
+    inputAssetId: request.evidenceId,
+    inputAssetName: request.evidenceName,
     analysisType: request.analysisType,
     requestedAt: request.requestedAt.toISOString(),
     estimatedCompletionTime: request.estimatedCompletionTime.toISOString(),

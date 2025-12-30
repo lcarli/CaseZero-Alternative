@@ -102,9 +102,9 @@ const Desktop: React.FC = () => {
   
   // Task 47: State for assets, emails, and forensics
   const [assets, setAssets] = useState<any[]>([])
-  const [emails, setEmails] = useState<any[]>([])
-  const [forensics, setForensics] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [_emails, setEmails] = useState<any[]>([])
+  const [_forensics, setForensics] = useState<any[]>([])
+  const [_loading, setLoading] = useState(true)
 
   // Add desktop-mode class when component mounts, remove when it unmounts
   useEffect(() => {
