@@ -18,7 +18,8 @@
    - ✅ Remover: unlockLogic antigo (substituir por visibility system)
    - ✅ **Implementado:** CASE_JSON_V1_SPEC.md completo, case_001 criado
 2. ✅ 🟢 Definir regra de visibilidade: `visibility: initial | hidden` (sem "locked")
-3. 🟡 **Adaptar** "email do chefe" do sistema atual (já gera briefing) como `visibility: initial` + anexos iniciais
+3. ✅ 🟡 **Adaptar** "email do chefe" do sistema atual (já gera briefing) como `visibility: initial` + anexos iniciais
+   - **Implementado**: email.briefing_001 com visibility="initial" e attachments (briefing_doc, victim_photo)
 4. ✅ 🟡 **Padronizar** IDs existentes (asset.*, email.*, rule.*, suspect.*) - já tem convenção parcial
 5. ✅ 🟢 Criar `case.schema.json` (JSON Schema) para validar case.json v1
 6. ✅ 🟡 **Converter** um caso existente para `case.sample.json` v1 - **case_001 criado**
