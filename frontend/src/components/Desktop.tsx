@@ -171,6 +171,16 @@ const Desktop: React.FC = () => {
     return () => clearInterval(pollForensics)
   }, [currentCase])
 
+  // Task 48: Wrapper to inject assets into FileViewer windows
+  const handleOpenWindow = (id: string, title: string, component: React.ComponentType<any>) => {
+    // If opening FileViewer, pass assets as props
+    if (id === 'file-viewer') {
+      openWindow(id, title, component, { assets })
+    } else {
+      openWindow(id, title, component)
+    }
+  }
+
   const handleCaseDisconnect = async () => {
     console.log('🚪 Case disconnect button clicked!')
     console.log('📋 Current case:', currentCase)
@@ -233,7 +243,7 @@ const Desktop: React.FC = () => {
           />
         ))}
       </DesktopArea>
-      <Dock onOpenWindow={openWindow} onCaseDisconnect={handleCaseDisconnect} />
+      <Dock onOpenWindow={handleOpenWindow} onCaseDisconnect={handleCaseDisconnect} />
     </DesktopContainer>
   )
 }

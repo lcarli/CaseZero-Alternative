@@ -659,14 +659,19 @@ export const assetsApi = {
    * Download an asset file
    */
   downloadAsset: async (caseId: string, assetId: string): Promise<Blob> => {
-    const response = await fetch(`${apiClient.defaults.baseURL}/cases/${caseId}/assets/${assetId}/download`, {
+    const url = `${API_BASE_URL}/cases/${caseId}/assets/${assetId}/download`
+    const token = tokenStorage.get()
+    
+    const response = await fetch(url, {
       headers: {
-        Authorization: `Bearer ${tokenStorage.get()}`
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
       }
     })
+    
     if (!response.ok) {
-      throw new ApiError('Failed to download asset', response.status, response.statusText)
+      throw new ApiError(response.status, 'Failed to download asset')
     }
+    
     return response.blob()
   }
 }
