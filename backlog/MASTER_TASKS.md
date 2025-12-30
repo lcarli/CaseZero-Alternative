@@ -11,34 +11,42 @@
 
 ## A) Contrato do Caso (Case Definition)
 
-1. 🟡 **Adaptar** case.json v1 a partir do modelo existente (OBJETO_CASO.md):
-   - Manter: metadata, suspects (já funcionais)
-   - Renomear: evidences → assets
-   - Adicionar: emails (integrar EMAIL_SYSTEM), rules, forensicsDefaults
-   - Remover: unlockLogic antigo (substituir por visibility system)
-2. 🟢 Definir regra de visibilidade: `visibility: initial | hidden` (sem "locked")
+1. ✅ 🟡 **Adaptar** case.json v1 a partir do modelo existente (OBJETO_CASO.md):
+   - ✅ Manter: metadata, suspects (já funcionais)
+   - ✅ Renomear: evidences → assets
+   - ✅ Adicionar: emails (integrar EMAIL_SYSTEM), rules, forensicsDefaults
+   - ✅ Remover: unlockLogic antigo (substituir por visibility system)
+   - ✅ **Implementado:** CASE_JSON_V1_SPEC.md completo, case_001 criado
+2. ✅ 🟢 Definir regra de visibilidade: `visibility: initial | hidden` (sem "locked")
 3. 🟡 **Adaptar** "email do chefe" do sistema atual (já gera briefing) como `visibility: initial` + anexos iniciais
-4. 🟡 **Padronizar** IDs existentes (asset.*, email.*, rule.*, suspect.*) - já tem convenção parcial
-5. 🟢 Criar `case.schema.json` (JSON Schema) para validar case.json v1
-6. 🟡 **Converter** um caso existente para `case.sample.json` v1
-7. 🟢 Implementar "case linter" local (valida IDs únicos, paths, attachments, regras)
+4. ✅ 🟡 **Padronizar** IDs existentes (asset.*, email.*, rule.*, suspect.*) - já tem convenção parcial
+5. ✅ 🟢 Criar `case.schema.json` (JSON Schema) para validar case.json v1
+6. ✅ 🟡 **Converter** um caso existente para `case.sample.json` v1 - **case_001 criado**
+7. ✅ 🟢 Implementar "case linter" local (valida IDs únicos, paths, attachments, regras) - **case-linter.js criado**
+
+**Blob Storage Integration (Extra):**
+- ✅ Implementado ICaseV1StorageService + CaseV1StorageService
+- ✅ Criado CasesV1Controller com 5 endpoints REST
+- ✅ Frontend adapter CaseV1 → CaseData
+- ✅ Upload script (upload-case-to-blob.js)
+- ✅ case_001 testado e funcionando no blob
 
 ---
 
 ## B) Persistência de Sessão (SQL)
 
-8. 🔵 **Refatorar** CaseSessions existente (já tem UserId, CaseId, GameTime):
-   - Adicionar: Status enum (active, paused, completed)
-   - Já tem: GameTimeAtStart, GameTimeAtEnd (manter)
-9. 🟢 Criar tabela `CaseSessionVisibleAssets` (UserId, CaseId, AssetId)
-10. 🟢 Criar tabela `CaseSessionVisibleEmails` (UserId, CaseId, EmailId)
-11. 🟢 Criar tabela `CaseSessionEmailState` (UserId, CaseId, EmailId, ReadAt, OpenCount)
+8. ✅ 🔵 **Refatorar** CaseSessions existente (já tem UserId, CaseId, GameTime):
+   - ✅ Adicionar: Status enum (active, paused, completed)
+   - ✅ Já tem: GameTimeAtStart, GameTimeAtEnd (manter)
+9. ✅ 🟢 Criar tabela `CaseSessionVisibleAssets` (UserId, CaseId, AssetId)
+10. ✅ 🟢 Criar tabela `CaseSessionVisibleEmails` (UserId, CaseId, EmailId)
+11. ✅ 🟢 Criar tabela `CaseSessionEmailState` (UserId, CaseId, EmailId, ReadAt, OpenCount)
 12. 🟡 **Adaptar** ForensicAnalysis existente → ForensicsRequests:
     - Já tem: RequestId, UserId, CaseId, EvidenceId, AnalysisType, Status, RequestedAt, CompletedAt
     - Adicionar: ResultEmailId (referência ao email gerado)
     - Renomear: EvidenceId → InputAssetId
 13. 🟢 Criar tabela `EmailAttachmentsDownloaded` (UserId, CaseId, EmailId, AssetId, DownloadedAt)
-14. 🟡 **Estender** migrations EF existentes e rodar local
+14. ✅ 🟡 **Estender** migrations EF existentes e rodar local
 
 ---
 
