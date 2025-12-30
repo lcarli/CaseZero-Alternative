@@ -122,5 +122,90 @@ namespace CaseZeroApi.Controllers
                 return StatusCode(500, new { message = "An error occurred while retrieving emails" });
             }
         }
+
+        /// <summary>
+        /// POST /api/cases/{caseId}/emails/{emailId}/open
+        /// Marca email como aberto e incrementa contagem de aberturas
+        /// Insere/atualiza em CaseSessionEmailState
+        /// </summary>
+        [HttpPost("{emailId}/open")]
+        public async Task<IActionResult> OpenEmail(string caseId, string emailId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            try
+            {
+                // 1. Verificar acesso ao caso
+                var userCase = await _context.UserCases
+                    .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
+
+                if (userCase == null)
+                {
+                    _logger.LogWarning("User {UserId} attempted to open email from case {CaseId} without permission",
+                        userId, caseId);
+                    return Forbid("You don't have access to this case");
+                }
+
+                // 2. 🔒 VALIDAÇÃO CRÍTICA: Verificar se email está visível
+                var isVisible = await _context.CaseSessionVisibleEmails
+                    .AnyAsync(ve => ve.UserId == userId && ve.CaseId == caseId && ve.EmailId == emailId);
+
+                if (!isVisible)
+                {
+                    _logger.LogWarning("User {UserId} attempted to open invisible email {EmailId} in case {CaseId}",
+                        userId, emailId, caseId);
+                    return Forbid("Email not visible in current session");
+                }
+
+                // 3. Buscar ou criar estado do email
+                var emailState = await _context.CaseSessionEmailStates
+                    .FirstOrDefaultAsync(es => es.UserId == userId && es.CaseId == caseId && es.EmailId == emailId);
+
+                if (emailState == null)
+                {
+                    // Primeira abertura - criar novo estado
+                    emailState = new CaseSessionEmailState
+                    {
+                        UserId = userId,
+                        CaseId = caseId,
+                        EmailId = emailId,
+                        ReadAt = DateTime.UtcNow,
+                        OpenCount = 1
+                    };
+                    _context.CaseSessionEmailStates.Add(emailState);
+                    _logger.LogInformation("User {UserId} opened email {EmailId} for the first time in case {CaseId}",
+                        userId, emailId, caseId);
+                }
+                else
+                {
+                    // Email já foi aberto - incrementar contagem
+                    if (!emailState.ReadAt.HasValue)
+                    {
+                        emailState.ReadAt = DateTime.UtcNow;
+                    }
+                    emailState.OpenCount++;
+                    _logger.LogInformation("User {UserId} opened email {EmailId} (count: {Count}) in case {CaseId}",
+                        userId, emailId, emailState.OpenCount, caseId);
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    emailId,
+                    readAt = emailState.ReadAt,
+                    openCount = emailState.OpenCount,
+                    message = "Email opened successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error opening email {EmailId} for user {UserId} in case {CaseId}",
+                    emailId, userId, caseId);
+                return StatusCode(500, new { message = "An error occurred while opening the email" });
+            }
+        }
     }
 }

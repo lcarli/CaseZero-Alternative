@@ -107,8 +107,9 @@
     - ✅ Integrar com EMAIL_SYSTEM (modelo Email do CaseV1 usado)
     - ✅ Filtrar por CaseSessionVisibleEmails (🔒 CRÍTICO)
     - **Implementado**: EmailsController retorna emails visíveis com estados (lido, aberturas)
-27. 🟢 Criar endpoint POST /api/cases/{caseId}/emails/{emailId}/open:
-    - Inserir/atualizar CaseSessionEmailState (ReadAt, OpenCount)
+27. ✅ 🟢 Criar endpoint POST /api/cases/{caseId}/emails/{emailId}/open:
+    - ✅ Inserir/atualizar CaseSessionEmailState (ReadAt, OpenCount)
+    - **Implementado**: Marca primeira leitura e incrementa contagem de aberturas
 28. 🟢 Criar endpoint GET /api/cases/{caseId}/emails/{emailId}:
     - Retornar email completo + attachments (refs para assets)
 29. 🟡 **Adaptar** lógica de download de attachments:
