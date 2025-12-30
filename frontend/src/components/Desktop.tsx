@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
 import Dock from './Dock'
@@ -8,7 +8,7 @@ import { useCase } from '../hooks/useCaseContext'
 import { useAuth } from '../hooks/useAuthContext'
 import { useTimeContext } from '../hooks/useTimeContext'
 import { useLanguage } from '../hooks/useLanguageContext'
-import { caseSessionApi } from '../services/api'
+import { caseSessionApi, assetsApi, emailsApi, forensicsApi } from '../services/api'
 import logoMetroPolice from '../assets/LogoMetroPolice_transparent.png'
 
 const DesktopContainer = styled.div`
@@ -99,6 +99,12 @@ const Desktop: React.FC = () => {
   } = useWindowContext()
 
   const { currentCase } = useCase()
+  
+  // Task 47: State for assets, emails, and forensics
+  const [assets, setAssets] = useState<any[]>([])
+  const [emails, setEmails] = useState<any[]>([])
+  const [forensics, setForensics] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
   // Add desktop-mode class when component mounts, remove when it unmounts
   useEffect(() => {
@@ -107,6 +113,63 @@ const Desktop: React.FC = () => {
       document.body.classList.remove('desktop-mode')
     }
   }, [])
+
+  // Task 47: Load session data on mount
+  useEffect(() => {
+    const loadSessionData = async () => {
+      if (!currentCase) return
+
+      try {
+        setLoading(true)
+        
+        // Load assets, emails, and forensics in parallel
+        const [assetsData, emailsData, forensicsData] = await Promise.all([
+          assetsApi.getAssets(currentCase),
+          emailsApi.getEmails(currentCase),
+          forensicsApi.getPendingRequests(currentCase)
+        ])
+
+        setAssets(assetsData)
+        setEmails(emailsData)
+        setForensics(forensicsData)
+
+        console.log('✅ Session data loaded:', {
+          assets: assetsData.length,
+          emails: emailsData.length,
+          forensics: forensicsData.length
+        })
+      } catch (error) {
+        console.error('❌ Failed to load session data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadSessionData()
+  }, [currentCase])
+
+  // Task 51: Poll for forensic updates every 30 seconds
+  useEffect(() => {
+    if (!currentCase) return
+
+    const pollForensics = setInterval(async () => {
+      try {
+        const forensicsData = await forensicsApi.getPendingRequests(currentCase)
+        setForensics(forensicsData)
+        
+        // If any forensic completed, refetch emails
+        const hasCompleted = forensicsData.some((f: any) => f.status === 'completed')
+        if (hasCompleted) {
+          const emailsData = await emailsApi.getEmails(currentCase)
+          setEmails(emailsData)
+        }
+      } catch (error) {
+        console.error('❌ Failed to poll forensics:', error)
+      }
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(pollForensics)
+  }, [currentCase])
 
   const handleCaseDisconnect = async () => {
     console.log('🚪 Case disconnect button clicked!')

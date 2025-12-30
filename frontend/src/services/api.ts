@@ -638,5 +638,123 @@ export const notesApi = {
   }
 }
 
-export { ApiError }
+// Task 48: Assets API (replaces evidence API)
+export interface AssetDTO {
+  assetId: string
+  type: string
+  name: string
+  filePath: string
+  metadata?: Record<string, any>
+}
 
+export const assetsApi = {
+  /**
+   * Get all visible assets for a case (Task 48)
+   */
+  getAssets: async (caseId: string): Promise<AssetDTO[]> => {
+    return apiFetch(`/cases/${caseId}/assets`)
+  },
+
+  /**
+   * Download an asset file
+   */
+  downloadAsset: async (caseId: string, assetId: string): Promise<Blob> => {
+    const response = await fetch(`${apiClient.defaults.baseURL}/cases/${caseId}/assets/${assetId}/download`, {
+      headers: {
+        Authorization: `Bearer ${tokenStorage.get()}`
+      }
+    })
+    if (!response.ok) {
+      throw new ApiError('Failed to download asset', response.status, response.statusText)
+    }
+    return response.blob()
+  }
+}
+
+// Task 49-50: Emails API
+export interface EmailDTO {
+  id: string
+  from: string
+  to: string
+  subject: string
+  body: string
+  timestamp: string
+  attachments: string[]
+  metadata?: Record<string, any>
+}
+
+export interface EmailListDTO {
+  id: string
+  from: string
+  to: string
+  subject: string
+  timestamp: string
+  hasAttachments: boolean
+  isRead: boolean
+}
+
+export const emailsApi = {
+  /**
+   * Get all visible emails for a case (Task 49)
+   */
+  getEmails: async (caseId: string): Promise<EmailListDTO[]> => {
+    return apiFetch(`/cases/${caseId}/emails`)
+  },
+
+  /**
+   * Open an email (marks as read) and get full content (Task 49)
+   */
+  openEmail: async (caseId: string, emailId: string): Promise<EmailDTO> => {
+    await apiFetch(`/cases/${caseId}/emails/${emailId}/open`, {
+      method: 'POST'
+    })
+    return apiFetch(`/cases/${caseId}/emails/${emailId}`)
+  },
+
+  /**
+   * Download email attachment (Task 50)
+   */
+  downloadAttachment: async (caseId: string, assetId: string): Promise<void> => {
+    return apiFetch(`/cases/${caseId}/attachments/${assetId}/download`, {
+      method: 'POST'
+    })
+  }
+}
+
+// Task 51: Forensic Requests API
+export interface ForensicRequestDTO {
+  id: number
+  caseId: string
+  userId: string
+  inputAssetId: string
+  inputAssetName: string
+  analysisType: string
+  requestedAt: string
+  estimatedCompletionTime: string
+  completedAt?: string
+  status: string
+  resultDocumentId?: string
+  resultEmailId?: string
+  notes?: string
+}
+
+export const forensicsApi = {
+  /**
+   * Get pending forensic requests for a case (Task 51)
+   */
+  getPendingRequests: async (caseId: string): Promise<ForensicRequestDTO[]> => {
+    return apiFetch(`/forensicrequest/${caseId}/pending`)
+  },
+
+  /**
+   * Submit a new forensic request
+   */
+  submitRequest: async (caseId: string, inputAssetId: string, analysisType: string): Promise<ForensicRequestDTO> => {
+    return apiFetch(`/forensicrequest`, {
+      method: 'POST',
+      body: JSON.stringify({ caseId, inputAssetId, analysisType })
+    })
+  }
+}
+
+export { ApiError }
