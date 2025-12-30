@@ -13,7 +13,47 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = 3001;
-const SAMPLES_PATH = path.join(__dirname, '..', 'cases', 'samples');
+const CASES_ROOT = path.join(__dirname, '..', 'cases');
+const SAMPLES_PATH = path.join(CASES_ROOT, 'samples');
+
+// Função para buscar todos os case.json recursivamente
+function findAllCases() {
+  const cases = [];
+  
+  // Buscar em cases/samples/*.json
+  if (fs.existsSync(SAMPLES_PATH)) {
+    const sampleFiles = fs.readdirSync(SAMPLES_PATH)
+      .filter(f => f.endsWith('.json'));
+    
+    sampleFiles.forEach(f => {
+      const caseId = path.basename(f, '.json');
+      cases.push({
+        caseId: caseId,
+        path: path.join(SAMPLES_PATH, f),
+        source: 'samples'
+      });
+    });
+  }
+  
+  // Buscar em cases/case_*/case.json
+  if (fs.existsSync(CASES_ROOT)) {
+    const caseDirs = fs.readdirSync(CASES_ROOT)
+      .filter(d => d.startsWith('case_') && fs.statSync(path.join(CASES_ROOT, d)).isDirectory());
+    
+    caseDirs.forEach(dir => {
+      const caseJsonPath = path.join(CASES_ROOT, dir, 'case.json');
+      if (fs.existsSync(caseJsonPath)) {
+        cases.push({
+          caseId: dir,
+          path: caseJsonPath,
+          source: 'case_folder'
+        });
+      }
+    });
+  }
+  
+  return cases;
+}
 
 // Função de sanitização (replica lógica do C#)
 function sanitizeCaseV1(caseData) {
@@ -44,24 +84,16 @@ const server = http.createServer((req, res) => {
   // GET /api/dev/cases - lista casos
   if (req.url === '/api/dev/cases' && req.method === 'GET') {
     try {
-      if (!fs.existsSync(SAMPLES_PATH)) {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          error: 'Samples directory not found',
-          path: SAMPLES_PATH
-        }));
-        return;
-      }
-
-      const files = fs.readdirSync(SAMPLES_PATH)
-        .filter(f => f.endsWith('.json'))
-        .map(f => path.basename(f, '.json'));
-
+      const allCases = findAllCases();
+      
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         environment: 'DevServer (Node.js)',
-        samplesPath: SAMPLES_PATH,
-        availableCases: files,
+        casesRoot: CASES_ROOT,
+        availableCases: allCases.map(c => ({
+          caseId: c.caseId,
+          source: c.source
+        })),
         note: '⚠️ Dev endpoint - cases served from local filesystem'
       }, null, 2));
     } catch (err) {
@@ -77,38 +109,22 @@ const server = http.createServer((req, res) => {
     const caseId = matchCase[1];
     
     try {
-      // Tentar várias variações de nome
-      const possiblePaths = [
-        path.join(SAMPLES_PATH, `${caseId}.json`),
-        path.join(SAMPLES_PATH, `case.${caseId}.json`),
-        path.join(SAMPLES_PATH, `case_${caseId}.json`)
-      ];
+      // Buscar em todos os casos disponíveis
+      const allCases = findAllCases();
+      const foundCase = allCases.find(c => c.caseId === caseId);
 
-      let caseFilePath = null;
-      for (const p of possiblePaths) {
-        if (fs.existsSync(p)) {
-          caseFilePath = p;
-          break;
-        }
-      }
-
-      if (!caseFilePath) {
-        const availableFiles = fs.existsSync(SAMPLES_PATH)
-          ? fs.readdirSync(SAMPLES_PATH).filter(f => f.endsWith('.json'))
-          : [];
-
+      if (!foundCase) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
-          error: `Case file not found: ${caseId}`,
-          searchPath: SAMPLES_PATH,
-          availableFiles: availableFiles
+          error: `Case not found: ${caseId}`,
+          availableCases: allCases.map(c => c.caseId)
         }, null, 2));
         return;
       }
 
-      console.log(`📂 Loading case from: ${caseFilePath}`);
+      console.log(`📂 Loading case from: ${foundCase.path}`);
 
-      const jsonContent = fs.readFileSync(caseFilePath, 'utf8');
+      const jsonContent = fs.readFileSync(foundCase.path, 'utf8');
       const caseData = JSON.parse(jsonContent);
 
       // 🔒 SANITIZAÇÃO
@@ -121,17 +137,14 @@ const server = http.createServer((req, res) => {
         environment: 'DevServer (Node.js)',
         caseId: sanitized.caseId,
         version: sanitized.version,
-        source: caseFilePath,
+        source: foundCase.path,
         sanitized: true,
         data: sanitized,
         warning: '⚠️ Rules have been removed for client safety. Only "initial" visibility items are shown.'
       }, null, 2));
     } catch (err) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        error: 'Internal server error',
-        details: err.message
-      }));
+      res.end(JSON.stringify({ error: err.message, stack: err.stack }));
     }
     return;
   }
@@ -144,34 +157,25 @@ const server = http.createServer((req, res) => {
     console.warn(`⚠️⚠️⚠️ Loading RAW case ${caseId} without sanitization - DEBUG ONLY`);
 
     try {
-      const possiblePaths = [
-        path.join(SAMPLES_PATH, `${caseId}.json`),
-        path.join(SAMPLES_PATH, `case.${caseId}.json`)
-      ];
+      const allCases = findAllCases();
+      const foundCase = allCases.find(c => c.caseId === caseId);
 
-      let caseFilePath = null;
-      for (const p of possiblePaths) {
-        if (fs.existsSync(p)) {
-          caseFilePath = p;
-          break;
-        }
-      }
-
-      if (!caseFilePath) {
+      if (!foundCase) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: `Case file not found: ${caseId}` }));
+        res.end(JSON.stringify({ error: `Case not found: ${caseId}` }));
         return;
       }
 
-      const jsonContent = fs.readFileSync(caseFilePath, 'utf8');
+      const jsonContent = fs.readFileSync(foundCase.path, 'utf8');
       const caseData = JSON.parse(jsonContent);
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         environment: 'DevServer (Node.js)',
-        warning: '⚠️⚠️⚠️ RAW DATA - INCLUDES RULES AND ALL HIDDEN CONTENT ⚠️⚠️⚠️',
+        source: foundCase.path,
         sanitized: false,
-        data: caseData
+        data: caseData,
+        danger: '🚨 RAW DATA - Includes rules and all visibility items. NEVER send to client!'
       }, null, 2));
     } catch (err) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -183,22 +187,29 @@ const server = http.createServer((req, res) => {
   // 404
   res.writeHead(404, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({
-    error: 'Not found',
+    error: 'Not Found',
     availableEndpoints: [
       'GET /api/dev/cases',
       'GET /api/dev/cases/{caseId}',
       'GET /api/dev/cases/{caseId}/raw'
     ]
-  }));
+  }, null, 2));
 });
 
 server.listen(PORT, () => {
   console.log(`\n🚀 Dev Server running on http://localhost:${PORT}`);
-  console.log(`📂 Serving cases from: ${SAMPLES_PATH}`);
-  console.log(`\n📋 Available endpoints:`);
+  console.log(`📂 Serving cases from: ${CASES_ROOT}`);
+  
+  const allCases = findAllCases();
+  console.log(`\n📋 Found ${allCases.length} case(s):`);
+  allCases.forEach(c => {
+    console.log(`   - ${c.caseId} (${c.source})`);
+  });
+  
+  console.log(`\n💡 Available endpoints:`);
   console.log(`   GET http://localhost:${PORT}/api/dev/cases`);
-  console.log(`   GET http://localhost:${PORT}/api/dev/cases/case_001`);
-  console.log(`   GET http://localhost:${PORT}/api/dev/cases/case_001/raw`);
+  console.log(`   GET http://localhost:${PORT}/api/dev/cases/{caseId}`);
+  console.log(`   GET http://localhost:${PORT}/api/dev/cases/{caseId}/raw`);
   console.log(`\n💡 Example:`);
   console.log(`   curl http://localhost:${PORT}/api/dev/cases/case_001 | jq .data.emails`);
   console.log();
