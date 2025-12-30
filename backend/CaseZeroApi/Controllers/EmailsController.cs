@@ -207,5 +207,91 @@ namespace CaseZeroApi.Controllers
                 return StatusCode(500, new { message = "An error occurred while opening the email" });
             }
         }
+
+        /// <summary>
+        /// GET /api/cases/{caseId}/emails/{emailId}
+        /// Retorna email completo incluindo conteúdo e attachments
+        /// CRÍTICO: Valida visibilidade antes de retornar
+        /// </summary>
+        [HttpGet("{emailId}")]
+        public async Task<IActionResult> GetEmailDetails(string caseId, string emailId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            try
+            {
+                // 1. Verificar acesso ao caso
+                var userCase = await _context.UserCases
+                    .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
+
+                if (userCase == null)
+                {
+                    _logger.LogWarning("User {UserId} attempted to get email details from case {CaseId} without permission",
+                        userId, caseId);
+                    return Forbid("You don't have access to this case");
+                }
+
+                // 2. 🔒 VALIDAÇÃO CRÍTICA: Verificar se email está visível
+                var isVisible = await _context.CaseSessionVisibleEmails
+                    .AnyAsync(ve => ve.UserId == userId && ve.CaseId == caseId && ve.EmailId == emailId);
+
+                if (!isVisible)
+                {
+                    _logger.LogWarning("User {UserId} attempted to access invisible email {EmailId} in case {CaseId}",
+                        userId, emailId, caseId);
+                    return Forbid("Email not visible in current session");
+                }
+
+                // 3. Carregar case.json para obter email completo
+                var caseData = await _caseStorageService.GetCaseAsync(caseId);
+                if (caseData == null || caseData.Emails == null)
+                {
+                    _logger.LogWarning("Case data or emails not found for case {CaseId}", caseId);
+                    return NotFound(new { message = "Case or emails not found" });
+                }
+
+                // 4. Buscar email específico
+                var email = caseData.Emails.FirstOrDefault(e => e.EmailId == emailId);
+                if (email == null)
+                {
+                    _logger.LogWarning("Email {EmailId} not found in case {CaseId}", emailId, caseId);
+                    return NotFound(new { message = "Email not found" });
+                }
+
+                // 5. Buscar estado do email
+                var emailState = await _context.CaseSessionEmailStates
+                    .FirstOrDefaultAsync(es => es.UserId == userId && es.CaseId == caseId && es.EmailId == emailId);
+
+                // 6. Retornar email completo
+                var emailDetails = new
+                {
+                    emailId = email.EmailId,
+                    from = email.From,
+                    to = email.To,
+                    subject = email.Subject,
+                    sentAt = email.SentAt,
+                    priority = email.Priority,
+                    content = email.Content,
+                    attachments = email.Attachments ?? new List<string>(),
+                    metadata = email.Metadata,
+                    isRead = emailState?.ReadAt.HasValue ?? false,
+                    readAt = emailState?.ReadAt,
+                    openCount = emailState?.OpenCount ?? 0
+                };
+
+                _logger.LogInformation("User {UserId} accessed email {EmailId} details in case {CaseId}",
+                    userId, emailId, caseId);
+
+                return Ok(emailDetails);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting email {EmailId} details for user {UserId} in case {CaseId}",
+                    emailId, userId, caseId);
+                return StatusCode(500, new { message = "An error occurred while retrieving email details" });
+            }
+        }
     }
 }

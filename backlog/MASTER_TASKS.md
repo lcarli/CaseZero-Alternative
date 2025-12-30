@@ -110,8 +110,9 @@
 27. ✅ 🟢 Criar endpoint POST /api/cases/{caseId}/emails/{emailId}/open:
     - ✅ Inserir/atualizar CaseSessionEmailState (ReadAt, OpenCount)
     - **Implementado**: Marca primeira leitura e incrementa contagem de aberturas
-28. 🟢 Criar endpoint GET /api/cases/{caseId}/emails/{emailId}:
-    - Retornar email completo + attachments (refs para assets)
+28. ✅ 🟢 Criar endpoint GET /api/cases/{caseId}/emails/{emailId}:
+    - ✅ Retornar email completo + attachments (refs para assets)
+    - **Implementado**: Retorna conteúdo, attachments, metadata e estado de leitura
 29. 🟡 **Adaptar** lógica de download de attachments:
     - Rota: POST /api/cases/{caseId}/emails/{emailId}/attachments/{assetId}/download
     - Usar Blob Storage existente
