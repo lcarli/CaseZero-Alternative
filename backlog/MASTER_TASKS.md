@@ -147,7 +147,14 @@
     - ✅ Queue name: "forensic-requests"
     - ✅ Integrar no endpoint: após criar registro, enfileirar mensagem
     - **Implementado**: Serviço registrado como Singleton, mensagens enviadas à fila
-36. 🟢 **Criar** Azure Function com Queue Trigger:
+36. ✅ 🟢 **Criar** Azure Function com Queue Trigger:
+    - ✅ Projeto já existe: functions/CaseGen.Functions
+    - ✅ Adicionar extensão Microsoft.Azure.Functions.Worker.Extensions.Storage.Queues
+    - ✅ Criar ForensicProcessorFunction com [QueueTrigger("forensic-requests")]
+    - ✅ Deserializar mensagem da fila (RequestId, CaseId, UserId, InputAssetId, AnalysisType)
+    - ✅ Placeholder para tasks 37-40 (load case.json, rules engine, reveal_email, completion)
+    - **Implementado**: Function criada, compila com sucesso, pronta para receber mensagens
+37. 🔵 **Carregar** case.json e aplicar regras:
     - Mensagem: `{ RequestId, CaseId, UserId, InputAssetId, AnalysisType }`
 36. 🟢 Criar Azure Function com Queue Trigger:
     - Ler mensagem → buscar request no SQL → marcar Status = processing
