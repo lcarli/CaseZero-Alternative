@@ -34,7 +34,7 @@ namespace CaseZeroApi.IntegrationTests
         public async Task GetAssets_NeverExposeSensitiveData()
         {
             // Arrange
-            var token = await CreateAuthenticatedUserAndGetToken();
+            var token = await CreateAuthenticatedUserAndGetToken(userId: _testUserId);
             _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             
             // Criar sessão ativa para o usuário
@@ -78,7 +78,7 @@ namespace CaseZeroApi.IntegrationTests
         public async Task GetAssets_HiddenAsset_NotReturned()
         {
             // Arrange
-            var token = await CreateAuthenticatedUserAndGetToken();
+            var token = await CreateAuthenticatedUserAndGetToken(userId: _testUserId);
             _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             
             await CreateActiveSessionForUser(_testUserId, _testCaseId);
@@ -117,7 +117,7 @@ namespace CaseZeroApi.IntegrationTests
         public async Task DownloadAsset_InvisibleAsset_ReturnsForbidden()
         {
             // Arrange
-            var token = await CreateAuthenticatedUserAndGetToken();
+            var token = await CreateAuthenticatedUserAndGetToken(userId: _testUserId);
             _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             
             await CreateActiveSessionForUser(_testUserId, _testCaseId);
@@ -139,13 +139,14 @@ namespace CaseZeroApi.IntegrationTests
         public async Task GetAssets_DifferentUser_ReturnsForbidden()
         {
             // Arrange - Criar User A com sessão
-            var tokenUserA = await CreateAuthenticatedUserAndGetToken();
             var userAId = "user-a-security-test";
+            var tokenUserA = await CreateAuthenticatedUserAndGetToken(email: "usera@fic-police.gov", userId: userAId);
             await CreateActiveSessionForUser(userAId, _testCaseId);
             await AddVisibleAsset(userAId, _testCaseId, "asset.user_a_evidence");
 
             // Arrange - User B tenta acessar caso de User A
-            var tokenUserB = await CreateAuthenticatedUserAndGetToken(email: "userb@fic-police.gov");
+            var userBId = "user-b-security-test";
+            var tokenUserB = await CreateAuthenticatedUserAndGetToken(email: "userb@fic-police.gov", userId: userBId);
             _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenUserB);
 
             // Act
@@ -162,7 +163,7 @@ namespace CaseZeroApi.IntegrationTests
         public async Task StartCase_CreatesSessionWithInitialEmail()
         {
             // Arrange
-            var token = await CreateAuthenticatedUserAndGetToken();
+            var token = await CreateAuthenticatedUserAndGetToken(userId: _testUserId);
             _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             
             // Grant access to case
@@ -206,7 +207,7 @@ namespace CaseZeroApi.IntegrationTests
         public async Task GetCaseSession_NeverExposeSolution()
         {
             // Arrange
-            var token = await CreateAuthenticatedUserAndGetToken();
+            var token = await CreateAuthenticatedUserAndGetToken(userId: _testUserId);
             _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             
             await CreateActiveSessionForUser(_testUserId, _testCaseId);
@@ -228,15 +229,18 @@ namespace CaseZeroApi.IntegrationTests
 
         // ===== Helper Methods =====
 
-        private async Task<string> CreateAuthenticatedUserAndGetToken(string email = "security-test@fic-police.gov")
+        private async Task<string> CreateAuthenticatedUserAndGetToken(string email = "security-test@fic-police.gov", string? userId = null)
         {
             // Criar usuário via banco diretamente
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             var jwtService = scope.ServiceProvider.GetRequiredService<IJwtService>();
             
+            // Usar userId fornecido ou gerar a partir do email
+            var actualUserId = userId ?? email.Split('@')[0];
+            
             // Verificar se usuário já existe
-            var existingUser = await context.Users.FirstOrDefaultAsync(u => u.Id == _testUserId);
+            var existingUser = await context.Users.FirstOrDefaultAsync(u => u.Id == actualUserId);
             if (existingUser != null)
             {
                 // Usuário já existe, apenas gerar token
@@ -246,7 +250,7 @@ namespace CaseZeroApi.IntegrationTests
             // Criar novo usuário
             var user = new User
             {
-                Id = _testUserId,
+                Id = actualUserId,
                 UserName = email,
                 Email = email,
                 FirstName = "Test",

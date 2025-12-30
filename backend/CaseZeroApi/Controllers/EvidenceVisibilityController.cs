@@ -42,7 +42,7 @@ namespace CaseZeroApi.Controllers
                 // Check if user can access this case
                 if (!await _caseAccessService.CanUserAccessCaseAsync(userId, caseId))
                 {
-                    return Forbid("User does not have access to this case");
+                    return StatusCode(403, new { message = "User does not have access to this case" });
                 }
 
                 await _caseAccessService.UpdateEvidenceVisibilityAsync(userId, caseId, evidenceId, request.IsVisible);
@@ -83,7 +83,7 @@ namespace CaseZeroApi.Controllers
                 // Check if user can access this case
                 if (!await _caseAccessService.CanUserAccessCaseAsync(userId, caseId))
                 {
-                    return Forbid("User does not have access to this case");
+                    return StatusCode(403, new { message = "User does not have access to this case" });
                 }
 
                 var visibleEvidences = await _caseAccessService.GetVisibleEvidencesForUserAsync(userId, caseId);
@@ -132,7 +132,7 @@ namespace CaseZeroApi.Controllers
                 // Check if user can access this case
                 if (!await _caseAccessService.CanUserAccessCaseAsync(userId, caseId))
                 {
-                    return Forbid("User does not have access to this case");
+                    return StatusCode(403, new { message = "User does not have access to this case" });
                 }
 
                 var userCaseInstance = await _caseAccessService.CreateUserCaseInstanceAsync(userId, caseId);

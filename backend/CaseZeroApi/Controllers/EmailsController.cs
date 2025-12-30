@@ -62,7 +62,7 @@ namespace CaseZeroApi.Controllers
                 {
                     _logger.LogWarning("User {UserId} attempted to access emails from case {CaseId} without permission",
                         userId, caseId);
-                    return Forbid("You don't have access to this case");
+                    return StatusCode(403, new { message = "You don't have access to this case" });
                 }
 
                 // 2. Buscar sessão ativa do usuário
@@ -157,7 +157,7 @@ namespace CaseZeroApi.Controllers
                 {
                     _logger.LogWarning("User {UserId} attempted to open email from case {CaseId} without permission",
                         userId, caseId);
-                    return Forbid("You don't have access to this case");
+                    return StatusCode(403, new { message = "You don't have access to this case" });
                 }
 
                 // 2. 🔒 VALIDAÇÃO CRÍTICA: Verificar se email está visível
@@ -168,7 +168,7 @@ namespace CaseZeroApi.Controllers
                 {
                     _logger.LogWarning("User {UserId} attempted to open invisible email {EmailId} in case {CaseId}",
                         userId, emailId, caseId);
-                    return Forbid("Email not visible in current session");
+                    return StatusCode(403, new { message = "Email not visible in current session" });
                 }
 
                 // 3. Buscar ou criar estado do email
@@ -242,7 +242,7 @@ namespace CaseZeroApi.Controllers
                 {
                     _logger.LogWarning("User {UserId} attempted to get email details from case {CaseId} without permission",
                         userId, caseId);
-                    return Forbid("You don't have access to this case");
+                    return StatusCode(403, new { message = "You don't have access to this case" });
                 }
 
                 // 2. 🔒 VALIDAÇÃO CRÍTICA: Verificar se email está visível
@@ -253,7 +253,7 @@ namespace CaseZeroApi.Controllers
                 {
                     _logger.LogWarning("User {UserId} attempted to access invisible email {EmailId} in case {CaseId}",
                         userId, emailId, caseId);
-                    return Forbid("Email not visible in current session");
+                    return StatusCode(403, new { message = "Email not visible in current session" });
                 }
 
                 // 3. Carregar case.json para obter email completo
@@ -328,7 +328,7 @@ namespace CaseZeroApi.Controllers
                 {
                     _logger.LogWarning("User {UserId} attempted to download attachment from case {CaseId} without permission",
                         userId, caseId);
-                    return Forbid("You don't have access to this case");
+                    return StatusCode(403, new { message = "You don't have access to this case" });
                 }
 
                 // 2. 🔒 VALIDAÇÃO CRÍTICA: Verificar se email está visível (tarefa 31)
@@ -339,7 +339,7 @@ namespace CaseZeroApi.Controllers
                 {
                     _logger.LogWarning("User {UserId} attempted to download attachment from invisible email {EmailId} in case {CaseId}",
                         userId, emailId, caseId);
-                    return Forbid("Email not visible in current session");
+                    return StatusCode(403, new { message = "Email not visible in current session" });
                 }
 
                 // 3. Carregar email para verificar se assetId está nos attachments

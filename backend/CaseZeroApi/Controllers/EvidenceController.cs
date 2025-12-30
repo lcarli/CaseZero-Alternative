@@ -35,7 +35,7 @@ namespace CaseZeroApi.Controllers
                 .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
 
             if (userCase == null)
-                return Forbid("You don't have access to this case");
+                return StatusCode(403, new { message = "You don't have access to this case" });
 
             var evidences = await _context.Evidences
                 .Include(e => e.ForensicAnalyses)

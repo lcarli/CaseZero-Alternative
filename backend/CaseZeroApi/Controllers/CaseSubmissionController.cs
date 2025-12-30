@@ -36,7 +36,7 @@ namespace CaseZeroApi.Controllers
                 .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == request.CaseId);
 
             if (userCase == null)
-                return Forbid("You don't have access to this case");
+                return StatusCode(403, new { message = "You don't have access to this case" });
 
             // Check if case is still open for submissions
             if (userCase.Case.Status == CaseStatus.Closed || userCase.Case.Status == CaseStatus.Resolved)
@@ -85,7 +85,7 @@ namespace CaseZeroApi.Controllers
                 .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
 
             if (userCase == null)
-                return Forbid("You don't have access to this case");
+                return StatusCode(403, new { message = "You don't have access to this case" });
 
             var submissions = await _context.CaseSubmissions
                 .Where(cs => cs.CaseId == caseId && cs.SubmittedByUserId == userId)

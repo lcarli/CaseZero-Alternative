@@ -61,7 +61,7 @@ namespace CaseZeroApi.Controllers
                 if (userCase == null)
                 {
                     _logger.LogWarning("User {UserId} attempted to access case {CaseId} without permission", userId, caseId);
-                    return Forbid("You don't have access to this case");
+                    return StatusCode(403, new { message = "You don't have access to this case" });
                 }
 
                 // 2. Buscar sessão ativa do usuário
@@ -132,7 +132,7 @@ namespace CaseZeroApi.Controllers
                 {
                     _logger.LogWarning("User {UserId} attempted to download asset from case {CaseId} without permission", 
                         userId, caseId);
-                    return Forbid("You don't have access to this case");
+                    return StatusCode(403, new { message = "You don't have access to this case" });
                 }
 
                 // 2. 🔒 VALIDAÇÃO CRÍTICA: Verificar se asset está visível
@@ -143,7 +143,7 @@ namespace CaseZeroApi.Controllers
                 {
                     _logger.LogWarning("User {UserId} attempted to download invisible asset {AssetId} from case {CaseId}", 
                         userId, assetId, caseId);
-                    return Forbid("Asset not visible in current session");
+                    return StatusCode(403, new { message = "Asset not visible in current session" });
                 }
 
                 // 3. Download do blob

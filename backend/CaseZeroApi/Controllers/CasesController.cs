@@ -651,7 +651,7 @@ namespace CaseZeroApi.Controllers
                 var availableCases = await _caseAccessService.GetAvailableCasesForUserAsync(userId);
                 if (!availableCases.Contains(id))
                 {
-                    return Forbid("Access denied to this case");
+                    return StatusCode(403, new { message = "Access denied to this case" });
                 }
 
                 // For now, we'll need to implement a way to retrieve the normalized case bundle
@@ -720,7 +720,7 @@ namespace CaseZeroApi.Controllers
                 var availableCases = await _caseAccessService.GetAvailableCasesForUserAsync(userId);
                 if (!availableCases.Contains(id))
                 {
-                    return Forbid("Access denied to this case");
+                    return StatusCode(403, new { message = "Access denied to this case" });
                 }
 
                 var normalizedBundleJson = await GetNormalizedCaseBundleAsync(id, cancellationToken);

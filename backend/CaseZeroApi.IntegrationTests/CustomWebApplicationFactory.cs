@@ -16,6 +16,8 @@ namespace CaseZeroApi.IntegrationTests
 {
     public class CustomWebApplicationFactory<TStartup> : WebApplicationFactory<TStartup> where TStartup : class
     {
+        private readonly string _databaseName = $"TestDb_{Guid.NewGuid()}";
+        
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
@@ -38,7 +40,7 @@ namespace CaseZeroApi.IntegrationTests
                 // Add ApplicationDbContext using ONLY in-memory database for testing
                 services.AddDbContext<ApplicationDbContext>(options =>
                 {
-                    options.UseInMemoryDatabase("InMemoryDbForTesting")
+                    options.UseInMemoryDatabase(_databaseName)
                            .EnableSensitiveDataLogging();
                 });
 

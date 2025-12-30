@@ -49,7 +49,7 @@ namespace CaseZeroApi.Controllers
                 return NotFound("Evidence not found");
 
             if (!evidence.Case.UserCases.Any(uc => uc.UserId == userId))
-                return Forbid("You don't have access to this case");
+                return StatusCode(403, new { message = "You don't have access to this case" });
 
             // Create forensic analysis request
             var analysis = new ForensicAnalysis
@@ -159,7 +159,7 @@ namespace CaseZeroApi.Controllers
                 // Check if user can access this case
                 if (!await _caseAccessService.CanUserAccessCaseAsync(userId, caseId))
                 {
-                    return Forbid("User does not have access to this case");
+                    return StatusCode(403, new { message = "User does not have access to this case" });
                 }
 
                 // Get visible evidences for the user
@@ -208,7 +208,7 @@ namespace CaseZeroApi.Controllers
                 // Check if user can access this case
                 if (!await _caseAccessService.CanUserAccessCaseAsync(userId, caseId))
                 {
-                    return Forbid("User does not have access to this case");
+                    return StatusCode(403, new { message = "User does not have access to this case" });
                 }
 
                 // Get the case and evidence
