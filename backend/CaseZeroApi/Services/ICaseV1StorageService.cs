@@ -36,6 +36,21 @@ public interface ICaseV1StorageService
     /// Check if a case exists
     /// </summary>
     Task<bool> CaseExistsAsync(string caseId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get raw case.json content as string (for rules engine)
+    /// </summary>
+    Task<string> GetCaseJsonAsync(string caseId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get email JSON content as string
+    /// </summary>
+    Task<string> GetEmailAsync(string caseId, string emailId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Save email JSON content (for rules engine - add_email_attachment action)
+    /// </summary>
+    Task SaveEmailAsync(string caseId, string emailId, string content, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

@@ -248,4 +248,73 @@ public class CaseV1StorageService : ICaseV1StorageService
             return false;
         }
     }
+
+    public async Task<string> GetCaseJsonAsync(string caseId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containerClient = _blobServiceClient.GetBlobContainerClient(_casesContainer);
+            var caseJsonPath = $"{caseId}/case.json";
+            var blobClient = containerClient.GetBlobClient(caseJsonPath);
+
+            if (!await blobClient.ExistsAsync(cancellationToken))
+            {
+                return string.Empty;
+            }
+
+            var downloadResponse = await blobClient.DownloadContentAsync(cancellationToken);
+            return downloadResponse.Value.Content.ToString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get case.json for {CaseId}", caseId);
+            return string.Empty;
+        }
+    }
+
+    public async Task<string> GetEmailAsync(string caseId, string emailId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containerClient = _blobServiceClient.GetBlobContainerClient(_casesContainer);
+            var emailPath = $"{caseId}/emails/{emailId}.json";
+            var blobClient = containerClient.GetBlobClient(emailPath);
+
+            if (!await blobClient.ExistsAsync(cancellationToken))
+            {
+                _logger.LogWarning("Email not found: {CaseId}/{EmailId}", caseId, emailId);
+                return string.Empty;
+            }
+
+            var downloadResponse = await blobClient.DownloadContentAsync(cancellationToken);
+            return downloadResponse.Value.Content.ToString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get email {CaseId}/{EmailId}", caseId, emailId);
+            return string.Empty;
+        }
+    }
+
+    public async Task SaveEmailAsync(string caseId, string emailId, string content, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var containerClient = _blobServiceClient.GetBlobContainerClient(_casesContainer);
+            var emailPath = $"{caseId}/emails/{emailId}.json";
+            var blobClient = containerClient.GetBlobClient(emailPath);
+
+            await blobClient.UploadAsync(
+                BinaryData.FromString(content),
+                overwrite: true,
+                cancellationToken: cancellationToken);
+
+            _logger.LogInformation("Email saved: {CaseId}/{EmailId}", caseId, emailId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save email {CaseId}/{EmailId}", caseId, emailId);
+            throw;
+        }
+    }
 }

@@ -191,19 +191,42 @@
 
 ## G) Rules Engine v1 (mínimo viável)
 
-41. 🟢 Criar `RulesEngineService`:
-    - Método: `EvaluateRule(caseId, inputAssetId, analysisType)` → Rule | null
-    - Carregar rules[] do case.json (usar cache implementado em D25)
-42. 🟢 Implementar fallback:
-    - Se EvaluateRule retorna null → gerar email padrão "no findings"
-43. 🟢 Implementar action `reveal_email`:
-    - Método: `ApplyAction("reveal_email", { emailId, userId, caseId })`
-    - INSERT INTO CaseSessionVisibleEmails se não existir
-44. 🟢 Implementar action `reveal_asset`:
-    - Método: `ApplyAction("reveal_asset", { assetId, userId, caseId })`
-    - INSERT INTO CaseSessionVisibleAssets se não existir
-45. 🟢 Implementar action `add_email_attachment` (opcional v1):
-    - Atualizar JSON do email adicionando assetId em attachments[]
+41. ✅ 🟢 Criar `RulesEngineService`:
+    - ✅ Interface IRulesEngineService criada
+    - ✅ Método: `EvaluateForensicRuleAsync(caseId, inputAssetId, analysisType)` → ForensicRule | null
+    - ✅ Carregar rules[] do case.json (usa ICaseV1StorageService.GetCaseJsonAsync)
+    - ✅ Registrado como Scoped no Program.cs
+    - **Implementado**: Serviço centralizado para avaliação de regras
+42. ✅ 🟢 Implementar fallback:
+    - ✅ Se EvaluateForensicRuleAsync retorna null → gerar email padrão "no findings"
+    - ✅ Método: `GenerateNoFindingsEmailAsync(caseId, userId, inputAssetId, analysisType)`
+    - ✅ Email salvo no blob storage em emails/{emailId}.json
+    - ✅ Formato HTML com informações da análise
+    - **Implementado**: Email "no findings" gerado automaticamente quando não há regra
+43. ✅ 🟢 Implementar action `reveal_email`:
+    - ✅ Método: `ApplyRevealEmailActionAsync(userId, caseId, emailId)`
+    - ✅ INSERT INTO CaseSessionVisibleEmails se não existir
+    - ✅ Verifica duplicatas antes de inserir
+    - ✅ Logging detalhado de cada ação
+    - **Implementado**: Revela emails para usuários conforme regras
+44. ✅ 🟢 Implementar action `reveal_asset`:
+    - ✅ Método: `ApplyRevealAssetActionAsync(userId, caseId, assetId)`
+    - ✅ INSERT INTO CaseSessionVisibleAssets se não existir
+    - ✅ Verifica duplicatas antes de inserir
+    - ✅ Logging detalhado de cada ação
+    - **Implementado**: Revela assets para usuários conforme regras
+45. ✅ 🟢 Implementar action `add_email_attachment`:
+    - ✅ Método: `ApplyAddEmailAttachmentActionAsync(caseId, emailId, assetId)`
+    - ✅ Carrega email JSON do blob storage
+    - ✅ Adiciona assetId ao array attachments[]
+    - ✅ Salva email atualizado de volta ao blob storage
+    - ✅ Verifica duplicatas antes de adicionar
+    - **Implementado**: Adiciona anexos dinamicamente a emails existentes
+
+**Métodos auxiliares adicionados ao ICaseV1StorageService:**
+- ✅ `GetCaseJsonAsync(caseId)` - retorna case.json raw como string
+- ✅ `GetEmailAsync(caseId, emailId)` - retorna email JSON como string
+- ✅ `SaveEmailAsync(caseId, emailId, content)` - salva email JSON atualizado
 
 ---
 
