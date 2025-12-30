@@ -129,15 +129,17 @@
 
 ## F) Forensics — Submissão e Processamento (assíncrono)
 
-32. 🔵 **Refatorar** endpoint POST /api/forensicrequest:
-    - Já aceita evidenceId + analysisType
-    - Renomear param: evidenceId → inputAssetId
-    - Manter cálculo de duração baseado em GameTime
-33. 🟢 **Adicionar** validação:
-    - Verificar se inputAssetId está em CaseSessionVisibleAssets (🔒 CRÍTICO)
-34. 🔵 **Adaptar** criação de registro (ForensicAnalysis já existe):
-    - Já cria com status pending
-    - Adicionar campo: ResultEmailId (NULL inicialmente)
+32. ✅ 🔵 **Refatorar** endpoint POST /api/forensicrequest:
+    - ✅ Já aceita evidenceId + analysisType → Renomeado para inputAssetId
+    - ✅ Manter cálculo de duração baseado em GameTime
+    - **Implementado**: Endpoint POST /api/forensicrequest criado
+33. ✅ 🟢 **Adicionar** validação:
+    - ✅ Verificar se inputAssetId está em CaseSessionVisibleAssets (🔒 CRÍTICO)
+    - **Implementado**: Validação integrada antes de criar request
+34. ✅ 🔵 **Adaptar** criação de registro (ForensicRequest modelo):
+    - ✅ Já cria com status pending
+    - ✅ Adicionar campo: ResultEmailId (NULL inicialmente)
+    - **Implementado**: ForensicRequest criado com todos os campos
 35. 🟢 **Adicionar** enfileiramento em Azure Storage Queue:
     - Mensagem: `{ RequestId, CaseId, UserId, InputAssetId, AnalysisType }`
 36. 🟢 Criar Azure Function com Queue Trigger:

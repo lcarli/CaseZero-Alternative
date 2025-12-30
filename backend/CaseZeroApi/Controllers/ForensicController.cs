@@ -370,6 +370,94 @@ namespace CaseZeroApi.Controllers
                 }
             };
         }
+
+        /// <summary>
+        /// POST /api/forensicrequest
+        /// Endpoint moderno para submissão de análises forenses usando ForensicRequest
+        /// Tarefas 32-34: Renomeado para inputAssetId, validação de visibilidade, enfileiramento
+        /// </summary>
+        [HttpPost("/api/forensicrequest")]
+        public async Task<IActionResult> SubmitForensicRequest([FromBody] SubmitForensicRequestDto request)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
+            try
+            {
+                // 1. Verificar acesso ao caso
+                var userCase = await _context.UserCases
+                    .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == request.CaseId);
+
+                if (userCase == null)
+                {
+                    _logger.LogWarning("User {UserId} attempted to submit forensic request for case {CaseId} without permission",
+                        userId, request.CaseId);
+                    return Forbid("You don't have access to this case");
+                }
+
+                // 2. 🔒 VALIDAÇÃO CRÍTICA (tarefa 33): Verificar se inputAssetId está visível
+                var isAssetVisible = await _context.CaseSessionVisibleAssets
+                    .AnyAsync(va => va.UserId == userId && va.CaseId == request.CaseId && va.AssetId == request.InputAssetId);
+
+                if (!isAssetVisible)
+                {
+                    _logger.LogWarning("User {UserId} attempted to analyze invisible asset {AssetId} in case {CaseId}",
+                        userId, request.InputAssetId, request.CaseId);
+                    return Forbid("Asset not visible in current session");
+                }
+
+                // 3. Criar registro ForensicRequest (tarefa 34)
+                var forensicRequest = new ForensicRequest
+                {
+                    UserId = userId,
+                    CaseId = request.CaseId,
+                    InputAssetId = request.InputAssetId,
+                    InputAssetName = request.InputAssetName ?? request.InputAssetId,
+                    AnalysisType = request.AnalysisType,
+                    Status = "pending",
+                    RequestedAt = DateTime.UtcNow,
+                    ResultEmailId = null // NULL inicialmente, será preenchido quando completar
+                };
+
+                _context.ForensicRequests.Add(forensicRequest);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Forensic request created: Id {Id}, User {UserId}, Case {CaseId}, Asset {AssetId}, Type {AnalysisType}",
+                    forensicRequest.Id, userId, request.CaseId, request.InputAssetId, request.AnalysisType);
+
+                // 4. TODO (tarefa 35): Enfileirar em Azure Storage Queue
+                // await _queueService.EnqueueForensicRequestAsync(new {
+                //     RequestId = forensicRequest.Id,
+                //     CaseId = request.CaseId,
+                //     UserId = userId,
+                //     InputAssetId = request.InputAssetId,
+                //     AnalysisType = request.AnalysisType
+                // });
+
+                return Ok(new
+                {
+                    requestId = forensicRequest.Id,
+                    status = forensicRequest.Status,
+                    message = "Forensic analysis request submitted successfully",
+                    estimatedCompletionMinutes = 5 // TODO: calcular baseado em GameTime
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error submitting forensic request: User {UserId}, Case {CaseId}, Asset {AssetId}",
+                    userId, request.CaseId, request.InputAssetId);
+                return StatusCode(500, new { message = "An error occurred while submitting the forensic request" });
+            }
+        }
+    }
+
+    public class SubmitForensicRequestDto
+    {
+        public required string CaseId { get; set; }
+        public required string InputAssetId { get; set; } // Renomeado de evidenceId
+        public string? InputAssetName { get; set; }
+        public required string AnalysisType { get; set; }
     }
 
     public class RequestAnalysisDto
