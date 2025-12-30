@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using CaseZeroApi.Data;
 using System.Net.Http;
 using System.Text;
@@ -14,31 +15,41 @@ namespace CaseZeroApi.IntegrationTests
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            // Set environment variable to signal we're in test mode
+            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing");
+            
             builder.ConfigureServices(services =>
             {
-                // Remove the app's ApplicationDbContext registration
-                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
-                if (descriptor != null)
+                // Remove all existing DbContext registrations
+                var dbContextDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(ApplicationDbContext));
+                if (dbContextDescriptor != null)
                 {
-                    services.Remove(descriptor);
+                    services.Remove(dbContextDescriptor);
+                }
+
+                var dbContextOptionsDescriptor = services.FirstOrDefault(d => 
+                    d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>));
+                if (dbContextOptionsDescriptor != null)
+                {
+                    services.Remove(dbContextOptionsDescriptor);
                 }
 
                 // Add ApplicationDbContext using an in-memory database for testing
-                services.AddDbContext<ApplicationDbContext>(options =>
+                services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
                 {
-                    options.UseInMemoryDatabase("InMemoryDbForTesting");
+                    options.UseInMemoryDatabase("InMemoryDbForTesting")
+                           .EnableSensitiveDataLogging()
+                           .UseInternalServiceProvider(null); // Don't use an internal service provider
                 });
+            });
 
-                // Build the service provider
-                var sp = services.BuildServiceProvider();
-
-                // Create a scope to obtain a reference to the database context
-                using var scope = sp.CreateScope();
-                var scopedServices = scope.ServiceProvider;
-                var db = scopedServices.GetRequiredService<ApplicationDbContext>();
-
-                // Ensure the database is created
-                db.Database.EnsureCreated();
+            builder.ConfigureAppConfiguration((context, config) =>
+            {
+                // Override configuration for testing
+                config.AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["ConnectionStrings:DefaultConnection"] = "InMemory"
+                });
             });
         }
     }

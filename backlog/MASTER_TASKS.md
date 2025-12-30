@@ -322,32 +322,54 @@
 ## K) Testes (Funcionalidade + Segurança)
 
 ### Testes Funcionais Básicos
-60. Teste: start case cria sessão com email do chefe visível
-61. Teste: asset hidden não aparece em /assets
-62. Teste: baixar attachment revela asset
-63. Teste: forensics sem regra gera email "no findings"
-64. Teste: forensics com regra gera email com attachment
-65. Teste: usuário não consegue baixar asset não visível
+60. ✅ Teste: start case cria sessão com email do chefe visível
+    - **Implementado**: SecurityIntegrationTests.StartCase_CreatesSessionWithInitialEmail
+    - Verifica se sessão é criada com Status=Active
+    - Valida que email.briefing está visível após start
+61. ✅ Teste: asset hidden não aparece em /assets
+    - **Implementado**: SecurityIntegrationTests.GetAssets_HiddenAsset_NotReturned
+    - Adiciona apenas asset visível
+    - Verifica que assets hidden não aparecem na lista
+62. 🟡 Teste: baixar attachment revela asset
+63. 🟡 Teste: forensics sem regra gera email "no findings"
+64. 🟡 Teste: forensics com regra gera email com attachment
+65. ✅ Teste: usuário não consegue baixar asset não visível
+    - **Implementado**: SecurityIntegrationTests.DownloadAsset_InvisibleAsset_ReturnsForbidden
+    - Tenta baixar asset que NÃO está em CaseSessionVisibleAssets
+    - Verifica retorno 403 Forbidden
 
 ### Testes de Segurança (CRÍTICOS) 🔒
-105. **Teste anti-spoiler**:
+105. ✅ **Teste anti-spoiler**:
+     - **Implementado**: SecurityIntegrationTests.GetAssets_NeverExposeSensitiveData
      - GET /api/cases/{caseId}/assets sem filtro → só visíveis
+     - Verifica que response NÃO contém: "solution", "culprit", "rules", "answer", "hidden"
+     - Valida que apenas assets visíveis retornam
      - Acessar asset.hidden_xxx diretamente → 403
-106. **Teste sanitização**:
+106. ✅ **Teste sanitização**:
+     - **Implementado**: SecurityIntegrationTests.GetCaseSession_NeverExposeSolution
      - Buscar "solution" ou "culpritId" em response → NUNCA deve aparecer
      - Verificar que rules[] não são expostas
-107. **Teste autorização**:
+107. ✅ **Teste autorização**:
+     - **Implementado**: SecurityIntegrationTests.GetAssets_DifferentUser_ReturnsForbidden
      - User A tenta acessar sessão de User B → 403
      - User sem rank tenta caso avançado → 403
-108. **Teste rate limiting**:
+108. 🟡 **Teste rate limiting**:
      - 11 forensics requests em 1h → 11ª retorna 429
      - 101 email opens em 1h → 101ª retorna 429
-109. **Teste integridade**:
+109. 🟡 **Teste integridade**:
      - Modificar asset no Blob → checksum deve falhar
      - Enviar assetId malformado → 400
-110. **Teste concurrency**:
+110. 🟡 **Teste concurrency**:
      - Abrir caso em 2 tabs → apenas 1 "primária"
      - Forensics simultâneos → apenas 1 processa
+
+**NOVO: Testes de Segurança Implementados** (30/12/2025)
+- ✅ Arquivo criado: `backend/CaseZeroApi.IntegrationTests/SecurityIntegrationTests.cs`
+- ✅ Framework: xUnit + WebApplicationFactory + InMemory Database
+- ✅ 6 testes críticos implementados (Tasks 60, 61, 65, 105-107)
+- ✅ Compilação: Sucesso
+- ⏳ Pendente: Rodar testes contra API real e verificar falhas
+- ⏳ Próximo passo: Implementar correções de segurança se testes falharem
 
 ---
 
