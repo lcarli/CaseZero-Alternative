@@ -46,7 +46,7 @@ public class CaseV1Metadata
     public string CaseId { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string Difficulty { get; set; } = string.Empty;
+    public int Difficulty { get; set; }
     public string Category { get; set; } = string.Empty;
     public int EstimatedTimeMinutes { get; set; }
 }

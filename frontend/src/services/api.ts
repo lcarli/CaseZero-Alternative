@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
 
 // Types matching the backend DTOs
 export interface LoginRequest {
@@ -322,23 +322,25 @@ export const caseObjectApi = {
 }
 
 // Cases V1 API - for case.json v1.0 cases from Azure Blob Storage
+import type { CaseV1 } from '../types/caseV1'
+
 export const casesV1Api = {
   listCases: async (): Promise<Array<{
     caseId: string
     title: string
     description: string
-    difficulty: string
+    difficulty: number
     category: string
     estimatedTimeMinutes: number
   }>> => {
     return apiFetch('/cases/v1')
   },
 
-  getCase: async (caseId: string): Promise<any> => {
+  getCase: async (caseId: string): Promise<CaseV1> => {
     return apiFetch(`/cases/v1/${caseId}`)
   },
 
-  getCaseRaw: async (caseId: string): Promise<any> => {
+  getCaseRaw: async (caseId: string): Promise<CaseV1> => {
     return apiFetch(`/cases/v1/${caseId}/raw`)
   },
 

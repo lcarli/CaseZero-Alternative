@@ -10,7 +10,7 @@ class ForensicsSignalRService {
     }
 
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl('http://localhost:5000/hubs/forensics', {
+      .withUrl('http://localhost:5001/hubs/forensics', {
         accessTokenFactory: () => token
       })
       .withAutomaticReconnect()
