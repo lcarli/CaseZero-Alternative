@@ -350,5 +350,105 @@ namespace CaseZeroApi.IntegrationTests
                 await context.SaveChangesAsync();
             }
         }
+
+        /// <summary>
+        /// Task P83: Teste de sanitização do case.json
+        /// Verifica que case.json retornado NUNCA contém:
+        /// - rules[] (CRÍTICO: processamento server-side apenas)
+        /// - Metadata perigosa (solution, culpritId, answer)
+        /// - Assets/Emails hidden não desbloqueados
+        /// </summary>
+        [Fact]
+        public async Task GetCase_SanitizedResponse_NeverContainsSensitiveData()
+        {
+            // Arrange
+            var token = await CreateAuthenticatedUserAndGetToken(userId: _testUserId);
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            
+            // Criar sessão ativa para o usuário
+            await CreateActiveSessionForUser(_testUserId, _testCaseId);
+            
+            // Adicionar apenas alguns assets visíveis (não todos)
+            await AddVisibleAsset(_testUserId, _testCaseId, "asset.briefing_doc");
+
+            // Act - Buscar case.json via API v1
+            var response = await _client.GetAsync($"/api/cases/v1/{_testCaseId}");
+
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            
+            var content = await response.Content.ReadAsStringAsync();
+            var jsonContent = content.ToLower();
+
+            // 🔒 CRÍTICO: Verificar que "rules" NUNCA aparece (nem como null)
+            Assert.DoesNotContain("\"rules\"", jsonContent);
+            
+            // 🔒 CRÍTICO: Verificar que campos sensíveis não aparecem
+            Assert.DoesNotContain("solution", jsonContent);
+            Assert.DoesNotContain("culprit", jsonContent);
+            Assert.DoesNotContain("\"answer\"", jsonContent);
+            Assert.DoesNotContain("iscorrect", jsonContent);
+
+            // Verificar estrutura do response
+            var caseData = JsonSerializer.Deserialize<JsonElement>(content);
+            
+            // Verificar que metadata segura está presente
+            Assert.True(caseData.TryGetProperty("metadata", out var metadata));
+            Assert.True(metadata.TryGetProperty("title", out _));
+            
+            // Verificar que apenas assets visíveis aparecem
+            Assert.True(caseData.TryGetProperty("assets", out var assets));
+            var assetsCount = assets.GetArrayLength();
+            Assert.True(assetsCount <= 1, "Should only return visible assets");
+            
+            // Verificar que rules não existe na resposta
+            Assert.False(caseData.TryGetProperty("rules", out _), "Rules should never be exposed to client");
+        }
+
+        /// <summary>
+        /// Task P83: Teste que verifica sanitização de metadata perigosa
+        /// Se asset.Metadata contiver "solution" ou "answer", deve ser removido
+        /// </summary>
+        [Fact]
+        public async Task GetCase_WithDangerousMetadata_IsFiltered()
+        {
+            // Arrange
+            var token = await CreateAuthenticatedUserAndGetToken(userId: _testUserId);
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            
+            await CreateActiveSessionForUser(_testUserId, _testCaseId);
+            await AddVisibleAsset(_testUserId, _testCaseId, "asset.briefing_doc");
+
+            // Act
+            var response = await _client.GetAsync($"/api/cases/v1/{_testCaseId}");
+
+            // Assert
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            
+            var content = await response.Content.ReadAsStringAsync();
+            var caseData = JsonSerializer.Deserialize<JsonElement>(content);
+
+            // Se existirem assets com metadata
+            if (caseData.TryGetProperty("assets", out var assets) && assets.GetArrayLength() > 0)
+            {
+                foreach (var asset in assets.EnumerateArray())
+                {
+                    if (asset.TryGetProperty("metadata", out var metadata))
+                    {
+                        // Verificar que metadata não contém campos perigosos
+                        var metadataDict = metadata.Deserialize<Dictionary<string, object>>();
+                        if (metadataDict != null)
+                        {
+                            var dangerousKeys = new[] { "solution", "solutionStub", "answer", "culprit", "culpritId", "correct", "isCorrect" };
+                            
+                            foreach (var key in metadataDict.Keys)
+                            {
+                                Assert.DoesNotContain(dangerousKeys, dk => key.Contains(dk, StringComparison.OrdinalIgnoreCase));
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
