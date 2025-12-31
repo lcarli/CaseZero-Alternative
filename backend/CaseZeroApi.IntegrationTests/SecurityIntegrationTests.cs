@@ -79,13 +79,14 @@ namespace CaseZeroApi.IntegrationTests
         public async Task GetAssets_HiddenAsset_NotReturned()
         {
             // Arrange
-            var token = await CreateAuthenticatedUserAndGetToken(userId: _testUserId);
+            var testUserId = "test-user-hidden-asset-" + Guid.NewGuid().ToString()[..8];
+            var token = await CreateAuthenticatedUserAndGetToken(userId: testUserId);
             _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             
-            await CreateActiveSessionForUser(_testUserId, _testCaseId);
+            await CreateActiveSessionForUser(testUserId, _testCaseId);
             
             // Adicionar asset visível
-            await AddVisibleAsset(_testUserId, _testCaseId, "asset.visible_evidence");
+            await AddVisibleAsset(testUserId, _testCaseId, "asset.visible_evidence");
             
             // NÃO adicionar asset hidden (simula asset que ainda está hidden)
 
@@ -232,12 +233,14 @@ namespace CaseZeroApi.IntegrationTests
             // Assert
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             
-            // Verificar que sessão foi criada
+            // Verificar que sessão foi criada (buscar a mais recente)
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             
             var session = await context.CaseSessions
-                .FirstOrDefaultAsync(s => s.UserId == _testUserId && s.CaseId == _testCaseId);
+                .Where(s => s.UserId == _testUserId && s.CaseId == _testCaseId)
+                .OrderByDescending(s => s.SessionStart)
+                .FirstOrDefaultAsync();
             
             Assert.NotNull(session);
             Assert.Equal(SessionStatus.Active, session.Status);
