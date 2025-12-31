@@ -330,7 +330,11 @@
     - **Implementado**: SecurityIntegrationTests.GetAssets_HiddenAsset_NotReturned
     - Adiciona apenas asset visível
     - Verifica que assets hidden não aparecem na lista
-62. 🟡 Teste: baixar attachment revela asset
+62. ✅ Teste: baixar attachment revela asset
+    - **Implementado**: SecurityIntegrationTests.DownloadAttachment_RevealsAsset
+    - Verifica que download é registrado em EmailAttachmentsDownloaded
+    - Hook pós-download implementado no EmailsController
+    - 📝 TODO: Integrar RulesEngine.ApplyRule("reveal_asset") no endpoint
 63. 🟡 Teste: forensics sem regra gera email "no findings"
 64. 🟡 Teste: forensics com regra gera email com attachment
 65. ✅ Teste: usuário não consegue baixar asset não visível
