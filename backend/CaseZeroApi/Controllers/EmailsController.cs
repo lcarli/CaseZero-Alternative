@@ -90,7 +90,8 @@ namespace CaseZeroApi.Controllers
                 }
 
                 // 4. Carregar case.json para obter dados dos emails
-                var caseData = await _caseStorageService.GetCaseAsync(caseId);
+                // 🔒 IMPORTANT: Use GetCaseRawAsync to access all emails (visibility already filtered)
+                var caseData = await _caseStorageService.GetCaseRawAsync(caseId);
                 if (caseData == null || caseData.Emails == null || !caseData.Emails.Any())
                 {
                     _logger.LogWarning("Case data or emails not found for case {CaseId}", caseId);
@@ -257,7 +258,8 @@ namespace CaseZeroApi.Controllers
                 }
 
                 // 3. Carregar case.json para obter email completo
-                var caseData = await _caseStorageService.GetCaseAsync(caseId);
+                // 🔒 IMPORTANT: Use GetCaseRawAsync to access email content (visibility already checked)
+                var caseData = await _caseStorageService.GetCaseRawAsync(caseId);
                 if (caseData == null || caseData.Emails == null)
                 {
                     _logger.LogWarning("Case data or emails not found for case {CaseId}", caseId);
@@ -343,7 +345,8 @@ namespace CaseZeroApi.Controllers
                 }
 
                 // 3. Carregar email para verificar se assetId está nos attachments
-                var caseData = await _caseStorageService.GetCaseAsync(caseId);
+                // 🔒 IMPORTANT: Use GetCaseRawAsync to access hidden emails (visibility already checked above)
+                var caseData = await _caseStorageService.GetCaseRawAsync(caseId);
                 if (caseData == null || caseData.Emails == null)
                 {
                     _logger.LogWarning("Case data not found for case {CaseId}", caseId);
