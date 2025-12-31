@@ -11,7 +11,13 @@ using CaseZeroApi.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // 🔒 SECURITY: Omitir propriedades null para não expor "rules":null
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 
 // Configure Entity Framework - Always use Azure SQL Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");

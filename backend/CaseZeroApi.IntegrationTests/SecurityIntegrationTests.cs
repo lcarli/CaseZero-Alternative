@@ -8,6 +8,7 @@ using CaseZeroApi.Services;
 using Microsoft.Extensions.DependencyInjection;
 using CaseZeroApi.Data;
 using Microsoft.EntityFrameworkCore;
+using Azure.Storage.Blobs;
 
 namespace CaseZeroApi.IntegrationTests
 {
@@ -362,6 +363,9 @@ namespace CaseZeroApi.IntegrationTests
         public async Task GetCase_SanitizedResponse_NeverContainsSensitiveData()
         {
             // Arrange
+            // 📝 Criar case.json mock no blob storage
+            await CreateMockCaseInBlobStorage(_testCaseId);
+            
             var token = await CreateAuthenticatedUserAndGetToken(userId: _testUserId);
             _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
             
@@ -449,6 +453,130 @@ namespace CaseZeroApi.IntegrationTests
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Criar case.json mock no blob storage do Azurite para testes
+        /// </summary>
+        private async Task CreateMockCaseInBlobStorage(string caseId)
+        {
+            var connectionString = "UseDevelopmentStorage=true"; // Azurite
+            var blobServiceClient = new Azure.Storage.Blobs.BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("cases");
+            
+            // Criar container se não existir
+            await containerClient.CreateIfNotExistsAsync();
+            
+            // Criar case.json mock com dados sensíveis que devem ser removidos
+            var mockCase = new
+            {
+                version = "1.0",
+                caseId = caseId,
+                metadata = new
+                {
+                    title = "Test Case for Security",
+                    description = "Testing sanitization",
+                    difficulty = 1,
+                    estimatedTimeMinutes = 30,
+                    requiredRank = "Junior",
+                    location = "Test Location",
+                    incidentDate = "2025-01-01",
+                    category = "Test",
+                    briefing = "Test briefing"
+                },
+                assets = new object[]
+                {
+                    new
+                    {
+                        assetId = "asset.briefing_doc",
+                        name = "Briefing Document",
+                        type = "document",
+                        category = "briefing",
+                        description = "Initial briefing",
+                        filePath = "briefing.pdf",
+                        visibility = "initial"
+                    },
+                    new
+                    {
+                        assetId = "asset.hidden_evidence",
+                        name = "Hidden Evidence",
+                        type = "document",
+                        category = "evidence",
+                        description = "Secret evidence",
+                        filePath = "evidence.pdf",
+                        visibility = "hidden",
+                        metadata = new
+                        {
+                            solution = "This should be removed!", // 🔒 Deve ser bloqueado
+                            dangerousField = "dangerous"
+                        }
+                    }
+                },
+                emails = new object[]
+                {
+                    new
+                    {
+                        emailId = "email.briefing_001",
+                        from = "chief@police.com",
+                        to = "detective@police.com",
+                        subject = "Case Assignment",
+                        sentAt = "2025-01-01T10:00:00Z",
+                        priority = "high",
+                        visibility = "initial",
+                        content = "You have been assigned to this case."
+                    }
+                },
+                suspects = new object[]
+                {
+                    new
+                    {
+                        suspectId = "suspect.001",
+                        name = "John Doe",
+                        age = 35,
+                        occupation = "Engineer",
+                        relationship = "Colleague",
+                        motive = "Unknown",
+                        alibi = "Was at work",
+                        alibiVerified = false,
+                        background = "No criminal record",
+                        visibility = "initial"
+                    }
+                },
+                // 🔒 CRITICAL: Rules NUNCA devem ser expostas
+                rules = new object[]
+                {
+                    new
+                    {
+                        ruleId = "rule.001",
+                        trigger = new { type = "forensics_complete" },
+                        actions = new[] { new { type = "reveal_email" } }
+                    }
+                },
+                forensicsDefaults = new
+                {
+                    analysisTypes = new object[]
+                    {
+                        new
+                        {
+                            type = "dna",
+                            durationMinutes = 60,
+                            availableFor = new[] { "physical" }
+                        }
+                    }
+                }
+            };
+            
+            var caseJsonContent = JsonSerializer.Serialize(mockCase, new JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+            
+            // Upload para blob storage
+            var blobClient = containerClient.GetBlobClient($"{caseId}/case.json");
+            await blobClient.UploadAsync(
+                new BinaryData(caseJsonContent),
+                overwrite: true);
         }
     }
 }
