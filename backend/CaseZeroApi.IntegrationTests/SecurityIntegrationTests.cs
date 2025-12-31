@@ -186,6 +186,74 @@ namespace CaseZeroApi.IntegrationTests
         }
 
         /// <summary>
+        /// Task 63: Teste que forensics sem regra gera email "no findings"
+        /// Quando não há regra correspondente no case.json, deve gerar email padrão
+        /// </summary>
+        [Fact]
+        public async Task ForensicsWithoutRule_GeneratesNoFindingsEmail()
+        {
+            // Arrange
+            var testUserId = "test-user-forensics-" + Guid.NewGuid().ToString()[..8];
+            var testCaseId = "case_test_no_findings";
+            
+            // Criar mock do case sem regras de forensics
+            await CreateMockCaseWithoutForensicsRules(testCaseId);
+            
+            var token = await CreateAuthenticatedUserAndGetToken(userId: testUserId);
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            
+            await CreateActiveSessionForUser(testUserId, testCaseId);
+            
+            // Adicionar asset visível para análise
+            var inputAssetId = "asset.test_evidence";
+            await AddVisibleAsset(testUserId, testCaseId, inputAssetId);
+
+            // Act - Criar forensic request e simular processamento via service
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var rulesEngine = scope.ServiceProvider.GetRequiredService<IRulesEngineService>();
+            
+            // Criar forensic request manualmente
+            var forensicRequest = new ForensicRequest
+            {
+                UserId = testUserId,
+                CaseId = testCaseId,
+                InputAssetId = inputAssetId,
+                InputAssetName = "Test Evidence",
+                AnalysisType = "dna",
+                Status = "pending",
+                RequestedAt = DateTime.UtcNow
+            };
+            
+            context.ForensicRequests.Add(forensicRequest);
+            await context.SaveChangesAsync();
+            
+            // Simular processamento sem regra - deve gerar email "no findings"
+            var emailId = await rulesEngine.GenerateNoFindingsEmailAsync(
+                testCaseId, testUserId, inputAssetId, "Test Evidence");
+            
+            // Assert - Verificar que o email foi criado com ID correto
+            Assert.NotNull(emailId);
+            Assert.StartsWith("no-findings-", emailId);
+            
+            // Verificar que o email foi salvo no blob storage
+            var blobServiceClient = new Azure.Storage.Blobs.BlobServiceClient("UseDevelopmentStorage=true");
+            var containerClient = blobServiceClient.GetBlobContainerClient("cases");
+            var emailBlobClient = containerClient.GetBlobClient($"{testCaseId}/emails/{emailId}.json");
+            
+            var exists = await emailBlobClient.ExistsAsync();
+            Assert.True(exists, "Email blob should exist in storage");
+            
+            // Verificar conteúdo do email
+            var emailContent = await emailBlobClient.DownloadContentAsync();
+            var emailJson = emailContent.Value.Content.ToString();
+            var emailDoc = JsonDocument.Parse(emailJson);
+            
+            Assert.Equal("forensics@casezero.system", emailDoc.RootElement.GetProperty("from").GetString());
+            Assert.Contains("No Findings", emailDoc.RootElement.GetProperty("subject").GetString());
+        }
+
+        /// <summary>
         /// Task 107: Teste autorização - User A não acessa sessão de User B
         /// </summary>
         [Fact]
@@ -650,6 +718,92 @@ namespace CaseZeroApi.IntegrationTests
                         actions = new[] { new { type = "reveal_email" } }
                     }
                 },
+                forensicsDefaults = new
+                {
+                    analysisTypes = new object[]
+                    {
+                        new
+                        {
+                            type = "dna",
+                            durationMinutes = 60,
+                            availableFor = new[] { "physical" }
+                        }
+                    }
+                }
+            };
+            
+            var caseJsonContent = JsonSerializer.Serialize(mockCase, new JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+            
+            // Upload para blob storage
+            var blobClient = containerClient.GetBlobClient($"{caseId}/case.json");
+            await blobClient.UploadAsync(
+                new BinaryData(caseJsonContent),
+                overwrite: true);
+        }
+
+        /// <summary>
+        /// Criar case.json mock SEM regras de forensics para testar "no findings"
+        /// </summary>
+        private async Task CreateMockCaseWithoutForensicsRules(string caseId)
+        {
+            var connectionString = "UseDevelopmentStorage=true"; // Azurite
+            var blobServiceClient = new Azure.Storage.Blobs.BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("cases");
+            
+            // Criar container se não existir
+            await containerClient.CreateIfNotExistsAsync();
+            
+            // Criar case.json mock SEM regras de forensics
+            var mockCase = new
+            {
+                version = "1.0",
+                caseId = caseId,
+                metadata = new
+                {
+                    title = "Test Case - No Forensics Rules",
+                    description = "Testing no findings generation",
+                    difficulty = 1,
+                    estimatedTimeMinutes = 30,
+                    requiredRank = "Junior",
+                    location = "Test Location",
+                    incidentDate = "2025-01-01",
+                    category = "Test",
+                    briefing = "Test briefing for no findings"
+                },
+                assets = new object[]
+                {
+                    new
+                    {
+                        assetId = "asset.test_evidence",
+                        name = "Test Evidence",
+                        type = "physical",
+                        category = "evidence",
+                        description = "Evidence for forensics test",
+                        filePath = "evidence.jpg",
+                        visibility = "initial"
+                    }
+                },
+                emails = new object[]
+                {
+                    new
+                    {
+                        emailId = "email.briefing_001",
+                        from = "chief@police.com",
+                        to = "detective@police.com",
+                        subject = "Case Assignment",
+                        sentAt = "2025-01-01T10:00:00Z",
+                        priority = "high",
+                        visibility = "initial",
+                        content = "You have been assigned to this case."
+                    }
+                },
+                suspects = new object[0],
+                // 🔒 IMPORTANT: Empty rules array - no forensics rules means "no findings"
+                rules = new object[0],
                 forensicsDefaults = new
                 {
                     analysisTypes = new object[]

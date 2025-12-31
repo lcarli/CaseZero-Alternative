@@ -335,7 +335,13 @@
     - Verifica que download é registrado em EmailAttachmentsDownloaded
     - Hook pós-download implementado no EmailsController
     - 📝 TODO: Integrar RulesEngine.ApplyRule("reveal_asset") no endpoint
-63. 🟡 Teste: forensics sem regra gera email "no findings"
+63. ✅ Teste: forensics sem regra gera email "no findings"
+    - **Implementado**: SecurityIntegrationTests.ForensicsWithoutRule_GeneratesNoFindingsEmail
+    - Cria case sem regras de forensics (rules: [])
+    - Chama RulesEngineService.GenerateNoFindingsEmailAsync
+    - Verifica que email com ID "no-findings-{guid}" é criado
+    - Verifica que email é salvo em blob storage ({caseId}/emails/{emailId}.json)
+    - Valida conteúdo: from="forensics@casezero.system", subject contém "No Findings"
 64. 🟡 Teste: forensics com regra gera email com attachment
 65. ✅ Teste: usuário não consegue baixar asset não visível
     - **Implementado**: SecurityIntegrationTests.DownloadAsset_InvisibleAsset_ReturnsForbidden
