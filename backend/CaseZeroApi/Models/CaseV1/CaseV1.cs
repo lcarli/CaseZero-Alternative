@@ -109,6 +109,9 @@ public class Asset
     [JsonPropertyName("visibility")]
     public string Visibility { get; set; } = string.Empty; // initial, hidden
 
+    [JsonPropertyName("checksum")]
+    public string? Checksum { get; set; } // SHA256 hash (opcional)
+
     [JsonPropertyName("metadata")]
     public Dictionary<string, object>? Metadata { get; set; }
 }

@@ -495,25 +495,34 @@
     - ✅ Corrigido: ForensicRequest.User nullable para validação
     - **Implementado**: Audit trail completo para compliance, detecção de padrões suspeitos e rastreabilidade
 
-87. 🟢 **Adicionar checksum validation no download de assets**:
-    ```csharp
-    // Salvar hash SHA256 de cada asset no case.json
-    // Verificar integridade antes de servir (prevenir tampering)
-    ```
+87. ✅ **Adicionar checksum validation no download de assets** - COMPLETO:
+    - ✅ Schema atualizado: Campo `checksum` (SHA256, 64 caracteres hex) adicionado ao Asset
+    - ✅ Model CaseV1.Asset: Propriedade `Checksum` nullable adicionada
+    - ✅ AssetsController: Validação SHA256 antes de servir arquivo
+      * Calcula hash do blob durante download
+      * Compara com checksum esperado do case.json
+      * Rejeita download se hashes não coincidem (500 + mensagem de tampering)
+      * Audit log: asset_checksum_mismatch para falhas de integridade
+      * Audit log: asset_download com checksumValidated:true/false
+    - ✅ ICaseV1StorageService injetado para buscar metadata
+    - ✅ Logs estruturados: ⚠️ para mismatch, ✅ para validação bem-sucedida
+    - ✅ Testes: ChecksumValidationTests.cs (3/3 passando)
+      * AssetDownload_WithoutChecksum_RecordsNoValidation
+      * AssetDownload_CreatesAuditLogEntry
+      * CalculateSHA256_GeneratesCorrectHash
+    - **Implementado**: Proteção contra tampering de evidências via SHA256 checksum
 
-88. 🟢 **Implementar CORS restritivo**:
-    ```csharp
-    // Dev: localhost:3000
-    // Prod: domínio específico
-    // Bloquear wildcards (*) em produção
-    ```
+88. ⏭️ **~~Implementar CORS restritivo~~** - SKIP:
+    - ⏭️ Não necessário: CORS é configurado diretamente no Azure App Service
+    - ⏭️ Configuração via portal Azure ou bicep/terraform
+    - ⏭️ Dev: localhost:3000, Prod: domínio específico
+    - **Status**: Delegado para infraestrutura Azure
 
-89. 🟢 **Proteger endpoints de administração**:
-    ```csharp
-    [Authorize(Roles = "Admin")] // Geração de caso
-    // Verificar rank mínimo para casos específicos
-    // Bloqueio de casos até aprovação administrativa
-    ```
+89. ⏭️ **~~Proteger endpoints de administração~~** - SKIP (Temporário):
+    - ⏭️ Não necessário agora: Criação de casos será reimplementada posteriormente
+    - ⏭️ Endpoints atuais de DevCasesController são apenas para desenvolvimento
+    - ⏭️ Sistema final terá abordagem diferente para gestão de casos
+    - **Status**: Adiado para redesign futuro
 
 90. 🟢 **Implementar Content Security Policy headers**:
     ```csharp

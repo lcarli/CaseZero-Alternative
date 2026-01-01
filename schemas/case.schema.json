@@ -214,6 +214,11 @@
           "enum": ["initial", "hidden"],
           "description": "Visibilidade inicial do asset"
         },
+        "checksum": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA256 checksum do arquivo (opcional, para validação de integridade)"
+        },
         "metadata": {
           "type": "object",
           "description": "Metadados específicos do tipo"
