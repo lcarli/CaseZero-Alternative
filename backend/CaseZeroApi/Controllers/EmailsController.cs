@@ -410,9 +410,17 @@ namespace CaseZeroApi.Controllers
                     userId, assetId, emailId, caseId);
 
                 // 7. 🎯 HOOK: Aplicar regra reveal_asset (tarefa 30)
-                // TODO: Implementar RulesEngine.ApplyRule("reveal_asset", assetId)
-                // Por enquanto, apenas log
-                _logger.LogInformation("Triggering reveal_asset rule for asset {AssetId} in case {CaseId}", assetId, caseId);
+                // Desbloquear asset automaticamente após download de attachment
+                try
+                {
+                    await _visibilityService.UnlockAssetAsync(userId, caseId, assetId);
+                    _logger.LogInformation("Asset {AssetId} unlocked for user {UserId} after email attachment download", assetId, userId);
+                }
+                catch (Exception revealEx)
+                {
+                    _logger.LogWarning(revealEx, "Failed to unlock asset {AssetId} after download, but file was downloaded successfully", assetId);
+                    // Continue - download succeeded even if unlock failed
+                }
 
                 // 8. Stream do arquivo
                 var download = await blobClient.DownloadStreamingAsync();

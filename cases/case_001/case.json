@@ -26,7 +26,7 @@
       "category": "Document",
       "description": "Official case assignment document from Chief of Police containing preliminary details about Thomas Blackwood Jr.'s disappearance",
       "filePath": "/cases/case_001/assets/briefing.pdf",
-      "visibility": "initial",
+      "visibility": "hidden",
       "metadata": {
         "pages": 2,
         "fileSize": "245KB",
@@ -40,7 +40,7 @@
       "category": "Document",
       "description": "Recent photograph of the missing person taken at company event three weeks ago",
       "filePath": "/cases/case_001/assets/victim_photo.jpg",
-      "visibility": "initial",
+      "visibility": "hidden",
       "metadata": {
         "resolution": "1920x1080",
         "dateTaken": "2025-11-22"
