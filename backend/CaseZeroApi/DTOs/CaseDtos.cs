@@ -208,7 +208,9 @@ namespace CaseZeroApi.DTOs
         public string CaseId { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
+        public string? FilePath { get; set; }
         public bool IsVisible { get; set; }
+        public Dictionary<string, object>? Metadata { get; set; }
     }
 
     /// <summary>

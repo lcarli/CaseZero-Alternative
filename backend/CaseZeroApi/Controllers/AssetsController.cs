@@ -94,14 +94,28 @@ namespace CaseZeroApi.Controllers
                     return Ok(new List<AssetDto>());
                 }
 
-                // 4. Retornar metadata dos assets (formato mantido compatível com EvidenceDto)
-                var assets = visibleAssetIds.Select(assetId => new AssetDto
+                // 4. Enriquecer metadata dos assets com dados do case.json
+                // Use GetCaseRawAsync to get ALL assets (including hidden ones)
+                var caseData = await _caseStorageService.GetCaseRawAsync(caseId);
+                _logger.LogInformation("DEBUG: CaseData is null? {IsNull}, Assets count: {Count}", 
+                    caseData == null, caseData?.Assets?.Count ?? 0);
+                
+                var assets = visibleAssetIds.Select(assetId =>
                 {
-                    Id = assetId,
-                    CaseId = caseId,
-                    Name = assetId, // Nome será enriquecido depois com case.json
-                    Type = "file", // Tipo genérico, será enriquecido depois
-                    IsVisible = true
+                    var assetMetadata = caseData?.Assets?.FirstOrDefault(a => a.AssetId == assetId);
+                    _logger.LogInformation("DEBUG: Asset {AssetId} - Found metadata? {Found}, FilePath: {FilePath}", 
+                        assetId, assetMetadata != null, assetMetadata?.FilePath ?? "null");
+                    
+                    return new AssetDto
+                    {
+                        Id = assetId,
+                        CaseId = caseId,
+                        Name = assetMetadata?.Name ?? assetId,
+                        Type = assetMetadata?.Type ?? "file",
+                        FilePath = assetMetadata?.FilePath,
+                        IsVisible = true,
+                        Metadata = assetMetadata?.Metadata
+                    };
                 }).ToList();
 
                 _logger.LogInformation("Returned {Count} visible assets for user {UserId} in case {CaseId}", 

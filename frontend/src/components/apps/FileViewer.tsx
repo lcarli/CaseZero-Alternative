@@ -111,12 +111,17 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onR
     setAssets(initialAssets)
   }, [initialAssets])
 
-  // Detect file type from filename
-  const detectFileType = (fileName: string): 'text' | 'image' | 'pdf' | 'video' | 'audio' => {
-    const ext = fileName.split('.').pop()?.toLowerCase() || ''
+  // Detect file type from filename or asset metadata
+  const detectFileType = (asset: AssetDTO): 'text' | 'image' | 'pdf' | 'video' | 'audio' => {
+    // Try filePath first (e.g., "/cases/case_001/assets/briefing.pdf")
+    const fileToCheck = asset.filePath || asset.name
+    const ext = fileToCheck.split('.').pop()?.toLowerCase() || ''
     
-    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext)) return 'image'
-    if (['pdf'].includes(ext)) return 'pdf'
+    // Also check metadata.format if extension not found
+    const format = asset.metadata?.format?.toLowerCase() || ''
+    
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext) || format === 'jpg' || format === 'jpeg') return 'image'
+    if (['pdf'].includes(ext) || format === 'pdf') return 'pdf'
     if (['mp4', 'avi', 'mov', 'webm'].includes(ext)) return 'video'
     if (['mp3', 'wav', 'ogg'].includes(ext)) return 'audio'
     return 'text'
@@ -130,7 +135,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onR
     return {
       id: asset.id,
       name: asset.name,
-      type: detectFileType(asset.name),
+      type: detectFileType(asset),
       icon: getFileIcon(asset.type),
       size: '0 KB', // Size not available in AssetDTO
       modified: new Date().toISOString(),
