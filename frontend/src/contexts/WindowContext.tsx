@@ -12,6 +12,7 @@ interface WindowContextType {
   updateWindowSize: (id: string, size: { width: number; height: number }) => void
   maximizeWindow: (id: string) => void
   minimizeWindow: (id: string) => void
+  updateWindowProps: (id: string, componentProps: Record<string, any>) => void
   isWindowOpen: (id: string) => boolean
   getWindow: (id: string) => WindowData | undefined
 }
@@ -40,6 +41,7 @@ export const WindowProvider: React.FC<WindowProviderProps> = ({ children }) => {
       title,
       component,
       componentProps,
+      propsKey: 0,
       isOpen: true,
       position: { 
         x: Math.random() * 300 + 100, 
@@ -134,6 +136,18 @@ export const WindowProvider: React.FC<WindowProviderProps> = ({ children }) => {
     )
   }
 
+  const updateWindowProps = (id: string, componentProps: Record<string, any>) => {
+    setWindows(prev => 
+      prev.map(w => 
+        w.id === id ? { 
+          ...w, 
+          componentProps: { ...w.componentProps, ...componentProps },
+          propsKey: (w.propsKey || 0) + 1
+        } : w
+      )
+    )
+  }
+
   const isWindowOpen = (id: string): boolean => {
     return windows.some(w => w.id === id)
   }
@@ -152,6 +166,7 @@ export const WindowProvider: React.FC<WindowProviderProps> = ({ children }) => {
     updateWindowSize,
     maximizeWindow,
     minimizeWindow,
+    updateWindowProps,
     isWindowOpen,
     getWindow
   }

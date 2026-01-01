@@ -399,5 +399,60 @@ namespace CaseZeroApi.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
+
+        /// <summary>
+        /// Reset visibility for a case (useful for testing)
+        /// DELETE /api/CaseSession/reset-visibility/{caseId}
+        /// </summary>
+        [HttpDelete("reset-visibility/{caseId}")]
+        public async Task<IActionResult> ResetVisibility(string caseId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                // Remove all visible assets for this user/case
+                var visibleAssets = await _context.CaseSessionVisibleAssets
+                    .Where(va => va.UserId == userId && va.CaseId == caseId)
+                    .ToListAsync();
+                
+                _context.CaseSessionVisibleAssets.RemoveRange(visibleAssets);
+
+                // Remove all visible emails for this user/case
+                var visibleEmails = await _context.CaseSessionVisibleEmails
+                    .Where(ve => ve.UserId == userId && ve.CaseId == caseId)
+                    .ToListAsync();
+                
+                _context.CaseSessionVisibleEmails.RemoveRange(visibleEmails);
+
+                // Remove attachment downloads
+                var downloads = await _context.EmailAttachmentsDownloaded
+                    .Where(d => d.UserId == userId && d.CaseId == caseId)
+                    .ToListAsync();
+                
+                _context.EmailAttachmentsDownloaded.RemoveRange(downloads);
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Reset visibility for user {UserId} on case {CaseId}. Removed {Assets} assets, {Emails} emails, {Downloads} downloads", 
+                    userId, caseId, visibleAssets.Count, visibleEmails.Count, downloads.Count);
+
+                return Ok(new { 
+                    message = "Visibility reset successfully",
+                    assetsRemoved = visibleAssets.Count,
+                    emailsRemoved = visibleEmails.Count,
+                    downloadsRemoved = downloads.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting visibility for user {UserId} and case {CaseId}", userId, caseId);
+                return StatusCode(500, "Internal server error");
+            }
+        }
     }
 }

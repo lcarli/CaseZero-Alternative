@@ -291,6 +291,12 @@ export const caseSessionApi = {
   
   getCaseSessions: async (caseId: string): Promise<CaseSession[]> => {
     return apiFetch(`/casesession/${caseId}`)
+  },
+
+  resetVisibility: async (caseId: string): Promise<{ message: string; assetsRemoved: number; emailsRemoved: number; downloadsRemoved: number }> => {
+    return apiFetch(`/casesession/reset-visibility/${caseId}`, {
+      method: 'DELETE'
+    })
   }
 }
 

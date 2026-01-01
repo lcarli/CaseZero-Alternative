@@ -96,7 +96,9 @@ const Desktop: React.FC = () => {
     updateWindowPosition,
     updateWindowSize,
     maximizeWindow,
-    minimizeWindow
+    minimizeWindow,
+    updateWindowProps,
+    isWindowOpen
   } = useWindowContext()
 
   const { currentCase } = useCase()
@@ -227,7 +229,11 @@ const Desktop: React.FC = () => {
     try {
       const assetsData = await assetsApi.getAssets(currentCase)
       setAssets(assetsData)
-      console.log('✅ Assets refetched:', assetsData.length)
+      
+      // Update FileViewer props if window is open
+      if (isWindowOpen('file-viewer')) {
+        updateWindowProps('file-viewer', { assets: assetsData })
+      }
     } catch (error) {
       console.error('❌ Failed to refetch assets:', error)
     }
@@ -235,9 +241,9 @@ const Desktop: React.FC = () => {
 
   // Task 48-49: Wrapper to inject props into app windows
   const handleOpenWindow = (id: string, title: string, component: React.ComponentType<any>) => {
-    // If opening FileViewer, pass assets as props
+    // If opening FileViewer, pass assets and refresh callback
     if (id === 'file-viewer') {
-      openWindow(id, title, component, { assets })
+      openWindow(id, title, component, { assets, onRefresh: refetchAssets })
     } 
     // If opening EmailApp, pass emails and caseId
     else if (id === 'email-app') {
@@ -289,6 +295,22 @@ const Desktop: React.FC = () => {
     }
   }
 
+  const handleResetVisibility = async () => {
+    if (!currentCase) return
+    
+    if (confirm('⚠️ Reset visibility? This will clear all unlocked assets and emails for testing.')) {
+      try {
+        const result = await caseSessionApi.resetVisibility(currentCase)
+        console.log('✅ Visibility reset:', result)
+        alert(`Reset complete! Removed ${result.assetsRemoved} assets, ${result.emailsRemoved} emails, ${result.downloadsRemoved} downloads`)
+        window.location.reload()
+      } catch (error) {
+        console.error('Failed to reset visibility:', error)
+        alert('Failed to reset visibility')
+      }
+    }
+  }
+
   return (
     <DesktopContainer>
       <SystemInfo>
@@ -298,6 +320,9 @@ const Desktop: React.FC = () => {
         <div><span className="label">{t('currentCase')}:</span> {currentCase || 'No Case'}</div>
         <div><span className="label">{t('currentLanguage')}:</span> {language.flag} {language.code}</div>
         <div><span className="label">Status:</span> Active</div>
+        <button onClick={handleResetVisibility} style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#ff4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+          🔄 Reset Visibility (DEV)
+        </button>
       </SystemInfo>
       
       <DesktopArea>

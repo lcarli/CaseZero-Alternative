@@ -6,6 +6,7 @@ export interface WindowData {
   title: string
   component: React.ComponentType<any>
   componentProps?: Record<string, any>
+  propsKey?: number
   isOpen: boolean
   position: { x: number; y: number }
   size: { width: number; height: number }
@@ -235,7 +236,7 @@ const Window: React.FC<WindowProps> = ({
         </WindowControls>
       </WindowHeader>
       <WindowContent $isResizing={isResizing}>
-        <Component {...(window.componentProps || {})} />
+        <Component key={window.propsKey || 0} {...(window.componentProps || {})} />
       </WindowContent>
       {!window.isMaximized && <ResizeHandle onMouseDown={handleResizeMouseDown} />}
     </WindowContainer>

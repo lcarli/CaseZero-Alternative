@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import styled from 'styled-components'
 import type { AssetDTO } from '../../services/api'
+import { assetsApi } from '../../services/api'
 
 const FileViewerContainer = styled.div`
   height: 100%;
@@ -92,10 +93,17 @@ const FileInfoItem = styled.span`
 
 interface FileViewerProps {
   assets?: AssetDTO[]
+  onRefresh?: () => void
 }
 
-const FileViewer: React.FC<FileViewerProps> = ({ assets = [] }) => {
+const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onRefresh }) => {
   const [selectedAsset, setSelectedAsset] = useState<AssetDTO | null>(null)
+  const [assets, setAssets] = useState<AssetDTO[]>(initialAssets)
+
+  // Update assets when props change
+  useEffect(() => {
+    setAssets(initialAssets)
+  }, [initialAssets])
 
   const getFileIcon = (type: string): string => {
     const typeMap: Record<string, string> = {
