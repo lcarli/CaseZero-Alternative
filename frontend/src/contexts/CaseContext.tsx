@@ -104,8 +104,9 @@ export const CaseProvider: React.FC<CaseProviderProps> = ({
           forceUpdate()
         })
         
+        // TODO: DEPRECATED - Desktop now uses assetsApi and emailsApi directly
         // Load files from API (documents and media)
-        await newEngine.loadFilesFromApi(caseId)
+        // await newEngine.loadFilesFromApi(caseId)
         
         // Start forensic checks
         newEngine.startForensicChecks()
