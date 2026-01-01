@@ -619,62 +619,93 @@
 
 ## 🚀 Priorização por Sprints
 
-### Sprint 0 - Spike/Proof of Concept + Segurança Básica
-- **Task 0**: Validar arquitetura end-to-end
-  - Case.json mínimo
-  - 1 email inicial visível
-  - 1 forensics request que revela 1 novo email
-  - Provar ciclo completo funciona
-- **P81-P85**: Implementar segurança básica (🔒 CRÍTICO antes de qualquer dev)
+### Sprint 0 - Spike/Proof of Concept + Segurança Básica ✅ COMPLETO
+- ✅ **Task 0**: Validar arquitetura end-to-end
+  - ✅ Case.json v1 completo (case_001 em produção)
+  - ✅ 1 email inicial visível (email.briefing_001 com visibility="initial")
+  - ✅ Forensics request revelando emails (Task 63-64 testados)
+  - ✅ Ciclo completo funcionando com RulesEngine
+- ✅ **P81-P85**: Segurança básica implementada (24 testes passando)
+  - ✅ JWT Authorization com [Authorize]
+  - ✅ VisibilityGuard em todos os endpoints
+  - ✅ CaseV1SanitizerService remove dados sensíveis
+  - ✅ Rate limiting (forensics 10/h, emails 100/h, assets 50/h, solutions 3/day)
+  - ✅ IdValidationMiddleware valida IDs com regex
 
-### Sprint 1 - Foundation (Adaptar Base Existente)
-- A1-A7 (contrato + validação) - 🟡 Maioria adaptações
-- B8-B14 (SQL schema) - 🔵 Refatorar tabelas existentes + 4 novas
-- L66-L67 (infra) - 🟡 Blob Storage já existe, adicionar Queue
-- **P86-P90**: Completar segurança + anti-spoiler
-- **Q91-Q94**: Implementar cache strategy
+### Sprint 1 - Foundation (Adaptar Base Existente) ✅ 90% COMPLETO
+- ✅ A1-A7 (contrato + validação) - case.json v1 spec + schema + linter funcionando
+- ✅ B8-B14 (SQL schema) - Todas as tabelas criadas e testadas
+- ✅ L66-L67 (infra) - Blob Storage + Queue Storage operacionais
+- ⏳ **P86-P90**: Segurança avançada (próximo passo recomendado)
+  - P86: Audit log para ações críticas
+  - P87: Checksum validation de assets
+  - P88: CORS restrictivo
+  - P89: CSP headers
+  - P90: Anti-spoiler (blur de nomes/datas)
+- ✅ **Q91-Q94**: Cache implementado
+  - Q91: case.json cached (30min sliding, 2h absolute)
+  - Q92: ETag support
+  - Q93-Q94: Session e visibility caching
 
-### Sprint 2 - Core API (Refatorar Controllers Existentes)
-- C15-C21 (casos e sessões) - 🔵 70% refatoração, 30% novo
-- D22-D25 (file viewer) - 🔵 Adaptar endpoints de Evidence
-- M72 (error handling básico) - 🟢 Novo
-- **Q95-Q97**: Otimizações de performance
-- **R98-R100**: Locking e versioning
+### Sprint 2 - Core API (Refatorar Controllers Existentes) ✅ COMPLETO
+- ✅ C15-C21 (casos e sessões) - Todos os endpoints implementados e testados
+- ✅ D22-D25 (file viewer) - AssetsController com visibility guard
+- ✅ M72 (error handling básico) - GlobalExceptionHandler implementado
+- ✅ **Q95-Q97**: Performance otimizada
+  - Query optimization com includes
+  - Pagination support
+  - Lazy loading configurado
+- ⏳ **R98-R100**: Locking e versioning (próxima fase)
+  - R98: Pessimistic locking
+  - R99: Optimistic concurrency
+  - R100: ETag + If-Match
 
-### Sprint 3 - Email + Forensics (Estender Sistema Existente)
-- E26-E31 (email app) - 🟢 Novo (integrar EMAIL_SYSTEM_IMPLEMENTATION)
-- F32-F40 (forensics completo) - 🔵 Estender ForensicAnalysis + Queue
-- G41-G45 (rules engine) - 🟢 Novo service
-- **R103-R104**: Anti-race conditions
+### Sprint 3 - Email + Forensics (Estender Sistema Existente) ✅ COMPLETO
+- ✅ E26-E31 (email app) - EmailsController com visibility guard e attachments
+- ✅ F32-F40 (forensics completo) - ForensicsController + Queue + Azure Function
+- ✅ G41-G45 (rules engine) - RulesEngineService implementado com 5 tipos de regras
+- ✅ **R103-R104**: Anti-race conditions implementado
+  - Queue idempotente
+  - Duplicate detection
 
-### Sprint 4 - Frontend + Polish (Adaptar Componentes Existentes)
-- H46-H52 (integração) - 🔵 80% adaptar Desktop/FileViewer/ForensicsQueue
-- K60-K65 (testes funcionais) - 🟢 Novo
-- J56-J59 (observabilidade) - 🟡 Estender logging
-- **R101-R102**: Sincronização multi-tab
+### Sprint 4 - Frontend + Polish (Adaptar Componentes Existentes) ⏳ 50% COMPLETO
+- ✅ H46-H52 (integração) - Desktop/FileViewer/ForensicsQueue funcionando com case.json v1
+- ⏳ K60-K65 (testes funcionais) - 14 testes de integração + 10 de segurança (24 total)
+- ✅ J56-J59 (observabilidade) - Logging estruturado implementado
+- ⏳ **R101-R102**: Sincronização multi-tab (pendente)
+  - R101: BroadcastChannel API
+  - R102: Tab ownership
 
-### Sprint 5 - Segurança Final + Testes de Penetração (OBRIGATÓRIO)
-- **K105-K110**: Testes de segurança (🔒 CRÍTICO antes de produção)
-- **Penetration testing**: OWASP ZAP ou auditoria externa
-- **Load testing**: 100 usuários simultâneos (verificar rate limiting)
-- **Validação manual**: Buscar "solution", "culpritId", "rules" em responses
+### Sprint 5 - Segurança Final + Testes de Penetração (OBRIGATÓRIO) ⏳ PENDENTE
+- ⏳ **K105-K110**: Testes de segurança (próxima fase após P86-P90)
+  - K105: Injection attacks (SQL, XSS, LDAP)
+  - K106: Authorization bypass attempts
+  - K107: Rate limiting validation
+  - K108: Session hijacking tests
+  - K109: CSRF protection tests
+  - K110: File upload security tests
+- ⏳ **Penetration testing**: OWASP ZAP ou auditoria externa
+- ⏳ **Load testing**: 100 usuários simultâneos (verificar rate limiting)
+- ✅ **Validação manual**: Sanitização validada em BasicSecurityTests
 
 ---
 
 ## 📌 Dependências Críticas
 
 ```
-P81-P85 → TUDO               Segurança básica ANTES de qualquer endpoint
-A → B,C,D,E,F                Todas APIs dependem do case.json finalizado
-B → C,D,E,F                  Todas APIs dependem do schema SQL
-P83 → C,D,E,F                Sanitização ANTES de enviar dados ao cliente
-C,D,E → H                    Frontend depende das APIs funcionando
-E → F                        Forensics depende de emails funcionando
-F → G                        Processamento depende do rules engine
-G → P83                      Rules Engine server-side APENAS (nunca expor)
-Q91-Q94 → Performance        Cache ANTES de testes de carga
-R98-R104 → Produção          Concurrency ANTES de múltiplos usuários
-L66-67 → Tudo                Infraestrutura ANTES de deploy
+✅ P81-P85 → TUDO               Segurança básica COMPLETA
+✅ A → B,C,D,E,F                case.json v1 FINALIZADO
+✅ B → C,D,E,F                  Schema SQL COMPLETO
+✅ P83 → C,D,E,F                Sanitização IMPLEMENTADA
+✅ C,D,E → H                    APIs FUNCIONANDO
+✅ E → F                        Emails + Forensics INTEGRADOS
+✅ F → G                        RulesEngine IMPLEMENTADO
+✅ G → P83                      Rules server-side APENAS
+✅ Q91-Q94 → Performance        Cache IMPLEMENTADO
+⏳ R98-R104 → Produção          Concurrency PENDENTE
+✅ L66-67 → Tudo                Infraestrutura OPERACIONAL
+
+🎯 PRÓXIMO BLOQUEADOR: P86-P90 (Segurança avançada)
 ```
 
 ---
@@ -737,16 +768,22 @@ L66-67 → Tudo                Infraestrutura ANTES de deploy
 
 Antes de ir para produção:
 
-- [ ] **P81-P85** implementados e testados (AuthorizationFilter, VisibilityGuard, Sanitização)
-- [ ] **P86-P90** implementados (Audit log, Checksum, CORS, CSP)
+- [x] **P81-P85** implementados e testados (AuthorizationFilter, VisibilityGuard, Sanitização) ✅
+  - [x] JWT Authorization com [Authorize] em todos os controllers
+  - [x] VisibilityGuard validando CaseSessionVisibleAssets/Emails
+  - [x] CaseV1SanitizerService removendo solution/rules/culpritId
+  - [x] Rate limiting (forensics 10/h, emails 100/h, assets 50/h, solutions 3/day)
+  - [x] IdValidationMiddleware com regex validation
+  - [x] 24 testes de integração passando
+- [ ] **P86-P90** implementados (Audit log, Checksum, CORS, CSP) ⏳ PRÓXIMO
 - [ ] **K105-K110** passando 100% (Testes de segurança)
 - [ ] Penetration testing realizado (OWASP ZAP ou auditoria)
 - [ ] Load testing com 100 usuários (rate limiting funcionando)
-- [ ] Validação manual: buscar "solution", "culpritId", "rules" em todas as responses
-- [ ] CORS configurado (sem wildcards)
-- [ ] Audit log gravando todas as ações sensíveis
-- [ ] Checksum de assets validado
-- [ ] Rate limiting testado em todos os endpoints críticos
+- [x] Validação manual: sanitização testada em BasicSecurityTests ✅
+- [ ] CORS configurado (sem wildcards) - P88
+- [ ] Audit log gravando todas as ações sensíveis - P86
+- [ ] Checksum de assets validado - P87
+- [x] Rate limiting testado em todos os endpoints críticos ✅
 
 ---
 
@@ -824,17 +861,146 @@ return new {
 ## 📊 Resumo Executivo
 
 **Total de Tarefas:** 110  
-**Novas:** ~35 (🟢)  
-**Adaptações:** ~25 (🟡)  
-**Refatorações:** ~20 (🔵)  
-**Reutilização:** ~30 (código existente)
+**Completadas:** ~85 (77%) ✅  
+**Pendentes:** ~25 (23%) ⏳  
 
-**Sprints Estimados:** 5  
-**Prioridade #1:** Segurança (P81-P90, K105-K110)  
-**Risco Crítico:** Exposição de solution/rules ao cliente
+**Sprints:**
+- ✅ Sprint 0: COMPLETO (Segurança básica P81-P85)
+- ✅ Sprint 1: 90% COMPLETO (Foundation)
+- ✅ Sprint 2: COMPLETO (Core API)
+- ✅ Sprint 3: COMPLETO (Email + Forensics)
+- ⏳ Sprint 4: 50% COMPLETO (Frontend + Polish)
+- ⏳ Sprint 5: PENDENTE (Segurança final + Testes)
 
-**Próximos Passos:**
-1. Validar arquitetura com spike (Sprint 0)
-2. Implementar P81-P85 (segurança básica)
-3. Refatorar modelo de dados (Sprint 1)
-4. Testes de segurança contínuos (K105-K110)
+**Prioridade Atual:** P86-P90 (Segurança avançada)  
+**Bloqueadores:** Nenhum - arquitetura core completa  
+**Próximos Passos:** Ver seção "Recomendação" abaixo ⬇️
+
+---
+
+## 🎯 RECOMENDAÇÃO: PRÓXIMO PASSO
+
+### Status Atual (01/01/2026)
+
+✅ **Concluído:**
+- Arquitetura end-to-end validada (case.json v1 → backend → frontend)
+- Segurança básica implementada e testada (P81-P85)
+- Core APIs funcionando (cases, sessions, assets, emails, forensics)
+- RulesEngine operacional com 5 tipos de regras
+- 24 testes de integração passando
+
+### 🚀 Opção 1: Segurança Avançada (P86-P90) - RECOMENDADO
+
+**Por quê:** Completar camada de segurança antes de avançar funcionalidades
+
+**Tarefas:**
+1. **P86: Audit Log** (4-6h)
+   - Tabela AuditLog (UserId, Action, Resource, Timestamp, Details)
+   - Middleware para capturar ações críticas
+   - Log de: asset downloads, email opens, forensics requests, solution submissions
+
+2. **P87: Checksum Validation** (2-3h)
+   - Calcular SHA256 de assets no upload
+   - Validar checksum no download
+   - Detectar tampering
+
+3. **P88: CORS Restrictivo** (1h)
+   - Configurar origins específicos (sem wildcards)
+   - Whitelist de domínios autorizados
+
+4. **P89: CSP Headers** (1-2h)
+   - Content-Security-Policy headers
+   - Prevenir XSS via inline scripts
+
+5. **P90: Anti-Spoiler** (2-3h)
+   - Blur de nomes de suspeitos em assets
+   - Redação de datas sensíveis
+   - Masking de informações reveladoras
+
+**Tempo estimado:** 10-15h  
+**Benefício:** Aplicação production-ready em segurança
+
+### 🎨 Opção 2: Frontend Polish (H46-H52 restante)
+
+**Por quê:** Melhorar UX e completar integração frontend-backend
+
+**Tarefas:**
+- H49: Email reader component (modal com rich text)
+- H50: Suspect dossier viewer (perfil completo)
+- H51: Solution submission form (validação client-side)
+- H52: Victory/defeat screens (animações)
+
+**Tempo estimado:** 8-12h  
+**Benefício:** UX mais polido, mas sem novas funcionalidades
+
+### 🔧 Opção 3: Concurrency (R98-R104)
+
+**Por quê:** Preparar para múltiplos usuários simultâneos
+
+**Tarefas:**
+- R98-R99: Optimistic concurrency com ETag
+- R100: Pessimistic locking em forensics
+- R101-R102: Multi-tab synchronization (BroadcastChannel)
+- R103-R104: Anti-race conditions
+
+**Tempo estimado:** 12-16h  
+**Benefício:** Robustez para produção multi-user
+
+---
+
+## 💡 RECOMENDAÇÃO FINAL
+
+### Escolha: **Opção 1 - Segurança Avançada (P86-P90)**
+
+**Motivos:**
+1. ✅ **Segurança é fundacional** - Melhor completar agora que refatorar depois
+2. ✅ **P81-P85 completo** - Momentum de segurança, finalizar camada
+3. ✅ **Production readiness** - Audit log é obrigatório para compliance
+4. ✅ **Baixo esforço** - 10-15h vs. 12-16h de concurrency
+5. ✅ **Alto ROI** - Checksum + CORS + CSP são quick wins
+
+**Ordem de implementação:**
+```
+Dia 1 (4-6h):  P86 - Audit Log (mais complexo)
+Dia 2 (3-4h):  P88 + P89 - CORS + CSP (configuração)
+Dia 3 (3-4h):  P87 - Checksum validation
+Dia 4 (2-3h):  P90 - Anti-spoiler (opcional, pode postergar)
+```
+
+**Após P86-P90:**
+- ✅ Aplicação completa em segurança
+- ✅ Pronta para penetration testing (K105-K110)
+- ✅ Pode focar em UX/features sem preocupações de segurança
+
+---
+
+## 📝 Checklist Rápida (P86-P90)
+
+```bash
+# P86: Audit Log
+[ ] Criar modelo AuditLog (tabela + migration)
+[ ] Criar AuditLogService com método LogAction()
+[ ] Adicionar logging em: AssetsController, EmailsController, ForensicsController
+[ ] Testar audit log em BasicSecurityTests
+
+# P87: Checksum
+[ ] Adicionar campo Checksum (SHA256) em Asset model
+[ ] Calcular checksum no upload (BlobStorageService)
+[ ] Validar checksum no download (AssetsController)
+[ ] Retornar 409 Conflict se checksum inválido
+
+# P88: CORS
+[ ] Configurar CORS em Program.cs com origins específicos
+[ ] Remover AddCors() atual (se tiver wildcard)
+[ ] Testar cross-origin requests
+
+# P89: CSP
+[ ] Adicionar middleware CSP headers
+[ ] Configurar: default-src 'self'; script-src 'self'
+[ ] Testar no browser console
+
+# P90: Anti-Spoiler
+[ ] Criar AntiSpoilerService com método BlurSensitiveData()
+[ ] Aplicar em metadata de assets/emails antes de retornar
+[ ] Testar com regex de nomes de suspeitos
+```
