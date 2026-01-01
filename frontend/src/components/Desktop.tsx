@@ -141,6 +141,10 @@ const Desktop: React.FC = () => {
           emails: emailsData.length,
           forensics: forensicsData.length
         })
+        
+        if (assetsData.length > 0) {
+          console.log('🔍 First asset:', assetsData[0])
+        }
       } catch (error) {
         console.error('❌ Failed to load session data:', error)
       } finally {

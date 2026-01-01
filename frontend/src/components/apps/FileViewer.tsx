@@ -111,15 +111,26 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onR
     setAssets(initialAssets)
   }, [initialAssets])
 
+  // Detect file type from filename
+  const detectFileType = (fileName: string): 'text' | 'image' | 'pdf' | 'video' | 'audio' => {
+    const ext = fileName.split('.').pop()?.toLowerCase() || ''
+    
+    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext)) return 'image'
+    if (['pdf'].includes(ext)) return 'pdf'
+    if (['mp4', 'avi', 'mov', 'webm'].includes(ext)) return 'video'
+    if (['mp3', 'wav', 'ogg'].includes(ext)) return 'audio'
+    return 'text'
+  }
+
   // Convert AssetDTO to FileItem for DocumentViewer
   const assetToFileItem = (asset: AssetDTO): FileItem => {
     // Get the asset URL for images/media
-    const mediaUrl = currentCase ? casesV1Api.getAssetUrl(currentCase, asset.assetId) : undefined
+    const mediaUrl = currentCase ? casesV1Api.getAssetUrl(currentCase, asset.id) : undefined
     
     return {
-      id: asset.assetId,
+      id: asset.id,
       name: asset.name,
-      type: (asset.type as any) || 'text',
+      type: detectFileType(asset.name),
       icon: getFileIcon(asset.type),
       size: '0 KB', // Size not available in AssetDTO
       modified: new Date().toISOString(),
@@ -132,9 +143,17 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onR
   const handleFileDoubleClick = (asset: AssetDTO) => {
     const fileItem = assetToFileItem(asset)
     
+    console.log('🔍 Opening asset:', {
+      name: asset.name,
+      type: asset.type,
+      assetId: asset.id,
+      fileItem: fileItem,
+      mediaUrl: fileItem.mediaUrl
+    })
+    
     // Open document viewer in a new window
     openWindow(
-      `document-${asset.assetId}`,
+      `document-${asset.id}`,
       asset.name,
       DocumentViewerWindow,
       { fileData: fileItem, caseId: currentCase || undefined }
@@ -169,11 +188,11 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onR
               ) : (
                 assets.map(asset => (
                   <FileItem
-                    key={asset.assetId}
+                    key={asset.id}
                     onClick={() => setSelectedAsset(asset)}
                     onDoubleClick={() => handleFileDoubleClick(asset)}
                     style={{ 
-                      background: selectedAsset?.assetId === asset.assetId ? 'rgba(74, 158, 255, 0.2)' : 'transparent' 
+                      background: selectedAsset?.id === asset.id ? 'rgba(74, 158, 255, 0.2)' : 'transparent' 
                     }}
                     title="Double-click to open in new window"
                   >
@@ -193,7 +212,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onR
               <FileInfo>
                 <FileInfoItem key="asset-id">
                   <span>🆔</span>
-                  {selectedAsset.assetId}
+                  {selectedAsset.id}
                 </FileInfoItem>
                 <FileInfoItem key="asset-type">
                   <span>📄</span>

@@ -632,10 +632,13 @@ export const notesApi = {
 
 // Task 48: Assets API (replaces evidence API)
 export interface AssetDTO {
-  assetId: string
+  id: string // Backend returns 'id' not 'assetId'
+  assetId?: string // Optional alias for compatibility
+  caseId: string
   type: string
   name: string
-  filePath: string
+  filePath?: string
+  isVisible: boolean
   metadata?: Record<string, any>
 }
 

@@ -219,7 +219,15 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, caseId, onClose }
   const [imageError, setImageError] = useState(false)
   const [zoom, setZoom] = useState(100)
 
+  console.log('📄 DocumentViewer rendering:', {
+    fileName: file.name,
+    fileType: file.type,
+    mediaUrl: file.mediaUrl,
+    caseId
+  })
+
   React.useEffect(() => {
+    console.log('📄 useEffect triggered, file.type:', file.type)
     if (file.type === 'image') {
       loadImage()
     }
