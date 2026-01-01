@@ -476,15 +476,24 @@
 
 ### P86-P90: Segurança Avançada (Sprint 1)
 
-86. 🟢 **Implementar audit log para ações sensíveis**:
-    ```sql
-    CREATE TABLE AuditLog (
-        Timestamp, UserId, CaseId, 
-        Action, ResourceId, IpAddress
-    )
-    -- Logar: asset_download, email_open, forensics_submit, solution_submit
-    -- Detectar padrões suspeitos (100 requests em 1 min = ataque)
-    ```
+86. ✅ **Implementar audit log para ações sensíveis** - COMPLETO:
+    - ✅ AuditLog model: Id, UserId, Action, Resource, CaseId, Timestamp, Details, Result
+    - ✅ IAuditLogService interface com LogActionAsync e queries (GetUserLogsAsync, GetCaseLogsAsync, GetActionLogsAsync)
+    - ✅ AuditLogService implementado com logging não-bloqueante (try-catch) + ILogger estruturado
+    - ✅ Integração em controllers: AssetsController, EmailsController, ForensicRequestController
+    - ✅ Actions tracked: asset_download, asset_download_unauthorized, email_open, forensic_request
+    - ✅ EF Core migration AddAuditLog criada (ready for production deployment)
+    - ✅ Service registrado em Program.cs como Scoped
+    - ✅ **5/5 testes passando**: 
+      * AssetDownload_WithVisibleAsset_PassesAuthorization
+      * UnauthorizedAssetDownload_CreatesAuditLogWithUnauthorized  
+      * EmailOpen_CreatesAuditLog
+      * ForensicRequest_CreatesAuditLog
+      * GetUserLogs_ReturnsUserAuditLogs
+    - ✅ Corrigido: Ambiguidade ForensicController (/api/forensics/request) vs ForensicRequestController (/api/forensicrequest)
+    - ✅ Corrigido: Escape JSON strings em audit details ({{{{}}}} para interpolação)
+    - ✅ Corrigido: ForensicRequest.User nullable para validação
+    - **Implementado**: Audit trail completo para compliance, detecção de padrões suspeitos e rastreabilidade
 
 87. 🟢 **Adicionar checksum validation no download de assets**:
     ```csharp

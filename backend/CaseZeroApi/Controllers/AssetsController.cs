@@ -20,17 +20,20 @@ namespace CaseZeroApi.Controllers
         private readonly IBlobStorageService _blobStorageService;
         private readonly BlobServiceClient _blobServiceClient;
         private readonly IConfiguration _configuration;
+        private readonly IAuditLogService _auditLogService; // P86
 
         public AssetsController(
             ApplicationDbContext context, 
             ILogger<AssetsController> logger,
             IBlobStorageService blobStorageService,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IAuditLogService auditLogService) // P86
         {
             _context = context;
             _logger = logger;
             _blobStorageService = blobStorageService;
             _configuration = configuration;
+            _auditLogService = auditLogService; // P86
             
             // Initialize BlobServiceClient for direct blob access
             var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
@@ -143,6 +146,15 @@ namespace CaseZeroApi.Controllers
                 {
                     _logger.LogWarning("User {UserId} attempted to download invisible asset {AssetId} from case {CaseId}", 
                         userId, assetId, caseId);
+                    
+                    // P86: Audit log - tentativa não autorizada
+                    await _auditLogService.LogActionAsync(
+                        userId, 
+                        "asset_download_unauthorized", 
+                        $"{caseId}/asset/{assetId}",
+                        caseId,
+                        "unauthorized");
+                    
                     return StatusCode(403, new { message = "Asset not visible in current session" });
                 }
 
@@ -166,6 +178,15 @@ namespace CaseZeroApi.Controllers
                 
                 var contentType = properties.Value.ContentType;
                 var fileName = assetId.Contains('/') ? assetId.Split('/').Last() : assetId;
+
+                // P86: Audit log - download bem-sucedido
+                await _auditLogService.LogActionAsync(
+                    userId, 
+                    "asset_download", 
+                    $"{caseId}/asset/{assetId}",
+                    caseId,
+                    "success",
+                    $"{{{{\"fileName\":\"{fileName}\",\"contentType\":\"{contentType}\"}}}}");
 
                 _logger.LogInformation("User {UserId} downloaded asset {AssetId} from case {CaseId}", 
                     userId, assetId, caseId);

@@ -375,11 +375,11 @@ namespace CaseZeroApi.Controllers
         }
 
         /// <summary>
-        /// POST /api/forensicrequest
+        /// POST /api/forensics/request
         /// Endpoint moderno para submissão de análises forenses usando ForensicRequest
         /// Tarefas 32-34: Renomeado para inputAssetId, validação de visibilidade, enfileiramento
         /// </summary>
-        [HttpPost("/api/forensicrequest")]
+        [HttpPost("/api/forensics/request")]
         public async Task<IActionResult> SubmitForensicRequest([FromBody] SubmitForensicRequestDto request)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

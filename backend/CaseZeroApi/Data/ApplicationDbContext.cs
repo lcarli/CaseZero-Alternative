@@ -28,6 +28,9 @@ namespace CaseZeroApi.Data
         public DbSet<CaseSessionVisibleEmail> CaseSessionVisibleEmails { get; set; }
         public DbSet<CaseSessionEmailState> CaseSessionEmailStates { get; set; }
         public DbSet<EmailAttachmentDownloaded> EmailAttachmentsDownloaded { get; set; }
+        
+        // P86: Audit Log
+        public DbSet<AuditLog> AuditLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

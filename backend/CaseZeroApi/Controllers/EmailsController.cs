@@ -20,17 +20,20 @@ namespace CaseZeroApi.Controllers
         private readonly ICaseV1StorageService _caseStorageService;
         private readonly BlobServiceClient _blobServiceClient;
         private readonly IConfiguration _configuration;
+        private readonly IAuditLogService _auditLogService; // P86
 
         public EmailsController(
             ApplicationDbContext context,
             ILogger<EmailsController> logger,
             ICaseV1StorageService caseStorageService,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IAuditLogService auditLogService) // P86
         {
             _context = context;
             _logger = logger;
             _caseStorageService = caseStorageService;
             _configuration = configuration;
+            _auditLogService = auditLogService; // P86
             
             // Initialize BlobServiceClient for attachment downloads
             var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
@@ -204,6 +207,15 @@ namespace CaseZeroApi.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                // P86: Audit log - email aberto
+                await _auditLogService.LogActionAsync(
+                    userId,
+                    "email_open",
+                    $"{caseId}/email/{emailId}",
+                    caseId,
+                    "success",
+                    $"{{{{\"openCount\":{emailState.OpenCount}}}}}");
 
                 return Ok(new
                 {

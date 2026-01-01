@@ -17,6 +17,6 @@ namespace CaseZeroApi.Models
         public string? Notes { get; set; }
         
         // Navigation properties
-        public virtual User User { get; set; } = null!;
+        public virtual User? User { get; set; }
     }
 }
