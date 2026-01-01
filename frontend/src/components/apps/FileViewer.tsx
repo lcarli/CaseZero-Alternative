@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import styled from 'styled-components'
 import type { AssetDTO } from '../../services/api'
-import { assetsApi, caseObjectApi } from '../../services/api'
+import { assetsApi, casesV1Api } from '../../services/api'
 import { useWindowContext } from '../../hooks/useWindowContext'
 import { useCase } from '../../hooks/useCaseContext'
 import { DocumentViewerWindow } from './DocumentViewerWindow'
@@ -114,7 +114,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onR
   // Convert AssetDTO to FileItem for DocumentViewer
   const assetToFileItem = (asset: AssetDTO): FileItem => {
     // Get the asset URL for images/media
-    const mediaUrl = currentCase ? caseObjectApi.getAssetUrl(currentCase, asset.assetId) : undefined
+    const mediaUrl = currentCase ? casesV1Api.getAssetUrl(currentCase, asset.assetId) : undefined
     
     return {
       id: asset.assetId,
@@ -191,15 +191,15 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onR
             <FileContent>
               <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>{selectedAsset.name}</h4>
               <FileInfo>
-                <FileInfoItem>
+                <FileInfoItem key="asset-id">
                   <span>🆔</span>
                   {selectedAsset.assetId}
                 </FileInfoItem>
-                <FileInfoItem>
+                <FileInfoItem key="asset-type">
                   <span>📄</span>
                   {selectedAsset.type.toUpperCase()}
                 </FileInfoItem>
-                <FileInfoItem>
+                <FileInfoItem key="asset-path">
                   <span>📁</span>
                   {selectedAsset.filePath}
                 </FileInfoItem>
