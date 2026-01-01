@@ -21,19 +21,22 @@ namespace CaseZeroApi.Controllers
         private readonly BlobServiceClient _blobServiceClient;
         private readonly IConfiguration _configuration;
         private readonly IAuditLogService _auditLogService; // P86
+        private readonly IVisibilityService _visibilityService; // Asset unlock
 
         public EmailsController(
             ApplicationDbContext context,
             ILogger<EmailsController> logger,
             ICaseV1StorageService caseStorageService,
             IConfiguration configuration,
-            IAuditLogService auditLogService) // P86
+            IAuditLogService auditLogService, // P86
+            IVisibilityService visibilityService) // Asset unlock
         {
             _context = context;
             _logger = logger;
             _caseStorageService = caseStorageService;
             _configuration = configuration;
             _auditLogService = auditLogService; // P86
+            _visibilityService = visibilityService; // Asset unlock
             
             // Initialize BlobServiceClient for attachment downloads
             var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
@@ -380,12 +383,27 @@ namespace CaseZeroApi.Controllers
                     return BadRequest(new { message = "Asset is not an attachment of this email" });
                 }
 
-                // 5. Download do blob (reutilizando lógica do AssetsController)
+                // 5. Buscar metadata do asset para obter filePath correto
+                var asset = caseData.Assets?.FirstOrDefault(a => a.AssetId == assetId);
+                if (asset == null)
+                {
+                    _logger.LogWarning("Asset {AssetId} metadata not found in case {CaseId}", assetId, caseId);
+                    return NotFound(new { message = "Asset metadata not found" });
+                }
+
+                // 6. Download do blob usando filePath do asset
                 var containerName = _configuration["CaseGeneratorStorage:CasesContainer"] ?? "cases";
                 var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
                 
-                // Asset path: {caseId}/assets/{assetId}
-                var blobPath = $"{caseId}/assets/{assetId}";
+                // Extract blob path from filePath
+                // filePath format: "/cases/case_001/assets/briefing.pdf"
+                // Need: "case_001/assets/briefing.pdf"
+                var blobPath = asset.FilePath.TrimStart('/');
+                if (blobPath.StartsWith("cases/"))
+                {
+                    blobPath = blobPath.Substring("cases/".Length);
+                }
+                
                 var blobClient = containerClient.GetBlobClient(blobPath);
 
                 if (!await blobClient.ExistsAsync())
@@ -394,7 +412,7 @@ namespace CaseZeroApi.Controllers
                     return NotFound(new { message = "Attachment file not found" });
                 }
 
-                // 6. 🎯 HOOK PÓS-DOWNLOAD (tarefa 30): Registrar em EmailAttachmentsDownloaded
+                // 7. 🎯 HOOK PÓS-DOWNLOAD (tarefa 30): Registrar em EmailAttachmentsDownloaded
                 var downloadRecord = new EmailAttachmentDownloaded
                 {
                     UserId = userId,
@@ -409,7 +427,7 @@ namespace CaseZeroApi.Controllers
                 _logger.LogInformation("User {UserId} downloaded attachment {AssetId} from email {EmailId} in case {CaseId}",
                     userId, assetId, emailId, caseId);
 
-                // 7. 🎯 HOOK: Aplicar regra reveal_asset (tarefa 30)
+                // 8. 🎯 HOOK: Aplicar regra reveal_asset (tarefa 30)
                 // Desbloquear asset automaticamente após download de attachment
                 try
                 {
@@ -422,7 +440,7 @@ namespace CaseZeroApi.Controllers
                     // Continue - download succeeded even if unlock failed
                 }
 
-                // 8. Stream do arquivo
+                // 9. Stream do arquivo
                 var download = await blobClient.DownloadStreamingAsync();
                 var properties = await blobClient.GetPropertiesAsync();
                 

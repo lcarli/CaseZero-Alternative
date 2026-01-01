@@ -713,8 +713,8 @@ export const emailsApi = {
   /**
    * Download email attachment (Task 50)
    */
-  downloadAttachment: async (caseId: string, assetId: string): Promise<void> => {
-    return apiFetch(`/cases/${caseId}/attachments/${assetId}/download`, {
+  downloadAttachment: async (caseId: string, emailId: string, assetId: string): Promise<void> => {
+    return apiFetch(`/cases/${caseId}/emails/${emailId}/attachments/${assetId}/download`, {
       method: 'POST'
     })
   }

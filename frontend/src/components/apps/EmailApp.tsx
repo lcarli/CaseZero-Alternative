@@ -211,13 +211,13 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId, onRefetchAsset
   }
 
   const handleDownloadAttachment = async (assetId: string) => {
-    if (!caseId) return
+    if (!caseId || !openedEmail) return
 
     setDownloadingAttachment(assetId)
 
     try {
-      // Task 50: POST /attachments/{assetId}/download
-      await emailsApi.downloadAttachment(caseId, assetId)
+      // Task 50: POST /emails/{emailId}/attachments/{assetId}/download
+      await emailsApi.downloadAttachment(caseId, openedEmail.emailId, assetId)
       
       // Refetch assets to update FileViewer
       if (onRefetchAssets) {
