@@ -142,6 +142,31 @@ builder.Services.Configure<IpRateLimitOptions>(options =>
             Endpoint = "POST:*/api/auth/login",
             Period = "5m",
             Limit = 3, // 3 login attempts per 5 minutes
+        },
+        // P84: Rate limiting anti-brute-force específico
+        new RateLimitRule
+        {
+            Endpoint = "POST:*/api/forensicrequest*",
+            Period = "1h",
+            Limit = 10, // 10 forensics submissions per hour
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:*/api/cases/*/emails/*/open",
+            Period = "1h",
+            Limit = 100, // 100 email opens per hour
+        },
+        new RateLimitRule
+        {
+            Endpoint = "GET:*/api/cases/*/assets/*/download",
+            Period = "1h",
+            Limit = 50, // 50 asset downloads per hour
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:*/api/cases/*/submit",
+            Period = "24h",
+            Limit = 3, // 3 solution submissions per case per day
         }
     };
 });
@@ -232,6 +257,9 @@ if (app.Environment.IsProduction())
 
 // Rate limiting middleware
 app.UseIpRateLimiting();
+
+// P85: ID validation middleware - previne injection e valida formato
+app.UseMiddleware<CaseZeroApi.Middleware.IdValidationMiddleware>();
 
 app.UseCors("AllowFrontend");
 

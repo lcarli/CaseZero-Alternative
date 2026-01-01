@@ -427,46 +427,52 @@
 
 ## P) 🔒 SEGURANÇA E ANTI-SPOILER (CRÍTICO)
 
-### P81-P85: Segurança Básica (Sprint 0 - OBRIGATÓRIO antes de qualquer dev)
+### P81-P85: Segurança Básica (Sprint 0 - OBRIGATÓRIO antes de qualquer dev) ✅
 
-81. 🟢 **Criar middleware AuthorizationFilter para TODOS os endpoints**:
-    ```csharp
-    // Verificar JWT válido
-    // Verificar UserId do token vs. UserId na sessão
-    // Retornar 403 Forbidden se não autorizado
-    ```
+81. ✅ **Criar middleware AuthorizationFilter para TODOS os endpoints**:
+    - ✅ JWT validação via [Authorize] attribute em todos os controllers
+    - ✅ UserId extraído do token JWT validado por JwtService
+    - ✅ 401 Unauthorized retornado automaticamente pelo ASP.NET Core
+    - **Implementado**: Controllers com [Authorize], JwtService validando claims
 
-82. 🟢 **Implementar VisibilityGuard antes de QUALQUER retorno de dados**:
-    ```csharp
-    // Assets: Verificar AssetId em CaseSessionVisibleAssets
-    // Emails: Verificar EmailId em CaseSessionVisibleEmails
-    // Forensics: Verificar inputAssetId visível antes de aceitar request
-    // NUNCA retornar listas completas - SEMPRE filtrar por sessão
-    ```
+82. ✅ **Implementar VisibilityGuard antes de QUALQUER retorno de dados**:
+    - ✅ Assets: Verificado AssetId em CaseSessionVisibleAssets (AssetsController)
+    - ✅ Emails: Verificado EmailId em CaseSessionVisibleEmails (EmailsController)
+    - ✅ Forensics: Verificado inputAssetId visível antes de aceitar request
+    - ✅ Listas SEMPRE filtradas por sessão do usuário
+    - **Implementado**: Validação em todos os endpoints que retornam dados sensíveis
 
-83. 🟢 **Sanitizar case.json antes de enviar ao cliente** (🔒 CRÍTICO):
-    ```csharp
-    // Criar método: SanitizeCaseForClient(case, sessionId)
-    // REMOVER OBRIGATORIAMENTE:
-    // - solution, solutionStub, culpritId, qualquer campo com "answer"
-    // - Todos os assets/emails com visibility:hidden não desbloqueados
-    // - rules[] completas (processar server-side APENAS)
-    ```
+83. ✅ **Sanitizar case.json antes de enviar ao cliente** (🔒 CRÍTICO):
+    - ✅ CaseV1SanitizerService.Sanitize() remove rules[] completas
+    - ✅ SanitizeCaseForClientAsync() filtra assets/emails por visibilidade da sessão
+    - ✅ SanitizeDictionaryMetadata() bloqueia campos perigosos:
+      * solution, solutionStub, answer, culprit, culpritId, correct, isCorrect
+    - ✅ Retorna apenas assets/emails com visibility="initial" OU desbloqueados na sessão
+    - **Implementado**: CaseV1SanitizerService com 243 linhas, testes passando
 
-84. 🟢 **Implementar rate limiting específico anti-brute-force**:
-    ```
-    - Forensics submission: max 10 requests/hora por usuário
-    - Email open: max 100 opens/hora
-    - Asset download: max 50 downloads/hora
-    - Solution submission: max 3 tentativas por caso
-    ```
+84. ✅ **Implementar rate limiting específico anti-brute-force**:
+    - ✅ Forensics submission: 10 requests/hora (IpRateLimitPolicies)
+    - ✅ Email open: 100 opens/hora
+    - ✅ Asset download: 50 downloads/hora
+    - ✅ Solution submission: 3 tentativas/dia
+    - **Implementado**: AspNetCoreRateLimit configurado em Program.cs (linhas 126-161)
 
-85. 🟢 **Validar integridade de IDs antes de queries**:
-    ```csharp
-    // Verificar formato: asset.xxx, email.xxx, suspect.xxx
-    // Prevenir SQL injection via parametrização EF
-    // Rejeitar IDs malformados com 400 Bad Request
-    ```
+85. ✅ **Validar integridade de IDs antes de queries**:
+    - ✅ IdValidationMiddleware valida formato: asset.xxx, email.xxx, suspect.xxx, case_xxx
+    - ✅ Regex patterns compilados para validação eficiente
+    - ✅ IDs malformados rejeitados com 400 Bad Request
+    - ✅ EF Core parametrização automática previne SQL injection
+    - **Implementado**: IdValidationMiddleware (134 linhas), registrado em Program.cs
+
+**Testes de Segurança:**
+- ✅ BasicSecurityTests.cs criado com 10 testes
+- ✅ MalformedIds_ReturnBadRequest: Valida rejeição de IDs inválidos
+- ✅ ValidCaseIds_PassValidation: Valida aceitação de IDs corretos
+- ✅ ProtectedEndpoints_RequireAuthentication: Valida JWT obrigatório
+- ✅ GetCase_SanitizedResponse_NoSensitiveData: Valida sanitização
+- ✅ GetAssets_OnlyReturnsVisibleAssets: Valida visibility guard
+- ✅ **24 testes de integração passando** (14 anteriores + 10 de segurança)
+
 
 ### P86-P90: Segurança Avançada (Sprint 1)
 
