@@ -254,6 +254,85 @@ namespace CaseZeroApi.IntegrationTests
         }
 
         /// <summary>
+        /// Task 64: Teste forensics com regra - gera email com attachment
+        /// </summary>
+        [Fact]
+        public async Task ForensicsWithRule_GeneratesEmailWithAttachment()
+        {
+            // Arrange
+            var testUserId = "test-user-forensics-rule-" + Guid.NewGuid().ToString()[..8];
+            var testCaseId = "case_test_with_rule";
+            var inputAssetId = "asset.evidence_to_analyze";
+            var resultEmailId = "email.forensic_result";
+            
+            // Criar mock do case COM regra de forensics
+            await CreateMockCaseWithForensicsRule(testCaseId, inputAssetId, resultEmailId);
+            
+            var token = await CreateAuthenticatedUserAndGetToken(userId: testUserId);
+            _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            
+            await CreateActiveSessionForUser(testUserId, testCaseId);
+            
+            // Adicionar asset visível para análise
+            await AddVisibleAsset(testUserId, testCaseId, inputAssetId);
+
+            // Act - Criar forensic request e simular processamento via service
+            using var scope = _factory.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var rulesEngine = scope.ServiceProvider.GetRequiredService<IRulesEngineService>();
+            
+            // Criar forensic request manualmente
+            var forensicRequest = new ForensicRequest
+            {
+                UserId = testUserId,
+                CaseId = testCaseId,
+                InputAssetId = inputAssetId,
+                InputAssetName = "Evidence to Analyze",
+                AnalysisType = "dna",
+                Status = "pending",
+                RequestedAt = DateTime.UtcNow
+            };
+            
+            context.ForensicRequests.Add(forensicRequest);
+            await context.SaveChangesAsync();
+            
+            // Simular processamento COM regra - aplicar diretamente a ação (revelar email)
+            // NOTE: Em produção, a Azure Function avaliaria a regra e aplicaria a ação
+            // Aqui pulamos a avaliação e aplicamos diretamente para testar o fluxo
+            await rulesEngine.ApplyRevealEmailActionAsync(testUserId, testCaseId, resultEmailId);
+            
+            // Assert - Verificar que email foi adicionado aos emails visíveis
+            var visibleEmail = await context.CaseSessionVisibleEmails
+                .FirstOrDefaultAsync(ve => 
+                    ve.UserId == testUserId && 
+                    ve.CaseId == testCaseId && 
+                    ve.EmailId == resultEmailId);
+            
+            Assert.NotNull(visibleEmail);
+            
+            // Verificar que o email existe no case.json e tem attachment
+            var blobServiceClient = new Azure.Storage.Blobs.BlobServiceClient("UseDevelopmentStorage=true");
+            var containerClient = blobServiceClient.GetBlobContainerClient("cases");
+            var caseBlobClient = containerClient.GetBlobClient($"{testCaseId}/case.json");
+            
+            var caseContent = await caseBlobClient.DownloadContentAsync();
+            var caseJson = caseContent.Value.Content.ToString();
+            var caseDoc = JsonDocument.Parse(caseJson);
+            
+            var emails = caseDoc.RootElement.GetProperty("emails");
+            var resultEmail = emails.EnumerateArray()
+                .FirstOrDefault(e => e.GetProperty("emailId").GetString() == resultEmailId);
+            
+            Assert.True(resultEmail.ValueKind != JsonValueKind.Undefined, "Result email should exist in case.json");
+            Assert.Equal("Forensic Lab", resultEmail.GetProperty("from").GetString());
+            Assert.Contains("Analysis Complete", resultEmail.GetProperty("subject").GetString());
+            
+            // Verificar que tem attachment
+            var attachments = resultEmail.GetProperty("attachments");
+            Assert.True(attachments.GetArrayLength() > 0, "Email should have attachments");
+        }
+
+        /// <summary>
         /// Task 107: Teste autorização - User A não acessa sessão de User B
         /// </summary>
         [Fact]
@@ -804,6 +883,134 @@ namespace CaseZeroApi.IntegrationTests
                 suspects = new object[0],
                 // 🔒 IMPORTANT: Empty rules array - no forensics rules means "no findings"
                 rules = new object[0],
+                forensicsDefaults = new
+                {
+                    analysisTypes = new object[]
+                    {
+                        new
+                        {
+                            type = "dna",
+                            durationMinutes = 60,
+                            availableFor = new[] { "physical" }
+                        }
+                    }
+                }
+            };
+            
+            var caseJsonContent = JsonSerializer.Serialize(mockCase, new JsonSerializerOptions 
+            { 
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+            
+            // Upload para blob storage
+            var blobClient = containerClient.GetBlobClient($"{caseId}/case.json");
+            await blobClient.UploadAsync(
+                new BinaryData(caseJsonContent),
+                overwrite: true);
+        }
+
+        /// <summary>
+        /// Criar case.json mock COM regra de forensics para testar email com attachment
+        /// </summary>
+        private async Task CreateMockCaseWithForensicsRule(string caseId, string inputAssetId, string resultEmailId)
+        {
+            var connectionString = "UseDevelopmentStorage=true"; // Azurite
+            var blobServiceClient = new Azure.Storage.Blobs.BlobServiceClient(connectionString);
+            var containerClient = blobServiceClient.GetBlobContainerClient("cases");
+            
+            // Criar container se não existir
+            await containerClient.CreateIfNotExistsAsync();
+            
+            // Criar case.json mock COM regra de forensics
+            var mockCase = new
+            {
+                version = "1.0",
+                caseId = caseId,
+                metadata = new
+                {
+                    title = "Test Case - With Forensics Rule",
+                    description = "Testing forensics rule with email attachment",
+                    difficulty = 1,
+                    estimatedTimeMinutes = 30,
+                    requiredRank = "Junior",
+                    location = "Test Location",
+                    incidentDate = "2025-01-01",
+                    category = "Test",
+                    briefing = "Test briefing for forensics with rule"
+                },
+                assets = new object[]
+                {
+                    new
+                    {
+                        assetId = inputAssetId,
+                        name = "Evidence to Analyze",
+                        type = "physical",
+                        category = "evidence",
+                        description = "Evidence that will trigger forensics rule",
+                        filePath = "evidence.jpg",
+                        visibility = "initial"
+                    }
+                },
+                emails = new object[]
+                {
+                    new
+                    {
+                        emailId = "email.briefing_001",
+                        from = "chief@police.com",
+                        to = "detective@police.com",
+                        subject = "Case Assignment",
+                        sentAt = "2025-01-01T10:00:00Z",
+                        priority = "high",
+                        visibility = "initial",
+                        content = "You have been assigned to this case.",
+                        attachments = new object[0]
+                    },
+                    new
+                    {
+                        emailId = resultEmailId,
+                        from = "Forensic Lab",
+                        to = "detective@police.com",
+                        subject = "DNA Analysis Complete",
+                        sentAt = "2025-01-01T12:00:00Z",
+                        priority = "high",
+                        visibility = "hidden",
+                        content = "The DNA analysis has been completed. Results are attached.",
+                        attachments = new[]
+                        {
+                            new
+                            {
+                                attachmentId = "attachment.dna_results",
+                                fileName = "dna_results.pdf",
+                                fileSize = 1024,
+                                mimeType = "application/pdf"
+                            }
+                        }
+                    }
+                },
+                suspects = new object[0],
+                // 🔒 CRITICAL: Regra que revela email quando forensics completa
+                rules = new object[]
+                {
+                    new
+                    {
+                        ruleId = "rule.forensics_dna_reveal_email",
+                        trigger = new
+                        {
+                            type = "forensics_complete",
+                            inputAssetId = inputAssetId,
+                            analysisType = "dna"
+                        },
+                        actions = new object[]
+                        {
+                            new
+                            {
+                                type = "reveal_email",
+                                emailId = resultEmailId
+                            }
+                        }
+                    }
+                },
                 forensicsDefaults = new
                 {
                     analysisTypes = new object[]

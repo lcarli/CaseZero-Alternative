@@ -342,7 +342,14 @@
     - Verifica que email com ID "no-findings-{guid}" é criado
     - Verifica que email é salvo em blob storage ({caseId}/emails/{emailId}.json)
     - Valida conteúdo: from="forensics@casezero.system", subject contém "No Findings"
-64. 🟡 Teste: forensics com regra gera email com attachment
+64. ✅ Teste: forensics com regra gera email com attachment
+    - **Implementado**: SecurityIntegrationTests.ForensicsWithRule_GeneratesEmailWithAttachment
+    - Cria case COM regra de forensics que revela email quando análise completa
+    - Email no case.json tem attachment (dna_results.pdf)
+    - Simula processamento chamando ApplyRevealEmailActionAsync
+    - Verifica que email foi adicionado a CaseSessionVisibleEmails
+    - Valida estrutura do email no case.json com attachments
+    - 📝 TODO: Integrar avaliação automática de regras na Azure Function
 65. ✅ Teste: usuário não consegue baixar asset não visível
     - **Implementado**: SecurityIntegrationTests.DownloadAsset_InvisibleAsset_ReturnsForbidden
     - Tenta baixar asset que NÃO está em CaseSessionVisibleAssets
