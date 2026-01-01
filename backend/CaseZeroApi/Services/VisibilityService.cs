@@ -34,6 +34,9 @@ namespace CaseZeroApi.Services
                     return (0, 0);
                 }
 
+                _logger.LogDebug("Case loaded. Assets count: {AssetsCount}, Emails count: {EmailsCount}",
+                    caseData.Assets?.Count ?? 0, caseData.Emails?.Count ?? 0);
+
                 int assetsUnlocked = 0;
                 int emailsUnlocked = 0;
 
@@ -70,12 +73,19 @@ namespace CaseZeroApi.Services
                 // Find emails with visibility="initial"
                 if (caseData.Emails != null)
                 {
+                    _logger.LogDebug("Checking {Count} emails for initial visibility", caseData.Emails.Count);
+                    
                     var initialEmails = caseData.Emails
                         .Where(e => e.Visibility != null && e.Visibility.Equals("initial", StringComparison.OrdinalIgnoreCase))
                         .ToList();
 
+                    _logger.LogInformation("Found {Count} emails with visibility='initial'", initialEmails.Count);
+
                     foreach (var email in initialEmails)
                     {
+                        _logger.LogDebug("Processing email {EmailId} with visibility={Visibility}", 
+                            email.EmailId, email.Visibility);
+                        
                         // Check if already unlocked
                         var exists = await _context.CaseSessionVisibleEmails
                             .AnyAsync(ve => ve.UserId == userId && ve.CaseId == caseId && ve.EmailId == email.EmailId);
@@ -94,7 +104,15 @@ namespace CaseZeroApi.Services
                             emailsUnlocked++;
                             _logger.LogDebug("Unlocked email {EmailId} for user {UserId}", email.EmailId, userId);
                         }
+                        else
+                        {
+                            _logger.LogDebug("Email {EmailId} already unlocked for user {UserId}", email.EmailId, userId);
+                        }
                     }
+                }
+                else
+                {
+                    _logger.LogWarning("Case {CaseId} has no emails", caseId);
                 }
 
                 await _context.SaveChangesAsync();

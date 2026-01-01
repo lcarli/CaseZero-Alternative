@@ -664,24 +664,32 @@ export const assetsApi = {
 
 // Task 49-50: Emails API
 export interface EmailDTO {
-  id: string
+  emailId: string
   from: string
   to: string
   subject: string
-  body: string
-  timestamp: string
+  content: string
+  sentAt: string
+  priority?: string
   attachments: string[]
   metadata?: Record<string, any>
+  isRead: boolean
+  readAt?: string | null
+  openCount: number
 }
 
 export interface EmailListDTO {
-  id: string
+  emailId: string
   from: string
   to: string
   subject: string
-  timestamp: string
+  sentAt: string
+  priority?: string
   hasAttachments: boolean
+  attachmentCount: number
   isRead: boolean
+  readAt?: string | null
+  openCount: number
 }
 
 export const emailsApi = {

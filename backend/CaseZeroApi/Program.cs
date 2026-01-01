@@ -135,13 +135,13 @@ builder.Services.Configure<IpRateLimitOptions>(options =>
         {
             Endpoint = "*/api/auth/*",
             Period = "15m", 
-            Limit = 5, // 5 authentication attempts per 15 minutes
+            Limit = 50, // 50 authentication attempts per 15 minutes (development)
         },
         new RateLimitRule
         {
             Endpoint = "POST:*/api/auth/login",
             Period = "5m",
-            Limit = 3, // 3 login attempts per 5 minutes
+            Limit = 50, // 50 login attempts per 5 minutes (development)
         },
         // P84: Rate limiting anti-brute-force específico
         new RateLimitRule

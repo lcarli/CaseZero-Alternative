@@ -42,6 +42,22 @@ namespace CaseZeroApi.Controllers
 
             try
             {
+                // Ensure user has access to this case (auto-assign if not exists)
+                var userCase = await _context.UserCases
+                    .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == request.CaseId);
+
+                if (userCase == null)
+                {
+                    _logger.LogInformation("Auto-assigning case {CaseId} to user {UserId}", request.CaseId, userId);
+                    _context.UserCases.Add(new UserCase
+                    {
+                        UserId = userId,
+                        CaseId = request.CaseId,
+                        AssignedAt = DateTime.UtcNow
+                    });
+                    await _context.SaveChangesAsync();
+                }
+
                 // End any active session for this user/case
                 var existingSession = await _context.CaseSessions
                     .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == request.CaseId && cs.Status == SessionStatus.Active);

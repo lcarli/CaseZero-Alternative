@@ -262,14 +262,14 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId, onRefetchAsset
             ) : (
               emails.map(email => (
                 <EmailItem
-                  key={email.id}
+                  key={email.emailId}
                   $isRead={email.isRead}
-                  $isSelected={selectedEmailId === email.id}
-                  onClick={() => handleEmailClick(email.id)}
+                  $isSelected={selectedEmailId === email.emailId}
+                  onClick={() => handleEmailClick(email.emailId)}
                 >
                   <EmailHeader>
                     <EmailFrom $isRead={email.isRead}>{email.from}</EmailFrom>
-                    <EmailTime>{formatTimestamp(email.timestamp)}</EmailTime>
+                    <EmailTime>{formatTimestamp(email.sentAt)}</EmailTime>
                   </EmailHeader>
                   <EmailSubject $isRead={email.isRead}>
                     {email.hasAttachments && '📎 '}
@@ -299,11 +299,11 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId, onRefetchAsset
                 </MetadataRow>
                 <MetadataRow>
                   <MetadataLabel>Date:</MetadataLabel>
-                  <MetadataValue>{new Date(openedEmail.timestamp).toLocaleString()}</MetadataValue>
+                  <MetadataValue>{new Date(openedEmail.sentAt).toLocaleString()}</MetadataValue>
                 </MetadataRow>
               </EmailMetadata>
 
-              <EmailBody dangerouslySetInnerHTML={{ __html: openedEmail.body }} />
+              <EmailBody dangerouslySetInnerHTML={{ __html: openedEmail.content }} />
 
               {openedEmail.attachments && openedEmail.attachments.length > 0 && (
                 <AttachmentsSection>
