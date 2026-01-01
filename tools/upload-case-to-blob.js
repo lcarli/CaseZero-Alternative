@@ -33,7 +33,7 @@ async function uploadCase(caseId) {
     // 2. Criar container se não existir
     console.log(`📁 Verificando container: ${CONTAINER_NAME}`);
     await containerClient.createIfNotExists({
-      access: 'none'
+      access: 'blob'
     });
 
     // 3. Validar que o caso existe localmente
