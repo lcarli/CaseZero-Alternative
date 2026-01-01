@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import styled from 'styled-components'
 import type { AssetDTO } from '../../services/api'
-import { assetsApi, casesV1Api } from '../../services/api'
+import { casesV1Api } from '../../services/api'
 import { useWindowContext } from '../../hooks/useWindowContext'
 import { useCase } from '../../hooks/useCaseContext'
 import { DocumentViewerWindow } from './DocumentViewerWindow'
@@ -11,29 +11,7 @@ const FileViewerContainer = styled.div`
   height: 100%;
   display: flex;
   flex-direction: column;
-`
-
-const TwoColumnLayout = styled.div`
-  display: flex;
-  height: 100%;
-  gap: 1rem;
-`
-
-const LeftPanel = styled.div`
-  width: 300px;
-  min-width: 250px;
-  max-width: 400px;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-  padding-right: 1rem;
-`
-
-const RightPanel = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  padding: 1rem;
 `
 
 const FileExplorer = styled.div`
@@ -46,53 +24,48 @@ const FileList = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  max-width: 800px;
 `
 
 const FileItem = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  border-radius: 4px;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 
   &:hover {
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(74, 158, 255, 0.1);
+    border-color: rgba(74, 158, 255, 0.3);
+    transform: translateX(4px);
   }
 `
 
 const FileIcon = styled.span`
-  font-size: 14px;
+  font-size: 18px;
+  min-width: 24px;
+  text-align: center;
 `
 
 const FileName = styled.span`
-  color: rgba(255, 255, 255, 0.8);
-`
-
-const FileContent = styled.div`
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
   flex: 1;
-  padding: 1rem;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  overflow-y: auto;
 `
 
-const FileInfo = styled.div`
-  display: flex;
-  gap: 1rem;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-`
-
-const FileInfoItem = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
+const FileType = styled.span`
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 `
 
 interface FileViewerProps {
@@ -101,7 +74,6 @@ interface FileViewerProps {
 }
 
 const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onRefresh }) => {
-  const [selectedAsset, setSelectedAsset] = useState<AssetDTO | null>(null)
   const [assets, setAssets] = useState<AssetDTO[]>(initialAssets)
   const { openWindow } = useWindowContext()
   const { currentCase } = useCase()
@@ -179,87 +151,38 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onR
 
   return (
     <FileViewerContainer>
-      <h3 style={{ margin: '0 0 1rem 0' }}>Assets - {assets.length} files</h3>
+      <h3 style={{ margin: '0 0 1.5rem 0', color: '#4a9eff' }}>
+        📁 Assets ({assets.length} files)
+      </h3>
       
-      <TwoColumnLayout>
-        <LeftPanel>
-          <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>Available Assets</h4>
-          <FileExplorer>
-            <FileList>
-              {assets.length === 0 ? (
-                <div style={{ padding: '1rem', color: 'rgba(255, 255, 255, 0.6)', textAlign: 'center' }}>
-                  No assets unlocked yet
-                </div>
-              ) : (
-                assets.map(asset => (
-                  <FileItem
-                    key={asset.id}
-                    onClick={() => setSelectedAsset(asset)}
-                    onDoubleClick={() => handleFileDoubleClick(asset)}
-                    style={{ 
-                      background: selectedAsset?.id === asset.id ? 'rgba(74, 158, 255, 0.2)' : 'transparent' 
-                    }}
-                    title="Double-click to open in new window"
-                  >
-                    <FileIcon>{getFileIcon(asset.type)}</FileIcon>
-                    <FileName>{asset.name}</FileName>
-                  </FileItem>
-                ))
-              )}
-            </FileList>
-          </FileExplorer>
-        </LeftPanel>
-        
-        <RightPanel>
-          {selectedAsset ? (
-            <FileContent>
-              <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>{selectedAsset.name}</h4>
-              <FileInfo>
-                <FileInfoItem key="asset-id">
-                  <span>🆔</span>
-                  {selectedAsset.id}
-                </FileInfoItem>
-                <FileInfoItem key="asset-type">
-                  <span>📄</span>
-                  {selectedAsset.type.toUpperCase()}
-                </FileInfoItem>
-                <FileInfoItem key="asset-path">
-                  <span>📁</span>
-                  {selectedAsset.filePath}
-                </FileInfoItem>
-              </FileInfo>
-              <div style={{ 
-                marginTop: '1rem',
-                padding: '1rem',
-                background: 'rgba(74, 158, 255, 0.1)',
-                borderRadius: '6px',
-                color: 'rgba(255, 255, 255, 0.8)'
-              }}>
-                <strong>Asset Details:</strong>
-                <pre style={{ 
-                  marginTop: '0.5rem',
-                  whiteSpace: 'pre-wrap',
-                  fontSize: '12px',
-                  fontFamily: 'monospace'
-                }}>
-                  {JSON.stringify(selectedAsset.metadata || {}, null, 2)}
-                </pre>
-              </div>
-            </FileContent>
-          ) : (
+      <FileExplorer>
+        <FileList>
+          {assets.length === 0 ? (
             <div style={{ 
-              flex: 1, 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center',
-              color: 'rgba(255, 255, 255, 0.6)',
-              fontSize: '16px'
+              padding: '2rem', 
+              color: 'rgba(255, 255, 255, 0.5)', 
+              textAlign: 'center',
+              background: 'rgba(0, 0, 0, 0.2)',
+              borderRadius: '6px',
+              border: '1px dashed rgba(255, 255, 255, 0.1)'
             }}>
-              Select an asset to view details
+              No assets unlocked yet
             </div>
+          ) : (
+            assets.map(asset => (
+              <FileItem
+                key={asset.id}
+                onDoubleClick={() => handleFileDoubleClick(asset)}
+                title="Double-click to open in new window"
+              >
+                <FileIcon>{getFileIcon(asset.type)}</FileIcon>
+                <FileName>{asset.name}</FileName>
+                <FileType>{asset.type}</FileType>
+              </FileItem>
+            ))
           )}
-        </RightPanel>
-      </TwoColumnLayout>
+        </FileList>
+      </FileExplorer>
     </FileViewerContainer>
   )
 }
