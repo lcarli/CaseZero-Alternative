@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react'
 import styled from 'styled-components'
 import type { AssetDTO } from '../../services/api'
 import { assetsApi } from '../../services/api'
+import { useWindowContext } from '../../hooks/useWindowContext'
+import { useCase } from '../../hooks/useCaseContext'
+import { DocumentViewerWindow } from './DocumentViewerWindow'
+import type { FileItem } from '../../types/case'
 
 const FileViewerContainer = styled.div`
   height: 100%;
@@ -99,11 +103,40 @@ interface FileViewerProps {
 const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onRefresh }) => {
   const [selectedAsset, setSelectedAsset] = useState<AssetDTO | null>(null)
   const [assets, setAssets] = useState<AssetDTO[]>(initialAssets)
+  const { openWindow } = useWindowContext()
+  const { currentCase } = useCase()
 
   // Update assets when props change
   useEffect(() => {
     setAssets(initialAssets)
   }, [initialAssets])
+
+  // Convert AssetDTO to FileItem for DocumentViewer
+  const assetToFileItem = (asset: AssetDTO): FileItem => {
+    return {
+      id: asset.assetId,
+      name: asset.name,
+      type: (asset.type as any) || 'text',
+      icon: getFileIcon(asset.type),
+      size: `${asset.sizeKb} KB`,
+      modified: new Date().toISOString(),
+      content: '', // Content will be loaded by DocumentViewer if needed
+      category: 'evidence' as const,
+      mediaUrl: asset.mediaUrl
+    }
+  }
+
+  const handleFileDoubleClick = (asset: AssetDTO) => {
+    const fileItem = assetToFileItem(asset)
+    
+    // Open document viewer in a new window
+    openWindow(
+      `document-${asset.assetId}`,
+      asset.name,
+      DocumentViewerWindow,
+      { fileData: fileItem, caseId: currentCase || undefined }
+    )
+  }
 
   const getFileIcon = (type: string): string => {
     const typeMap: Record<string, string> = {
@@ -135,9 +168,11 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onR
                   <FileItem
                     key={asset.assetId}
                     onClick={() => setSelectedAsset(asset)}
+                    onDoubleClick={() => handleFileDoubleClick(asset)}
                     style={{ 
                       background: selectedAsset?.assetId === asset.assetId ? 'rgba(74, 158, 255, 0.2)' : 'transparent' 
                     }}
+                    title="Double-click to open in new window"
                   >
                     <FileIcon>{getFileIcon(asset.type)}</FileIcon>
                     <FileName>{asset.name}</FileName>
