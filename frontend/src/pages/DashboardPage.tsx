@@ -544,7 +544,15 @@ const DashboardPage = () => {
 
   const progressEntries = useMemo(() => {
     if (!dashboard) return []
-    return dashboard.cases
+    // Remove duplicates and get progress entries
+    const uniqueCases = dashboard.cases.reduce((acc, case_) => {
+      if (!acc.some(c => c.id === case_.id)) {
+        acc.push(case_)
+      }
+      return acc
+    }, [] as typeof dashboard.cases)
+    
+    return uniqueCases
       .filter(case_ => case_.userProgress)
       .map(case_ => ({
         id: case_.id,
@@ -558,7 +566,15 @@ const DashboardPage = () => {
 
   const sortedCases = useMemo(() => {
     if (!dashboard) return []
-    return [...dashboard.cases].sort((a, b) => {
+    // Remove duplicates by ID
+    const uniqueCases = dashboard.cases.reduce((acc, case_) => {
+      if (!acc.some(c => c.id === case_.id)) {
+        acc.push(case_)
+      }
+      return acc
+    }, [] as typeof dashboard.cases)
+    
+    return uniqueCases.sort((a, b) => {
       const aDate = a.userProgress?.lastActivity || a.createdAt
       const bDate = b.userProgress?.lastActivity || b.createdAt
       return new Date(bDate).getTime() - new Date(aDate).getTime()
@@ -698,7 +714,7 @@ const DashboardPage = () => {
                 <span style={{ color: 'rgba(148,163,184,0.8)' }}>{t('noRecentActivity')}</span>
               )}
               {dashboard.recentActivities.map((activity, index) => (
-                <ActivityItem key={activity.caseId ?? index}>
+                <ActivityItem key={`activity-${index}`}>
                   <ActivityIcon>
                     {activity.caseId ? <Radio size={16} color="#93c5fd" /> : <Activity size={16} color="#93c5fd" />}
                   </ActivityIcon>
@@ -769,7 +785,7 @@ const DashboardPage = () => {
               {dashboard.recentActivities.slice(0, 3).map((activity, index) => {
                 const relatedCaseId = activity.caseId
                 return (
-                  <BulletinCard key={`bulletin-${relatedCaseId ?? index}`}>
+                  <BulletinCard key={`bulletin-${index}`}>
                     <AlertTriangle size={20} color="#fbbf24" />
                     <BulletinContent>
                       <span>{activity.description}</span>
