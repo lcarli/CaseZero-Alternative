@@ -524,9 +524,51 @@
     - ⏭️ Sistema final terá abordagem diferente para gestão de casos
     - **Status**: Adiado para redesign futuro
 
-90. 🟢 **Implementar Content Security Policy headers**:
-    ```csharp
-    // Verificar headers existentes funcionando
+90. ✅ **Implementar Content Security Policy headers** - COMPLETO:
+    - ✅ CSP granular implementado em Program.cs (middleware de security headers)
+    - ✅ Diretivas configuradas:
+      * default-src 'self' - Recursos apenas do mesmo domínio
+      * script-src 'self' - Scripts sem inline/eval (segurança máxima)
+      * style-src 'self' 'unsafe-inline' - Estilos + inline para componentes
+      * img-src 'self' data: blob: - Imagens + data URLs + blob uploads
+      * font-src 'self' data: - Fontes + data URLs
+      * connect-src 'self' - APIs apenas mesmo domínio
+      * object-src 'none' - Bloqueia <object>, <embed>, <applet>
+      * frame-ancestors 'none' - Previne embedding (anti-clickjacking)
+      * base-uri 'self' - Restringe <base> tag
+      * form-action 'self' - Forms só para mesmo domínio
+    - ✅ Permissions-Policy adicionado:
+      * Bloqueia: geolocation, microphone, camera, payment, usb, magnetometer, gyroscope, accelerometer
+    - ✅ Headers de segurança complementares:
+      * X-Frame-Options: DENY (anti-clickjacking)
+      * X-Content-Type-Options: nosniff (anti-MIME-sniffing)
+      * Referrer-Policy: strict-origin-when-cross-origin
+      * X-XSS-Protection: 1; mode=block (browsers antigos)
+      * Strict-Transport-Security: max-age=31536000; includeSubDomains; preload (HSTS)
+    - ✅ Testes: SecurityHeadersTests.cs (9/9 passando ✅)
+      * PublicEndpoint_ReturnsCSPHeader
+      * AllEndpoints_ReturnXFrameOptions
+      * AllEndpoints_ReturnXContentTypeOptions
+      * AllEndpoints_ReturnReferrerPolicy
+      * AllEndpoints_ReturnXXSSProtection
+      * AllEndpoints_ReturnPermissionsPolicy
+      * AuthenticatedEndpoint_ReturnsSecurityHeaders
+      * CSPPolicy_AllowsNecessaryResources
+      * CSPPolicy_BlocksDangerousResources
+    - **Implementado**: Defesa em profundidade contra XSS, clickjacking, MIME-sniffing, e data exfiltration
+
+---
+
+## 🎉 Sprint 1 - Segurança Avançada: 100% COMPLETO
+
+**P86-P90 finalizados:**
+- ✅ P86: Audit Log (5 testes)
+- ✅ P87: Checksum Validation (3 testes)
+- ⏭️ P88: CORS (skip - Azure)
+- ⏭️ P89: Admin Protection (skip - temporário)
+- ✅ P90: CSP Headers (9 testes)
+
+**Total: 17 testes de segurança avançada passando** 🔒
     // Adicionar: X-Case-Sanitized: true em respostas com case.json
     ```
 

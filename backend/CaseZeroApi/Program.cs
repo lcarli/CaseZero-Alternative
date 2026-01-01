@@ -230,20 +230,52 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Security Headers Middleware
+// P90: Security Headers Middleware - Proteção contra ataques comuns
 app.Use(async (context, next) =>
 {
+    // Previne clickjacking: não permite embedding em iframes
     context.Response.Headers["X-Frame-Options"] = "DENY";
-    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
-    context.Response.Headers["Content-Security-Policy"] = 
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'";
     
+    // Previne MIME-type sniffing
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    
+    // Controla informações de referrer em navegação
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    
+    // Proteção XSS legacy (browsers antigos)
+    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+    
+    // P90: Content Security Policy - Controle granular de recursos
+    // Restringe origens de scripts, estilos, imagens, conexões
+    context.Response.Headers["Content-Security-Policy"] = 
+        "default-src 'self'; " +                           // Recursos padrão apenas do mesmo domínio
+        "script-src 'self'; " +                            // Scripts apenas do mesmo domínio (sem inline ou eval)
+        "style-src 'self' 'unsafe-inline'; " +             // Estilos do domínio + inline (para componentes)
+        "img-src 'self' data: blob:; " +                   // Imagens do domínio + data URLs + blob (para uploads)
+        "font-src 'self' data:; " +                        // Fontes do domínio + data URLs
+        "connect-src 'self'; " +                           // Conexões API apenas para o mesmo domínio
+        "media-src 'self' blob:; " +                       // Áudio/vídeo do domínio + blob
+        "object-src 'none'; " +                            // Bloqueia <object>, <embed>, <applet>
+        "frame-ancestors 'none'; " +                       // Previne embedding (complementa X-Frame-Options)
+        "base-uri 'self'; " +                              // Restringe <base> tag ao mesmo domínio
+        "form-action 'self'";                              // Formulários só podem submeter para o mesmo domínio
+    
+    // P90: Permissions Policy - Controle de features do navegador
+    context.Response.Headers["Permissions-Policy"] = 
+        "geolocation=(), " +                               // Bloqueia acesso à localização
+        "microphone=(), " +                                // Bloqueia acesso ao microfone
+        "camera=(), " +                                    // Bloqueia acesso à câmera
+        "payment=(), " +                                   // Bloqueia Payment Request API
+        "usb=(), " +                                       // Bloqueia WebUSB
+        "magnetometer=(), " +                              // Bloqueia magnetômetro
+        "gyroscope=(), " +                                 // Bloqueia giroscópio
+        "accelerometer=()";                                // Bloqueia acelerômetro
+    
+    // HSTS: Force HTTPS em produção (inclui subdomínios, 1 ano)
     if (context.Request.IsHttps || app.Environment.IsDevelopment())
     {
         context.Response.Headers["Strict-Transport-Security"] = 
-            "max-age=31536000; includeSubDomains";
+            "max-age=31536000; includeSubDomains; preload";
     }
     
     await next();
