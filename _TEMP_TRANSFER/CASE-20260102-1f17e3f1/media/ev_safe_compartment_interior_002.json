@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_safe_compartment_interior_002",
+  "kind": "photo",
+  "title": "Safe Interior Compartment Condition (Overhead Close-up)",
+  "prompt": "1) Function (1 sentence)\nCreate a forensic-quality overhead color photograph documenting the condition of a safe’s interior compartment.\n\n2) Scene / Composition (3–5 sentences; include subject percentage in frame)\nSingle still image of an open safe interior compartment viewed straight down, showing the compartment floor and lower walls with clear surface condition and any residue/dust patterns. The safe interior occupies ~80% of the frame; the remaining ~20% shows a narrow border of the safe frame/lip for context. Include a small, plain, unbranded forensic scale (black-and-white, centimeter ticks) placed along the lower edge of the compartment floor without covering key details. Add minimal annotation as unobtrusive evidence markers: two small white tent markers labeled “A” and “B” near distinct features (e.g., a scratch and a small cluster of debris) without introducing any logos or case text.\n\n3) Angle & Distance (strict numeric values)\nAngle: 90.0° overhead (orthographic top-down); distance_m: 0.55 m from lens to compartment floor.\n\n4) Optics & Technique (lens mm, f/, 1/x s, ISO, WB K, focus, DOF)\nLens: 50 mm; aperture: f/8; shutter: 1/125 s; ISO 200; white balance: 5600K. Focus locked on the compartment floor center; deep depth of field so the entire compartment floor and the scale are sharp. Lighting: forensic flash, diffuse and even, minimal shadowing, neutral color rendering.\n\n5) Mandatory elements (labels/markers/timestamps already present in the case)\nNo timestamps, camera labels, facility labels, or pre-existing identifiers are included (none provided in case context).\n\n6) Negatives (objective list of what MUST NOT appear)\nNo people, hands, faces, reflections of a person, or identifiable biometrics. No real brand names, logos, serial numbers, official seals/badges, or readable case/evidence IDs inside the image. No weapons, drugs, blood, gore, or graphic violence. No added dates/times, no new labels like camera IDs, zone IDs, door IDs, or location names.\n\n7) Acceptance checklist (objective, verifiable bullets)\n- Overhead 90° top-down view with edges of the compartment parallel to the frame\n- Safe interior compartment occupies ~80% of the image with a narrow border of the safe lip visible\n- Forensic flash lighting is even and color-neutral; no harsh shadows\n- Plain black-and-white centimeter scale is visible and legible, not covering key details\n- Two small evidence tent markers labeled only “A” and “B” are present and unobtrusive\n- No timestamps, no logos/brands, no serial numbers, no people/biometrics, no graphic content",
+  "constraints": {
+    "angle_deg": 90,
+    "distance_m": 0.55,
+    "aspect_ratio": "4:3",
+    "resolution_px": "2400x1800",
+    "seed": "4839162",
+    "deferred": false
+  }
+}

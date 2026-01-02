@@ -1,0 +1,36 @@
+{
+  "docId": "doc_records_request_002",
+  "type": "memo_admin",
+  "title": "Administrative Memo: Records Request Checklist—Deposit, Safe, Alarm, and Timekeeping",
+  "words": 279,
+  "sections": [
+    {
+      "title": "To/From/Subject/Date",
+      "content": "**To:** Store Management; Payroll/Timekeeping Administrator; Facilities/Security Administrator\n\n**From:** Administrative Lead (Incident Support)\n\n**Subject:** Records Request Checklist—Deposit, Safe, Alarm, and Timekeeping\n\n**Date:** 2026-01-02T09:10:00-05:00"
+    },
+    {
+      "title": "Purpose",
+      "content": "To obtain and preserve complete, verifiable records related to the cash deposit incident for internal review and potential external reporting. This request supports controlled documentation collection and prevents accidental loss or alteration of relevant data. Related administrative guidance: **doc_shift_hold_001**."
+    },
+    {
+      "title": "Requested Records (by system/owner)",
+      "content": "- **Deposit documentation (Store Management):** deposit logs, deposit slips, bank bag/number logs, reconciliation sheets (ref. EV001, EV002).\n- **Safe access / combination / audit (Store Management):** safe logbook entries, access roster, combination change history (ref. EV003, EV004).\n- **Back office video (Security Administrator):** exports covering back office/safe area, including playback/export logs and camera health status (ref. EV006, EV008).\n- **Alarm/entry system (Facilities/Security):** arming/disarming history, door contacts, exception reports, user codes list and last-change dates (ref. EV007, EV009).\n- **Timekeeping (Payroll/Timekeeping Admin):** clock-in/out, edits/overrides, manager approvals, and exception flags for involved shifts (ref. EV012).\n- **Communications (Store Management):** shift handoff notes and any written instructions tied to deposits (ref. EV011)."
+    },
+    {
+      "title": "Priority & Time Window Parameters",
+      "content": "- **Priority 1 (same day):** Video exports and alarm logs (EV006, EV007, EV008, EV009).\n- **Priority 2 (within 24 hours):** Deposit/safe documentation (EV001–EV004).\n- **Priority 3 (within 24 hours):** Timekeeping and shift notes (EV012, EV011).\n\nCollect the full date range covering all referenced incident timeline events (E001–E007, E009)."
+    },
+    {
+      "title": "Handling / Copying Instructions",
+      "content": "- Do **not** edit originals. Create read-only copies/exports.\n- For digital exports, keep native format plus a PDF/printable view when available.\n- Record: system name, operator, export method, and timestamp of export (ISO-8601).\n- Store copies in a restricted folder or sealed envelope; label with the related evidence ID (e.g., EV006)."
+    },
+    {
+      "title": "Return/Submission Instructions",
+      "content": "- Submit compiled records to Administrative Lead by secure handoff.\n- Include a brief index listing each item, system owner, and corresponding evidence ID.\n- If any record cannot be produced, provide a written exception noting the reason and the earliest restoration time estimate."
+    },
+    {
+      "title": "Attachments / Referenced Records",
+      "content": "- Referenced memo: **doc_shift_hold_001**\n- Evidence references: **EV001, EV002, EV003, EV004, EV006, EV007, EV008, EV009, EV011, EV012**"
+    }
+  ]
+}

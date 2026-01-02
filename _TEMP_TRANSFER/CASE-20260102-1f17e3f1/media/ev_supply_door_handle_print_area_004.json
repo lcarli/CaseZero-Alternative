@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_supply_door_handle_print_area_004",
+  "kind": "photo",
+  "title": "Supply Area Door Handle (Latent Print/Handling Area Documentation)",
+  "prompt": "1) Function (1 sentence)\nDocument a close-up, forensic-quality color photograph of the supply area door handle and the primary handling zone for latent print processing.\n\n2) Scene / Composition (3–5 sentences; include subject percentage in frame)\nSingle-frame close-up of a plain, unbranded brushed-metal lever-style door handle mounted on a neutral painted door surface, with the handle and immediate surrounding plate occupying ~70% of the frame. Place one small forensic scale (L-shaped, metric, high-contrast) adjacent to the handle without covering potential ridge detail. Include discrete annotation markers: two small evidence tents labeled with simple numerals positioned near the most-touched areas (e.g., base of lever and underside of lever) without obscuring surfaces. Lighting is from a direct forensic flash producing crisp, controlled specular highlights on metal while keeping overall exposure even; background remains minimal and non-distracting.\n\n3) Angle & Distance (strict numeric values)\nAngle: 15° off-perpendicular to the door plane (near-straight-on). Subject distance: 0.45 m from the handle to camera.\n\n4) Optics & Technique (lens mm, f/, 1/x s, ISO, WB K, focus, DOF)\nLens: 60 mm macro; aperture f/11; shutter 1/200 s; ISO 200; white balance 5600 K. Focus locked on the top surface of the lever with deep enough depth of field to keep the handle edges and scale markings sharp. Use on-camera flash (forensic flash look) with minimal ambient contribution; no motion blur.\n\n5) Mandatory elements (labels/markers/timestamps already present in the case)\nForensic scale present and readable; photo annotation present as small numbered evidence tents only (no case name, no evidenceId, no dates/times, no location text).\n\n6) Negatives (objective list of what MUST NOT appear)\nNo people, hands, gloves, faces, reflections showing a person, or identifiable biometrics. No real logos/brands, no readable facility signage, no door number, no official badges/insignia. No blood, weapons, or graphic content. No written case identifiers, evidenceId, or timestamps embedded in the image.\n\n7) Acceptance checklist (objective, verifiable bullets)\n- Handle and surrounding contact area fill ~70% of the frame and are sharply focused.\n- One metric forensic scale is visible, unobstructed, and legible.\n- Two small numbered annotation tents are present and do not cover the handle’s likely touch surfaces.\n- Color image with controlled forensic-flash lighting and even exposure.\n- No persons, no brands/logos, no signage, no timestamps, and no case/evidence identifiers appear in-frame.",
+  "constraints": {
+    "angle_deg": 15,
+    "distance_m": 0.45,
+    "aspect_ratio": "4:3",
+    "resolution_px": "2400x1800",
+    "seed": "4827391",
+    "deferred": false
+  }
+}

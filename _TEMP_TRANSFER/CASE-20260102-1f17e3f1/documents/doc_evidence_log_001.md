@@ -1,0 +1,32 @@
+# Evidence Log — Brookside Community Market Missing Deposit Bag (Initial Collection)
+
+## ## Log Header
+
+**Document ID:** doc_evidence_log_001  
+**Case:** Brookside Community Market — Missing Deposit Bag (Initial Collection)  
+**Date Created:** 2026-01-02T09:05:00-05:00  
+**Scope:** Initial evidence intake and packaging. Items listed below were entered into property control in the order received. All times use ISO-8601 with -05:00 offset. Descriptions are brief and intended to support later lab/technical work; no conclusions are recorded in this log.
+
+## ## Evidence Entries
+
+| ItemId | Collected At | Collected By | Description | Storage | Transfers |
+|---|---|---|---|---|---|
+| EV001 | 2026-01-02T08:20:00-05:00 | Responding Officer | Photo set of office/manager area and safe exterior; wide-to-close sequence. | Digital Evidence Vault (read-only) | 2026-01-02T08:55:00-05:00: Uploaded to case folder. |
+| EV002 | 2026-01-02T08:22:00-05:00 | Responding Officer | Photo set of deposit preparation area (countertop, drawer faces, floor area). | Digital Evidence Vault (read-only) | 2026-01-02T08:55:00-05:00: Uploaded to case folder. |
+| EV003 | 2026-01-02T08:30:00-05:00 | Responding Officer | Video walk-through of office entry path and nearby fixtures; narrated time marker. | Digital Evidence Vault (read-only) | 2026-01-02T08:56:00-05:00: Uploaded to case folder. |
+| EV004 | 2026-01-02T08:35:00-05:00 | Responding Officer | Store key ring recovered from manager desk area; bagged and sealed. | Property Room Locker A | 2026-01-02T09:00:00-05:00: Logged into property. |
+| EV005 | 2026-01-02T08:38:00-05:00 | Responding Officer | Paper deposit slip copy located in office bin; placed in document sleeve. | Property Room Locker A | 2026-01-02T09:01:00-05:00: Logged into property. |
+| EV006 | 2026-01-02T08:40:00-05:00 | Responding Officer | Safe access log printout provided by staff; initialed as received. | Property Room Locker A | 2026-01-02T09:01:30-05:00: Logged into property. |
+| EV007 | 2026-01-02T08:42:00-05:00 | Responding Officer | Point-of-sale “end of day” report printout; document sleeve. | Property Room Locker A | 2026-01-02T09:02:00-05:00: Logged into property. |
+| EV008 | 2026-01-02T08:45:00-05:00 | Responding Officer | Sealed envelope of handwritten notes from on-duty supervisor (as provided); do not alter. | Property Room Locker A | 2026-01-02T09:02:30-05:00: Logged into property. |
+| EV009 | 2026-01-02T08:48:00-05:00 | Responding Officer | Access-control door event export (USB provided by staff); placed in anti-static bag. | Property Room Locker B | 2026-01-02T09:03:00-05:00: Logged into property. |
+| EV010 | 2026-01-02T08:50:00-05:00 | Responding Officer | CCTV export (office hallway segment) on removable media; sealed. | Property Room Locker B | 2026-01-02T09:03:30-05:00: Logged into property. |
+| EV011 | 2026-01-02T08:52:00-05:00 | Responding Officer | Disposable gloves used for collection (for elimination/reference only); sealed. | Property Room Locker C | 2026-01-02T09:04:00-05:00: Logged into property. |
+| EV012 | 2026-01-02T08:54:00-05:00 | Responding Officer | Packaging materials and seal log sheet (initials, date/time, seal numbers). | Property Room Locker C | 2026-01-02T09:04:30-05:00: Logged into property. |
+
+*Notes:* Items EV004–EV008 maintained as paper/physical exhibits. Digital items EV001–EV003 stored in read-only repository; EV009–EV010 stored as physical media pending verification copy.
+
+## ## Summary
+
+Twelve items (EV001–EV012) were collected during the initial response and entered into property control by 2026-01-02T09:04:30-05:00. Digital imagery (EV001–EV003) was uploaded to the case repository, while physical documents and media (EV004–EV012) were sealed and stored in designated lockers. No processing (e.g., print development, data review, or analysis) is documented in this log; this entry records intake only. Any subsequent movement, duplication, or examination must be recorded as a new transfer with date/time and receiving party.
+

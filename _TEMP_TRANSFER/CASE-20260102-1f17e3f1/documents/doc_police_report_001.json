@@ -1,0 +1,52 @@
+{
+  "docId": "doc_police_report_001",
+  "type": "police_report",
+  "title": "Initial Police Report – Missing Sealed Deposit Bag (Brookside Community Market)",
+  "words": 459,
+  "sections": [
+    {
+      "title": "Report Number / Agency / Classification",
+      "content": "**Report Number:** doc_police_report_001  \n**Date/Time Created:** 2026-01-02T09:05:00-05:00  \n**Agency/Unit:** Patrol Services  \n**Responsible Officer:** Responding officer (name withheld)\n\n## Report Number / Agency / Classification\nThis report documents an initial response to a reported missing sealed deposit bag from a secured back-office safe area at Brookside Community Market. Classification: suspected internal theft / missing property (currency deposit)."
+    },
+    {
+      "title": "Date/Time Reported and Date/Time Officer Arrived",
+      "content": "## Date/Time Reported and Date/Time Officer Arrived\n- **Date/Time Reported:** 2026-01-02T08:42:00-05:00\n- **Date/Time Officer Arrived:** 2026-01-02T08:56:00-05:00\n- **Date/Time Officer Cleared (approx.):** 2026-01-02T09:30:00-05:00"
+    },
+    {
+      "title": "Reporting Party and Location",
+      "content": "## Reporting Party and Location\n- **Reporting Party:** Store management representative (name withheld)\n- **Business:** Brookside Community Market\n- **Location of Reported Loss:** Back office / safe area (restricted access)."
+    },
+    {
+      "title": "Incident Summary",
+      "content": "## Incident Summary\nManagement reported that a sealed deposit bag prepared for bank drop was not located where it was expected to be stored in the safe area. Reporting party stated the deposit bag was believed to have been secured during the prior closing process and discovered missing during routine morning checks. No forced entry to the store was reported at the time of this initial call. The reporting party requested documentation of the incident and guidance on preserving video and paperwork for follow-up."
+    },
+    {
+      "title": "Persons Involved (Employees with Access)",
+      "content": "## Persons Involved (Employees with Access)\nEmployees identified by management as having potential access to the back-office safe area during normal operations include:\n- **S001** (employee with access as assigned)\n- **S002** (employee with access as assigned)\n- **S003** (employee with access as assigned)\n\nNote: This list reflects access roles as reported at scene and is not a determination of responsibility."
+    },
+    {
+      "title": "Scene Description (Back Office Safe Area)",
+      "content": "## Scene Description (Back Office Safe Area)\nBack office described as a restricted room with a safe/cash-handling area and a work surface used for closing documentation and deposit preparation. Officer observed no obvious signs of forced entry into the office area at time of response. Area was in normal operating condition. Management was advised to limit access and avoid moving paperwork or containers related to deposits until follow-up review."
+    },
+    {
+      "title": "Timeline Summary (Known Events)",
+      "content": "## Timeline Summary (Known Events)\nKnown events were reviewed at a high level based on management statements and available store records:\n- **E006:** Deposit handling activity associated with prior closing (time per store records).\n- **E007:** Deposit expected to be in secured storage following closing procedures.\n- **E009:** Morning discovery of missing sealed deposit bag and internal check prior to calling police.\n\nExact times and custody details to be verified in supplemental documentation review."
+    },
+    {
+      "title": "Evidence Collected / Requested",
+      "content": "## Evidence Collected / Requested\nNo physical items were seized during this initial response. The following items were requested for preservation and later review:\n- **EV011:** Video footage covering back-office access points/time window identified by management.\n- **EV012:** Still images/export(s) if available for key access moments.\n- **EV008:** Closing paperwork relevant to deposit preparation/storage.\n- **EV009:** Safe log and/or access record for the relevant period.\n\nManagement advised to preserve originals and provide copies via agreed method."
+    },
+    {
+      "title": "Witness Statements (Summary)",
+      "content": "## Witness Statements (Summary)\n- Reporting party stated the deposit bag was believed to have been sealed and placed per procedure during the prior closing and was not located during morning verification.\n- Reporting party stated only employees with assigned access should have been able to enter the safe area, and routine business operations continued after discovery pending guidance.\n\nNo formal written statements were taken on-scene; interviews to be scheduled."
+    },
+    {
+      "title": "Actions Taken and Notifications",
+      "content": "## Actions Taken and Notifications\n- Conducted initial scene assessment of back office/safe area; no immediate safety issues noted.\n- Advised management to preserve relevant video and documents (see EV011, EV008).\n- Advised limiting access to safe area and documenting any necessary entries until follow-up.\n- Notified supervising officer of incident and need for supplemental review of custody documentation."
+    },
+    {
+      "title": "Attachments / References",
+      "content": "## Attachments / References\n- **doc_police_report_001** (this report)\n- Evidence references requested/preserved: **EV011, EV012, EV008, EV009**\n- Timeline references for follow-up verification: **E006, E007, E009**"
+    }
+  ]
+}

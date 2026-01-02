@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_safe_open_context_002",
+  "kind": "photo",
+  "title": "Wall-Mounted Safe with Open Door - Mid-Range Context",
+  "prompt": "1) Function: Capture a forensic-quality mid-range contextual photograph of a wall-mounted safe with its door open.\n2) Scene / Composition: Documentary-style color photograph inside a plain, unoccupied interior room with neutral walls and minimal furnishings. The wall-mounted safe is centered and occupies ~35% of the frame, with the surrounding wall area and a small portion of adjacent room context visible for orientation. The safe door is swung open, showing the interior cavity clearly; no items inside are prominent enough to imply specific contents. The scene is clean and uncluttered, with no people present and no intentional annotations or measurement scales.\n3) Angle & Distance: Eye-level perspective, angle_deg 0; distance_m 2.2.\n4) Optics & Technique: 35 mm lens; aperture f/8; shutter 1/125 s; ISO 200; white balance 5200K; on-camera forensic flash providing even illumination; focus on the safe door edge and interior with moderate depth of field keeping the safe and immediate wall area sharp.\n5) Mandatory elements (labels/markers/timestamps already present in the case): None.\n6) Negatives (objective list of what MUST NOT appear): No faces, people, hands, reflections showing a person, or identifiable biometrics; no real names, brand logos, or manufacturer marks; no official badges/insignia; no license plates; no written case/evidence IDs or the evidence title in-frame; no timestamps or CCTV overlays; no measurement rulers/scales; no weapons, blood, or graphic violence; no collage or multiple panels.\n7) Acceptance checklist (objective, verifiable bullets): - Single color photograph with forensic-flash look and even lighting\n- Wall-mounted safe door is visibly open and interior is clearly readable\n- Eye-level perspective with mild perspective convergence consistent with 2.2 m distance\n- Safe occupies approximately one-third of the frame with surrounding wall context visible\n- No annotations, scales, timestamps, logos, or identifiable people present",
+  "constraints": {
+    "angle_deg": 0,
+    "distance_m": 2.2,
+    "aspect_ratio": "4:3",
+    "resolution_px": "4032x3024",
+    "seed": "5829417",
+    "deferred": false
+  }
+}

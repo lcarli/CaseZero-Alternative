@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_deposit_bag_seal_fragment_001",
+  "kind": "photo",
+  "title": "Deposit Bag Seal Fragment / Adhesive Residue (EV005) - Close-Up",
+  "prompt": "1) Function: Produce a forensic-quality close-up color photograph documenting a small deposit bag seal fragment and adjacent adhesive residue for later comparison and analysis.\n2) Scene / Composition: A small irregular clear/amber-tinted plastic seal fragment with torn edges lies on a clean matte gray evidence table surface, with a faint patch of adhesive residue visible immediately beside it. Include a plain metric scale (millimeter markings) placed parallel to the bottom edge of the frame, close to the fragment but not touching it. The fragment and residue occupy about 35% of the frame; the remainder is neutral background with subtle texture. Use raking light from frame-left to emphasize surface texture and adhesive sheen without creating blown highlights; no annotations, no evidence tents, and no handwriting in frame.\n3) Angle & Distance: Angle 20° from the surface plane (low oblique); distance_m 0.30.\n4) Optics & Technique: 100 mm macro lens, aperture f/11, shutter 1/125 s, ISO 200, white balance 5200 K; focus locked on the torn edge of the fragment with deep enough DOF to keep the scale markings legible; tripod-stable, sharp detail, minimal noise.\n5) Mandatory elements: Metric scale with millimeter markings visible; neutral matte gray background; no other labels, IDs, or timestamps.\n6) Negatives: No people, hands, gloves, faces, reflections showing a photographer; no brands/logos; no real names; no barcodes/QR codes; no case ID or evidenceId text; no blood, bodily fluids, weapons, or drugs; no additional objects (bags, envelopes, tools) beyond the fragment, residue, and the scale; no digital overlays or annotations.\n7) Acceptance checklist:\n- Fragment and adjacent adhesive residue both clearly visible and in focus.\n- Raking light from left emphasizes texture without clipped highlights.\n- Metric scale present with readable millimeter ticks; scale not touching the fragment.\n- Color image, neutral rendering, forensic-quality sharpness and low noise.\n- No identifying text, logos, people, or extra items in frame.\n- Single still image, no collage or multi-panel layout.",
+  "constraints": {
+    "angle_deg": 20,
+    "distance_m": 0.3,
+    "aspect_ratio": "4:3",
+    "resolution_px": "2400x1800",
+    "seed": "4739162",
+    "deferred": false
+  }
+}

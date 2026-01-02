@@ -1,0 +1,28 @@
+{
+  "docId": "doc_interview_s002_002",
+  "type": "interview",
+  "title": "Interview with Darren Kuczma (Evening Cashier)",
+  "words": 542,
+  "sections": [
+    {
+      "title": "## Introduction",
+      "content": "**Interviewer:** This interview is being recorded in writing. Please state your name and role.\n\n**Interviewee:** Darren Kuczma. I’m the evening cashier.\n\n**Interviewer:** Date and time of this interview: 2026-01-02T09:35:00-05:00. Do you understand you’re expected to answer truthfully?\n\n**Interviewee:** Yes.\n\n**Interviewer:** If you don’t know or don’t remember something, say so. Agreed?\n\n**Interviewee:** Agreed."
+    },
+    {
+      "title": "## Background Questions",
+      "content": "**Interviewer:** How long have you worked this job?\n\n**Interviewee:** A little over a year.\n\n**Interviewer:** Describe your normal duties on an evening shift.\n\n**Interviewee:** Register, customer checkout, counting down the till, basic cleanup, and locking my register area when I’m done.\n\n**Interviewer:** Who do you normally report to?\n\n**Interviewee:** The store manager, Marla Chen.\n\n**Interviewer:** Do you have access to the cash drawer and the safe?\n\n**Interviewee:** The drawer, yes. The safe, no. I don’t have that code.\n\n**Interviewer:** Are there cameras covering your register area?\n\n**Interviewee:** Yes. There are cameras pointed at the front and the registers. I’ve seen the monitor in the back office."
+    },
+    {
+      "title": "## Incident Questions",
+      "content": "**Interviewer:** I’m going to ask about the incident timeframe. We will also review related items, including EV001 and EV002. Are you familiar with what those refer to?\n\n**Interviewee:** I know EV001 is camera footage. EV002 is the receipt or register report, I think.\n\n**Interviewer:** Walk me through your shift in order, from arriving to leaving.\n\n**Interviewee:** I arrived, clocked in, and took over the register. I ran customers until close. Near the end, traffic slowed down. I started straightening the counter and organizing bags.\n\n**Interviewer:** Did anything unusual happen during your shift?\n\n**Interviewee:** I remember one customer being impatient about a price, but nothing extreme. No argument that lasted.\n\n**Interviewer:** Did you leave the register unattended at any point?\n\n**Interviewee:** Only briefly, like stepping a few feet away to grab receipt paper or bags. I didn’t leave the front area for a long time.\n\n**Interviewer:** Do you recall any system issues, like the register freezing, a drawer that wouldn’t close, or a void problem?\n\n**Interviewee:** The register was normal. I did a couple voids like usual when customers changed their mind, but nothing weird.\n\n**Interviewer:** Did you handle any cash drops or transfers?\n\n**Interviewee:** Not into the safe. I only kept cash in the drawer until I counted down.\n\n**Interviewer:** For clarity, you’re saying the camera coverage (EV001) should show you at the register most of the time?\n\n**Interviewee:** Yes, it should.\n\n**Interviewer:** And the transaction history (EV002) should match what you remember?\n\n**Interviewee:** It should, yes."
+    },
+    {
+      "title": "## Alibi Verification",
+      "content": "**Interviewer:** During the key timeframe described in the case timeline (E001, E002, and E005), where were you?\n\n**Interviewee:** I was on shift, at the front register. If I stepped away, it was for supplies right near the counter.\n\n**Interviewer:** Do you recall the approximate time you left the building?\n\n**Interviewee:** I don’t remember the exact minute. After close, after the count, I left.\n\n**Interviewer:** Who can confirm your presence during the shift?\n\n**Interviewee:** Customers, and the manager if she was still there. Also the cameras.\n\n**Interviewer:** Did you communicate with anyone by phone or message during that timeframe?\n\n**Interviewee:** I checked my phone once or twice, but not a long call. I don’t remember sending messages.\n\n**Interviewer:** Is there anything in EV003 or EV007 that you believe would help confirm what you’re saying?\n\n**Interviewee:** EV003, if that’s another report, might show timing. EV007, if that’s a log, might show access or something. I don’t know exactly what they contain."
+    },
+    {
+      "title": "## Closing",
+      "content": "**Interviewer:** Is there anything else you think is important about your shift that we didn’t cover?\n\n**Interviewee:** Just that it felt like a normal night. I didn’t see anything that stood out.\n\n**Interviewer:** Are you willing to be contacted again if follow-up questions come up after review of EV001, EV002, EV003, and EV007?\n\n**Interviewee:** Yes.\n\n**Interviewer:** Interview concluded on 2026-01-02T09:50:00-05:00.\n\n**Interviewee:** Okay."
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_mugshot_s003_003",
+  "kind": "photo",
+  "title": "Suspect Mugshot - Owen Patel (Booking Photo)",
+  "prompt": "1) Function (1 sentence)\nCreate a neutral, professional booking-style mugshot photograph suitable for an evidence file.\n\n2) Scene / Composition (3–5 sentences; include subject percentage in frame)\nSingle subject from mid-chest to just above the head, centered against a plain matte light-gray background with no visible texture; subject occupies ~65% of the frame. Even frontal lighting with soft fill to minimize shadows; natural skin tones and accurate color balance. The subject faces straight toward the camera with a neutral expression, mouth closed, eyes open, shoulders squared, hands not visible. Clothing is plain, unbranded, and solid color (e.g., dark gray crewneck), with no jewelry, no hats, and no eyewear.\n\n3) Angle & Distance (strict numeric values)\nAngle_deg: 0 (eye-level, straight-on); distance_m: 1.40.\n\n4) Optics & Technique (lens mm, f/, 1/x s, ISO, WB K, focus, DOF)\nLens 50 mm; aperture f/8; shutter 1/125 s; ISO 200; white balance 5200 K. Focus locked on the eyes; moderate depth of field keeping the full face and shoulders sharp; minimal noise and no artistic styling.\n\n5) Mandatory elements (labels/markers/timestamps already present in the case)\nNone; no on-image text, no placards, no case identifiers.\n\n6) Negatives (objective list of what MUST NOT appear)\nNo real person, no recognizable face/biometrics of any real individual, no real names, no logos/brands, no official badges/insignia, no watermarks, no timestamps, no camera labels, no barcode/QR codes, no fingerprints, no background objects, no handcuffs, no police station signage, no collage or multi-panel layout.\n\n7) Acceptance checklist (objective, verifiable bullets)\n- Single color photo, one subject only, centered, mid-chest to head framing\n- Plain matte light-gray background with no text or objects\n- Eye-level straight-on angle (0°) and subject ~65% of frame\n- Even frontal lighting with minimal shadows; neutral documentary look\n- No logos, brands, badges, placards, timestamps, or identifiers\n- Professional sharpness with eyes in focus and natural color rendering",
+  "constraints": {
+    "angle_deg": 0,
+    "distance_m": 1.4,
+    "aspect_ratio": "4:5",
+    "resolution_px": "2000x2500",
+    "seed": "5831047",
+    "deferred": false
+  }
+}

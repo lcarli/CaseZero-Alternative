@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_safe_compartment_condition_002",
+  "kind": "photo",
+  "title": "Safe Compartment Condition at Discovery (EV011) - Detail of Empty Shelf",
+  "prompt": "1) Function (1 sentence)\nCreate a forensic-quality close-up photograph documenting the condition of an empty shelf inside a safe compartment at the time of discovery.\n\n2) Scene / Composition (3–5 sentences; include subject percentage in frame)\nSingle color documentary photo of an open safe compartment interior focused on one empty shelf, showing clean flat shelf surface and surrounding interior walls, with no items present. The shelf surface occupies ~70% of the frame, with the remaining ~30% showing the shelf edges and adjacent safe interior panels for context. Include a simple forensic scale (plain black-and-white, unbranded) placed along the front edge of the shelf without obscuring the surface. Background is limited to the safe interior; no room context beyond the safe opening.\n\n3) Angle & Distance (strict numeric values)\nAngle: 15° downward from perpendicular (near top-down); subject distance: 0.45 m from camera to shelf surface center.\n\n4) Optics & Technique (lens mm, f/, 1/x s, ISO, WB K, focus, DOF)\nLens 50 mm; aperture f/11; shutter 1/125 s; ISO 200; white balance 5600 K. On-axis forensic flash for even illumination with minimal shadowing; focus locked on the shelf surface center; deep depth of field to keep the scale and shelf edges sharp.\n\n5) Mandatory elements (labels/markers/timestamps already present in the case)\nNo text overlays, timestamps, case numbers, evidence IDs, or labels.\n\n6) Negatives (objective list of what MUST NOT appear)\nNo people, hands, faces, reflections showing a person, or biometric identifiers. No brands, logos, serial numbers, official badges, or identifiable signage. No weapons, drugs, money, blood, or graphic content. No writing of the evidence name, EV011, or any caseId inside the image. No additional objects on the shelf besides the simple forensic scale.\n\n7) Acceptance checklist (objective, verifiable bullets)\n- Single color photo showing an empty shelf inside a safe compartment.\n- Shelf surface occupies approximately 70% of the frame.\n- Simple unbranded black-and-white forensic scale visible and not obscuring the shelf center.\n- Even on-axis flash lighting with neutral color and minimal shadows.\n- No timestamps, overlays, labels, or case/evidence identifiers visible.\n- No people, faces, logos, or real-world identifying marks present.",
+  "constraints": {
+    "angle_deg": 15,
+    "distance_m": 0.45,
+    "aspect_ratio": "4:3",
+    "resolution_px": "3000x2250",
+    "seed": "4829137",
+    "deferred": false
+  }
+}

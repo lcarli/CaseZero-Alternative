@@ -50,6 +50,15 @@ Content-Type: application/json
   "caseId": "CASE-20260102-1f17e3f1"
 }
 
+###
+### TEST 3c - Renderizar Documentos para CASE-20260102-1f17e3f1 (JSON → PDF)
+POST http://localhost:7071/api/TestRenderDocuments
+Content-Type: application/json
+
+{
+  "caseId": "CASE-20260102-1f17e3f1"
+}
+
 ### TEST 4 - Design Visual Registry (1-2 minutos)
 # Cria registry de elementos visuais para consistência
 # Analisa evidências e suspeitos do caso existente

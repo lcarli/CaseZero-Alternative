@@ -279,14 +279,14 @@ public static class PdfCommonComponents
 
         column.Item().PaddingTop(8).PaddingBottom(8).Table(table =>
         {
-            // Define columns
-            foreach (var _ in headerCells)
+            // Define columns - ONLY ONCE
+            table.ColumnsDefinition(columns =>
             {
-                table.ColumnsDefinition(columns =>
+                foreach (var _ in headerCells)
                 {
                     columns.RelativeColumn();
-                });
-            }
+                }
+            });
 
             // Header row
             table.Header(header =>

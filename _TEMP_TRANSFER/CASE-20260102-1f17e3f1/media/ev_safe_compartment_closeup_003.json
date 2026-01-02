@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_safe_compartment_closeup_003",
+  "kind": "photo",
+  "title": "Safe Interior Compartment - Close-Up Showing Empty Shelf",
+  "prompt": "1) Function (1 sentence)\nCapture a forensic-quality color close-up photograph of the interior compartment of a safe, clearly showing an empty shelf surface.\n\n2) Scene / Composition (3–5 sentences; include subject percentage in frame)\nThe frame shows the open safe interior compartment filling approximately 90% of the image, centered on a single empty shelf and its surrounding metal walls. The shelf surface is clean and visibly empty, with only minor dust specks and faint wipe marks typical of a metal interior. Include a forensic scale placed along the front edge of the shelf without obscuring the empty area. Lighting is provided by direct forensic flash with even exposure and neutral color.\n\n3) Angle & Distance (strict numeric values)\nAngle: 20° downward from perpendicular toward the shelf surface; subject distance: 0.45 m.\n\n4) Optics & Technique (lens mm, f/, 1/x s, ISO, WB K, focus, DOF)\nLens: 50 mm; aperture: f/11; shutter: 1/125 s; ISO 200; white balance: 5600 K. Focus is sharp across the shelf plane and front interior walls; deep depth of field to keep the scale markings legible.\n\n5) Mandatory elements (labels/markers/timestamps already present in the case)\nA neutral forensic measurement scale (black-and-white, metric) visible on the shelf edge.\n\n6) Negatives (objective list of what MUST NOT appear)\nNo people, hands, fingerprints powder, or tools.\nNo documents, cash, jewelry, weapons, drugs, or any items on the shelf.\nNo brands, logos, serial numbers, or readable safe manufacturer markings.\nNo timestamps, no camera labels, no annotations, no evidence ID text, no case text.\nNo blood, violence, or disturbing content.\n\n7) Acceptance checklist (objective, verifiable bullets)\n- Single color photo of an open safe interior compartment with an empty shelf.\n- Safe interior occupies ~90% of the frame; shelf is clearly visible and empty.\n- Forensic flash look: even illumination, minimal harsh shadows, neutral color.\n- Forensic scale present and legible, placed on the shelf edge without covering the empty area.\n- No people, no logos/brands, no text overlays, no timestamps, no annotations.",
+  "constraints": {
+    "angle_deg": 20,
+    "distance_m": 0.45,
+    "aspect_ratio": "4:3",
+    "resolution_px": "2048x1536",
+    "seed": "5831047",
+    "deferred": false
+  }
+}

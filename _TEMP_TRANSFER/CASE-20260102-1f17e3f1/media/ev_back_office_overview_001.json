@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_back_office_overview_001",
+  "kind": "photo",
+  "title": "Back Office Safe Area - Overview at Discovery",
+  "prompt": "1) Function (1 sentence)\nCreate a forensic-quality overview photograph documenting the back office safe area as discovered.\n\n2) Scene / Composition (3–5 sentences; include subject percentage in frame)\nA neutral, documentary-style wide-angle photo of a small back-office safe area: a plain painted wall, a closed metal safe positioned against the wall, and a small section of surrounding floor visible. The safe and the immediate area around it occupy approximately 45% of the frame, with the remaining 55% showing adjacent wall, baseboard, and floor for context. The scene is evenly illuminated by direct forensic flash with minimal shadowing, showing realistic texture on painted surfaces and light scuffs on the floor. No people are present; no annotations, arrows, or measurement scales appear.\n\n3) Angle & Distance (strict numeric values)\nAngle: 15° downward from horizontal; camera-to-safe distance: 2.2 m.\n\n4) Optics & Technique (lens mm, f/, 1/x s, ISO, WB K, focus, DOF)\nLens: 24 mm full-frame equivalent; aperture f/8; shutter 1/125 s; ISO 200; white balance 5600 K (flash). Focus centered on the safe door with deep depth of field keeping wall, safe edges, and floor details sharp. Use neutral color rendering and forensic clarity (low noise, high detail).\n\n5) Mandatory elements (labels/markers/timestamps already present in the case)\nNone.\n\n6) Negatives (objective list of what MUST NOT appear)\n- No faces, people, hands, or identifiable biometrics\n- No real names, logos, brands, or official insignia/badges\n- No readable personal documents, IDs, or mail\n- No timestamps, camera labels, watermarks, or on-image text\n- No rulers/measurement scales or evidence markers\n- No weapons, drugs, blood, or graphic content\n- No reflective glare obscuring the safe door area\n\n7) Acceptance checklist (objective, verifiable bullets)\n- Single wide-angle color photo with forensic-flash lighting and even exposure\n- Safe area overview includes safe, adjacent wall, and visible floor context\n- Safe and surrounding area occupy ~45% of the frame\n- No annotations, no scales, no text overlays\n- No people, no brands/logos, no real-world identifiers\n- Image is sharp with deep DOF and neutral color balance",
+  "constraints": {
+    "angle_deg": 15,
+    "distance_m": 2.2,
+    "aspect_ratio": "4:3",
+    "resolution_px": "2048x1536",
+    "seed": "6381742",
+    "deferred": false
+  }
+}

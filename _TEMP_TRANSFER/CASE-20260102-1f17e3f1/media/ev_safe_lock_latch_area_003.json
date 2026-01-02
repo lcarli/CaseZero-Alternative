@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_safe_lock_latch_area_003",
+  "kind": "photo",
+  "title": "Safe Door Lock and Latch Area (EV011) - Close-Up",
+  "prompt": "1) Function: Capture a forensic-quality close-up photograph of a safe door’s lock cylinder and latch/bolt interface for later comparison of toolmarks and wear.\n\n2) Scene / Composition: Show only the safe door edge and the receiving jamb area where the latch/bolt meets the frame, filling approximately 85% of the frame with metal surfaces. The lock cylinder, latch opening, strike plate area, and immediate surrounding paint/metal should be fully visible with crisp texture detail. Use raking light from camera-left to emphasize scratches and micro-abrasions without creating blown highlights. Background should be minimal and out of frame (no room context), maintaining a simple rookie-level composition.\n\n3) Angle & Distance: Angle 20° off perpendicular to the safe door surface (oblique close-up), subject distance 0.35 m.\n\n4) Optics & Technique: 60 mm macro lens, f/11, shutter 1/125 s, ISO 200, white balance 5000K; manual focus on the latch edge/strike interface; deep depth of field to keep lock face and latch opening sharp; tripod-stable, no motion blur.\n\n5) Mandatory elements: No text overlays, no timestamps, no camera labels, no annotations; include a small, plain, unmarked neutral-gray scale card at the bottom edge of the frame (no branding, no printed numbers) consistent with “scale: True”.\n\n6) Negatives: No people, hands, or gloves; no faces or reflections showing a person; no real brand names/logos; no serial numbers legible; no case ID or evidence name written in the image; no additional objects (tools, tape, rulers with markings); no blood, weapons, or violence; no dramatic/colored lighting.\n\n7) Acceptance checklist:\n- Close-up of safe lock cylinder and latch/bolt interface with strike area visible\n- Raking light clearly reveals fine scratches without overexposure\n- Neutral color rendering (approx. 5000K) and forensic-quality sharpness\n- Plain unmarked neutral-gray scale card present and partially in frame\n- No text overlays, timestamps, labels, brands, people, or extraneous items",
+  "constraints": {
+    "angle_deg": 20,
+    "distance_m": 0.35,
+    "aspect_ratio": "4:3",
+    "resolution_px": "3000x2250",
+    "seed": "4839206",
+    "deferred": false
+  }
+}
