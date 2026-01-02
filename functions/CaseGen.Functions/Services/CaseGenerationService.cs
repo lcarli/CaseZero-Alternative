@@ -3757,37 +3757,40 @@ OUTPUT: ONLY valid JSON conforming to VisualConsistencyRegistry schema.
                 CreatedAt = DateTime.UtcNow
             });
 
-            // Convert normalized_case.json to case.json v1.0 format
-            _logger.LogInformation("PACKAGE: Converting normalized_case.json to case.json v1.0 for case {CaseId}", caseId);
-            var normalizedBundle = JsonSerializer.Deserialize<NormalizedCaseBundle>(actualJson);
-            if (normalizedBundle != null)
+            // Convert v2-hierarchical to case.json v1.0 format
+            try
             {
-                var caseJsonV1 = await _caseFormatConverter.ConvertToV1Async(normalizedBundle, cancellationToken);
-                var caseJsonFileName = $"{caseId}/case.json";
-                await _storageService.SaveFileAsync(bundlesContainer, caseJsonFileName, caseJsonV1, cancellationToken);
+                _logger.LogInformation("PACKAGE: Converting case {CaseId} from v2-hierarchical to case.json v1.0", caseId);
                 
-                var caseJsonHash = ComputeSHA256Hash(caseJsonV1);
+                var caseV1Json = await _caseFormatConverter.ConvertCaseToV1Async(caseId, cancellationToken);
+                
+                // Save case.json v1.0
+                var caseV1FileName = $"{caseId}/case.json";
+                await _storageService.SaveFileAsync(bundlesContainer, caseV1FileName, caseV1Json, cancellationToken);
+                
+                var caseV1Hash = ComputeSHA256Hash(caseV1Json);
                 caseManifest.Manifest.Add(new FileManifestEntry
                 {
                     Filename = "case.json",
-                    RelativePath = caseJsonFileName,
-                    Sha256 = caseJsonHash,
+                    RelativePath = caseV1FileName,
+                    Sha256 = caseV1Hash,
                     MimeType = "application/json"
                 });
                 
                 files.Add(new GeneratedFile
                 {
-                    Path = caseJsonFileName,
+                    Path = caseV1FileName,
                     Type = "json",
-                    Size = System.Text.Encoding.UTF8.GetByteCount(caseJsonV1),
+                    Size = System.Text.Encoding.UTF8.GetByteCount(caseV1Json),
                     CreatedAt = DateTime.UtcNow
                 });
                 
-                _logger.LogInformation("PACKAGE: Successfully generated case.json v1.0 for case {CaseId}", caseId);
+                _logger.LogInformation("PACKAGE: Successfully generated case.json v1.0 (hash: {Hash})", caseV1Hash[..8]);
             }
-            else
+            catch (Exception ex)
             {
-                _logger.LogWarning("PACKAGE: Could not deserialize normalized_case.json for case {CaseId} - skipping case.json v1.0 generation", caseId);
+                _logger.LogError(ex, "PACKAGE: Failed to convert case {CaseId} to case.json v1.0 - continuing without it", caseId);
+                // Continue without case.json v1.0 if conversion fails
             }
 
             // Add individual documents to manifest (try to read from storage)

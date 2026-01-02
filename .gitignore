@@ -170,6 +170,7 @@ artifacts/
 **/appsettings.Production.json
 **/appsettings.*.json
 !**/appsettings.json
+**/local.settings.json
 
 # SQLite databases
 *.db
