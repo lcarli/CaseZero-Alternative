@@ -1,12 +1,14 @@
-using Azure.Identity;
-using Azure.AI.OpenAI;
-using Azure.AI.OpenAI.Chat;
+using Azure;
+using OpenAI;
 using OpenAI.Chat;
 using OpenAI.Images;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using System.ClientModel;
 using CaseGen.Functions.Models;
+
+#pragma warning disable OPENAI001
 
 namespace CaseGen.Functions.Services;
 
@@ -29,16 +31,19 @@ public class AzureFoundryLLMProvider : ILLMProvider
         var imageDeploymentName = configuration["AzureFoundry:ImageDeploymentName"]
             ?? throw new InvalidOperationException("AzureFoundry:ImageDeploymentName not configured");
 
-        var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions { TenantId = configuration["AzureFoundry:TenantId"] });
+        var apiKey = configuration["AzureFoundry:ApiKey"]
+            ?? throw new InvalidOperationException("AzureFoundry:ApiKey not configured");
 
-        var azureClientOptions = new AzureOpenAIClientOptions()
+        var clientOptions = new OpenAIClientOptions()
         {
+            Endpoint = new Uri(endpoint),
             NetworkTimeout = TimeSpan.FromMinutes(10)
         };
 
-        var azureClient = new AzureOpenAIClient(new Uri(endpoint), credential, azureClientOptions);
-        _chatClient = azureClient.GetChatClient(deploymentName);
-        _imageClient = azureClient.GetImageClient(imageDeploymentName);
+        var credential = new ApiKeyCredential(apiKey);
+
+        _chatClient = new ChatClient(deploymentName, credential, clientOptions);
+        _imageClient = new ImageClient(imageDeploymentName, credential, clientOptions);
 
         _logger.LogInformation("Azure Foundry LLM Provider initialized with endpoint: {Endpoint}, text model: {TextModel}, image model: {ImageModel}",
             endpoint, deploymentName, imageDeploymentName);
@@ -51,13 +56,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
             var requestOptions = new ChatCompletionOptions()
             {
                 MaxOutputTokenCount = 30000
-                // Note: This Azure Foundry model only supports default temperature (1.0)
             };
-
-            // Enable the new max_completion_tokens property
-#pragma warning disable AOAI001
-            requestOptions.SetNewMaxCompletionTokensPropertyEnabled(true);
-#pragma warning restore AOAI001
 
             var messages = new List<ChatMessage>()
             {
@@ -105,13 +104,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
             var requestOptions = new ChatCompletionOptions()
             {
                 MaxOutputTokenCount = 30000
-                // Note: This Azure Foundry model only supports default temperature (1.0)
             };
-
-            // Enable the new max_completion_tokens property
-#pragma warning disable AOAI001
-            requestOptions.SetNewMaxCompletionTokensPropertyEnabled(true);
-#pragma warning restore AOAI001
 
             var messages = new List<ChatMessage>()
             {
@@ -213,51 +206,23 @@ public class AzureFoundryLLMProvider : ILLMProvider
             string improvedPrompt = prompt;
 
 
-            _logger.LogInformation("Generating image with gpt-image-1 using prompt: {Prompt}", improvedPrompt);
+            _logger.LogInformation("Generating image using prompt: {Prompt}", improvedPrompt);
 
-            // For gpt-image-1, we need to use different configuration
-            // gpt-image-1 always returns base64-encoded images and doesn't support ResponseFormat parameter
-            var imageGeneration = await _imageClient.GenerateImageAsync(
-                improvedPrompt,
-                new ImageGenerationOptions()
-                {
-                    Size = GeneratedImageSize.W1024xH1024
-                },
-                cancellationToken);
+            var imageGenerationOptions = new ImageGenerationOptions()
+            {
+                Size = GeneratedImageSize.W1024xH1024
+            };
 
-            // gpt-image-1 always returns base64-encoded images, so we need to decode from base64
-            byte[] imageBytes;
-            if (!string.IsNullOrEmpty(imageGeneration.Value.ImageUri?.ToString()))
-            {
-                // If we get a URI, it's likely a data URI with base64 content
-                var dataUri = imageGeneration.Value.ImageUri.ToString();
-                if (dataUri.StartsWith("data:image"))
-                {
-                    var base64Data = dataUri.Substring(dataUri.IndexOf(',') + 1);
-                    imageBytes = Convert.FromBase64String(base64Data);
-                }
-                else
-                {
-                    throw new InvalidOperationException("Unexpected image URI format from gpt-image-1");
-                }
-            }
-            else if (imageGeneration.Value.ImageBytes != null && imageGeneration.Value.ImageBytes.Length > 0)
-            {
-                // Fallback: try ImageBytes if available
-                imageBytes = imageGeneration.Value.ImageBytes.ToArray();
-            }
-            else
-            {
-                throw new InvalidOperationException("gpt-image-1 did not return image data in expected format");
-            }
+            GeneratedImage image = await _imageClient.GenerateImageAsync(improvedPrompt, imageGenerationOptions, cancellationToken);
+            byte[] imageBytes = image.ImageBytes.ToArray();
 
-            _logger.LogInformation("Image generated successfully with gpt-image-1, size: {Size} bytes", imageBytes.Length);
+            _logger.LogInformation("Image generated successfully, size: {Size} bytes", imageBytes.Length);
 
             return imageBytes;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Azure Foundry gpt-image-1 generation failed for prompt: {Prompt}", prompt);
+            _logger.LogError(ex, "Azure Foundry image generation failed for prompt: {Prompt}", prompt);
             throw;
         }
     }
@@ -266,46 +231,21 @@ public class AzureFoundryLLMProvider : ILLMProvider
     {
         try
         {
-            _logger.LogInformation("Generating image with reference using gpt-image-1, reference size: {ReferenceSize} bytes, has mask: {HasMask}", 
+            _logger.LogInformation("Generating image with reference, reference size: {ReferenceSize} bytes, has mask: {HasMask}", 
                 referenceImage.Length, maskImage != null);
 
-            // Note: gpt-image-1 image-to-image requires specific API usage
-            // For now, using enhanced text prompts with visual consistency instructions
+            // Note: Using enhanced text prompts with visual consistency instructions
             // Future enhancement: Integrate proper multimodal image-to-image pipeline
             
             _logger.LogInformation("Using enhanced prompt-based generation for visual consistency");
 
-            var imageGeneration = await _imageClient.GenerateImageAsync(
-                prompt,
-                new ImageGenerationOptions()
-                {
-                    Size = GeneratedImageSize.W1024xH1024
-                },
-                cancellationToken);
+            var imageGenerationOptions = new ImageGenerationOptions()
+            {
+                Size = GeneratedImageSize.W1024xH1024
+            };
 
-            // gpt-image-1 always returns base64-encoded images
-            byte[] imageBytes;
-            if (!string.IsNullOrEmpty(imageGeneration.Value.ImageUri?.ToString()))
-            {
-                var dataUri = imageGeneration.Value.ImageUri.ToString();
-                if (dataUri.StartsWith("data:image"))
-                {
-                    var base64Data = dataUri.Substring(dataUri.IndexOf(',') + 1);
-                    imageBytes = Convert.FromBase64String(base64Data);
-                }
-                else
-                {
-                    throw new InvalidOperationException("Unexpected image URI format from gpt-image-1");
-                }
-            }
-            else if (imageGeneration.Value.ImageBytes != null && imageGeneration.Value.ImageBytes.Length > 0)
-            {
-                imageBytes = imageGeneration.Value.ImageBytes.ToArray();
-            }
-            else
-            {
-                throw new InvalidOperationException("gpt-image-1 did not return image data in expected format");
-            }
+            GeneratedImage image = await _imageClient.GenerateImageAsync(prompt, imageGenerationOptions, cancellationToken);
+            byte[] imageBytes = image.ImageBytes.ToArray();
 
             _logger.LogInformation("Image with reference generated successfully, size: {Size} bytes", imageBytes.Length);
 
@@ -326,11 +266,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
             var translateOptions = new ChatCompletionOptions()
             {
                 MaxOutputTokenCount = 10000
-                // Note: This Azure Foundry model only supports default temperature (1.0)
             };
-#pragma warning disable AOAI001
-            translateOptions.SetNewMaxCompletionTokensPropertyEnabled(true);
-#pragma warning restore AOAI001
 
             var messages = new List<ChatMessage>()
                 {
