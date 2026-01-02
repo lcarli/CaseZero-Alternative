@@ -53,6 +53,7 @@ builder.Services
     .AddScoped<ICaseLoggingService, CaseLoggingService>()
     .AddScoped<ISchemaValidationService, SchemaValidationService>()
     .AddScoped<INormalizerService, NormalizerService>()
+    .AddScoped<ICaseFormatConverterService, CaseFormatConverterService>()
     .AddScoped<IPdfRenderingService, PdfRenderingService>()
     .AddScoped<IImagesService, ImagesService>()
     .AddSingleton<IJsonSchemaProvider, FileJsonSchemaProvider>()

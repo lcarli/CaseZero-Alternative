@@ -27,6 +27,7 @@ public class CaseGenerationService : ICaseGenerationService
     private readonly IJsonSchemaProvider _schemaProvider;
     private readonly ICaseLoggingService _caseLogging;
     private readonly INormalizerService _normalizerService;
+    private readonly ICaseFormatConverterService _caseFormatConverter;
     private readonly IPdfRenderingService _pdfRenderingService;
     private readonly IImagesService _imagesService;
     private readonly IPrecisionEditor _precisionEditor;
@@ -49,6 +50,7 @@ public class CaseGenerationService : ICaseGenerationService
         IJsonSchemaProvider schemaProvider,
         ICaseLoggingService caseLogging,
         INormalizerService normalizerService,
+        ICaseFormatConverterService caseFormatConverter,
         IPdfRenderingService pdfRenderingService,
         IImagesService imagesService,
         IPrecisionEditor precisionEditor,
@@ -69,6 +71,7 @@ public class CaseGenerationService : ICaseGenerationService
         _schemaValidationService = schemaValidationService;
         _caseLogging = caseLogging;
         _normalizerService = normalizerService;
+        _caseFormatConverter = caseFormatConverter;
         _pdfRenderingService = pdfRenderingService;
         _imagesService = imagesService;
         _precisionEditor = precisionEditor;
@@ -3753,6 +3756,39 @@ OUTPUT: ONLY valid JSON conforming to VisualConsistencyRegistry schema.
                 Size = System.Text.Encoding.UTF8.GetByteCount(actualJson),
                 CreatedAt = DateTime.UtcNow
             });
+
+            // Convert normalized_case.json to case.json v1.0 format
+            _logger.LogInformation("PACKAGE: Converting normalized_case.json to case.json v1.0 for case {CaseId}", caseId);
+            var normalizedBundle = JsonSerializer.Deserialize<NormalizedCaseBundle>(actualJson);
+            if (normalizedBundle != null)
+            {
+                var caseJsonV1 = await _caseFormatConverter.ConvertToV1Async(normalizedBundle, cancellationToken);
+                var caseJsonFileName = $"{caseId}/case.json";
+                await _storageService.SaveFileAsync(bundlesContainer, caseJsonFileName, caseJsonV1, cancellationToken);
+                
+                var caseJsonHash = ComputeSHA256Hash(caseJsonV1);
+                caseManifest.Manifest.Add(new FileManifestEntry
+                {
+                    Filename = "case.json",
+                    RelativePath = caseJsonFileName,
+                    Sha256 = caseJsonHash,
+                    MimeType = "application/json"
+                });
+                
+                files.Add(new GeneratedFile
+                {
+                    Path = caseJsonFileName,
+                    Type = "json",
+                    Size = System.Text.Encoding.UTF8.GetByteCount(caseJsonV1),
+                    CreatedAt = DateTime.UtcNow
+                });
+                
+                _logger.LogInformation("PACKAGE: Successfully generated case.json v1.0 for case {CaseId}", caseId);
+            }
+            else
+            {
+                _logger.LogWarning("PACKAGE: Could not deserialize normalized_case.json for case {CaseId} - skipping case.json v1.0 generation", caseId);
+            }
 
             // Add individual documents to manifest (try to read from storage)
             if (validatedCase.TryGetProperty("documents", out var documentsObj) &&
