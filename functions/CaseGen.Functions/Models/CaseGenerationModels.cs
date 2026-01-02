@@ -212,7 +212,7 @@ public record GenerateDocumentItemInput
 {
     public required string CaseId { get; init; }
     public required DocumentSpec Spec { get; init; }
-    public required string? DifficultyOverride { get; init; } = "";
+    public string? DifficultyOverride { get; init; } = "";
     
     // Phase 5: Removed PlanJson, ExpandedJson, DesignJson
     // Context will be loaded via ContextManager based on Spec.Type
@@ -222,7 +222,7 @@ public record GenerateMediaItemInput
 {
     public required string CaseId { get; init; }
     public required MediaSpec Spec { get; init; }
-    public required string? DifficultyOverride { get; init; } = "";
+    public string? DifficultyOverride { get; init; } = "";
     
     // Phase 5: Removed PlanJson, ExpandedJson, DesignJson
     // Context will be loaded via ContextManager based on media type
