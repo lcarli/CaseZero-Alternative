@@ -182,10 +182,8 @@ builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>()
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<DataSeedingService>();
-builder.Services.AddScoped<ICaseObjectService, CaseObjectService>();
-builder.Services.AddScoped<ICaseAccessService, CaseAccessService>();
-builder.Services.AddScoped<ICaseProcessingService, CaseProcessingService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<ICaseObjectService, CaseObjectService>(); // Used by CaseObjectController (fallback)
+// OBSOLETE: Removed ICaseAccessService, ICaseProcessingService, IEmailService (moved to Services/OBSOLETE/)
 
 // Register AI Case Generation services
 builder.Services.AddHttpClient<LlmClient>();
@@ -202,7 +200,7 @@ builder.Services.AddSingleton(serviceProvider =>
     };
 });
 builder.Services.AddScoped<ICaseGenerationService, CaseGenerationService>();
-builder.Services.AddScoped<ICaseFormatService, CaseFormatService>();
+// OBSOLETE: Removed ICaseFormatService (moved to Services/OBSOLETE/)
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<ICaseV1SanitizerService, CaseV1SanitizerService>();
 builder.Services.AddScoped<ICaseV1StorageService, CaseV1StorageService>();
@@ -212,10 +210,10 @@ builder.Services.AddScoped<IAuditLogService, AuditLogService>(); // P86: Audit L
 builder.Services.AddSingleton<IForensicQueueService, ForensicQueueService>();
 
 // Register background services
-builder.Services.AddHostedService<CaseProcessingBackgroundService>();
+// OBSOLETE: Removed CaseProcessingBackgroundService (uses obsolete CaseProcessingService from Services/OBSOLETE/)
 
-// Configure Email Settings
-builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+// OBSOLETE: EmailSettings removed (was part of old email system)
+// builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

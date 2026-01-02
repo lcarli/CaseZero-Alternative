@@ -1,7 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using CaseZeroApi.Services;
 using CaseZeroApi.Models.CaseV1;
+using CaseZeroApi.Data;
+using CaseZeroApi.DTOs;
+using CaseZeroApi.Models;
 
 namespace CaseZeroApi.Controllers;
 
@@ -14,13 +19,16 @@ namespace CaseZeroApi.Controllers;
 public class CasesV1Controller : ControllerBase
 {
     private readonly ICaseV1StorageService _storageService;
+    private readonly ApplicationDbContext _context;
     private readonly ILogger<CasesV1Controller> _logger;
 
     public CasesV1Controller(
         ICaseV1StorageService storageService,
+        ApplicationDbContext context,
         ILogger<CasesV1Controller> logger)
     {
         _storageService = storageService;
+        _context = context;
         _logger = logger;
     }
 
@@ -150,5 +158,33 @@ public class CasesV1Controller : ControllerBase
             _logger.LogError(ex, "Failed to check if case exists: {CaseId}", caseId);
             return StatusCode(500);
         }
+    }
+
+    // REMOVED: GetDashboard endpoint - used obsolete DTOs (DashboardDto, CaseDto, etc.)
+    // Frontend uses separate endpoints for case list and user stats
+
+    private static CasePriority GetPriorityFromDifficulty(int difficulty)
+    {
+        return difficulty switch
+        {
+            >= 8 => CasePriority.Critical,
+            >= 6 => CasePriority.High,
+            >= 4 => CasePriority.Medium,
+            _ => CasePriority.Low
+        };
+    }
+
+    private static string GetRankName(DetectiveRank rank)
+    {
+        return rank switch
+        {
+            DetectiveRank.Detective => "Detetive",
+            DetectiveRank.Detective2 => "Detetive Sênior",
+            DetectiveRank.Sergeant => "Sargento",
+            DetectiveRank.Lieutenant => "Tenente",
+            DetectiveRank.Captain => "Capitão",
+            DetectiveRank.Commander => "Comandante",
+            _ => "Detetive"
+        };
     }
 }

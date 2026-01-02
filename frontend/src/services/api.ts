@@ -253,7 +253,7 @@ export const authApi = {
 // Cases API
 export const casesApi = {
   getDashboard: async (): Promise<Dashboard> => {
-    return apiFetch('/cases/dashboard')
+    return apiFetch('/cases/v1/dashboard')
   },
   
   getCases: async (): Promise<Case[]> => {

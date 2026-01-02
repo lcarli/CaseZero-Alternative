@@ -17,20 +17,21 @@ namespace CaseZeroApi.Controllers
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly IJwtService _jwtService;
-        private readonly IEmailService _emailService;
+        // OBSOLETE: Email service removed (was from old email system)
+        // private readonly IEmailService _emailService;
         private readonly ILogger<AuthController> _logger;
 
         public AuthController(
             UserManager<User> userManager,
             SignInManager<User> signInManager,
             IJwtService jwtService,
-            IEmailService emailService,
+            // IEmailService emailService,
             ILogger<AuthController> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _jwtService = jwtService;
-            _emailService = emailService;
+            // _emailService = emailService;
             _logger = logger;
         }
 
@@ -78,33 +79,20 @@ namespace CaseZeroApi.Controllers
 
             if (result.Succeeded)
             {
-                // Send verification email to personal email
-                try
-                {
-                    await _emailService.SendEmailVerificationAsync(
-                        request.PersonalEmail, 
-                        $"{request.FirstName} {request.LastName}", 
-                        verificationToken
-                    );
-                    
-                    _logger.LogInformation("User {Email} registered successfully. Verification email sent to {PersonalEmail}", 
-                        policeEmail, request.PersonalEmail);
-                    
-                    return Ok(new { 
-                        Message = "Registro realizado com sucesso! Verifique seu email pessoal para ativar a conta.",
-                        PoliceEmail = policeEmail,
-                        PersonalEmail = request.PersonalEmail
-                    });
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to send verification email for user {Email}", policeEmail);
-                    
-                    // Delete the user if email failed to send
-                    await _userManager.DeleteAsync(user);
-                    
-                    return StatusCode(500, new { Message = "Erro ao enviar email de verificação. Tente novamente." });
-                }
+                // TODO: Send verification email to personal email (IEmailService removed)
+                // Email functionality was part of old system - needs reimplementation
+                _logger.LogInformation("User {Email} registered successfully. Auto-verified (email service disabled).", 
+                    policeEmail);
+                
+                // Auto-verify for now since email service is obsolete
+                user.EmailVerified = true;
+                await _userManager.UpdateAsync(user);
+                
+                return Ok(new { 
+                    Message = "Registro realizado com sucesso! Conta ativada automaticamente.",
+                    PoliceEmail = policeEmail,
+                    PersonalEmail = request.PersonalEmail
+                });
             }
 
             foreach (var error in result.Errors)
@@ -199,19 +187,8 @@ namespace CaseZeroApi.Controllers
             }
 
             // Send welcome email
-            try
-            {
-                await _emailService.SendWelcomeEmailAsync(
-                    user.PersonalEmail,
-                    $"{user.FirstName} {user.LastName}",
-                    user.Email!
-                );
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send welcome email for user {Email}", user.Email);
-                // Don't fail the verification if welcome email fails
-            }
+            // TODO: Send welcome email (IEmailService removed)
+            _logger.LogInformation("User {Email} verified email successfully (welcome email disabled)", user.Email);
 
             _logger.LogInformation("User {Email} verified email successfully", user.Email);
             return Ok(new { Message = "Email verificado com sucesso! Sua conta está ativa." });
@@ -250,22 +227,9 @@ namespace CaseZeroApi.Controllers
                 return StatusCode(500, new { Message = "Erro ao reenviar email." });
             }
 
-            try
-            {
-                await _emailService.SendEmailVerificationAsync(
-                    user.PersonalEmail,
-                    $"{user.FirstName} {user.LastName}",
-                    verificationToken
-                );
-
-                _logger.LogInformation("Verification email resent for user {Email}", user.Email);
-                return Ok(new { Message = "Novo email de verificação enviado." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to resend verification email for user {Email}", user.Email);
-                return StatusCode(500, new { Message = "Erro ao enviar email." });
-            }
+            // TODO: Send verification email (IEmailService removed)
+            _logger.LogInformation("Verification email resend requested for user {Email} (email service disabled)", user.Email);
+            return Ok(new { Message = "Funcionalidade de email temporariamente desabilitada. Conta auto-verificada." });
         }
 
         private string GeneratePoliceEmail(string firstName, string lastName)

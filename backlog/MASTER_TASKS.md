@@ -457,6 +457,19 @@
     - ✅ Solution submission: 3 tentativas/dia
     - **Implementado**: AspNetCoreRateLimit configurado em Program.cs (linhas 126-161)
 
+**⚠️ PENDENTE: API de Submissão de Casos (CaseV1)**
+- 🔴 **NÃO IMPLEMENTADO**: API para submeter solução de casos no novo sistema CaseV1
+- **Contexto**: CaseSubmissionController movido para OBSOLETE (sistema antigo)
+- **Necessário implementar**:
+  * POST /api/cases/v1/{caseId}/submit-solution
+  * DTO: suspect_id, key_evidence_ids[], reasoning
+  * Validação: caso ainda não resolvido, limite de tentativas
+  * Avaliação: comparar com case.solution para gerar score
+  * Atualizar CaseProgress com resultado
+  * Notificar usuário via email/notificação
+- **Prioridade**: MÉDIA (feature gameplay core, mas pode usar solução manual temporariamente)
+- **Estimativa**: 6-8h (endpoint + validation + scoring logic + tests)
+
 85. ✅ **Validar integridade de IDs antes de queries**:
     - ✅ IdValidationMiddleware valida formato: asset.xxx, email.xxx, suspect.xxx, case_xxx
     - ✅ Regex patterns compilados para validação eficiente
