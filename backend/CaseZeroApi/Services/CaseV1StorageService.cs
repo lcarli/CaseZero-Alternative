@@ -30,7 +30,7 @@ public class CaseV1StorageService : ICaseV1StorageService
         _sanitizer = sanitizer;
         _logger = logger;
         _cache = cache;
-        _casesContainer = configuration["CaseGeneratorStorage:CasesContainer"] ?? "cases";
+        _casesContainer = configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
         
         _logger.LogInformation("CaseV1StorageService initialized with container: {Container}", _casesContainer);
     }
@@ -46,12 +46,12 @@ public class CaseV1StorageService : ICaseV1StorageService
             
             var cases = new List<CaseV1Metadata>();
 
-            // List all case folders (pattern: case_*/case.json)
+            // List all case folders (pattern: CASE-*/case.json from bundles container)
             await foreach (var item in containerClient.GetBlobsByHierarchyAsync(
                 delimiter: "/",
                 cancellationToken: cancellationToken))
             {
-                if (item.IsPrefix && item.Prefix.StartsWith("case_"))
+                if (item.IsPrefix && item.Prefix.StartsWith("CASE-"))
                 {
                     var caseId = item.Prefix.TrimEnd('/');
                     var caseJsonPath = $"{caseId}/case.json";
@@ -169,21 +169,37 @@ public class CaseV1StorageService : ICaseV1StorageService
             }
 
             // Extract blob path from filePath
-            // filePath format: "/cases/case_001/assets/briefing.pdf"
-            // Need: "case_001/assets/briefing.pdf"
-            var blobPath = asset.FilePath.TrimStart('/');
-            if (blobPath.StartsWith("cases/"))
-            {
-                blobPath = blobPath.Substring("cases/".Length);
-            }
+            // filePath format: "/documents/doc_interview_s001_001.pdf"
+            // Need: "CASE-20260102-1f17e3f1/documents/doc_interview_s001_001.pdf"
+            var relativePath = asset.FilePath.TrimStart('/');
+            var blobPath = $"{caseId}/{relativePath}";
 
             var containerClient = _blobServiceClient.GetBlobContainerClient(_casesContainer);
             var blobClient = containerClient.GetBlobClient(blobPath);
 
+            // For images, try with .generated-image extension if original doesn't exist
             if (!await blobClient.ExistsAsync(cancellationToken))
             {
-                _logger.LogWarning("Asset blob not found: {BlobPath}", blobPath);
-                return null;
+                if (asset.Type == "image" && blobPath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                {
+                    var generatedPath = blobPath.Replace(".png", ".generated-image.png", StringComparison.OrdinalIgnoreCase);
+                    var generatedClient = containerClient.GetBlobClient(generatedPath);
+                    
+                    if (await generatedClient.ExistsAsync(cancellationToken))
+                    {
+                        blobClient = generatedClient;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Asset blob not found: {BlobPath} or {GeneratedPath}", blobPath, generatedPath);
+                        return null;
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Asset blob not found: {BlobPath}", blobPath);
+                    return null;
+                }
             }
 
             var response = await blobClient.DownloadStreamingAsync(cancellationToken: cancellationToken);
@@ -206,19 +222,34 @@ public class CaseV1StorageService : ICaseV1StorageService
             var asset = caseData.Assets.FirstOrDefault(a => a.AssetId == assetId);
             if (asset == null) return null;
 
-            // Extract blob path
-            var blobPath = asset.FilePath.TrimStart('/');
-            if (blobPath.StartsWith("cases/"))
-            {
-                blobPath = blobPath.Substring("cases/".Length);
-            }
+            // Extract blob path - prepend caseId to make full path in container
+            var relativePath = asset.FilePath.TrimStart('/');
+            var blobPath = $"{caseId}/{relativePath}";
 
             var containerClient = _blobServiceClient.GetBlobContainerClient(_casesContainer);
             var blobClient = containerClient.GetBlobClient(blobPath);
 
+            // For images, try with .generated-image extension if original doesn't exist
             if (!await blobClient.ExistsAsync(cancellationToken))
             {
-                return null;
+                if (asset.Type == "image" && blobPath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                {
+                    var generatedPath = blobPath.Replace(".png", ".generated-image.png", StringComparison.OrdinalIgnoreCase);
+                    var generatedClient = containerClient.GetBlobClient(generatedPath);
+                    
+                    if (await generatedClient.ExistsAsync(cancellationToken))
+                    {
+                        blobClient = generatedClient;
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+                else
+                {
+                    return null;
+                }
             }
 
             var properties = await blobClient.GetPropertiesAsync(conditions: null, cancellationToken: cancellationToken);

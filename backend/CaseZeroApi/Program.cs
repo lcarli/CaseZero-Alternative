@@ -286,13 +286,14 @@ if (app.Environment.IsProduction())
     app.UseHsts();
 }
 
+// CORS must be before rate limiting and other middlewares
+app.UseCors("AllowFrontend");
+
 // Rate limiting middleware
 app.UseIpRateLimiting();
 
 // P85: ID validation middleware - previne injection e valida formato
 app.UseMiddleware<CaseZeroApi.Middleware.IdValidationMiddleware>();
-
-app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();

@@ -169,9 +169,9 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onR
               No assets unlocked yet
             </div>
           ) : (
-            assets.map(asset => (
+            assets.map((asset, index) => (
               <FileItem
-                key={asset.id}
+                key={`${asset.id}-${index}`}
                 onDoubleClick={() => handleFileDoubleClick(asset)}
                 title="Double-click to open in new window"
               >

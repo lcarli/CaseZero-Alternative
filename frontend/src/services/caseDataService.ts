@@ -13,7 +13,8 @@ export class CaseDataService {
    * Check if a case ID is v1.0 format (case_*)
    */
   private static isV1Case(caseId: string): boolean {
-    return caseId.startsWith('case_')
+    // v1.0 cases start with "case_" (old) or "CASE-" (new format)
+    return caseId.startsWith('case_') || caseId.startsWith('CASE-')
   }
 
   /**

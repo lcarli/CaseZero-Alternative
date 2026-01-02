@@ -16,9 +16,17 @@ public class IdValidationMiddleware
     private static readonly Regex AssetIdPattern = new Regex(@"^asset\.[a-zA-Z0-9_\-\.]+$", RegexOptions.Compiled);
     private static readonly Regex EmailIdPattern = new Regex(@"^email\.[a-zA-Z0-9_\-\.]+$", RegexOptions.Compiled);
     private static readonly Regex SuspectIdPattern = new Regex(@"^suspect\.[a-zA-Z0-9_\-\.]+$", RegexOptions.Compiled);
-    private static readonly Regex CaseIdPattern = new Regex(@"^case_[a-zA-Z0-9_\-]+$", RegexOptions.Compiled);
+    private static readonly Regex CaseIdPattern = new Regex(@"^(case_[a-zA-Z0-9_\-]+|CASE-[0-9]{8}-[a-f0-9]{8})$", RegexOptions.Compiled);
     private static readonly Regex NoFindingsEmailIdPattern = new Regex(@"^no-findings-[a-f0-9\-]+$", RegexOptions.Compiled);
     private static readonly Regex AttachmentIdPattern = new Regex(@"^attachment\.[a-zA-Z0-9_\-\.]+$", RegexOptions.Compiled);
+
+    // Whitelist de valores de rota que não são IDs (endpoints específicos)
+    private static readonly HashSet<string> RouteWhitelist = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "dashboard",
+        "stats",
+        "available"
+    };
 
     public IdValidationMiddleware(RequestDelegate next, ILogger<IdValidationMiddleware> logger)
     {
@@ -74,6 +82,14 @@ public class IdValidationMiddleware
         if (routeValues.TryGetValue("caseId", out var caseIdObj) && caseIdObj != null)
         {
             var caseId = caseIdObj.ToString();
+            
+            // Skip validation for whitelisted endpoints
+            if (RouteWhitelist.Contains(caseId!))
+            {
+                await _next(context);
+                return;
+            }
+            
             if (!IsValidCaseId(caseId))
             {
                 _logger.LogWarning("🚨 Invalid caseId format blocked: {CaseId}", caseId);

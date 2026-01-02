@@ -60,14 +60,19 @@ namespace CaseZeroApi.Controllers
 
             try
             {
-                // 1. Verificar acesso ao caso
-                var userCase = await _context.UserCases
-                    .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
-
-                if (userCase == null)
+                // 1. Verificar acesso ao caso (skip for V1.0 cases from blob)
+                var isV1Case = caseId.StartsWith("case_") || caseId.StartsWith("CASE-");
+                
+                if (!isV1Case)
                 {
-                    _logger.LogWarning("User {UserId} attempted to access case {CaseId} without permission", userId, caseId);
-                    return StatusCode(403, new { message = "You don't have access to this case" });
+                    var userCase = await _context.UserCases
+                        .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
+
+                    if (userCase == null)
+                    {
+                        _logger.LogWarning("User {UserId} attempted to access case {CaseId} without permission", userId, caseId);
+                        return StatusCode(403, new { message = "You don't have access to this case" });
+                    }
                 }
 
                 // 2. Buscar sessão ativa do usuário
@@ -144,15 +149,20 @@ namespace CaseZeroApi.Controllers
 
             try
             {
-                // 1. Verificar acesso ao caso
-                var userCase = await _context.UserCases
-                    .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
-
-                if (userCase == null)
+                // 1. Verificar acesso ao caso (skip for V1.0 cases from blob)
+                var isV1Case = caseId.StartsWith("case_") || caseId.StartsWith("CASE-");
+                
+                if (!isV1Case)
                 {
-                    _logger.LogWarning("User {UserId} attempted to download asset from case {CaseId} without permission", 
-                        userId, caseId);
-                    return StatusCode(403, new { message = "You don't have access to this case" });
+                    var userCase = await _context.UserCases
+                        .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
+
+                    if (userCase == null)
+                    {
+                        _logger.LogWarning("User {UserId} attempted to access case {CaseId} without permission",
+                            userId, caseId);
+                        return StatusCode(403, new { message = "You don't have access to this case" });
+                    }
                 }
 
                 // 2. 🔒 VALIDAÇÃO CRÍTICA: Verificar se asset está visível

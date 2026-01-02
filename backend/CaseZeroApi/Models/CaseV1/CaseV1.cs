@@ -44,7 +44,7 @@ public class CaseMetadata
     public string Description { get; set; } = string.Empty;
 
     [JsonPropertyName("difficulty")]
-    public int Difficulty { get; set; }
+    public string Difficulty { get; set; } = string.Empty;
 
     [JsonPropertyName("estimatedTimeMinutes")]
     public int EstimatedTimeMinutes { get; set; }

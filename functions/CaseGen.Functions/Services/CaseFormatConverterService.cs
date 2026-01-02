@@ -124,7 +124,7 @@ public class CaseFormatConverterService : ICaseFormatConverterService
         return new
         {
             version = "1.0",
-            caseId = ConvertCaseId(caseId), // CASE-XXX → case_xxx
+            caseId = caseId, // Keep original format (CASE-YYYYMMDD-xxxxxxxx)
             metadata,
             assets,
             emails,
@@ -132,7 +132,14 @@ public class CaseFormatConverterService : ICaseFormatConverterService
             rules,
             forensicsDefaults = new
             {
-                analysisTypes = new[] { "DNA", "Fingerprint", "DigitalForensics", "Ballistics", "Toxicology" },
+                analysisTypes = new[]
+                {
+                    new { type = "DNA", durationMinutes = 120, availableFor = new[] { "blood", "hair", "tissue" } },
+                    new { type = "Fingerprint", durationMinutes = 60, availableFor = new[] { "fingerprints", "prints" } },
+                    new { type = "DigitalForensics", durationMinutes = 180, availableFor = new[] { "computer", "phone", "digital" } },
+                    new { type = "Ballistics", durationMinutes = 90, availableFor = new[] { "weapon", "bullet", "firearm" } },
+                    new { type = "Toxicology", durationMinutes = 240, availableFor = new[] { "substance", "drug", "poison" } }
+                },
                 noFindingsEmail = new
                 {
                     emailId = "email.no_findings",

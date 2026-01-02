@@ -8,7 +8,7 @@ namespace CaseZeroApi.Services;
 public interface ICaseV1StorageService
 {
     /// <summary>
-    /// List all available cases in the 'cases' container
+    /// List all available cases in the 'bundles' container
     /// </summary>
     Task<List<CaseV1Metadata>> ListCasesAsync(CancellationToken cancellationToken = default);
 
@@ -61,7 +61,7 @@ public class CaseV1Metadata
     public string CaseId { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public int Difficulty { get; set; }
+    public string Difficulty { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
     public int EstimatedTimeMinutes { get; set; }
 }

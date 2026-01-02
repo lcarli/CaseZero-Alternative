@@ -33,6 +33,46 @@ public class CasesV1Controller : ControllerBase
     }
 
     /// <summary>
+    /// GET /api/cases/v1/dashboard - Get dashboard data with available cases
+    /// </summary>
+    [HttpGet("dashboard")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    public async Task<ActionResult> GetDashboard(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var cases = await _storageService.ListCasesAsync(cancellationToken);
+            
+            // Return dashboard-compatible format (frontend expects "cases" not "availableCases")
+            return Ok(new
+            {
+                stats = new
+                {
+                    casesResolved = 0,
+                    casesActive = cases.Count,
+                    successRate = 0.0,
+                    averageRating = 0.0
+                },
+                cases = cases.Select(c => new
+                {
+                    id = c.CaseId,
+                    title = c.Title,
+                    description = c.Description,
+                    difficulty = c.Difficulty,
+                    category = c.Category,
+                    estimatedTimeMinutes = c.EstimatedTimeMinutes
+                }).ToList(),
+                recentActivities = new object[] { }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get dashboard data");
+            return StatusCode(500, new { error = "Failed to load dashboard" });
+        }
+    }
+
+    /// <summary>
     /// GET /api/cases/v1 - List all available cases
     /// </summary>
     [HttpGet]

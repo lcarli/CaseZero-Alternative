@@ -60,15 +60,20 @@ namespace CaseZeroApi.Controllers
 
             try
             {
-                // 1. Verificar acesso ao caso
-                var userCase = await _context.UserCases
-                    .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
-
-                if (userCase == null)
+                // 1. Verificar acesso ao caso (skip for V1.0 cases from blob)
+                var isV1Case = caseId.StartsWith("case_") || caseId.StartsWith("CASE-");
+                
+                if (!isV1Case)
                 {
-                    _logger.LogWarning("User {UserId} attempted to access emails from case {CaseId} without permission",
-                        userId, caseId);
-                    return StatusCode(403, new { message = "You don't have access to this case" });
+                    var userCase = await _context.UserCases
+                        .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
+
+                    if (userCase == null)
+                    {
+                        _logger.LogWarning("User {UserId} attempted to access emails from case {CaseId} without permission",
+                            userId, caseId);
+                        return StatusCode(403, new { message = "You don't have access to this case" });
+                    }
                 }
 
                 // 2. Buscar sessão ativa do usuário
@@ -156,15 +161,20 @@ namespace CaseZeroApi.Controllers
 
             try
             {
-                // 1. Verificar acesso ao caso
-                var userCase = await _context.UserCases
-                    .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
-
-                if (userCase == null)
+                // 1. Verificar acesso ao caso (skip for V1.0 cases from blob)
+                var isV1Case = caseId.StartsWith("case_") || caseId.StartsWith("CASE-");
+                
+                if (!isV1Case)
                 {
-                    _logger.LogWarning("User {UserId} attempted to open email from case {CaseId} without permission",
-                        userId, caseId);
-                    return StatusCode(403, new { message = "You don't have access to this case" });
+                    var userCase = await _context.UserCases
+                        .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
+
+                    if (userCase == null)
+                    {
+                        _logger.LogWarning("User {UserId} attempted to open email from case {CaseId} without permission",
+                            userId, caseId);
+                        return StatusCode(403, new { message = "You don't have access to this case" });
+                    }
                 }
 
                 // 2. 🔒 VALIDAÇÃO CRÍTICA: Verificar se email está visível
@@ -250,15 +260,20 @@ namespace CaseZeroApi.Controllers
 
             try
             {
-                // 1. Verificar acesso ao caso
-                var userCase = await _context.UserCases
-                    .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
-
-                if (userCase == null)
+                // 1. Verificar acesso ao caso (skip for V1.0 cases from blob)
+                var isV1Case = caseId.StartsWith("case_") || caseId.StartsWith("CASE-");
+                
+                if (!isV1Case)
                 {
-                    _logger.LogWarning("User {UserId} attempted to get email details from case {CaseId} without permission",
-                        userId, caseId);
-                    return StatusCode(403, new { message = "You don't have access to this case" });
+                    var userCase = await _context.UserCases
+                        .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
+
+                    if (userCase == null)
+                    {
+                        _logger.LogWarning("User {UserId} attempted to get email details from case {CaseId} without permission",
+                            userId, caseId);
+                        return StatusCode(403, new { message = "You don't have access to this case" });
+                    }
                 }
 
                 // 2. 🔒 VALIDAÇÃO CRÍTICA: Verificar se email está visível
@@ -337,15 +352,20 @@ namespace CaseZeroApi.Controllers
 
             try
             {
-                // 1. Verificar acesso ao caso
-                var userCase = await _context.UserCases
-                    .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
-
-                if (userCase == null)
+                // 1. Verificar acesso ao caso (skip for V1.0 cases from blob)
+                var isV1Case = caseId.StartsWith("case_") || caseId.StartsWith("CASE-");
+                
+                if (!isV1Case)
                 {
-                    _logger.LogWarning("User {UserId} attempted to download attachment from case {CaseId} without permission",
-                        userId, caseId);
-                    return StatusCode(403, new { message = "You don't have access to this case" });
+                    var userCase = await _context.UserCases
+                        .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == caseId);
+
+                    if (userCase == null)
+                    {
+                        _logger.LogWarning("User {UserId} attempted to download attachment from case {CaseId} without permission",
+                            userId, caseId);
+                        return StatusCode(403, new { message = "You don't have access to this case" });
+                    }
                 }
 
                 // 2. 🔒 VALIDAÇÃO CRÍTICA: Verificar se email está visível (tarefa 31)
@@ -392,7 +412,7 @@ namespace CaseZeroApi.Controllers
                 }
 
                 // 6. Download do blob usando filePath do asset
-                var containerName = _configuration["CaseGeneratorStorage:CasesContainer"] ?? "cases";
+                var containerName = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
                 var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
                 
                 // Extract blob path from filePath

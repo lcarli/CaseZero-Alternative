@@ -42,20 +42,27 @@ namespace CaseZeroApi.Controllers
 
             try
             {
-                // Ensure user has access to this case (auto-assign if not exists)
-                var userCase = await _context.UserCases
-                    .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == request.CaseId);
-
-                if (userCase == null)
+                // For V1.0 cases (from blob), we don't enforce UserCases table
+                // These cases exist in blob storage, not in the Cases table
+                var isV1Case = request.CaseId.StartsWith("case_") || request.CaseId.StartsWith("CASE-");
+                
+                if (!isV1Case)
                 {
-                    _logger.LogInformation("Auto-assigning case {CaseId} to user {UserId}", request.CaseId, userId);
-                    _context.UserCases.Add(new UserCase
+                    // Only check UserCases for legacy cases (stored in SQL)
+                    var userCase = await _context.UserCases
+                        .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == request.CaseId);
+
+                    if (userCase == null)
                     {
-                        UserId = userId,
-                        CaseId = request.CaseId,
-                        AssignedAt = DateTime.UtcNow
-                    });
-                    await _context.SaveChangesAsync();
+                        _logger.LogInformation("Auto-assigning case {CaseId} to user {UserId}", request.CaseId, userId);
+                        _context.UserCases.Add(new UserCase
+                        {
+                            UserId = userId,
+                            CaseId = request.CaseId,
+                            AssignedAt = DateTime.UtcNow
+                        });
+                        await _context.SaveChangesAsync();
+                    }
                 }
 
                 // End any active session for this user/case
