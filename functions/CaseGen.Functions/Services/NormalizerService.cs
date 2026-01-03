@@ -783,6 +783,74 @@ public class NormalizerService : INormalizerService
             });
         }
 
+        // POLICY 7.1: Validate 1 evidence = 1 media (except different kinds)
+        var evidenceIdGroups = media.GroupBy(m => m.EvidenceId);
+        foreach (var group in evidenceIdGroups)
+        {
+            var mediaCount = group.Count();
+            
+            if (mediaCount > 1)
+            {
+                // Check if they are different kinds (allowed exception)
+                var distinctKinds = group.Select(m => m.Kind).Distinct().Count();
+                
+                if (distinctKinds == mediaCount)
+                {
+                    // All different kinds - this is allowed (e.g., photo + document_scan)
+                    logEntries.Add(new LogEntry
+                    {
+                        Timestamp = DateTime.UtcNow,
+                        Level = "INFO",
+                        Message = $"POLICY 7.1: EvidenceId '{group.Key}' has {mediaCount} media of different kinds (allowed): {string.Join(", ", group.Select(m => m.Kind))}"
+                    });
+                }
+                else
+                {
+                    // Some kinds are duplicated - VIOLATION
+                    var duplicateKinds = group
+                        .GroupBy(m => m.Kind)
+                        .Where(kg => kg.Count() > 1)
+                        .Select(kg => $"{kg.Key} (x{kg.Count()})");
+                    
+                    validationResults.Add(new ValidationResult
+                    {
+                        Rule = "POLICY_7.1_ONE_EVIDENCE_ONE_MEDIA",
+                        Status = "FAIL",
+                        Description = $"EvidenceId '{group.Key}' has {mediaCount} media with duplicate kinds",
+                        Details = $"POLICY 7.1 violation: One evidence should have ONE media per kind. Duplicates: {string.Join(", ", duplicateKinds)}. Total media: {string.Join(", ", group.Select(m => $"{m.Kind}"))}"
+                    });
+                }
+            }
+        }
+
+        // Special validation for Rookie/Detective: NEVER multiple media per evidence
+        if (difficulty != null && (difficulty == "Rookie" || difficulty == "Detective"))
+        {
+            var multiMediaEvidence = evidenceIdGroups.Where(g => g.Count() > 1).ToList();
+            if (multiMediaEvidence.Any())
+            {
+                foreach (var group in multiMediaEvidence)
+                {
+                    validationResults.Add(new ValidationResult
+                    {
+                        Rule = "POLICY_7.1_ROOKIE_DETECTIVE_STRICT",
+                        Status = "FAIL",
+                        Description = $"Rookie/Detective must have exactly 1 media per evidence",
+                        Details = $"EvidenceId '{group.Key}' has {group.Count()} media. Rookie/Detective difficulty requires maximum simplicity: 1 evidence = 1 media (NO exceptions)"
+                    });
+                }
+            }
+        }
+
+        var totalEvidenceIds = evidenceIdGroups.Count();
+        var multiMediaCount = evidenceIdGroups.Count(g => g.Count() > 1);
+        logEntries.Add(new LogEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            Level = "INFO",
+            Message = $"POLICY 7.1: Validated {totalEvidenceIds} evidence IDs - {multiMediaCount} have multiple media"
+        });
+
 
         // Validate forensics reports have Cadeia de Custódia
         var forensicsReports = documents.Where(d => d.Type == DocumentTypes.ForensicsReport);
