@@ -57,7 +57,7 @@ public class NormalizerService : INormalizerService
             await ValidateIdsAndReferencesAsync(parsedDocuments, parsedMedia, logEntries, validationResults);
             
             // Step 3: Apply difficulty validation
-            var difficultyProfile = ValidateDifficultyRules(input.Difficulty, parsedDocuments, parsedMedia, logEntries, validationResults);
+            var difficultyProfile = ValidateDifficultyRules(input.Difficulty, input.PlanJson, parsedDocuments, parsedMedia, logEntries, validationResults);
             
             // Step 4: Build and validate gating graph
             var gatingGraph = BuildGatingGraph(parsedDocuments, parsedMedia, logEntries, validationResults);
@@ -493,76 +493,132 @@ public class NormalizerService : INormalizerService
     }
 
     private DifficultyProfile ValidateDifficultyRules(
-        string? difficulty, NormalizedDocument[] documents, NormalizedMedia[] media,
+        string? difficulty, string? planJson, NormalizedDocument[] documents, NormalizedMedia[] media,
         List<LogEntry> logEntries, List<ValidationResult> validationResults)
     {
         var profile = DifficultyLevels.GetProfile(difficulty);
         
-        // Validate document count
+        // EPIC 6.1: Extract and validate suspect count from Plan
+        int suspectCount = 0;
+        if (!string.IsNullOrEmpty(planJson))
+        {
+            try
+            {
+                var planDoc = JsonDocument.Parse(planJson);
+                if (planDoc.RootElement.TryGetProperty("suspects", out var suspectsElement) && 
+                    suspectsElement.ValueKind == JsonValueKind.Array)
+                {
+                    suspectCount = suspectsElement.GetArrayLength();
+                }
+            }
+            catch (Exception ex)
+            {
+                logEntries.Add(new LogEntry
+                {
+                    Timestamp = DateTime.UtcNow,
+                    Level = "WARN",
+                    Message = $"Failed to extract suspect count from Plan: {ex.Message}"
+                });
+            }
+        }
+
+        // EPIC 6.1: Validate suspect count against profile budget
+        if (suspectCount > 0)
+        {
+            if (suspectCount < profile.Suspects.Min || suspectCount > profile.Suspects.Max)
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EPIC_6.1_SUSPECT_COUNT_BUDGET",
+                    Status = "FAIL",
+                    Description = $"Suspect count ({suspectCount}) outside difficulty budget {profile.Suspects.Min}-{profile.Suspects.Max} for {difficulty ?? "auto"} level",
+                    Details = $"Profile: {profile.Description}. This case has too {'f'}{(suspectCount < profile.Suspects.Min ? "ew" : "many")} suspects for the difficulty level."
+                });
+            }
+            else
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EPIC_6.1_SUSPECT_COUNT_BUDGET",
+                    Status = "PASS",
+                    Description = $"Suspect count ({suspectCount}) within difficulty budget for {difficulty ?? "auto"} level"
+                });
+            }
+        }
+        
+        // EPIC 6.1: Validate document count against profile budget
         var docCount = documents.Length;
         if (docCount < profile.Documents.Min || docCount > profile.Documents.Max)
         {
             validationResults.Add(new ValidationResult
             {
-                Rule = "DIFFICULTY_DOCUMENT_COUNT",
+                Rule = "EPIC_6.1_DOCUMENT_COUNT_BUDGET",
                 Status = "FAIL",
-                Description = $"Document count ({docCount}) outside range {profile.Documents.Min}-{profile.Documents.Max} for {difficulty ?? "auto"} level",
-                Details = profile.Description
+                Description = $"Document count ({docCount}) outside difficulty budget {profile.Documents.Min}-{profile.Documents.Max} for {difficulty ?? "auto"} level",
+                Details = $"Profile: {profile.Description}. This case has too {'f'}{(docCount < profile.Documents.Min ? "ew" : "many")} documents for the difficulty level."
             });
         }
         else
         {
             validationResults.Add(new ValidationResult
             {
-                Rule = "DIFFICULTY_DOCUMENT_COUNT",
+                Rule = "EPIC_6.1_DOCUMENT_COUNT_BUDGET",
                 Status = "PASS",
-                Description = $"Document count ({docCount}) within range for {difficulty ?? "auto"} level"
+                Description = $"Document count ({docCount}) within difficulty budget for {difficulty ?? "auto"} level"
             });
         }
 
-        // Validate evidence count
+        // EPIC 6.1: Validate evidence count against profile budget
         var evidenceCount = media.Length;
         if (evidenceCount < profile.Evidences.Min || evidenceCount > profile.Evidences.Max)
         {
             validationResults.Add(new ValidationResult
             {
-                Rule = "DIFFICULTY_EVIDENCE_COUNT",
+                Rule = "EPIC_6.1_EVIDENCE_COUNT_BUDGET",
                 Status = "FAIL",
-                Description = $"Evidence count ({evidenceCount}) outside range {profile.Evidences.Min}-{profile.Evidences.Max} for {difficulty ?? "auto"} level",
-                Details = profile.Description
+                Description = $"Evidence count ({evidenceCount}) outside difficulty budget {profile.Evidences.Min}-{profile.Evidences.Max} for {difficulty ?? "auto"} level",
+                Details = $"Profile: {profile.Description}. This case has too {'f'}{(evidenceCount < profile.Evidences.Min ? "ew" : "many")} evidence items for the difficulty level."
             });
         }
         else
         {
             validationResults.Add(new ValidationResult
             {
-                Rule = "DIFFICULTY_EVIDENCE_COUNT",
+                Rule = "EPIC_6.1_EVIDENCE_COUNT_BUDGET",
                 Status = "PASS",
-                Description = $"Evidence count ({evidenceCount}) within range for {difficulty ?? "auto"} level"
+                Description = $"Evidence count ({evidenceCount}) within difficulty budget for {difficulty ?? "auto"} level"
             });
         }
 
-        // Validate gated documents count
+        // EPIC 6.1: Validate gated documents count against profile budget
         var gatedCount = documents.Count(d => d.Gated);
         if (gatedCount != profile.GatedDocuments)
         {
             validationResults.Add(new ValidationResult
             {
-                Rule = "DIFFICULTY_GATED_COUNT",
+                Rule = "EPIC_6.1_GATED_COUNT_BUDGET",
                 Status = gatedCount == 0 && profile.GatedDocuments == 0 ? "PASS" : "WARN",
                 Description = $"Gated document count ({gatedCount}) differs from expected {profile.GatedDocuments} for {difficulty ?? "auto"} level",
-                Details = "May indicate difficulty level mismatch"
+                Details = $"Profile expects exactly {profile.GatedDocuments} gated documents. Found {gatedCount}. This may indicate difficulty level mismatch."
             });
         }
         else
         {
             validationResults.Add(new ValidationResult
             {
-                Rule = "DIFFICULTY_GATED_COUNT", 
+                Rule = "EPIC_6.1_GATED_COUNT_BUDGET", 
                 Status = "PASS",
                 Description = $"Gated document count ({gatedCount}) matches expected for {difficulty ?? "auto"} level"
             });
         }
+
+        // EPIC 6.1: Log budget validation summary
+        logEntries.Add(new LogEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            Level = "INFO",
+            Message = $"EPIC 6.1: Budget validation complete - Suspects:{suspectCount}/{profile.Suspects.Min}-{profile.Suspects.Max}, Docs:{docCount}/{profile.Documents.Min}-{profile.Documents.Max}, Evidence:{evidenceCount}/{profile.Evidences.Min}-{profile.Evidences.Max}, Gated:{gatedCount}/{profile.GatedDocuments}"
+        });
 
         // EPIC 2.1: Validate evidence role distribution
         var roleCounts = new Dictionary<string, int>
