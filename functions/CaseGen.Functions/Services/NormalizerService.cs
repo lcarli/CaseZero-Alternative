@@ -59,6 +59,9 @@ public class NormalizerService : INormalizerService
             // Step 3: Apply difficulty validation
             var difficultyProfile = ValidateDifficultyRules(input.Difficulty, input.PlanJson, parsedDocuments, parsedMedia, logEntries, validationResults);
             
+            // Step 3.1: Validate planned contradictions (EPIC 3.1)
+            await ValidatePlannedContradictionsAsync(input.DesignJson, parsedDocuments, parsedMedia, difficultyProfile, logEntries, validationResults);
+            
             // Step 4: Build and validate gating graph
             var gatingGraph = BuildGatingGraph(parsedDocuments, parsedMedia, logEntries, validationResults);
             
@@ -555,6 +558,213 @@ public class NormalizerService : INormalizerService
                 ["duplicateDocuments"] = duplicateDocIds.Count(),
                 ["duplicateEvidence"] = duplicateMediaIds.Count(),
                 ["brokenEvidenceReferences"] = brokenEvidenceRefs.Count
+            }
+        });
+
+        return Task.CompletedTask;
+    }
+
+    // EPIC 3.1: Validação de contradições planejadas
+    private Task ValidatePlannedContradictionsAsync(
+        string? designJson, NormalizedDocument[] documents, NormalizedMedia[] media, 
+        DifficultyProfile profile, List<LogEntry> logEntries, List<ValidationResult> validationResults)
+    {
+        if (string.IsNullOrEmpty(designJson))
+        {
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = "EPIC 3.1: No Design JSON provided, skipping contradiction validation"
+            });
+            return Task.CompletedTask;
+        }
+
+        var documentIds = documents.Select(d => d.DocId).ToHashSet();
+        var mediaIds = media.Select(m => m.EvidenceId).ToHashSet();
+        
+        List<PlannedContradiction> contradictions = new();
+        int contradictionCount = 0;
+
+        try
+        {
+            var designDoc = JsonDocument.Parse(designJson);
+            if (designDoc.RootElement.TryGetProperty("plannedContradictions", out var contradictionsElement) &&
+                contradictionsElement.ValueKind == JsonValueKind.Array)
+            {
+                contradictionCount = contradictionsElement.GetArrayLength();
+                
+                foreach (var contrElement in contradictionsElement.EnumerateArray())
+                {
+                    var contrId = contrElement.GetProperty("contradictionId").GetString() ?? "";
+                    var contrType = contrElement.GetProperty("type").GetString() ?? "";
+                    var description = contrElement.GetProperty("description").GetString() ?? "";
+                    
+                    var involvedDocs = new List<string>();
+                    if (contrElement.TryGetProperty("involvedDocuments", out var docsArr))
+                    {
+                        foreach (var docId in docsArr.EnumerateArray())
+                            involvedDocs.Add(docId.GetString() ?? "");
+                    }
+                    
+                    var involvedEvidences = new List<string>();
+                    if (contrElement.TryGetProperty("involvedEvidences", out var evidArr))
+                    {
+                        foreach (var evidId in evidArr.EnumerateArray())
+                            involvedEvidences.Add(evidId.GetString() ?? "");
+                    }
+                    
+                    var involvedSuspects = new List<string>();
+                    if (contrElement.TryGetProperty("involvedSuspects", out var suspArr))
+                    {
+                        foreach (var suspId in suspArr.EnumerateArray())
+                            involvedSuspects.Add(suspId.GetString() ?? "");
+                    }
+                    
+                    // Validate involved documents exist
+                    var missingDocs = involvedDocs.Where(id => !documentIds.Contains(id)).ToList();
+                    if (missingDocs.Any())
+                    {
+                        validationResults.Add(new ValidationResult
+                        {
+                            Rule = "EPIC_3.1_CONTRADICTION_INTEGRITY",
+                            Status = "FAIL",
+                            Description = $"Contradiction {contrId} references non-existent documents: {string.Join(", ", missingDocs)}",
+                            Details = $"All involved documents must exist in the case manifest"
+                        });
+                    }
+                    
+                    // Validate involved evidences exist
+                    var missingEvidence = involvedEvidences.Where(id => !mediaIds.Contains(id)).ToList();
+                    if (missingEvidence.Any())
+                    {
+                        validationResults.Add(new ValidationResult
+                        {
+                            Rule = "EPIC_3.1_CONTRADICTION_INTEGRITY",
+                            Status = "FAIL",
+                            Description = $"Contradiction {contrId} references non-existent evidence: {string.Join(", ", missingEvidence)}",
+                            Details = $"All involved evidences must exist in the case manifest"
+                        });
+                    }
+                    
+                    // Validate resolution exists and has valid references
+                    if (contrElement.TryGetProperty("resolution", out var resolutionElement))
+                    {
+                        var resolvingDocs = new List<string>();
+                        if (resolutionElement.TryGetProperty("resolvingDocuments", out var resDocsArr))
+                        {
+                            foreach (var docId in resDocsArr.EnumerateArray())
+                                resolvingDocs.Add(docId.GetString() ?? "");
+                        }
+                        
+                        var resolvingEvidences = new List<string>();
+                        if (resolutionElement.TryGetProperty("resolvingEvidences", out var resEvidArr))
+                        {
+                            foreach (var evidId in resEvidArr.EnumerateArray())
+                                resolvingEvidences.Add(evidId.GetString() ?? "");
+                        }
+                        
+                        // Validate resolving documents exist
+                        var missingResolvingDocs = resolvingDocs.Where(id => !documentIds.Contains(id)).ToList();
+                        if (missingResolvingDocs.Any())
+                        {
+                            validationResults.Add(new ValidationResult
+                            {
+                                Rule = "EPIC_3.1_CONTRADICTION_RESOLUTION",
+                                Status = "FAIL",
+                                Description = $"Contradiction {contrId} resolution references non-existent documents: {string.Join(", ", missingResolvingDocs)}",
+                                Details = $"All resolving documents must exist in the case manifest"
+                            });
+                        }
+                        
+                        // Validate resolving evidences exist
+                        var missingResolvingEvidence = resolvingEvidences.Where(id => !mediaIds.Contains(id)).ToList();
+                        if (missingResolvingEvidence.Any())
+                        {
+                            validationResults.Add(new ValidationResult
+                            {
+                                Rule = "EPIC_3.1_CONTRADICTION_RESOLUTION",
+                                Status = "FAIL",
+                                Description = $"Contradiction {contrId} resolution references non-existent evidence: {string.Join(", ", missingResolvingEvidence)}",
+                                Details = $"All resolving evidences must exist in the case manifest"
+                            });
+                        }
+                        
+                        // Check if resolution is empty (no documents or evidences to resolve)
+                        if (!resolvingDocs.Any() && !resolvingEvidences.Any())
+                        {
+                            validationResults.Add(new ValidationResult
+                            {
+                                Rule = "EPIC_3.1_CONTRADICTION_RESOLUTION",
+                                Status = "FAIL",
+                                Description = $"Contradiction {contrId} has no resolution path (empty resolvingDocuments and resolvingEvidences)",
+                                Details = $"Every contradiction must specify documents or evidences that help resolve it"
+                            });
+                        }
+                    }
+                    else
+                    {
+                        validationResults.Add(new ValidationResult
+                        {
+                            Rule = "EPIC_3.1_CONTRADICTION_RESOLUTION",
+                            Status = "FAIL",
+                            Description = $"Contradiction {contrId} is missing resolution strategy",
+                            Details = $"Every planned contradiction must specify how it can be resolved"
+                        });
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "ERROR",
+                Message = $"EPIC 3.1: Failed to parse or validate planned contradictions: {ex.Message}"
+            });
+            
+            validationResults.Add(new ValidationResult
+            {
+                Rule = "EPIC_3.1_CONTRADICTION_PARSING",
+                Status = "FAIL",
+                Description = "Failed to parse planned contradictions from Design JSON",
+                Details = ex.Message
+            });
+            
+            return Task.CompletedTask;
+        }
+        
+        // EPIC 3.1: Validate contradiction count against profile budget
+        if (contradictionCount < profile.PlannedContradictions.Min || contradictionCount > profile.PlannedContradictions.Max)
+        {
+            validationResults.Add(new ValidationResult
+            {
+                Rule = "EPIC_3.1_CONTRADICTION_BUDGET",
+                Status = "FAIL",
+                Description = $"Contradiction count ({contradictionCount}) outside difficulty budget {profile.PlannedContradictions.Min}-{profile.PlannedContradictions.Max}",
+                Details = $"Profile: {profile.Description}. Adjust the number of planned contradictions to match the difficulty level."
+            });
+        }
+        else if (contradictionCount > 0)
+        {
+            validationResults.Add(new ValidationResult
+            {
+                Rule = "EPIC_3.1_CONTRADICTION_BUDGET",
+                Status = "PASS",
+                Description = $"Contradiction count ({contradictionCount}) within difficulty budget"
+            });
+        }
+        
+        logEntries.Add(new LogEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            Level = "INFO",
+            Message = $"EPIC 3.1: Planned contradictions validation completed - {contradictionCount} contradiction(s) found",
+            Details = new Dictionary<string, object>
+            {
+                ["contradictionCount"] = contradictionCount,
+                ["requiredRange"] = $"{profile.PlannedContradictions.Min}-{profile.PlannedContradictions.Max}"
             }
         });
 

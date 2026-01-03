@@ -7,6 +7,89 @@
     "caseId": { "type": "string" },
     "version": { "type": "string" },
 
+    "plannedContradictions": {
+      "type": "array",
+      "minItems": 0,
+      "description": "List of intentionally planned contradictions in the case",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "contradictionId": {
+            "type": "string",
+            "pattern": "^CONTR\\d{3}$",
+            "description": "Unique identifier (e.g., CONTR001)"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["timeline", "alibi", "evidence_interpretation", "witness_testimony", "forensic_discrepancy"],
+            "description": "Type of contradiction"
+          },
+          "description": {
+            "type": "string",
+            "description": "What is contradicting and why it matters"
+          },
+          "involvedDocuments": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "DocIds containing conflicting information"
+          },
+          "involvedEvidences": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "EvidenceIds related to this contradiction"
+          },
+          "involvedSuspects": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "SuspectIds affected by this contradiction"
+          },
+          "resolution": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["method", "resolvingDocuments", "resolvingEvidences", "expectedConclusion"],
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": ["cross_reference", "forensic_evidence", "timeline_analysis", "document_comparison", "witness_credibility"],
+                "description": "How this contradiction can be resolved"
+              },
+              "resolvingDocuments": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "DocIds that help resolve the contradiction"
+              },
+              "resolvingEvidences": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "EvidenceIds that help resolve the contradiction"
+              },
+              "expectedConclusion": {
+                "type": "string",
+                "description": "What the investigator should conclude after resolution"
+              }
+            },
+            "description": "How this contradiction can be resolved"
+          },
+          "minimumDifficulty": {
+            "type": "string",
+            "enum": ["rookie", "detective", "detective2", "sergeant", "lieutenant", "captain", "commander"],
+            "description": "Minimum difficulty level for this contradiction"
+          }
+        },
+        "required": [
+          "contradictionId",
+          "type",
+          "description",
+          "involvedDocuments",
+          "involvedEvidences",
+          "involvedSuspects",
+          "resolution",
+          "minimumDifficulty"
+        ]
+      }
+    },
+
     "documentSpecs": {
       "type": "array",
       "minItems": 1,

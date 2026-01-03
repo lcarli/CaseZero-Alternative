@@ -954,6 +954,27 @@ public static class EvidenceRoles
     }
 }
 
+// EPIC 3.1: Contradições planejadas
+public record PlannedContradiction
+{
+    public required string ContradictionId { get; init; }  // "CONTR001", "CONTR002", etc.
+    public required string Type { get; init; }  // "timeline", "alibi", "evidence_interpretation", "witness_testimony"
+    public required string Description { get; init; }
+    public required string[] InvolvedDocuments { get; init; }  // DocIds que contêm as informações conflitantes
+    public required string[] InvolvedEvidences { get; init; }  // EvidenceIds relacionados
+    public required string[] InvolvedSuspects { get; init; }  // SuspectIds afetados
+    public required ResolutionStrategy Resolution { get; init; }
+    public required string MinimumDifficulty { get; init; }  // Dificuldade mínima para esta contradição
+}
+
+public record ResolutionStrategy
+{
+    public required string Method { get; init; }  // "cross_reference", "forensic_evidence", "timeline_analysis", "document_comparison"
+    public required string[] ResolvingDocuments { get; init; }  // DocIds que ajudam a resolver
+    public required string[] ResolvingEvidences { get; init; }  // EvidenceIds que ajudam a resolver
+    public required string ExpectedConclusion { get; init; }  // O que o investigador deve concluir
+}
+
 public record GatingRule
 {
     public required string Action { get; init; } // submit_evidence | role_required | manual_unlock

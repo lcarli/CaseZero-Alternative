@@ -323,6 +323,36 @@ Provide EXHAUSTIVE physical details for generating reference images.
             - role=ambiguous: Prompt can include designed ambiguity (but NO unintended elements)
             - role=red_herring: Prompt includes designed misdirection (explicitly justified in Expand)
             
+            EPIC 3.1 — PLANNED CONTRADICTIONS (MANDATORY):
+            - Include a 'plannedContradictions' array in the root of the output
+            - Contradictions must be intentionally designed puzzle elements
+            - Each contradiction MUST specify:
+              * Type: timeline, alibi, evidence_interpretation, witness_testimony, or forensic_discrepancy
+              * Involved documents and evidences that contain conflicting information
+              * Resolution strategy: HOW the contradiction can be resolved (cross_reference, forensic_evidence, timeline_analysis, etc.)
+              * Expected conclusion: What the investigator should conclude after analysis
+            - Quantity must respect profile limits: {difficultyProfile.PlannedContradictions.Min}-{difficultyProfile.PlannedContradictions.Max}
+            - CRITICAL: NO contradictions without a clear resolution path
+            - Lower difficulties (rookie/detective): Simple contradictions (timeline, single witness discrepancy)
+            - Higher difficulties (lieutenant+): Complex contradictions (forensic interpretation, multi-document cross-references)
+            
+            Each contradiction must have format:
+            {{
+              ""contradictionId"": ""CONTR001"",
+              ""type"": ""timeline"",
+              ""description"": ""Witness A claims to see suspect at 8:15 PM, but CCTV shows them leaving at 8:05 PM"",
+              ""involvedDocuments"": [""interview_witness_a"", ""evidence_log_cctv""],
+              ""involvedEvidences"": [""EV012""],
+              ""involvedSuspects"": [""S001""],
+              ""resolution"": {{
+                ""method"": ""cross_reference"",
+                ""resolvingDocuments"": [""police_report_timeline""],
+                ""resolvingEvidences"": [""EV012"", ""EV015""],
+                ""expectedConclusion"": ""Witness A misremembered time; CCTV timestamp is accurate""
+              }},
+              ""minimumDifficulty"": ""detective""
+            }}
+            
             Each mediaSpec must have format:
             {{
               ""evidenceId"": ""EV001"",
