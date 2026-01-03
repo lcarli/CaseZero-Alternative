@@ -290,6 +290,43 @@ public record CheckCaseCleanActivityV2Model
     public required string[] IssueAreas { get; init; }  // List of issue areas that were addressed
 }
 
+// EPIC 4.1: Playability Simulation
+public record PlayabilitySimulationActivityModel
+{
+    public required string CaseId { get; init; }
+}
+
+public record PlayabilitySimulationResult
+{
+    public required string CaseId { get; init; }
+    public required bool IsSolvable { get; init; }
+    public required string OverallAssessment { get; init; }
+    public required ReasoningPath[] ReasoningPaths { get; init; }
+    public required PlayabilityIssue[] Issues { get; init; }
+    public required string[] Recommendations { get; init; }
+}
+
+public record ReasoningPath
+{
+    public required string PathId { get; init; }
+    public required string Description { get; init; }
+    public required string[] Steps { get; init; }
+    public required string Outcome { get; init; }  // "leads_to_solution", "dead_end", "ambiguous"
+    public required string[] RequiredEvidences { get; init; }
+    public required string[] RequiredDocuments { get; init; }
+}
+
+public record PlayabilityIssue
+{
+    public required string IssueId { get; init; }
+    public required string Type { get; init; }  // "dead_end", "excessive_ambiguity", "missing_link", "unsupported_conclusion", "circular_reasoning"
+    public required string Severity { get; init; }  // "critical", "high", "medium", "low"
+    public required string Description { get; init; }
+    public required string[] AffectedEntities { get; init; }  // Evidence IDs, Document IDs, Suspect IDs
+    public required string Impact { get; init; }  // How this affects solvability
+    public required string SuggestedFix { get; init; }
+}
+
 public record RenderedDocument
 {
     public required string DocId { get; init; }
