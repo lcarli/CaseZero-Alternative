@@ -2069,38 +2069,8 @@ OUTPUT: ONLY valid JSON conforming to VisualConsistencyRegistry schema.
 
     public async Task<string> ValidateRulesAsync(string normalizedJson, string caseId, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Validating case rules");
-
-        var systemPrompt = """
-            You are a specialist in validating detective game cases. 
-            Verify that the case complies with gameplay, narrative consistency, and quality standards.
-            
-            Pay special attention to TEMPORAL CONSISTENCY:
-            - All timestamps must use consistent timezone offset throughout the case
-            - Document creation dates must logically follow incident timeline  
-            - Evidence collection times must be realistic and chronologically sound
-            - Interview timestamps must be properly sequenced
-            - No overlapping or conflicting timestamps between documents/evidence
-            - Chain of custody timestamps must be chronologically ordered
-            """;
-
-        var userPrompt = $"""
-            Validate this normalized case against the defined quality rules:
-            
-            {normalizedJson}
-            
-            Check: 
-            1. TEMPORAL CONSISTENCY: Verify all timestamps use consistent timezone, are chronologically logical, and have no conflicts
-            2. Narrative consistency and logical flow
-            3. Gameplay balance and challenge level
-            4. Completeness of clues and evidence
-            5. Realism and authenticity
-            6. Overall case quality and solvability
-            
-            Flag any timestamp inconsistencies, timezone mismatches, or chronological errors as critical issues.
-            """;
-
-        return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
+        _logger.LogInformation("VALIDATION: Delegating to ValidationService (EPIC-enhanced)");
+        return await _validationService.ValidateRulesAsync(normalizedJson, caseId, cancellationToken);
     }
 
     [Obsolete("Use RedTeamGlobalAnalysisAsync and RedTeamFocusedAnalysisAsync for hierarchical analysis instead")]
