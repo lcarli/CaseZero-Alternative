@@ -497,6 +497,18 @@ public record MediaSpec
     [JsonPropertyName("evidenceId")]
     public required string EvidenceId { get; init; }
 
+    [JsonPropertyName("role")]
+    public string? Role { get; init; } // conclusive | supporting | ambiguous | red_herring
+
+    [JsonPropertyName("canonical")]
+    public bool? Canonical { get; init; } // EPIC 2.2: true = only one visual representation
+
+    [JsonPropertyName("canonicalGroup")]
+    public string? CanonicalGroup { get; init; } // EPIC 2.2: group ID for same physical object
+
+    [JsonPropertyName("maxVisualVariants")]
+    public int? MaxVisualVariants { get; init; } // EPIC 2.2: max number of visual variants (1-3)
+
     [JsonPropertyName("kind")]
     public required string Kind { get; init; }
 
@@ -604,7 +616,19 @@ public static class DifficultyLevels
             EstimatedDurationMinutes = (30, 60),
             RedHerrings = 0,
             GatedDocuments = 0,
-            ForensicsComplexity = "basic"
+            ForensicsComplexity = "basic",
+            EvidenceRoles = new EvidenceRoleBudget
+            {
+                Conclusive = (2, 3),      // Maioria conclusiva
+                Supporting = (1, 2),       // Poucas de apoio
+                Ambiguous = (0, 0),        // Zero ambíguas
+                RedHerring = (0, 0)        // Zero red herrings
+            },
+            ReasoningRequirements = new[] { "timeline_basic", "direct_evidence" },
+            PlannedContradictions = (0, 0),
+            AlternativeInterpretations = (0, 0),
+            MaxMediaVariantsPerEvidence = 1,
+            MediaDeterminism = MediaDeterminismLevel.High
         },
         ["Detective"] = new DifficultyProfile
         {
@@ -616,7 +640,19 @@ public static class DifficultyLevels
             EstimatedDurationMinutes = (60, 120),
             RedHerrings = 2,
             GatedDocuments = 1,
-            ForensicsComplexity = "standard"
+            ForensicsComplexity = "standard",
+            EvidenceRoles = new EvidenceRoleBudget
+            {
+                Conclusive = (2, 3),
+                Supporting = (1, 3),
+                Ambiguous = (0, 1),        // Até 1 ambígua
+                RedHerring = (1, 2)        // 1-2 red herrings
+            },
+            ReasoningRequirements = new[] { "timeline_basic", "cross_document", "witness_verification" },
+            PlannedContradictions = (0, 1),
+            AlternativeInterpretations = (0, 1),
+            MaxMediaVariantsPerEvidence = 1,
+            MediaDeterminism = MediaDeterminismLevel.High
         },
         ["Detective2"] = new DifficultyProfile
         {
@@ -628,7 +664,19 @@ public static class DifficultyLevels
             EstimatedDurationMinutes = (120, 180),
             RedHerrings = 3,
             GatedDocuments = 2,
-            ForensicsComplexity = "intermediate"
+            ForensicsComplexity = "intermediate",
+            EvidenceRoles = new EvidenceRoleBudget
+            {
+                Conclusive = (2, 3),
+                Supporting = (2, 4),
+                Ambiguous = (1, 2),
+                RedHerring = (2, 3)
+            },
+            ReasoningRequirements = new[] { "timeline_analysis", "cross_document", "evidence_correlation", "branching_logic" },
+            PlannedContradictions = (1, 2),
+            AlternativeInterpretations = (1, 2),
+            MaxMediaVariantsPerEvidence = 1,
+            MediaDeterminism = MediaDeterminismLevel.Medium
         },
         ["Sergeant"] = new DifficultyProfile
         {
@@ -640,7 +688,19 @@ public static class DifficultyLevels
             EstimatedDurationMinutes = (180, 240),
             RedHerrings = 4,
             GatedDocuments = 3,
-            ForensicsComplexity = "advanced"
+            ForensicsComplexity = "advanced",
+            EvidenceRoles = new EvidenceRoleBudget
+            {
+                Conclusive = (2, 4),
+                Supporting = (3, 5),
+                Ambiguous = (2, 3),
+                RedHerring = (3, 4)
+            },
+            ReasoningRequirements = new[] { "multi_source_correlation", "forensic_analysis", "witness_reliability_assessment", "chain_of_custody" },
+            PlannedContradictions = (2, 3),
+            AlternativeInterpretations = (2, 3),
+            MaxMediaVariantsPerEvidence = 2,
+            MediaDeterminism = MediaDeterminismLevel.Medium
         },
         ["Lieutenant"] = new DifficultyProfile
         {
@@ -652,7 +712,19 @@ public static class DifficultyLevels
             EstimatedDurationMinutes = (240, 360),
             RedHerrings = 5,
             GatedDocuments = 4,
-            ForensicsComplexity = "expert"
+            ForensicsComplexity = "expert",
+            EvidenceRoles = new EvidenceRoleBudget
+            {
+                Conclusive = (3, 5),
+                Supporting = (4, 6),
+                Ambiguous = (2, 4),
+                RedHerring = (4, 5)
+            },
+            ReasoningRequirements = new[] { "layered_timeline", "evidence_dependencies", "expert_analysis", "technical_inference", "multiple_hypothesis_testing" },
+            PlannedContradictions = (3, 4),
+            AlternativeInterpretations = (3, 4),
+            MaxMediaVariantsPerEvidence = 2,
+            MediaDeterminism = MediaDeterminismLevel.Controlled
         },
         ["Captain"] = new DifficultyProfile
         {
@@ -664,7 +736,19 @@ public static class DifficultyLevels
             EstimatedDurationMinutes = (360, 540),
             RedHerrings = 6,
             GatedDocuments = 5,
-            ForensicsComplexity = "specialized"
+            ForensicsComplexity = "specialized",
+            EvidenceRoles = new EvidenceRoleBudget
+            {
+                Conclusive = (3, 6),
+                Supporting = (5, 8),
+                Ambiguous = (3, 5),
+                RedHerring = (5, 6)
+            },
+            ReasoningRequirements = new[] { "deep_inference", "counterintelligence", "expert_testimony_evaluation", "complex_motive_analysis", "adversarial_reasoning" },
+            PlannedContradictions = (4, 5),
+            AlternativeInterpretations = (4, 5),
+            MaxMediaVariantsPerEvidence = 3,
+            MediaDeterminism = MediaDeterminismLevel.Controlled
         },
         ["Commander"] = new DifficultyProfile
         {
@@ -676,7 +760,19 @@ public static class DifficultyLevels
             EstimatedDurationMinutes = (540, 720),
             RedHerrings = 8,
             GatedDocuments = 6,
-            ForensicsComplexity = "cutting_edge"
+            ForensicsComplexity = "cutting_edge",
+            EvidenceRoles = new EvidenceRoleBudget
+            {
+                Conclusive = (4, 7),
+                Supporting = (6, 10),
+                Ambiguous = (4, 6),
+                RedHerring = (7, 8)
+            },
+            ReasoningRequirements = new[] { "serial_pattern_recognition", "global_correlation", "chained_case_analysis", "master_criminal_profiling", "international_jurisdiction" },
+            PlannedContradictions = (5, 7),
+            AlternativeInterpretations = (5, 7),
+            MaxMediaVariantsPerEvidence = 3,
+            MediaDeterminism = MediaDeterminismLevel.Controlled
         }
     };
 
@@ -705,6 +801,157 @@ public record DifficultyProfile
     public required int RedHerrings { get; init; }
     public required int GatedDocuments { get; init; }
     public required string ForensicsComplexity { get; init; }
+    
+    // EPIC 1.1: Orçamento de papéis de evidência
+    public required EvidenceRoleBudget EvidenceRoles { get; init; }
+    
+    // EPIC 1.1: Requisitos de raciocínio
+    public required string[] ReasoningRequirements { get; init; }
+    
+    // EPIC 1.1: Limites de contradições e interpretações
+    public required (int Min, int Max) PlannedContradictions { get; init; }
+    public required (int Min, int Max) AlternativeInterpretations { get; init; }
+    
+    // EPIC 1.1: Variantes de mídia e determinismo
+    public required int MaxMediaVariantsPerEvidence { get; init; }
+    public required MediaDeterminismLevel MediaDeterminism { get; init; }
+    
+    // EPIC 1.2: Métodos de formatação para injeção em prompts
+    public string ToPromptSection()
+    {
+        return $@"
+DIFFICULTY PROFILE CONSTRAINTS:
+- Description: {Description}
+- Suspects: {Suspects.Min}-{Suspects.Max}
+- Documents: {Documents.Min}-{Documents.Max}
+- Evidence items: {Evidences.Min}-{Evidences.Max}
+- False leads (red herrings): {RedHerrings}
+- Gated documents: {GatedDocuments}
+- Forensics complexity: {ForensicsComplexity}
+- Estimated duration: {EstimatedDurationMinutes.Min}-{EstimatedDurationMinutes.Max} minutes
+- Complexity factors: {string.Join(", ", ComplexityFactors)}
+
+EVIDENCE ROLE BUDGET (must be respected):
+- Conclusive evidences: {EvidenceRoles.Conclusive.Min}-{EvidenceRoles.Conclusive.Max}
+- Supporting evidences: {EvidenceRoles.Supporting.Min}-{EvidenceRoles.Supporting.Max}
+- Ambiguous evidences: {EvidenceRoles.Ambiguous.Min}-{EvidenceRoles.Ambiguous.Max}
+- Red herring evidences: {EvidenceRoles.RedHerring.Min}-{EvidenceRoles.RedHerring.Max}
+
+REASONING REQUIREMENTS:
+{string.Join("\n", ReasoningRequirements.Select(r => $"- {r}"))}
+
+CONTRADICTIONS & INTERPRETATIONS:
+- Planned contradictions: {PlannedContradictions.Min}-{PlannedContradictions.Max}
+- Alternative interpretations: {AlternativeInterpretations.Min}-{AlternativeInterpretations.Max}
+
+MEDIA CONSTRAINTS:
+- Max media variants per evidence: {MaxMediaVariantsPerEvidence}
+- Media determinism level: {MediaDeterminism}
+{GetMediaDeterminismGuidance()}";
+    }
+    
+    public string ToPlanPromptSection()
+    {
+        return $@"
+DIFFICULTY PROFILE FOR PLANNING:
+- Suspects range: {Suspects.Min}-{Suspects.Max}
+- Documents range: {Documents.Min}-{Documents.Max}
+- Evidence items range: {Evidences.Min}-{Evidences.Max}
+- Red herrings: {RedHerrings}
+- Gated documents: {GatedDocuments}
+- Reasoning requirements: {string.Join(", ", ReasoningRequirements)}
+- Planned contradictions: {PlannedContradictions.Min}-{PlannedContradictions.Max}";
+    }
+    
+    public string ToDesignPromptSection()
+    {
+        return $@"
+DIFFICULTY PROFILE FOR DESIGN:
+- Evidence role budget:
+  * Conclusive: {EvidenceRoles.Conclusive.Min}-{EvidenceRoles.Conclusive.Max}
+  * Supporting: {EvidenceRoles.Supporting.Min}-{EvidenceRoles.Supporting.Max}
+  * Ambiguous: {EvidenceRoles.Ambiguous.Min}-{EvidenceRoles.Ambiguous.Max}
+  * Red herrings: {EvidenceRoles.RedHerring.Min}-{EvidenceRoles.RedHerring.Max}
+- Planned contradictions: {PlannedContradictions.Min}-{PlannedContradictions.Max}
+- Alternative interpretations: {AlternativeInterpretations.Min}-{AlternativeInterpretations.Max}
+- Media variants per evidence: {MaxMediaVariantsPerEvidence}
+- Media determinism: {MediaDeterminism}
+{GetMediaDeterminismGuidance()}";
+    }
+    
+    public string ToMediaPromptSection()
+    {
+        return $@"
+MEDIA GENERATION CONSTRAINTS:
+- Max variants per evidence: {MaxMediaVariantsPerEvidence}
+- Determinism level: {MediaDeterminism}
+{GetMediaDeterminismGuidance()}
+
+IMPORTANT: Each evidence should have exactly ONE canonical visual representation unless explicitly designed with variants.";
+    }
+    
+    public string ToQAPromptSection()
+    {
+        return $@"
+DIFFICULTY PROFILE FOR VALIDATION:
+- Expected documents: {Documents.Min}-{Documents.Max}
+- Expected evidences: {Evidences.Min}-{Evidences.Max}
+- Evidence roles distribution:
+  * Conclusive: {EvidenceRoles.Conclusive.Min}-{EvidenceRoles.Conclusive.Max}
+  * Supporting: {EvidenceRoles.Supporting.Min}-{EvidenceRoles.Supporting.Max}
+  * Ambiguous: {EvidenceRoles.Ambiguous.Min}-{EvidenceRoles.Ambiguous.Max}
+  * Red herrings: {EvidenceRoles.RedHerring.Min}-{EvidenceRoles.RedHerring.Max}
+- Reasoning requirements: {string.Join(", ", ReasoningRequirements)}
+- Required contradictions: {PlannedContradictions.Min}-{PlannedContradictions.Max}";
+    }
+    
+    private string GetMediaDeterminismGuidance()
+    {
+        return MediaDeterminism switch
+        {
+            MediaDeterminismLevel.High => 
+                "  * NO variation allowed\n  * NO extra details beyond description\n  * Single, clear, canonical representation",
+            MediaDeterminismLevel.Medium => 
+                "  * Limited variation allowed\n  * Stay faithful to description\n  * Controlled creative details",
+            MediaDeterminismLevel.Controlled => 
+                "  * Variation allowed ONLY for ambiguous evidence\n  * Conclusive/supporting: strict canonical representation\n  * Red herrings: can have controlled misdirection",
+            _ => ""
+        };
+    }
+}
+
+
+// EPIC 1.1: Budget de roles de evidência
+public record EvidenceRoleBudget
+{
+    public required (int Min, int Max) Conclusive { get; init; }
+    public required (int Min, int Max) Supporting { get; init; }
+    public required (int Min, int Max) Ambiguous { get; init; }
+    public required (int Min, int Max) RedHerring { get; init; }
+}
+
+// EPIC 1.1: Níveis de determinismo de mídia
+public enum MediaDeterminismLevel
+{
+    High,        // Rookie/Detective: sem variação, sem detalhes extras
+    Medium,      // Detective2/Sergeant: variação controlada
+    Controlled   // Lieutenant+: variação permitida apenas se role=ambiguous
+}
+
+// EPIC 2.1: Roles de evidência
+public static class EvidenceRoles
+{
+    public const string Conclusive = "conclusive";
+    public const string Supporting = "supporting";
+    public const string Ambiguous = "ambiguous";
+    public const string RedHerring = "red_herring";
+    
+    public static readonly string[] AllRoles = { Conclusive, Supporting, Ambiguous, RedHerring };
+    
+    public static bool IsValid(string? role)
+    {
+        return role != null && AllRoles.Contains(role);
+    }
 }
 
 public record GatingRule
@@ -793,6 +1040,10 @@ public record NormalizedDocument
 public record NormalizedMedia
 {
     public required string EvidenceId { get; init; }
+    public string? Role { get; init; } // EPIC 2.1: conclusive | supporting | ambiguous | red_herring
+    public bool? Canonical { get; init; } // EPIC 2.2: true = only one visual representation
+    public string? CanonicalGroup { get; init; } // EPIC 2.2: group ID for same physical object
+    public int? MaxVisualVariants { get; init; } // EPIC 2.2: max number of visual variants (1-3)
     public required string Kind { get; init; }
     public required string Title { get; init; }
     public required string Prompt { get; init; }

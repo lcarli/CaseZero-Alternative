@@ -257,8 +257,12 @@ Provide EXHAUSTIVE physical details for generating reference images.
         var minMedia = Math.Max(2, minEvid);
         var maxMedia = Math.Max(minMedia, maxEvid);
 
-        var systemPrompt = @"
+        var systemPrompt = $@"
             You are an investigative case designer. Convert plan/expansion into document and media specifications.
+
+            DIFFICULTY LEVEL: {difficulty ?? planDifficulty}
+
+            {difficultyProfile.ToDesignPromptSection()}
 
             IMPORTANT (JSON conforming to DocumentAndMediaSpecs schema):
             - All text in english
@@ -279,6 +283,43 @@ Provide EXHAUSTIVE physical details for generating reference images.
             - Every suspect must have ≥1 document
             - Every witness must have ≥1 witness_statement
             - Every evidence item must appear in mediaSpecs OR be referenced in documents
+
+            EVIDENCE ROLE ASSIGNMENT (EPIC 2.1 - CRITICAL):
+            - Each mediaSpec MUST include a 'role' field: conclusive, supporting, ambiguous, or red_herring
+            - Distribution MUST respect the budget specified above:
+              * Conclusive: {difficultyProfile.EvidenceRoles.Conclusive.Min}-{difficultyProfile.EvidenceRoles.Conclusive.Max}
+              * Supporting: {difficultyProfile.EvidenceRoles.Supporting.Min}-{difficultyProfile.EvidenceRoles.Supporting.Max}
+              * Ambiguous: {difficultyProfile.EvidenceRoles.Ambiguous.Min}-{difficultyProfile.EvidenceRoles.Ambiguous.Max}
+              * Red herrings: {difficultyProfile.EvidenceRoles.RedHerring.Min}-{difficultyProfile.EvidenceRoles.RedHerring.Max}
+            
+            ROLE DEFINITIONS:
+            - conclusive: Proves something definitively (e.g., clear CCTV footage, definitive forensic match)
+            - supporting: Corroborates other evidence (e.g., partial prints, witness corroboration)
+            - ambiguous: Multiple valid interpretations (e.g., unclear footage, circumstantial evidence)
+            - red_herring: Misleading but plausible (e.g., coincidental evidence, false trails)
+            
+            EPIC 2.2 — EVIDENCE CANON (MANDATORY):
+            - Each physical object gets ONLY ONE canonical visual representation (canonical=true)
+            - Assign a unique canonicalGroup for each distinct physical object (e.g., ""murder-weapon"", ""victims-phone"")
+            - Set maxVisualVariants based on difficulty and role:
+              * Rookie/Detective: ALWAYS maxVisualVariants=1 (no variation)
+              * Sergeant+: maxVisualVariants=1 unless role=ambiguous (then allow 2-3)
+            - POLICY 7.1: One evidence = ONE mediaSpec (no duplicate photos of same object)
+            - Exception: Only allow multiple mediaSpecs if they are DIFFERENT kinds (e.g., photo + document_scan)
+            
+            Each mediaSpec must have format:
+            {{
+              ""evidenceId"": ""EV001"",
+              ""role"": ""conclusive"",
+              ""canonical"": true,
+              ""canonicalGroup"": ""murder-weapon"",
+              ""maxVisualVariants"": 1,
+              ""kind"": ""photo"",
+              ""title"": ""..."",
+              ""prompt"": ""..."",
+              ""constraints"": {{}},
+              ""deferred"": false
+            }}
             ";
 
         var userPrompt = $@"

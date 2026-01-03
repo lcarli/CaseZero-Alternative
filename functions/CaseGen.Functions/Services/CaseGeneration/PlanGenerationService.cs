@@ -36,21 +36,24 @@ public class PlanGenerationService
         var difficultyProfile = DifficultyLevels.GetProfile(actualDifficulty);
 
         _logger.LogInformation("PLAN-CORE: Generating core case structure for {CaseId}, difficulty={Difficulty}", caseId, actualDifficulty);
+        _logger.LogInformation("PLAN-CORE: Using DifficultyProfile - Suspects:{SuspectRange}, Docs:{DocRange}, Evidences:{EvidRange}, Roles: C:{Conclusive} S:{Supporting} A:{Ambiguous} RH:{RedHerring}", 
+            $"{difficultyProfile.Suspects.Min}-{difficultyProfile.Suspects.Max}",
+            $"{difficultyProfile.Documents.Min}-{difficultyProfile.Documents.Max}",
+            $"{difficultyProfile.Evidences.Min}-{difficultyProfile.Evidences.Max}",
+            $"{difficultyProfile.EvidenceRoles.Conclusive.Min}-{difficultyProfile.EvidenceRoles.Conclusive.Max}",
+            $"{difficultyProfile.EvidenceRoles.Supporting.Min}-{difficultyProfile.EvidenceRoles.Supporting.Max}",
+            $"{difficultyProfile.EvidenceRoles.Ambiguous.Min}-{difficultyProfile.EvidenceRoles.Ambiguous.Max}",
+            $"{difficultyProfile.EvidenceRoles.RedHerring.Min}-{difficultyProfile.EvidenceRoles.RedHerring.Max}");
 
         var systemPrompt = $@"
 You are a master architect of investigative cold cases. Generate the CORE STRUCTURE of a case plan.
 
-DIFFICULTY PROFILE: {actualDifficulty}
-Description: {difficultyProfile?.Description}
+DIFFICULTY LEVEL: {actualDifficulty}
 
-COMPLEXITY GUIDELINES:
-- Suspects: {difficultyProfile?.Suspects.Min}-{difficultyProfile?.Suspects.Max}
-- Documents: {difficultyProfile?.Documents.Min}-{difficultyProfile?.Documents.Max}
-- Evidence items: {difficultyProfile?.Evidences.Min}-{difficultyProfile?.Evidences.Max}
-- False leads: {difficultyProfile?.RedHerrings}
-- Gated documents: {difficultyProfile?.GatedDocuments}
-- Forensics complexity: {difficultyProfile?.ForensicsComplexity}
-- Estimated duration: {difficultyProfile?.EstimatedDurationMinutes.Min}-{difficultyProfile?.EstimatedDurationMinutes.Max} minutes
+{difficultyProfile.ToPlanPromptSection()}
+
+COMPLEXITY FACTORS:
+{string.Join("\n", difficultyProfile.ComplexityFactors.Select(f => $"- {f}"))}
 
 GEOGRAPHY/NAMING POLICY:
 - No real street names, numbers, coordinates, or real brands/companies
@@ -225,14 +228,15 @@ OUTPUT FORMAT: ONLY JSON valid by PlanTimeline schema.";
         var systemPrompt = $@"
 You are an evidence architect for investigative cases.
 
-DIFFICULTY: {difficulty}
-EVIDENCE RANGE: {difficultyProfile.Evidences.Min}-{difficultyProfile.Evidences.Max}
-FALSE LEADS: {difficultyProfile.RedHerrings}
+DIFFICULTY LEVEL: {difficulty}
+
+{difficultyProfile.ToPlanPromptSection()}
 
 Generate:
 1) mainElements[]: Core evidence types that will be developed
    - Examples: witness statements, logs, receipts, CCTV snapshots, forensic reports, etc.
    - Must align with difficulty level
+   - Must respect evidence role budget
 
 2) goldenTruth.facts[]: Sealed true facts that MUST be supported by evidence
    - Each fact needs minSupports ≥ 2

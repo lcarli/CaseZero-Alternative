@@ -48,9 +48,16 @@ public class MediaGenerationService
     {
         _logger.LogInformation("Gen Media[{EvidenceId}] kind={Kind} title={Title}", spec.EvidenceId, spec.Kind, spec.Title);
 
-        var systemPrompt = @"
+        var difficulty = difficultyOverride ?? "Detective";
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+
+        var systemPrompt = $@"
             You are a generator of FORENSIC specifications for a single static media asset.
-            Output: ONLY valid JSON with { evidenceId, kind, title, prompt, constraints }.
+            Output: ONLY valid JSON with {{ evidenceId, kind, title, prompt, constraints }}.
+
+            DIFFICULTY LEVEL: {difficulty}
+
+            {difficultyProfile.ToMediaPromptSection()}
 
             SCOPE & SAFETY
             - One image only (a collage is acceptable if composed into a single bitmap); never a multi-image sequence.
@@ -70,6 +77,16 @@ public class MediaGenerationService
             - If the evidence exists in Expand/Design with specific attributes (time, camera label, object condition, location), MIRROR those details.
             - Use only existing labels already implied by the case (e.g., 'CAM-03', zone ids, door ids). No new camera IDs or zones.
             - Honor any provided initial_constraints (unless they violate safety), mapping them into the final constraints.
+
+            EPIC 2.2 — EVIDENCE CANON (MANDATORY):
+            - Each physical object MUST have only ONE canonical visual representation unless maxVisualVariants > 1
+            - If canonical=true and maxVisualVariants=1: NO angle variation, NO context variation, NO lighting variation
+            - Same canonicalGroup = SAME physical object = MUST share ALL visual characteristics (color, damage, markings, size)
+            - Variation allowed ONLY when:
+              1. maxVisualVariants >= 2 (controlled variation: different angles of SAME object)
+              2. role=ambiguous (variation serves investigative purpose)
+            - For Rookie/Detective: ALWAYS maxVisualVariants=1 (zero variation)
+            - NEVER generate multiple photos of the same object with different appearances
 
             TECHNICAL STANDARDIZATION
             - Always quantify: angle in degrees, camera height OR subject distance in meters, lens in mm, aperture f/, shutter 1/x s, ISO, white balance (K).

@@ -342,8 +342,26 @@ public class NormalizerService : INormalizerService
         var kind = mediaData.GetValueOrDefault("kind")?.ToString() ?? throw new ArgumentException("Missing kind");
         var title = mediaData.GetValueOrDefault("title")?.ToString() ?? throw new ArgumentException("Missing title");
         var prompt = mediaData.GetValueOrDefault("prompt")?.ToString() ?? "";
+        var role = mediaData.GetValueOrDefault("role")?.ToString(); // EPIC 2.1
+        
+        // EPIC 2.2: Extract Evidence Canon fields
+        var canonical = mediaData.TryGetValue("canonical", out var canonicalObj) && canonicalObj is bool c ? (bool?)c : null;
+        var canonicalGroup = mediaData.GetValueOrDefault("canonicalGroup")?.ToString();
+        var maxVisualVariants = mediaData.TryGetValue("maxVisualVariants", out var variantsObj) && int.TryParse(variantsObj?.ToString(), out var v) ? (int?)v : null;
         
         var deferred = bool.TryParse(mediaData.GetValueOrDefault("deferred")?.ToString(), out var deferredValue) && deferredValue;
+        
+        // Validate role if present
+        if (role != null && !EvidenceRoles.IsValid(role))
+        {
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "WARN",
+                Message = $"Invalid evidence role '{role}' for {evidenceId}, should be one of: {string.Join(", ", EvidenceRoles.AllRoles)}"
+            });
+            role = null;
+        }
         
         // Handle constraints
         Dictionary<string, object>? constraints = null;
@@ -368,6 +386,10 @@ public class NormalizerService : INormalizerService
         return new NormalizedMedia
         {
             EvidenceId = evidenceId,
+            Role = role, // EPIC 2.1
+            Canonical = canonical, // EPIC 2.2
+            CanonicalGroup = canonicalGroup, // EPIC 2.2
+            MaxVisualVariants = maxVisualVariants, // EPIC 2.2
             Kind = kind,
             Title = title,
             Prompt = prompt,
@@ -541,6 +563,173 @@ public class NormalizerService : INormalizerService
                 Description = $"Gated document count ({gatedCount}) matches expected for {difficulty ?? "auto"} level"
             });
         }
+
+        // EPIC 2.1: Validate evidence role distribution
+        var roleCounts = new Dictionary<string, int>
+        {
+            [EvidenceRoles.Conclusive] = 0,
+            [EvidenceRoles.Supporting] = 0,
+            [EvidenceRoles.Ambiguous] = 0,
+            [EvidenceRoles.RedHerring] = 0
+        };
+
+        // Count roles from media
+        foreach (var m in media)
+        {
+            if (m.Role != null && roleCounts.ContainsKey(m.Role))
+            {
+                roleCounts[m.Role]++;
+            }
+        }
+
+        var totalWithRoles = roleCounts.Values.Sum();
+        if (totalWithRoles > 0)
+        {
+            // Validate Conclusive
+            var conclusiveCount = roleCounts[EvidenceRoles.Conclusive];
+            if (conclusiveCount < profile.EvidenceRoles.Conclusive.Min || conclusiveCount > profile.EvidenceRoles.Conclusive.Max)
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EVIDENCE_ROLE_CONCLUSIVE",
+                    Status = "WARN",
+                    Description = $"Conclusive evidence count ({conclusiveCount}) outside expected range {profile.EvidenceRoles.Conclusive.Min}-{profile.EvidenceRoles.Conclusive.Max}",
+                    Details = $"Difficulty: {difficulty ?? "auto"}"
+                });
+            }
+
+            // Validate Supporting
+            var supportingCount = roleCounts[EvidenceRoles.Supporting];
+            if (supportingCount < profile.EvidenceRoles.Supporting.Min || supportingCount > profile.EvidenceRoles.Supporting.Max)
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EVIDENCE_ROLE_SUPPORTING",
+                    Status = "WARN",
+                    Description = $"Supporting evidence count ({supportingCount}) outside expected range {profile.EvidenceRoles.Supporting.Min}-{profile.EvidenceRoles.Supporting.Max}",
+                    Details = $"Difficulty: {difficulty ?? "auto"}"
+                });
+            }
+
+            // Validate Ambiguous
+            var ambiguousCount = roleCounts[EvidenceRoles.Ambiguous];
+            if (ambiguousCount < profile.EvidenceRoles.Ambiguous.Min || ambiguousCount > profile.EvidenceRoles.Ambiguous.Max)
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EVIDENCE_ROLE_AMBIGUOUS",
+                    Status = "WARN",
+                    Description = $"Ambiguous evidence count ({ambiguousCount}) outside expected range {profile.EvidenceRoles.Ambiguous.Min}-{profile.EvidenceRoles.Ambiguous.Max}",
+                    Details = $"Difficulty: {difficulty ?? "auto"}"
+                });
+            }
+
+            // Validate Red Herrings
+            var redHerringCount = roleCounts[EvidenceRoles.RedHerring];
+            if (redHerringCount < profile.EvidenceRoles.RedHerring.Min || redHerringCount > profile.EvidenceRoles.RedHerring.Max)
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EVIDENCE_ROLE_RED_HERRING",
+                    Status = "WARN",
+                    Description = $"Red herring count ({redHerringCount}) outside expected range {profile.EvidenceRoles.RedHerring.Min}-{profile.EvidenceRoles.RedHerring.Max}",
+                    Details = $"Difficulty: {difficulty ?? "auto"}"
+                });
+            }
+
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = $"EPIC 2.1: Evidence role distribution - Conclusive:{conclusiveCount}, Supporting:{supportingCount}, Ambiguous:{ambiguousCount}, RedHerring:{redHerringCount}"
+            });
+        }
+        else
+        {
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = "EPIC 2.1: No evidence roles found in media specs - validation skipped"
+            });
+        }
+
+        // EPIC 2.2: Validate Evidence Canon (canonical groups and visual variants)
+        var canonicalGroups = media
+            .Where(m => !string.IsNullOrEmpty(m.CanonicalGroup))
+            .GroupBy(m => m.CanonicalGroup);
+
+        foreach (var group in canonicalGroups)
+        {
+            var groupMedia = group.ToList();
+            var maxVariants = groupMedia.Max(m => m.MaxVisualVariants ?? 1);
+            
+            // POLICY 7.1: Check for multiple media of same kind in same canonical group
+            var duplicateKinds = groupMedia
+                .GroupBy(m => m.Kind)
+                .Where(g => g.Count() > 1)
+                .ToList();
+
+            if (duplicateKinds.Any())
+            {
+                foreach (var kindGroup in duplicateKinds)
+                {
+                    validationResults.Add(new ValidationResult
+                    {
+                        Rule = "EPIC_2.2_POLICY_7.1",
+                        Status = "FAIL",
+                        Description = $"Canonical group '{group.Key}' has {kindGroup.Count()} media of kind '{kindGroup.Key}' (expected 1)",
+                        Details = $"Evidence IDs: {string.Join(", ", kindGroup.Select(m => m.EvidenceId))}. POLICY 7.1: One evidence = one media (same kind)"
+                    });
+                }
+            }
+
+            // Validate maxVisualVariants consistency within group
+            if (groupMedia.Select(m => m.MaxVisualVariants).Distinct().Count() > 1)
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EPIC_2.2_CANONICAL_CONSISTENCY",
+                    Status = "WARN",
+                    Description = $"Canonical group '{group.Key}' has inconsistent maxVisualVariants values",
+                    Details = $"All media in same canonical group should have same maxVisualVariants. Found: {string.Join(", ", groupMedia.Select(m => $"{m.EvidenceId}={m.MaxVisualVariants}"))}"
+                });
+            }
+
+            // Validate maxVisualVariants based on difficulty
+            if (difficulty != null)
+            {
+                var isRookieOrDetective = difficulty == "Rookie" || difficulty == "Detective";
+                if (isRookieOrDetective && maxVariants > 1)
+                {
+                    validationResults.Add(new ValidationResult
+                    {
+                        Rule = "EPIC_2.2_DIFFICULTY_VARIANTS",
+                        Status = "FAIL",
+                        Description = $"Canonical group '{group.Key}' has maxVisualVariants={maxVariants} but difficulty is {difficulty}",
+                        Details = "Rookie/Detective must have maxVisualVariants=1 (no variation)"
+                    });
+                }
+            }
+
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = $"EPIC 2.2: Canonical group '{group.Key}' validated - {groupMedia.Count} media, maxVariants={maxVariants}"
+            });
+        }
+
+        // Log canonical summary
+        var totalCanonical = media.Count(m => m.Canonical == true);
+        var totalGroups = canonicalGroups.Count();
+        logEntries.Add(new LogEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            Level = "INFO",
+            Message = $"EPIC 2.2: Evidence Canon summary - {totalCanonical} canonical media in {totalGroups} groups"
+        });
+
 
         // Validate forensics reports have Cadeia de Custódia
         var forensicsReports = documents.Where(d => d.Type == DocumentTypes.ForensicsReport);

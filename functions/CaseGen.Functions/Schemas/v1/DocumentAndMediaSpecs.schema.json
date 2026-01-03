@@ -129,6 +129,26 @@
             "pattern": "^[a-z0-9_\\-]+$",
             "description": "Unique identifier of the media item"
           },
+          "role": {
+            "type": "string",
+            "enum": ["conclusive", "supporting", "ambiguous", "red_herring"],
+            "description": "Investigative role of this media evidence"
+          },
+          "canonical": {
+            "type": "boolean",
+            "description": "Whether this media represents the canonical (only) visual representation of a physical object"
+          },
+          "canonicalGroup": {
+            "type": "string",
+            "description": "Group identifier for media representing the same physical object. All media in a group must share visual consistency."
+          },
+          "maxVisualVariants": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3,
+            "default": 1,
+            "description": "Maximum number of visual variants allowed for this canonical group. Enforced during media generation."
+          },
           "kind": {
             "type": "string",
             "enum": ["photo", "document_scan", "diagram", "audio", "video"],
