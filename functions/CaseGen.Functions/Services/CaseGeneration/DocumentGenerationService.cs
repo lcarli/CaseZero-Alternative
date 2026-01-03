@@ -162,6 +162,10 @@ public class DocumentGenerationService
         };
 
         var designCtx = designJson ?? "{}";
+        
+        // EPIC 3.2: Extract and filter planned contradictions relevant to this document
+        var relevantContradictions = ExtractRelevantContradictions(designJson, spec.DocId);
+        var contradictionsPrompt = BuildContradictionsPrompt(relevantContradictions);
 
         var systemPrompt = @"
             You are a police / forensic technical writer. Generate ONLY JSON containing the document body.
@@ -216,6 +220,9 @@ public class DocumentGenerationService
             - If mentioning evidence, use existing evidenceId/docId; do not create new items.
             - Do not mention gating in the content (gating is metadata).
 
+            EPIC 3.2 — PLANNED CONTRADICTIONS (CRITICAL):
+            {contradictionsPrompt}
+
             PRE-SUBMISSION CHECK (the model must self-check before writing):
             - Did you verify that every cited evidenceId/docId exists in the supplied Design?
             - Are you using the exact 'sections' titles in the given order, without adding extra sections?
@@ -252,5 +259,147 @@ public class DocumentGenerationService
     public async Task<string> RenderDocumentFromJsonAsync(string docId, string documentJson, string caseId, CancellationToken cancellationToken = default)
     {
         return await _pdfRenderingService.RenderDocumentFromJsonAsync(docId, documentJson, caseId, cancellationToken);
+    }
+
+    // EPIC 3.2: Helper methods for planned contradictions
+    
+    /// <summary>
+    /// Extracts contradictions from Design JSON that involve the specified document.
+    /// </summary>
+    private List<PlannedContradiction> ExtractRelevantContradictions(string? designJson, string docId)
+    {
+        var contradictions = new List<PlannedContradiction>();
+        
+        if (string.IsNullOrEmpty(designJson))
+            return contradictions;
+
+        try
+        {
+            var designDoc = JsonDocument.Parse(designJson);
+            if (!designDoc.RootElement.TryGetProperty("plannedContradictions", out var contradictionsElement) ||
+                contradictionsElement.ValueKind != JsonValueKind.Array)
+            {
+                return contradictions;
+            }
+
+            foreach (var contrElement in contradictionsElement.EnumerateArray())
+            {
+                var involvedDocs = new List<string>();
+                if (contrElement.TryGetProperty("involvedDocuments", out var docsArr))
+                {
+                    foreach (var doc in docsArr.EnumerateArray())
+                        involvedDocs.Add(doc.GetString() ?? "");
+                }
+                
+                var resolvingDocs = new List<string>();
+                if (contrElement.TryGetProperty("resolution", out var resolutionElement) &&
+                    resolutionElement.TryGetProperty("resolvingDocuments", out var resDocsArr))
+                {
+                    foreach (var doc in resDocsArr.EnumerateArray())
+                        resolvingDocs.Add(doc.GetString() ?? "");
+                }
+
+                // Include contradiction if this document is involved OR helps resolve it
+                if (involvedDocs.Contains(docId) || resolvingDocs.Contains(docId))
+                {
+                    var involvedEvidences = new List<string>();
+                    if (contrElement.TryGetProperty("involvedEvidences", out var evidArr))
+                    {
+                        foreach (var evid in evidArr.EnumerateArray())
+                            involvedEvidences.Add(evid.GetString() ?? "");
+                    }
+                    
+                    var involvedSuspects = new List<string>();
+                    if (contrElement.TryGetProperty("involvedSuspects", out var suspArr))
+                    {
+                        foreach (var susp in suspArr.EnumerateArray())
+                            involvedSuspects.Add(susp.GetString() ?? "");
+                    }
+                    
+                    var resolvingEvidences = new List<string>();
+                    if (resolutionElement.TryGetProperty("resolvingEvidences", out var resEvidArr))
+                    {
+                        foreach (var evid in resEvidArr.EnumerateArray())
+                            resolvingEvidences.Add(evid.GetString() ?? "");
+                    }
+                    
+                    contradictions.Add(new PlannedContradiction
+                    {
+                        ContradictionId = contrElement.GetProperty("contradictionId").GetString() ?? "",
+                        Type = contrElement.GetProperty("type").GetString() ?? "",
+                        Description = contrElement.GetProperty("description").GetString() ?? "",
+                        InvolvedDocuments = involvedDocs.ToArray(),
+                        InvolvedEvidences = involvedEvidences.ToArray(),
+                        InvolvedSuspects = involvedSuspects.ToArray(),
+                        Resolution = new ResolutionStrategy
+                        {
+                            Method = resolutionElement.GetProperty("method").GetString() ?? "",
+                            ResolvingDocuments = resolvingDocs.ToArray(),
+                            ResolvingEvidences = resolvingEvidences.ToArray(),
+                            ExpectedConclusion = resolutionElement.GetProperty("expectedConclusion").GetString() ?? ""
+                        },
+                        MinimumDifficulty = contrElement.GetProperty("minimumDifficulty").GetString() ?? ""
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "EPIC 3.2: Failed to extract contradictions from Design JSON for document {DocId}", docId);
+        }
+
+        return contradictions;
+    }
+
+    /// <summary>
+    /// Builds prompt section for planned contradictions.
+    /// </summary>
+    private string BuildContradictionsPrompt(List<PlannedContradiction> contradictions)
+    {
+        if (!contradictions.Any())
+        {
+            return "This document does NOT participate in any planned contradictions. Write it normally following all other rules.";
+        }
+
+        var prompt = "THIS DOCUMENT PARTICIPATES IN PLANNED CONTRADICTIONS (MANDATORY IMPLEMENTATION):\n\n";
+        
+        foreach (var contradiction in contradictions)
+        {
+            var isInvolved = contradiction.InvolvedDocuments.Any();
+            var isResolving = contradiction.Resolution.ResolvingDocuments.Any();
+            
+            prompt += $"## Contradiction {contradiction.ContradictionId} ({contradiction.Type})\n";
+            prompt += $"Description: {contradiction.Description}\n\n";
+            
+            if (isInvolved)
+            {
+                prompt += "**YOUR ROLE: IMPLEMENT THE CONTRADICTION**\n";
+                prompt += "- You MUST include information that CONTRADICTS other documents/evidence\n";
+                prompt += "- This contradiction is INTENTIONAL and part of the puzzle design\n";
+                prompt += "- DO NOT try to 'fix' or reconcile the contradiction\n";
+                prompt += "- Write the contradictory information naturally and believably\n";
+                prompt += $"- Involved evidences: {string.Join(", ", contradiction.InvolvedEvidences)}\n";
+                prompt += $"- Involved suspects: {string.Join(", ", contradiction.InvolvedSuspects)}\n\n";
+            }
+            
+            if (isResolving)
+            {
+                prompt += "**YOUR ROLE: PROVIDE RESOLUTION CLUES**\n";
+                prompt += "- Include information that HELPS RESOLVE the contradiction described above\n";
+                prompt += $"- Resolution method: {contradiction.Resolution.Method}\n";
+                prompt += $"- Expected conclusion: {contradiction.Resolution.ExpectedConclusion}\n";
+                prompt += $"- Resolving evidences to reference: {string.Join(", ", contradiction.Resolution.ResolvingEvidences)}\n";
+                prompt += "- Provide clear, factual information that allows the investigator to determine the truth\n\n";
+            }
+        }
+        
+        prompt += "**CRITICAL RULES FOR CONTRADICTIONS:**\n";
+        prompt += "1. If you are implementing a contradiction (involved document), write EXACTLY the contradictory information as designed\n";
+        prompt += "2. If you are providing resolution clues (resolving document), include clear factual information that resolves the discrepancy\n";
+        prompt += "3. DO NOT mention that a contradiction exists in the text - write naturally\n";
+        prompt += "4. DO NOT try to reconcile or explain away contradictions you are supposed to implement\n";
+        prompt += "5. The contradiction is an intentional puzzle element - implement it faithfully\n";
+        
+        return prompt;
     }
 }
