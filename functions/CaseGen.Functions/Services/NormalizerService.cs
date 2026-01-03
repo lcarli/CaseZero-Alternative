@@ -464,6 +464,74 @@ public class NormalizerService : INormalizerService
             }
         }
 
+        // EPIC 6.2: Extract and validate IDs referenced in document content
+        var evidenceIdPattern = new Regex(@"\bEV\d{3}\b", RegexOptions.IgnoreCase);
+        var suspectIdPattern = new Regex(@"\bS\d{3}\b", RegexOptions.IgnoreCase);
+        
+        var brokenEvidenceRefs = new Dictionary<string, List<string>>(); // docId -> list of broken evidence IDs
+        var brokenSuspectRefs = new Dictionary<string, List<string>>();  // docId -> list of broken suspect IDs
+        
+        foreach (var doc in documents)
+        {
+            var content = doc.Content;
+            
+            // Extract evidence IDs from content
+            var evidenceMatches = evidenceIdPattern.Matches(content);
+            foreach (Match match in evidenceMatches)
+            {
+                var evidenceId = match.Value.ToUpper();
+                if (!mediaIds.Contains(evidenceId))
+                {
+                    if (!brokenEvidenceRefs.ContainsKey(doc.DocId))
+                        brokenEvidenceRefs[doc.DocId] = new List<string>();
+                    
+                    if (!brokenEvidenceRefs[doc.DocId].Contains(evidenceId))
+                        brokenEvidenceRefs[doc.DocId].Add(evidenceId);
+                }
+            }
+            
+            // Extract suspect IDs from content (Note: Suspects are in Plan, not in normalized media/docs)
+            // We'll log these for now but not fail, as suspects aren't in the manifest
+            var suspectMatches = suspectIdPattern.Matches(content);
+            foreach (Match match in suspectMatches)
+            {
+                var suspectId = match.Value.ToUpper();
+                // Store for logging purposes
+                if (!brokenSuspectRefs.ContainsKey(doc.DocId))
+                    brokenSuspectRefs[doc.DocId] = new List<string>();
+                
+                if (!brokenSuspectRefs[doc.DocId].Contains(suspectId))
+                    brokenSuspectRefs[doc.DocId].Add(suspectId);
+            }
+        }
+        
+        // Report broken evidence references
+        foreach (var (docId, brokenIds) in brokenEvidenceRefs)
+        {
+            validationResults.Add(new ValidationResult
+            {
+                Rule = "EPIC_6.2_EVIDENCE_REFERENCE_INTEGRITY",
+                Status = "FAIL",
+                Description = $"Document {docId} references non-existent evidence: {string.Join(", ", brokenIds)}",
+                Details = $"Found {brokenIds.Count} broken evidence reference(s). Available evidence IDs: {string.Join(", ", mediaIds.OrderBy(id => id))}"
+            });
+        }
+        
+        // Log suspect references (informational, not a failure since suspects are in Plan)
+        if (brokenSuspectRefs.Any())
+        {
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = $"EPIC 6.2: Found {brokenSuspectRefs.Sum(kvp => kvp.Value.Count)} suspect ID references in documents",
+                Details = new Dictionary<string, object>
+                {
+                    ["suspectReferences"] = brokenSuspectRefs.SelectMany(kvp => kvp.Value).Distinct().OrderBy(id => id).ToArray()
+                }
+            });
+        }
+
         if (!duplicateDocIds.Any() && !duplicateMediaIds.Any())
         {
             validationResults.Add(new ValidationResult
@@ -479,13 +547,14 @@ public class NormalizerService : INormalizerService
         {
             Timestamp = DateTime.UtcNow,
             Level = "INFO",
-            Message = "ID and reference validation completed",
+            Message = $"EPIC 6.2: ID and reference validation completed - {brokenEvidenceRefs.Count} doc(s) with broken evidence references",
             Details = new Dictionary<string, object>
             {
                 ["documentIds"] = documentIds.Count,
                 ["evidenceIds"] = mediaIds.Count,
                 ["duplicateDocuments"] = duplicateDocIds.Count(),
-                ["duplicateEvidence"] = duplicateMediaIds.Count()
+                ["duplicateEvidence"] = duplicateMediaIds.Count(),
+                ["brokenEvidenceReferences"] = brokenEvidenceRefs.Count
             }
         });
 
