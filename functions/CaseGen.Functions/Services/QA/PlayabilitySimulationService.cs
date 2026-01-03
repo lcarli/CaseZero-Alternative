@@ -177,4 +177,47 @@ OUTPUT: Valid JSON matching PlayabilitySimulationResult schema:
             };
         }
     }
+
+    /// <summary>
+    /// EPIC 4.2: Converts playability issues into QA issues that can be processed by the Fix loop.
+    /// </summary>
+    public List<QaScanIssue> ConvertToQaIssues(PlayabilitySimulationResult simulationResult)
+    {
+        var qaIssues = new List<QaScanIssue>();
+
+        foreach (var issue in simulationResult.Issues)
+        {
+            // Map severity: critical/high -> high, medium -> medium, low -> low
+            var qaSeverity = issue.Severity switch
+            {
+                "critical" => "high",
+                "high" => "high",
+                "medium" => "medium",
+                "low" => "low",
+                _ => "medium"
+            };
+
+            // Create area identifier based on affected entities
+            var area = issue.AffectedEntities.Any()
+                ? $"playability_{issue.Type}_{string.Join("_", issue.AffectedEntities.Take(2))}"
+                : $"playability_{issue.Type}_{issue.IssueId}";
+
+            qaIssues.Add(new QaScanIssue
+            {
+                Area = area,
+                Severity = qaSeverity,
+                Description = $"[PLAYABILITY] {issue.Type.ToUpper()}: {issue.Description}\n" +
+                             $"Impact: {issue.Impact}\n" +
+                             $"Suggested Fix: {issue.SuggestedFix}\n" +
+                             $"Affected: {string.Join(", ", issue.AffectedEntities)}"
+            });
+        }
+
+        _logger.LogInformation(
+            "EPIC 4.2: Converted {IssueCount} playability issues to QA issues ({HighCount} high priority)",
+            qaIssues.Count,
+            qaIssues.Count(i => i.Severity == "high"));
+
+        return qaIssues;
+    }
 }

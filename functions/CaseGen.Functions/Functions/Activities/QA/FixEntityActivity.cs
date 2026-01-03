@@ -217,12 +217,18 @@ public class FixEntityActivity
 
     private string BuildFixPrompt(string entityId, string entityType, string issueDescription, Dictionary<string, string?> context)
     {
+        // EPIC 4.2: Detect playability issues and provide specific guidance
+        var isPlayabilityIssue = issueDescription.Contains("[PLAYABILITY]");
+        var playabilityType = ExtractPlayabilityType(issueDescription);
+
         var prompt = $@"You are applying a SURGICAL FIX to a specific entity in a detective case.
 
 # TARGET ENTITY
 **Entity ID**: {entityId}
 **Entity Type**: {entityType}
 **Issue to Fix**: {issueDescription}
+
+{(isPlayabilityIssue ? GetPlayabilityFixGuidance(playabilityType) : "")}
 
 # CURRENT ENTITY DATA
 ```json
@@ -315,5 +321,73 @@ CRITICAL: Return ONLY valid JSON, nothing else. The output will be saved directl
         }
 
         return string.Empty;
+    }
+
+    // EPIC 4.2: Helper methods for playability issue fixes
+
+    private string ExtractPlayabilityType(string issueDescription)
+    {
+        if (issueDescription.Contains("DEAD_END")) return "dead_end";
+        if (issueDescription.Contains("MISSING_LINK")) return "missing_link";
+        if (issueDescription.Contains("EXCESSIVE_AMBIGUITY")) return "excessive_ambiguity";
+        if (issueDescription.Contains("UNSUPPORTED_CONCLUSION")) return "unsupported_conclusion";
+        if (issueDescription.Contains("CIRCULAR_REASONING")) return "circular_reasoning";
+        return "general";
+    }
+
+    private string GetPlayabilityFixGuidance(string playabilityType)
+    {
+        return playabilityType switch
+        {
+            "dead_end" => @"
+# PLAYABILITY FIX: DEAD END
+This investigation path leads nowhere. Your fix should:
+- Add connections to other evidence or documents
+- Provide clues that point to next investigative steps
+- Include references to other entity IDs that players can follow
+- Ensure at least one logical path forward exists
+",
+            "missing_link" => @"
+# PLAYABILITY FIX: MISSING LINK
+There's a logical gap in the investigation chain. Your fix should:
+- Create explicit connections between related evidence/suspects
+- Add supporting details that bridge the logical gap
+- Reference other documents/evidence that complete the chain
+- Make relationships clearer without being too obvious
+",
+            "excessive_ambiguity" => @"
+# PLAYABILITY FIX: EXCESSIVE AMBIGUITY
+The information is too ambiguous to reach conclusions. Your fix should:
+- Add clarifying details that narrow interpretations
+- Provide corroborating information from other sources
+- Include timestamps, locations, or other concrete facts
+- Reduce contradictions or explain discrepancies
+- Keep some ambiguity if appropriate to difficulty level
+",
+            "unsupported_conclusion" => @"
+# PLAYABILITY FIX: UNSUPPORTED CONCLUSION
+A logical conclusion requires evidence that doesn't exist. Your fix should:
+- Add supporting evidence that justifies the conclusion
+- Include details that make the inference possible
+- Reference other documents/evidence that support the reasoning
+- Ensure the logic chain is complete and followable
+",
+            "circular_reasoning" => @"
+# PLAYABILITY FIX: CIRCULAR REASONING
+The reasoning path loops without progress. Your fix should:
+- Break the circular dependency
+- Add external evidence that provides resolution
+- Create a clear entry/exit point in the reasoning chain
+- Ensure players can make progress toward the solution
+",
+            _ => @"
+# PLAYABILITY FIX: GENERAL
+This entity has playability issues. Your fix should:
+- Improve clarity and investigative value
+- Add connections to other case elements
+- Ensure players can make logical progress
+- Maintain consistency with the rest of the case
+"
+        };
     }
 }
