@@ -79,6 +79,12 @@ public class NormalizerService : INormalizerService
             // Step 8: Create manifest
             var manifest = CreateManifest(input.CaseId, i18nDocuments, i18nMedia);
             
+            // Step 8.5: Consolidate canonical media (EPIC 7.2)
+            (i18nMedia, manifest) = ConsolidateCanonicalMedia(i18nMedia, manifest, logEntries, validationResults);
+            
+            // Update bundle with consolidated media
+            normalizedBundle = CreateNormalizedBundle(input, i18nDocuments, i18nMedia, gatingGraph, difficultyProfile);
+            
             // Step 9: Final validation
             await ValidateNormalizedBundleAsync(normalizedBundle, logEntries, validationResults);
 
@@ -1710,6 +1716,127 @@ public class NormalizerService : INormalizerService
         return Task.CompletedTask;
     }
 
+
+    /// <summary>
+    /// EPIC 7.2: Fallback de consolidação de mídias canônicas
+    /// Agrupa mídias por canonicalGroup, mantém apenas a principal e atualiza referências
+    /// </summary>
+    private (NormalizedMedia[] media, CaseManifest manifest) ConsolidateCanonicalMedia(
+        NormalizedMedia[] media,
+        CaseManifest manifest,
+        List<LogEntry> logEntries,
+        List<ValidationResult> validationResults)
+    {
+        var consolidatedMedia = new List<NormalizedMedia>();
+        var removedMediaIds = new List<string>();
+        var mediaIdMapping = new Dictionary<string, string>(); // old ID -> new ID
+
+        // Group media by canonicalGroup
+        var canonicalGroups = media
+            .Where(m => !string.IsNullOrEmpty(m.CanonicalGroup))
+            .GroupBy(m => m.CanonicalGroup)
+            .ToList();
+
+        // Add media without canonical groups as-is
+        var nonCanonicalMedia = media.Where(m => string.IsNullOrEmpty(m.CanonicalGroup)).ToList();
+        consolidatedMedia.AddRange(nonCanonicalMedia);
+
+        logEntries.Add(new LogEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            Level = "INFO",
+            Message = "Starting canonical media consolidation",
+            Details = new Dictionary<string, object>
+            {
+                ["totalMedia"] = media.Length,
+                ["canonicalGroups"] = canonicalGroups.Count,
+                ["nonCanonicalMedia"] = nonCanonicalMedia.Count
+            }
+        });
+
+        // Process each canonical group
+        foreach (var group in canonicalGroups)
+        {
+            var groupMedia = group.ToList();
+            
+            if (groupMedia.Count == 1)
+            {
+                // Single media in group, keep as-is
+                consolidatedMedia.Add(groupMedia[0]);
+                continue;
+            }
+
+            // Select primary media (first one with Canonical = true, or first in list)
+            var primaryMedia = groupMedia.FirstOrDefault(m => m.Canonical == true) ?? groupMedia[0];
+            consolidatedMedia.Add(primaryMedia);
+
+            // Track removed media
+            var removedInGroup = groupMedia.Where(m => m.EvidenceId != primaryMedia.EvidenceId).ToList();
+            foreach (var removed in removedInGroup)
+            {
+                removedMediaIds.Add(removed.EvidenceId);
+                mediaIdMapping[removed.EvidenceId] = primaryMedia.EvidenceId;
+            }
+
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = $"Consolidated canonical group: {group.Key}",
+                Details = new Dictionary<string, object>
+                {
+                    ["canonicalGroup"] = group.Key,
+                    ["totalVariants"] = groupMedia.Count,
+                    ["primaryMediaId"] = primaryMedia.EvidenceId,
+                    ["removedMediaIds"] = removedInGroup.Select(m => m.EvidenceId).ToArray()
+                }
+            });
+
+            validationResults.Add(new ValidationResult
+            {
+                Rule = "CANONICAL_CONSOLIDATION",
+                Status = "PASS",
+                Description = $"Consolidated {groupMedia.Count} variants into primary media {primaryMedia.EvidenceId}",
+                Details = $"Canonical group: {group.Key}"
+            });
+        }
+
+        // Update manifest to remove consolidated media
+        if (removedMediaIds.Any())
+        {
+            var updatedManifestMedia = manifest.Media
+                .Where(m => !removedMediaIds.Contains(m.Id))
+                .ToArray();
+
+            manifest = manifest with { Media = updatedManifestMedia };
+
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = "Updated manifest after consolidation",
+                Details = new Dictionary<string, object>
+                {
+                    ["removedMediaCount"] = removedMediaIds.Count,
+                    ["finalMediaCount"] = updatedManifestMedia.Length,
+                    ["removedIds"] = removedMediaIds.ToArray()
+                }
+            });
+        }
+
+        // Update the media array
+        var finalMedia = consolidatedMedia.ToArray();
+
+        validationResults.Add(new ValidationResult
+        {
+            Rule = "CANONICAL_CONSOLIDATION_SUMMARY",
+            Status = "PASS",
+            Description = $"Consolidated {removedMediaIds.Count} duplicate canonical media",
+            Details = $"Final media count: {finalMedia.Length} (from {media.Length})"
+        });
+
+        return (finalMedia, manifest);
+    }
     private static string ComputeHash(string content)
     {
         using var sha256 = SHA256.Create();
