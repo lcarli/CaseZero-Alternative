@@ -307,6 +307,22 @@ Provide EXHAUSTIVE physical details for generating reference images.
             - POLICY 7.1: One evidence = ONE mediaSpec (no duplicate photos of same object)
             - Exception: Only allow multiple mediaSpecs if they are DIFFERENT kinds (e.g., photo + document_scan)
             
+            EPIC 2.3 — MEDIA DETERMINISM & FALSE POSITIVES (CRITICAL):
+            Media Determinism Level: {difficultyProfile.MediaDeterminism}
+            
+            FALSE POSITIVE CONTROL:
+            - NO creative additions to media prompts beyond what exists in Expand
+            - Red herrings MUST be explicitly designed (not accidental creative choices)
+            - Every object, detail, or element in a media prompt MUST have justification in Expand
+            - For {difficultyProfile.MediaDeterminism} determinism:
+              {GetFalsePositiveGuidance(difficultyProfile.MediaDeterminism)}
+            
+            ROLE-BASED PROMPT STRICTNESS:
+            - role=conclusive: Minimal, precise prompt (ONLY what's needed to prove the fact)
+            - role=supporting: Focused prompt (ONLY corroborating details)
+            - role=ambiguous: Prompt can include designed ambiguity (but NO unintended elements)
+            - role=red_herring: Prompt includes designed misdirection (explicitly justified in Expand)
+            
             Each mediaSpec must have format:
             {{
               ""evidenceId"": ""EV001"",
@@ -459,4 +475,29 @@ Provide EXHAUSTIVE physical details for generating reference images.
 
         return JsonSerializer.Serialize(registryDict, new JsonSerializerOptions { WriteIndented = true });
     }
-}
+
+    /// <summary>
+    /// EPIC 2.3: Returns false positive guidance based on MediaDeterminismLevel
+    /// </summary>
+    private static string GetFalsePositiveGuidance(MediaDeterminismLevel level)
+    {
+        return level switch
+        {
+            MediaDeterminismLevel.High =>
+                @"  * ZERO tolerance for undesigned elements
+                * Prompts must be minimalist and precise
+                * NO contextual objects unless explicitly in Expand",
+
+            MediaDeterminismLevel.Medium =>
+                @"  * Low tolerance for undesigned elements
+                * Prompts should be focused and controlled
+                * Contextual objects allowed ONLY if clearly implied by Expand",
+
+            MediaDeterminismLevel.Controlled =>
+                @"  * False positives allowed ONLY for designed ambiguity/red herrings
+                * Conclusive/supporting: zero undesigned elements
+                * Ambiguous/red_herring: controlled additions if justified in Expand",
+
+            _ => ""
+        };
+    }}

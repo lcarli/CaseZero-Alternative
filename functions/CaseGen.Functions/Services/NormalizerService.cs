@@ -730,6 +730,59 @@ public class NormalizerService : INormalizerService
             Message = $"EPIC 2.2: Evidence Canon summary - {totalCanonical} canonical media in {totalGroups} groups"
         });
 
+        // EPIC 2.3: Validate Media Determinism compliance
+        if (difficulty != null)
+        {
+            var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+            var determinismLevel = difficultyProfile.MediaDeterminism;
+
+            // Count media by role for determinism validation
+            var conclusiveSupportingMedia = media.Where(m => 
+                m.Role == EvidenceRoles.Conclusive || m.Role == EvidenceRoles.Supporting).ToList();
+            
+            var ambiguousMedia = media.Where(m => m.Role == EvidenceRoles.Ambiguous).ToList();
+            var redHerringMedia = media.Where(m => m.Role == EvidenceRoles.RedHerring).ToList();
+
+            // Validate High determinism (Rookie/Detective): NO variation at all
+            if (determinismLevel == MediaDeterminismLevel.High)
+            {
+                var anyVariation = media.Any(m => (m.MaxVisualVariants ?? 1) > 1);
+                if (anyVariation)
+                {
+                    validationResults.Add(new ValidationResult
+                    {
+                        Rule = "EPIC_2.3_HIGH_DETERMINISM",
+                        Status = "FAIL",
+                        Description = $"HIGH determinism violated: found media with maxVisualVariants > 1",
+                        Details = $"Difficulty {difficulty} requires MediaDeterminism=High (no variation allowed). Evidence: {string.Join(", ", media.Where(m => (m.MaxVisualVariants ?? 1) > 1).Select(m => m.EvidenceId))}"
+                    });
+                }
+            }
+
+            // Validate Controlled determinism: variation only for ambiguous/red_herring
+            if (determinismLevel == MediaDeterminismLevel.Controlled)
+            {
+                var invalidVariation = conclusiveSupportingMedia.Where(m => (m.MaxVisualVariants ?? 1) > 1).ToList();
+                if (invalidVariation.Any())
+                {
+                    validationResults.Add(new ValidationResult
+                    {
+                        Rule = "EPIC_2.3_CONTROLLED_DETERMINISM",
+                        Status = "FAIL",
+                        Description = $"CONTROLLED determinism violated: conclusive/supporting media has variation",
+                        Details = $"Conclusive/supporting evidence must have maxVisualVariants=1. Violators: {string.Join(", ", invalidVariation.Select(m => $"{m.EvidenceId} (role={m.Role}, variants={m.MaxVisualVariants})"))}"
+                    });
+                }
+            }
+
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = $"EPIC 2.3: Media determinism validated - Level={determinismLevel}, Conclusive/Supporting={conclusiveSupportingMedia.Count}, Ambiguous={ambiguousMedia.Count}, RedHerring={redHerringMedia.Count}"
+            });
+        }
+
 
         // Validate forensics reports have Cadeia de Custódia
         var forensicsReports = documents.Where(d => d.Type == DocumentTypes.ForensicsReport);

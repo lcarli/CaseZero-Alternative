@@ -88,6 +88,24 @@ public class MediaGenerationService
             - For Rookie/Detective: ALWAYS maxVisualVariants=1 (zero variation)
             - NEVER generate multiple photos of the same object with different appearances
 
+            EPIC 2.3 — MEDIA DETERMINISM BY DIFFICULTY (MANDATORY):
+            Media Determinism Level: {difficultyProfile.MediaDeterminism}
+
+            DETERMINISM RULES (MUST FOLLOW):
+            {GetDeterminismRulesByLevel(difficultyProfile.MediaDeterminism)}
+
+            ROLE-BASED DETERMINISM (CRITICAL):
+            - role=conclusive OR role=supporting: STRICT canonical representation (no creative details, no variation)
+            - role=ambiguous: Variation allowed ONLY if MediaDeterminism=Controlled AND explicitly justified for investigative purpose
+            - role=red_herring: Can include controlled misdirection ONLY if MediaDeterminism=Controlled
+            - For High determinism: NO variation regardless of role
+            - For Medium determinism: Minimal variation, stay 100% faithful to description
+            
+            FALSE POSITIVES (CONTROL):
+            - DO NOT add objects, details, or elements not explicitly mentioned in Design/Expand
+            - NO ""plausible"" additions without explicit Design justification
+            - Red herrings must be DESIGNED (not accidental creative choices)
+
             TECHNICAL STANDARDIZATION
             - Always quantify: angle in degrees, camera height OR subject distance in meters, lens in mm, aperture f/, shutter 1/x s, ISO, white balance (K).
             - Lighting: diffuse/even; avoid harsh shadows; prefer color-neutral rendering.
@@ -186,4 +204,39 @@ public class MediaGenerationService
     {
         return await _imagesService.GenerateAsync(caseId, spec);
     }
-}
+
+    /// <summary>
+    /// EPIC 2.3: Returns determinism rules based on MediaDeterminismLevel
+    /// </summary>
+    private static string GetDeterminismRulesByLevel(MediaDeterminismLevel level)
+    {
+        return level switch
+        {
+            MediaDeterminismLevel.High =>
+                @"- HIGH DETERMINISM (Rookie/Detective):
+                  * Generate EXACTLY what is described, nothing more
+                  * NO creative additions, NO extra objects, NO contextual details
+                  * NO variation in angle, lighting, or composition
+                  * Simple, clean, canonical representation ONLY
+                  * Prefer top-down 90° for physical objects
+                  * NO false positives (no unintended objects in frame)",
+
+            MediaDeterminismLevel.Medium =>
+                @"- MEDIUM DETERMINISM (Detective2/Sergeant):
+                  * Stay 100% faithful to the description
+                  * Minimal contextual details allowed ONLY if explicitly implied
+                  * NO creative interpretation beyond what's specified
+                  * Controlled angle/lighting within standard forensic parameters
+                  * NO false positives without explicit Design justification",
+
+            MediaDeterminismLevel.Controlled =>
+                @"- CONTROLLED DETERMINISM (Lieutenant+):
+                  * Variation allowed ONLY for role=ambiguous evidence
+                  * Conclusive/supporting: strict canonical representation (zero variation)
+                  * Red herrings: controlled misdirection allowed if designed
+                  * Ambiguous: can include multiple valid interpretations
+                  * NO false positives unless part of designed ambiguity/red herring",
+
+            _ => "- Unknown determinism level"
+        };
+    }}
