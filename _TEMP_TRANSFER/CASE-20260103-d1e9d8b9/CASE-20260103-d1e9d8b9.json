@@ -1,0 +1,307 @@
+{
+  "CaseId": "CASE-20260103-d1e9d8b9",
+  "GeneratedAt": "2026-01-03T08:24:33.666266Z",
+  "Timezone": "UTC",
+  "Difficulty": "Rookie",
+  "Counts": {
+    "Documents": 13,
+    "Media": 16,
+    "Suspects": 3
+  },
+  "ValidationResults": {
+    "TimestampsNormalized": "PASS",
+    "AllIdsResolved": "PASS",
+    "MediaIntegrity": "PASS"
+  },
+  "Manifest": [
+    {
+      "Filename": "normalized_case.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/normalized_case.json",
+      "Sha256": "bfb52a77a1c73a2413ee8da6e029d28064ab8e6fc7579e80c44b1dcfa9380a6a",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "case.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/case.json",
+      "Sha256": "af3546674a92941350e6b41100cf09dd79216ed2d11b393b54af3300a5449f8d",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_closing_discrepancy_001.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_closing_discrepancy_001.json",
+      "Sha256": "66f7ed3a7bffb380d8a85631f3b02b7b8269bde88712b635f8555f8007e00c2f",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_evidence_log_001.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_evidence_log_001.json",
+      "Sha256": "d86f992e5067efb24e641dcee1cb095796bcc89f3dd645cc0db3687b9e5ca528",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_forensics_001.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_forensics_001.json",
+      "Sha256": "7f53e2be092e267295737e891fb3e0a95d614f68b74e398fc2f848a9867a2ccc",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_forensics_002.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_forensics_002.json",
+      "Sha256": "a868c8802c1692688d7eedf84c5d9156d6774d3f5d01f7d1a22c39de81627779",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_interview_s001_001.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_interview_s001_001.json",
+      "Sha256": "58df42a9571373d27709331cce244540e69985af123d7a7bdc883241afad4fb3",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_interview_s002_002.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_interview_s002_002.json",
+      "Sha256": "f3f80ea12a76a23b7272bff97eb6665df31455fdb1b65e594b0df80b4f84f45c",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_interview_s003_003.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_interview_s003_003.json",
+      "Sha256": "bbfda20523d81adee8f14f73aa866ed68a0d251f90ea5283a5644760f1027ac1",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_police_report_001.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_police_report_001.json",
+      "Sha256": "b71e94b43641b4aca2a7aca35ac15767619224189a17971f2b10204879c1124e",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_police_report_002.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_police_report_002.json",
+      "Sha256": "bfeb97aace7880e84305f3967020897fa19df0277aa97c56dd65e6c01ba0862a",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_records_preservation_002.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_records_preservation_002.json",
+      "Sha256": "b8891ea5d5d8f8ec73430eba6b37412d651d8d5071d8877dccaf5bdc71745e70",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_witness_statement_001.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_witness_statement_001.json",
+      "Sha256": "f7071824b0b4d4d60296063a54c743ac8abef3eca9280fe9f5c3a0c03e972357",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_witness_statement_002.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_witness_statement_002.json",
+      "Sha256": "bb5b1f71366750aec9a18edb67fdf58f8b25430f15fe91cd0f03cc97da600604",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "doc_witness_statement_003.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/documents/doc_witness_statement_003.json",
+      "Sha256": "b79eeb7ced0cc7bbf0eb4f55b6c70ee84ee53848baf85790f3e4444a7d46d6ed",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_cash_bag_id_notation_003.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_cash_bag_id_notation_003.generated-image.png",
+      "Sha256": "ea35586d708e1411edb90728538095e12e8a67b0d63814dd5ff7ea769659849b",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_cash_bag_id_notation_003.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_cash_bag_id_notation_003.json",
+      "Sha256": "aaac0158c0434c91af433cc308708dcc9c3ab88eaed5b53eeb523e2cd2ef3af5",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_cash_bag_record_005.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_cash_bag_record_005.generated-image.png",
+      "Sha256": "08c6e2bc4281263d639b7417908b1e75aa0ddedb0064f658f6ec114e21b84d75",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_cash_bag_record_005.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_cash_bag_record_005.json",
+      "Sha256": "d6e656cb6067564a44e9252ab5dece2f7681d31b0d62f195e3cb3eaee7cc4c29",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_cash_count_sheet_handwriting_002.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_cash_count_sheet_handwriting_002.generated-image.png",
+      "Sha256": "f7b95d7d45f658cb07e0c420c131c39c9d61655fbcdc2da44347249f22d2c23e",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_cash_count_sheet_handwriting_002.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_cash_count_sheet_handwriting_002.json",
+      "Sha256": "244ee1d9e2a8ad8631bd1cc7b846d7e90ca1fb71a2b31b073dbd101b5e1d0a2a",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_closing_checklist_001.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_closing_checklist_001.generated-image.png",
+      "Sha256": "5552ae3881ea88ede5707c03d4b9d95ac85178c73083796c10356ac673bf251e",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_closing_checklist_001.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_closing_checklist_001.json",
+      "Sha256": "bf9974e1d637700cfbbb24c5f592a73c1571540e9e3b785f93be09cd6a045e5f",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_corridor_door_condition_004.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_corridor_door_condition_004.generated-image.png",
+      "Sha256": "dcbcba23e2d19944d6b9b10be633ea5a31a22a51bfbdd8b36625e60f7d2ec143",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_corridor_door_condition_004.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_corridor_door_condition_004.json",
+      "Sha256": "11a59ad43fe89ac663a68897be807f9fd6cb05d94ba6f949ad291f742f9c66d9",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_deposit_worksheet_004.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_deposit_worksheet_004.generated-image.png",
+      "Sha256": "1127d4b0bf4bc4580f158282ad0e742bb90b920f770e3898bc74f98dc952634f",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_deposit_worksheet_004.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_deposit_worksheet_004.json",
+      "Sha256": "36c31c4cbe1a33450039e2a71fc704172663a262885d48148591757d0cdebca3",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_desk_paperwork_003.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_desk_paperwork_003.generated-image.png",
+      "Sha256": "aac80f23e9756828421d3c0e3e77750c3feabc6fc7caa536406f998619f5ec69",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_desk_paperwork_003.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_desk_paperwork_003.json",
+      "Sha256": "796d26a414251e6bc35c2c803e77bdbd84d2058e44712aea8af40acc8d0411db",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_mugshot_s001_001.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_mugshot_s001_001.generated-image.png",
+      "Sha256": "7ae7f9e5dc49e600c226d8fcdf8fad56427bc56da4b8a7d6f45cd7fb937d609e",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_mugshot_s001_001.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_mugshot_s001_001.json",
+      "Sha256": "e2f0010fdb17c6b5f29221af966613d27bc1ccd8486feebb60a329e486926853",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_mugshot_s002_001.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_mugshot_s002_001.generated-image.png",
+      "Sha256": "751ae505965fc4414aee6d7d7058119aa2eccc77cc60212dba67cbb8693c6a26",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_mugshot_s002_001.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_mugshot_s002_001.json",
+      "Sha256": "49033f661c89076b3104452366b484fc54dd9570e552008f9674a5619ff54b76",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_mugshot_s003_001.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_mugshot_s003_001.generated-image.png",
+      "Sha256": "9d03c1465361df82bee2e8f6621f3313f44f59dd240f056d06874f0993e4f9c0",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_mugshot_s003_001.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_mugshot_s003_001.json",
+      "Sha256": "78b139fe17062618a686d5b417ec91ecb427ba3456a5e9dfefeef2552ee5009d",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_office_overview_001.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_office_overview_001.generated-image.png",
+      "Sha256": "92032d2949206a1b3ddb2c20d12bfaea8bc61746b008cd6c74f926037d43bb8d",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_office_overview_001.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_office_overview_001.json",
+      "Sha256": "f25467577de2466153dbcdbe79e198dac6e02b2daf30db234e6502eb73d3b2ad",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_patrol_log_003.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_patrol_log_003.generated-image.png",
+      "Sha256": "f8f86e0b84b8799fa3ed1b6a5661396719d951eb69fa8fc6306be3cef127d167",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_patrol_log_003.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_patrol_log_003.json",
+      "Sha256": "92bc5e8a97b0097ab40db9087505e2c0d35edc9d8db76018cdcee44896151b41",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_patrol_log_time_entry_004.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_patrol_log_time_entry_004.generated-image.png",
+      "Sha256": "c4c67c5e1b1017fdd24fd5bd67117e2ed0a5ece566834d160b297b86760ace22",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_patrol_log_time_entry_004.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_patrol_log_time_entry_004.json",
+      "Sha256": "d37f86e697fa8ef0351daeb16d8303c8426ddf678106d4153ff0684324609f7e",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_printer_log_002.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_printer_log_002.generated-image.png",
+      "Sha256": "927e8a01736ddfe8a7a26cedfc5e9385ec03bdcb4ea37166a53259d1d87b6959",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_printer_log_002.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_printer_log_002.json",
+      "Sha256": "63d7537dd422a393773794e20a7bf028b61a71ddda9156a817825d550c9c485c",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_printer_log_macro_001.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_printer_log_macro_001.generated-image.png",
+      "Sha256": "e5770c23e93a4078adbc0e773e08a890f47689429d90006e78d38fef849d70e1",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_printer_log_macro_001.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_printer_log_macro_001.json",
+      "Sha256": "320b67d2d84e8c5e5aabc350c03f23b3d04c93a4fab0685d6a9d6a43113152c3",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "ev_safe_holding_area_002.generated-image.png",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_safe_holding_area_002.generated-image.png",
+      "Sha256": "3c0bdca6672e1de3e7f24d54228592bb2eae306e39782505efca551aae7dc7e0",
+      "MimeType": "image/png"
+    },
+    {
+      "Filename": "ev_safe_holding_area_002.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/media/ev_safe_holding_area_002.json",
+      "Sha256": "2b71b391e4bcf6561f49dd9c8b1697c5ab850a0f28dab4ba8a9cc8922ff498d6",
+      "MimeType": "application/json"
+    },
+    {
+      "Filename": "CASE-20260103-d1e9d8b9.json",
+      "RelativePath": "CASE-20260103-d1e9d8b9/CASE-20260103-d1e9d8b9.json",
+      "Sha256": "3832f80fc01ec1ed16b4bf5badd797ef6d2c4f620d1ad21d7c13431f730e80d2",
+      "MimeType": "application/json"
+    }
+  ],
+  "RedTeamAnalysis": "RedTeamAnalysis.txt"
+}

@@ -1,0 +1,50 @@
+{
+  "caseId": "CASE-20260103-d1e9d8b9",
+  "version": "v2-hierarchical",
+  "generatedAt": "2026-01-03T08:22:46.8447300Z",
+  "entities": {
+    "suspects": [
+      "@entities/suspects/S001",
+      "@entities/suspects/S002",
+      "@entities/suspects/S003"
+    ],
+    "evidence": [
+      "@entities/evidence/EV001",
+      "@entities/evidence/EV002",
+      "@entities/evidence/EV003",
+      "@entities/evidence/EV004"
+    ],
+    "witnesses": [],
+    "total": 7
+  },
+  "documents": {
+    "items": [
+      "@documents/doc_closing_discrepancy_001",
+      "@documents/doc_evidence_log_001",
+      "@documents/doc_forensics_001",
+      "@documents/doc_forensics_002",
+      "@documents/doc_interview_s001_001",
+      "@documents/doc_interview_s002_002",
+      "@documents/doc_interview_s003_003",
+      "@documents/doc_police_report_001",
+      "@documents/doc_police_report_002",
+      "@documents/doc_records_preservation_002",
+      "@documents/doc_witness_statement_001",
+      "@documents/doc_witness_statement_002",
+      "@documents/doc_witness_statement_003"
+    ],
+    "total": 13
+  },
+  "context": {
+    "plan": {
+      "core": "@plan/core",
+      "suspects": "@plan/suspects",
+      "timeline": "@plan/timeline",
+      "evidence": "@plan/evidence"
+    },
+    "expand": {
+      "timeline": "@expand/timeline",
+      "relations": "@expand/relations"
+    }
+  }
+}

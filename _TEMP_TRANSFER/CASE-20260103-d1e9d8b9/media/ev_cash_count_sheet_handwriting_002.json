@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_cash_count_sheet_handwriting_002",
+  "kind": "photo",
+  "title": "Forensic Photo - Deposit Worksheet/Cash Count Sheet Handwriting and Entries (EV004)",
+  "prompt": "1) Function: Capture a forensic-quality close-up photograph of a cash count/deposit worksheet emphasizing handwriting and filled entries for later examination.\n2) Scene / Composition: A single paper deposit worksheet/cash count sheet lies flat on a neutral, unpatterned tabletop surface, filling ~85% of the frame. The sheet shows multiple handwritten entries in dark ink across several fields/lines, with no names or business identifiers visible. A small L-shaped forensic scale (black-and-white) is placed adjacent to the lower edge of the paper without covering any text. A small plain arrow evidence marker labeled “2” sits near one corner of the sheet, indicating the area of interest without obscuring writing.\n3) Angle & Distance: 20° off perpendicular (slight oblique) from above, camera-to-subject distance 0.45 m.\n4) Optics & Technique: 60 mm lens, aperture f/11, shutter 1/80 s, ISO 200, white balance 5000 K. Focus locked on the handwriting mid-page with deep DOF to keep the entire sheet legible; raking light from camera-left at a low angle to reveal pen pressure/indentations while maintaining even exposure.\n5) Mandatory elements: Color image; close-up perspective; raking light; forensic scale present; annotation present via a single numbered evidence marker (“2”); no additional labels, timestamps, or case identifiers.\n6) Negatives: No real names, no brand logos, no letterheads of real companies, no faces, no hands/fingers, no official seals/badges, no credit card numbers, no bank account numbers, no barcodes/QR codes, no addresses, no phone numbers, no added timestamps, no writing of evidenceId/title/caseId in the image, no cluttered background, no glare hotspots obscuring text.\n7) Acceptance checklist: - Single color photo of one cash count/deposit worksheet with visible handwritten entries\n- Sheet occupies ~85% of frame and is fully in focus and legible\n- Raking light clearly reveals subtle texture/indentation without harsh glare\n- L-shaped forensic scale included and not covering any text\n- One numbered evidence marker “2” present as the only annotation\n- No people, brands, real identifiers, or timestamps visible\n- Neutral tabletop background with clean edges and forensic-quality sharpness",
+  "constraints": {
+    "angle_deg": 20,
+    "distance_m": 0.45,
+    "aspect_ratio": "4:3",
+    "resolution_px": "2048x1536",
+    "seed": "4382716",
+    "deferred": false
+  }
+}

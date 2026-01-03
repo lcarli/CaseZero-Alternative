@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_mugshot_s003_001",
+  "kind": "photo",
+  "title": "Booking Mugshot - Kara Singh (Front and Right Profile)",
+  "prompt": "1) Function: Create a neutral, documentary booking-style mugshot photograph showing front and right-profile views of a fictitious subject without revealing identity or biometric facial detail.\n2) Scene / Composition: Single image of a booking photo setup with a plain matte light-gray background and even forensic flash illumination. The subject is shown as a standardized two-view layout within the same frame: front view on the left and right-profile view on the right, separated by a narrow vertical gap, both aligned to the same height. The head and upper shoulders occupy ~70% of the frame height in each view, with centered framing and ample headroom typical of booking photography. The subject’s face is intentionally obscured (heavy pixelation/blur over facial features) to avoid biometric identification while keeping the overall mugshot format intact.\n3) Angle & Distance: angle_deg 0; distance_m 1.60.\n4) Optics & Technique: 50mm lens, f/8, 1/125 s, ISO 200, white balance 5600K; sharp focus on clothing edges and hair outline, facial region deliberately blurred/pixelated; deep depth of field across both views; on-camera forensic flash with diffuse, even light and minimal shadows.\n5) Mandatory elements: No text overlays, no height chart, no ID placards, no annotations, no timestamps, no agency seals.\n6) Negatives: Do not show any real person; no recognizable facial features, no clear eyes/iris detail, no fingerprints; no logos/brands on clothing or background; no official badges, seals, watermarks, or government insignia; no caseId/evidenceId text; no blood, injuries, or violence; no multi-image sequence beyond the two-view mugshot layout within one bitmap.\n7) Acceptance checklist:\n- Single color photograph containing both front (left) and right-profile (right) views in one frame\n- Plain matte light-gray background, professional booking-photo look, even forensic flash lighting\n- Eye-level perspective with neutral expression implied but facial features obscured to prevent identification\n- No text, no height chart, no placard, no logos, no badges, no timestamps\n- Consistent alignment and scale between the two views; clean, documentary rendering",
+  "constraints": {
+    "angle_deg": 0,
+    "distance_m": 1.6,
+    "aspect_ratio": "3:2",
+    "resolution_px": "3000x2000",
+    "seed": "4829137",
+    "deferred": false
+  }
+}

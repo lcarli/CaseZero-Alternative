@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_printer_log_002",
+  "kind": "photo",
+  "title": "Office Printer Job Log Excerpt - Timestamped Print Activity (EV002)",
+  "prompt": "1) Function: Create a forensic-quality close-up documentary photograph of an office printer’s on-device job log screen showing timestamped print activity.\n2) Scene / Composition: A color photo of a generic office multifunction printer control panel displaying a “Job Log” or “Print History” list with multiple rows (date/time, job name, pages, status). The screen and surrounding bezel fill ~80% of the frame, with a small portion of adjacent plastic panel visible for context. The view includes a slight raking light across the screen and bezel to emphasize surface texture and minor smudges without obscuring legibility. Include a simple scale reference in-frame (a plain, unmarked neutral-gray L-shaped scale card with no text) placed adjacent to the panel edge, occupying ~5% of the frame.\n3) Angle & Distance: Angle 20° from perpendicular (slight oblique), subject distance 0.45 m.\n4) Optics & Technique: 50 mm lens, f/8, 1/80 s, ISO 200, white balance 5000 K; focus locked on the job log text with deep enough DOF to keep the entire screen readable; minimal glare control via careful positioning (no polarizer implied).\n5) Mandatory elements (labels/markers/timestamps already present in the case): No mandatory case-specific labels or timestamps are provided; ensure the device UI contains timestamp columns typical of a job log but do not include any real-world identifiable names, brands, or unique identifiers.\n6) Negatives (objective list of what MUST NOT appear): No real brand logos or manufacturer names; no real person names, initials, or email addresses; no faces, reflections showing people, or biometric identifiers; no serial numbers, asset tags, QR codes, barcodes, or unique device IDs; no handwritten annotations; no official badges or seals; no real addresses or phone numbers; no evidence/case ID text.\n7) Acceptance checklist (objective, verifiable bullets): - Single bitmap image, documentary/neutral style, color.\n- Close-up oblique view with raking light; screen and bezel occupy ~80% of frame.\n- Job log list visible with multiple rows including date/time-style entries; all entries are fictitious and non-identifying.\n- Forensic-quality sharpness; screen text legible across the full display.\n- Plain unmarked neutral-gray scale reference present (~5% of frame) with no text.\n- No logos, no real names, no serial numbers/asset tags, no people or reflections.",
+  "constraints": {
+    "angle_deg": 20,
+    "distance_m": 0.45,
+    "aspect_ratio": "4:3",
+    "resolution_px": "2048x1536",
+    "seed": "4839207",
+    "deferred": false
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_closing_checklist_001",
+  "kind": "photo",
+  "title": "Closing Checklist Page - Prep Section Initials (EV001)",
+  "prompt": "1) Function: Create a forensic-quality close-up photograph of a single closing checklist page focusing on the “Prep” section initials area for documentation.\n2) Scene / Composition: A single unbranded paper checklist page lies flat on a plain matte light-gray tabletop, with the camera framed tightly on the “Prep” section rows and the initials boxes. The “Prep” header and several line items are visible, with a few initials boxes filled in with simple handwritten initials (non-identifiable). The checklist page occupies ~85% of the frame, with a small border of tabletop visible on all sides to show context and page edges. Include a simple, non-branded paper scale strip placed parallel to the page edge near the bottom margin.\n3) Angle & Distance: Angle 20° from the paper plane (low oblique), distance_m 0.35.\n4) Optics & Technique: 50 mm lens, f/8, shutter 1/125 s, ISO 200, white balance 5000K; focus locked on the initials boxes and printed lines; deep depth of field keeping the entire “Prep” section sharp; raking light from camera-left to emphasize paper texture without glare.\n5) Mandatory elements: English (en-US) printed checklist text including a clear section title “Prep” and labeled initials boxes (e.g., “Initials” column); no case identifiers or evidence IDs printed on the page.\n6) Negatives: No people, hands, faces, fingerprints in frame; no logos/brands; no real names, addresses, phone numbers, emails; no barcodes/QR codes; no official badges/seals; no timestamps/date stamps; no annotations, arrows, circles, highlights, or added graphics; no moiré, no heavy shadows obscuring text, no motion blur.\n7) Acceptance checklist: - Single color photo of one checklist page, close-up on “Prep” section initials area\n- Raking light evident via gentle texture shading, with legible text and no specular glare\n- Oblique angle ~20° and distance ~0.35 m, page edges and small tabletop margin visible\n- Simple unbranded paper scale strip present and aligned\n- No logos, no real personal data, no added annotations, no timestamps\n- Forensic-quality sharpness across the “Prep” section",
+  "constraints": {
+    "angle_deg": 20,
+    "distance_m": 0.35,
+    "aspect_ratio": "4:3",
+    "resolution_px": "2400x1800",
+    "seed": "5381742",
+    "deferred": false
+  }
+}

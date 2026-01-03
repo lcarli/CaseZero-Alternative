@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_deposit_worksheet_004",
+  "kind": "photo",
+  "title": "Deposit Worksheet / Cash Count Sheet (EV004)",
+  "prompt": "1) Function: Create a forensic-quality close-up photograph of a single deposit worksheet/cash count sheet used as documentary evidence.\n2) Scene / Composition: A single unbranded deposit worksheet lies flat on a plain, matte, light-gray tabletop with no other objects present. The sheet is centered and fills about 85% of the frame, with clean visible margins on all sides. The worksheet is fictitious and generic, printed in black ink with fields for date, location, cash denominations, totals, and signature lines, and shows realistic handwritten entries in dark blue ink. Lighting is raking from camera-left, producing gentle texture and shallow shadows along the paper edge without obscuring any text.\n3) Angle & Distance: 90° top-down angle; distance_m: 0.55.\n4) Optics & Technique: 50mm lens; f/8; 1/125 s; ISO 200; white balance 5000K; manual focus on the center of the sheet; deep depth of field keeping the full page sharp; minimal distortion and high micro-contrast.\n5) Mandatory elements: No case-specific labels, timestamps, camera IDs, or overlays; ensure the image contains only the worksheet content and blank tabletop background.\n6) Negatives: No people, hands, faces, reflections of a person, fingerprints being processed, rulers/scale markers, evidence tents, sticky notes, barcodes, QR codes, logos/brands, real business names, addresses, phone numbers, bank names, account numbers, official seals, badges, or watermarks; no writing of any evidence name or case ID in the scene; no blur, glare hotspots, or clipped highlights.\n7) Acceptance checklist:\n- Single color photo of one generic deposit worksheet on a plain tabletop.\n- Close-up with the sheet ~85% of the frame and all edges visible.\n- 90° top-down view, no keystone distortion, all text fields readable.\n- Raking side light from left with mild edge shadow, no glare obscuring writing.\n- No logos/brands, no personal identifiers, and no timestamps/overlays in-frame.",
+  "constraints": {
+    "angle_deg": 90,
+    "distance_m": 0.55,
+    "aspect_ratio": "4:3",
+    "resolution_px": "2400x1800",
+    "seed": "4829173",
+    "deferred": false
+  }
+}

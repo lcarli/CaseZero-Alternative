@@ -1,0 +1,52 @@
+{
+  "docId": "doc_police_report_001",
+  "type": "police_report",
+  "title": "Initial Police Report — Missing End-of-Day Cash Bag (Maple Square Management Office)",
+  "words": 451,
+  "sections": [
+    {
+      "title": "Report Number / Case Identification",
+      "content": "**Report Number:** doc_police_report_001  \n**Date/Time (Created):** 2026-01-02T22:35:00-05:00  \n**Unit / Responsible Officer:** Patrol (Reporting Officer listed below)  \n**Case Type:** Missing property (end-of-day cash deposit bag) — Maple Square Management Office"
+    },
+    {
+      "title": "Reporting Officer and Agency Details",
+      "content": "Responding patrol officer completed initial intake at management office location (Maple Square). Agency and officer identifiers recorded in internal system under **doc_police_report_001**. This report documents observed conditions, initial interviews, and records requested for follow-up."
+    },
+    {
+      "title": "Date/Time of Report and Date/Time of Occurrence",
+      "content": "**Date/Time of Report:** 2026-01-02T22:35:00-05:00  \n**Approx. Date/Time of Occurrence:** Between end-of-day closing activities and discovery of missing bag on 2026-01-02 (exact time pending record review)."
+    },
+    {
+      "title": "Incident Summary",
+      "content": "Management staff reported an end-of-day cash bag missing from normal handling/storage process. The reporting party indicated the bag was prepared as part of routine closing and was later found to be unaccounted for. No injuries reported. No forced entry was reported at the time of initial call."
+    },
+    {
+      "title": "Scene Description",
+      "content": "Management office area was presentable and consistent with normal business use. Officer conducted a brief visual check of the immediate work area where closing paperwork is typically handled. No obvious damage to doors, frames, or visible storage locations was noted during the initial walkthrough. Officer advised staff to limit further handling of the workspace pending review of available records."
+    },
+    {
+      "title": "Persons Involved (Employees/Witnesses)",
+      "content": "- Employees involved in closing process: identities recorded in case file; interviews initiated at scene.\n- Other possible witnesses: on-site staff and any individuals with access to the management office during closing window (to be confirmed by access/security records)."
+    },
+    {
+      "title": "Timeline of Known Events",
+      "content": "- Closing activities occurred on 2026-01-02; an end-of-day cash bag was reportedly prepared per normal practice.\n- Missing cash bag discovered after closing steps were underway/complete; exact point of last confirmed possession not established at time of this report.\n- Patrol response and report creation completed at **2026-01-02T22:35:00-05:00**.\n\n(Additional time-stamped verification pending via referenced timeline events **E004**, **E007**, and **E008**.)"
+    },
+    {
+      "title": "Evidence Collected / Records Requested",
+      "content": "No physical evidence was seized during the initial response.\n\n**Records requested / to be obtained and preserved:**\n- Relevant camera footage and related export supporting materials (**EV004**, **EV005**).\n- Physical bag/handling documentation and any related photos or identifiers if located (**EV008**, **EV009**).\n\nOfficer instructed staff not to overwrite any video systems and to retain all closing paperwork related to the deposit process."
+    },
+    {
+      "title": "Witness Statements (Summary)",
+      "content": "- Staff stated the cash bag was part of routine end-of-day process and was expected to be present at the end of closing.\n- Staff reported uncertainty on the last verified moment the bag was physically observed, and requested review of video and office activity to narrow the window.\n\nStatements were summarized at scene; detailed follow-up interviews to be conducted after records are secured."
+    },
+    {
+      "title": "Actions Taken",
+      "content": "- Took initial report and obtained preliminary narrative from on-site staff.\n- Conducted brief visual assessment of office area for obvious signs of forced entry; none observed.\n- Requested preservation and later collection of records associated with **EV004** and **EV005**.\n- Advised staff to limit handling of closing materials and to secure office access pending follow-up."
+    },
+    {
+      "title": "Notifications and Follow-Up Steps",
+      "content": "- Case forwarded for follow-up to obtain and review referenced records (**EV004**, **EV005**, **EV008**, **EV009**).\n- Follow-up will include verification of time-stamped events listed in **E004**, **E007**, and **E008** and re-contact with employees involved in closing.\n- Supplemental report to be completed once records are collected and reviewed."
+    }
+  ]
+}

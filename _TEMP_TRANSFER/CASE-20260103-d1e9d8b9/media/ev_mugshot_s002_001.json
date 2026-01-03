@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_mugshot_s002_001",
+  "kind": "photo",
+  "title": "Booking Mugshot - Derek Huang (Front and Right Profile)",
+  "prompt": "1) Function: Create a neutral, documentary booking-style identification photo of a fictitious adult subject in a controlled intake-room setting.\n2) Scene / Composition: Single adult subject stands against a plain matte light-gray wall with no signage or text, centered in frame and occupying ~70% of the image height from mid-chest to just above the head. The subject is photographed in one frame showing a split composition: left half is a front-facing view and right half is a right-profile view of the same person, separated by a thin neutral gray divider line (no labels). Lighting is forensic flash with even, shadow-minimized illumination and accurate color. The subject wears a plain, logo-free dark crew-neck shirt; hair neatly kept; no hat, no glasses, no jewelry.\n3) Angle & Distance: angle_deg 0; distance_m 1.6.\n4) Optics & Technique: 50mm lens (full-frame equivalent), aperture f/8, shutter 1/125 s, ISO 200, white balance 5200K; sharp focus on eyes in both views; deep DOF to keep face and ears crisp; minimal distortion and straight verticals.\n5) Mandatory elements: None (no timestamps, no camera labels, no case text, no name placards, no height chart).\n6) Negatives: no real person; no recognizable celebrity; no faces matching real individuals; no biometric capture devices; no fingerprints; no police badges; no uniforms; no logos/brands; no watermarks; no date/time overlays; no location identifiers; no height measurement chart; no name board; no barcodes; no blood/injuries; no weapons; no handcuffs; no extra people.\n7) Acceptance checklist: - Single bitmap image with a clean split showing front view (left) and right profile (right) of the same fictitious adult. - Eye-level, angle 0 degrees, subject distance ~1.6 m. - Forensic-flash, even lighting; neutral color; professional photo quality. - Plain gray background with no text, signage, logos, or identifiers. - No annotations, timestamps, name plates, or scale elements.",
+  "constraints": {
+    "angle_deg": 0,
+    "distance_m": 1.6,
+    "aspect_ratio": "4:3",
+    "resolution_px": "2048x1536",
+    "seed": "4839201",
+    "deferred": false
+  }
+}

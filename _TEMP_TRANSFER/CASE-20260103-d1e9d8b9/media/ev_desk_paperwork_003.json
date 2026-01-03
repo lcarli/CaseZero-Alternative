@@ -1,0 +1,14 @@
+{
+  "evidenceId": "ev_desk_paperwork_003",
+  "kind": "photo",
+  "title": "Desk Paperwork Detail (Closing Checklist and Deposit Worksheet)",
+  "prompt": "1) Function: Create a forensic-quality close-up photograph documenting two desk documents (a closing checklist and a deposit worksheet) for evidentiary review.\n\n2) Scene / Composition: A single image showing a small stack of paperwork on a plain, unbranded office desk surface, with the top two pages fully visible: one titled “Closing Checklist” and one titled “Deposit Worksheet.” The documents occupy approximately 85% of the frame with minimal background, aligned square to the image edges for easy reading. Paper edges are clean and flat with slight natural curl at corners; no handwriting, names, company identifiers, or logos anywhere. Include a small neutral metric scale (unbranded, black-and-white markings) placed along the bottom edge of the papers, not covering text. No other objects are present.\n\n3) Angle & Distance: 90° top-down angle; distance_m: 0.45.\n\n4) Optics & Technique: 50mm lens; aperture f/8; shutter 1/125 s; ISO 200; white balance 5600K; on-axis forensic flash for even illumination; sharp focus across the full page area; deep depth of field with legible small print; minimal glare and no harsh shadows.\n\n5) Mandatory elements (labels/markers/timestamps already present in the case): None.\n\n6) Negatives (objective list of what MUST NOT appear): No faces, people, hands, fingerprints, or body parts; no real names, signatures, addresses, phone numbers, account numbers, or barcodes/QR codes; no brands, logos, watermarks, or letterhead identifiers; no dates/timestamps printed or overlaid; no police/official badges; no annotations, arrows, circles, highlighting, or evidence tags; no weapons, drugs, or graphic content; no moiré patterns, motion blur, or perspective skew.\n\n7) Acceptance checklist (objective, verifiable bullets):\n- Single color photo, forensic-flash look, evenly lit with neutral color.\n- Two documents visible and readable: headings “Closing Checklist” and “Deposit Worksheet.”\n- Papers fill ~85% of frame; edges mostly visible; aligned parallel to frame.\n- Neutral metric scale present at bottom edge without obscuring text.\n- No logos/brands, no personal identifiers, no handwritten names/signatures.\n- No annotations or evidence labels added in-image.\n- Perspective is top-down with no keystone distortion; image is sharp across entire page.",
+  "constraints": {
+    "angle_deg": 90,
+    "distance_m": 0.45,
+    "aspect_ratio": "4:3",
+    "resolution_px": "2400x1800",
+    "seed": "4739206",
+    "deferred": false
+  }
+}
