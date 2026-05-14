@@ -33,15 +33,6 @@ public class CaseTriggersController : ControllerBase
 
     private string? UserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-    [HttpPost("emails/{emailId}/open")]
-    public async Task<IActionResult> OpenEmail(string caseId, string emailId, CancellationToken ct)
-    {
-        var userId = UserId();
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
-        await _rulesEngine.EvaluateAndApplyAsync(caseId, userId, new EmailOpenedTrigger(emailId), ct);
-        return Ok(new { caseId, emailId, trigger = "email_opened" });
-    }
-
     [HttpPost("assets/{assetId}/view")]
     public async Task<IActionResult> ViewAsset(string caseId, string assetId, CancellationToken ct)
     {
@@ -58,15 +49,6 @@ public class CaseTriggersController : ControllerBase
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
         await _rulesEngine.EvaluateAndApplyAsync(caseId, userId, new SuspectViewedTrigger(suspectId), ct);
         return Ok(new { caseId, suspectId, trigger = "suspect_viewed" });
-    }
-
-    [HttpPost("emails/{emailId}/attachments/{assetId}/download")]
-    public async Task<IActionResult> DownloadAttachment(string caseId, string emailId, string assetId, CancellationToken ct)
-    {
-        var userId = UserId();
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
-        await _rulesEngine.EvaluateAndApplyAsync(caseId, userId, new AttachmentDownloadTrigger(emailId, assetId), ct);
-        return Ok(new { caseId, emailId, assetId, trigger = "attachment_download" });
     }
 
     public record TimeRequest(int GameTimeMinutes);

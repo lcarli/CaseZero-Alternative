@@ -22,6 +22,7 @@ namespace CaseZeroApi.Controllers
         private readonly IConfiguration _configuration;
         private readonly IAuditLogService _auditLogService; // P86
         private readonly IVisibilityService _visibilityService; // Asset unlock
+        private readonly IRulesEngineService _rulesEngine; // v2 trigger plumbing
 
         public EmailsController(
             ApplicationDbContext context,
@@ -29,7 +30,8 @@ namespace CaseZeroApi.Controllers
             ICaseV2StorageService caseStorageService,
             IConfiguration configuration,
             IAuditLogService auditLogService, // P86
-            IVisibilityService visibilityService) // Asset unlock
+            IVisibilityService visibilityService, // Asset unlock
+            IRulesEngineService rulesEngine)
         {
             _context = context;
             _logger = logger;
@@ -37,6 +39,7 @@ namespace CaseZeroApi.Controllers
             _configuration = configuration;
             _auditLogService = auditLogService; // P86
             _visibilityService = visibilityService; // Asset unlock
+            _rulesEngine = rulesEngine;
             
             // Initialize BlobServiceClient for attachment downloads
             var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
@@ -228,6 +231,10 @@ namespace CaseZeroApi.Controllers
                     caseId,
                     "success",
                     $"{{{{\"openCount\":{emailState.OpenCount}}}}}");
+
+                // v2 trigger: fire email_opened rules
+                await _rulesEngine.EvaluateAndApplyAsync(
+                    caseId, userId, new EmailOpenedTrigger(emailId), HttpContext.RequestAborted);
 
                 return Ok(new
                 {

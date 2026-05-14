@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using CaseZeroApi.Data;
 using CaseZeroApi.Models.CaseV2;
 using CaseZeroApi.Services;
 
@@ -13,15 +15,18 @@ public class CasesController : ControllerBase
 {
     private readonly ICaseV2StorageService _storage;
     private readonly ISolutionService _solutionService;
+    private readonly ApplicationDbContext _db;
     private readonly ILogger<CasesController> _logger;
 
     public CasesController(
         ICaseV2StorageService storage,
         ISolutionService solutionService,
+        ApplicationDbContext db,
         ILogger<CasesController> logger)
     {
         _storage = storage;
         _solutionService = solutionService;
+        _db = db;
         _logger = logger;
     }
 
@@ -66,8 +71,82 @@ public class CasesController : ControllerBase
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        // Seed initial visibility + session on first access so the downstream
+        // controllers that gate on CaseSessionVisible*/CaseSession can serve
+        // initial entities without an explicit "start session" call.
+        await EnsureSessionAndInitialVisibilityAsync(caseId, userId, ct);
+
         var data = await _storage.GetForUserAsync(caseId, userId, ct);
         return data is null ? NotFound(new { error = $"Case not found: {caseId}" }) : Ok(data);
+    }
+
+    private async Task EnsureSessionAndInitialVisibilityAsync(string caseId, string userId, CancellationToken ct)
+    {
+        var raw = await _storage.GetRawAsync(caseId, ct);
+        if (raw is null) return;
+
+        var unlockAll =
+            string.Equals(raw.Metadata.UnlockMode, "all_initial", StringComparison.OrdinalIgnoreCase) ||
+            (string.IsNullOrEmpty(raw.Metadata.UnlockMode) &&
+             string.Equals(raw.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase));
+
+        // 1) Ensure there is a CaseSession for this (user, case).
+        var hasSession = await _db.CaseSessions
+            .AnyAsync(cs => cs.UserId == userId && cs.CaseId == caseId, ct);
+        if (!hasSession)
+        {
+            _db.CaseSessions.Add(new Models.CaseSession
+            {
+                UserId = userId,
+                CaseId = caseId,
+                SessionStart = DateTime.UtcNow,
+                IsActive = true,
+                Status = Models.SessionStatus.Active
+            });
+        }
+
+        // 2) Seed visible assets.
+        var existingAssetIds = await _db.CaseSessionVisibleAssets
+            .Where(va => va.UserId == userId && va.CaseId == caseId)
+            .Select(va => va.AssetId)
+            .ToListAsync(ct);
+        foreach (var asset in raw.Assets)
+        {
+            var visible = unlockAll ||
+                          string.Equals(asset.Visibility, "initial", StringComparison.OrdinalIgnoreCase);
+            if (!visible) continue;
+            if (existingAssetIds.Contains(asset.Id)) continue;
+            _db.CaseSessionVisibleAssets.Add(new Models.CaseSessionVisibleAsset
+            {
+                UserId = userId,
+                CaseId = caseId,
+                AssetId = asset.Id,
+                UnlockedAt = DateTime.UtcNow
+            });
+        }
+
+        // 3) Seed visible emails.
+        var existingEmailIds = await _db.CaseSessionVisibleEmails
+            .Where(ve => ve.UserId == userId && ve.CaseId == caseId)
+            .Select(ve => ve.EmailId)
+            .ToListAsync(ct);
+        foreach (var email in raw.Emails)
+        {
+            var visible = unlockAll ||
+                          string.Equals(email.Visibility, "initial", StringComparison.OrdinalIgnoreCase);
+            if (!visible) continue;
+            if (existingEmailIds.Contains(email.Id)) continue;
+            _db.CaseSessionVisibleEmails.Add(new Models.CaseSessionVisibleEmail
+            {
+                UserId = userId,
+                CaseId = caseId,
+                EmailId = email.Id,
+                UnlockedAt = DateTime.UtcNow
+            });
+        }
+
+        await _db.SaveChangesAsync(ct);
     }
 
     [HttpGet("{caseId}/raw")]
