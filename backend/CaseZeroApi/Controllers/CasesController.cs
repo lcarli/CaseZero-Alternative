@@ -40,7 +40,7 @@ public class CasesController : ControllerBase
             },
             cases = cases.Select(c => new
             {
-                id = c.CaseId,
+                caseId = c.CaseId,
                 title = c.Title,
                 description = c.Description,
                 difficulty = c.Difficulty,
