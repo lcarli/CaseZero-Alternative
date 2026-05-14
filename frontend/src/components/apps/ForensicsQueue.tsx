@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react'
 import styled from 'styled-components'
 import { useCase } from '../../hooks/useCaseContext'
 import { useTimeContext } from '../../hooks/useTimeContext'
-import { forensicsService } from '../../services/forensicsService'
-import type { ForensicRequest } from '../../types/case'
+import { forensicsService, type ForensicRequest } from '../../services/forensicsService'
 
 const Container = styled.div`
   width: 100%;

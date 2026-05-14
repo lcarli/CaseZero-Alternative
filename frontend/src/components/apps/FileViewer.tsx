@@ -5,7 +5,7 @@ import { casesV1Api } from '../../services/api'
 import { useWindowContext } from '../../hooks/useWindowContext'
 import { useCase } from '../../hooks/useCaseContext'
 import { DocumentViewerWindow } from './DocumentViewerWindow'
-import type { FileItem } from '../../types/case'
+import type { FileItem } from './DocumentViewer'
 
 const FileViewerContainer = styled.div`
   height: 100%;
@@ -70,10 +70,9 @@ const FileType = styled.span`
 
 interface FileViewerProps {
   assets?: AssetDTO[]
-  onRefresh?: () => void
 }
 
-const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onRefresh }) => {
+const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [] }) => {
   const [assets, setAssets] = useState<AssetDTO[]>(initialAssets)
   const { openWindow } = useWindowContext()
   const { currentCase } = useCase()
@@ -109,10 +108,10 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [], onR
       name: asset.name,
       type: detectFileType(asset),
       icon: getFileIcon(asset.type),
-      size: '0 KB', // Size not available in AssetDTO
+      size: '0 KB',
       modified: new Date().toISOString(),
-      content: '', // Content will be loaded by DocumentViewer if needed
-      category: 'evidence' as const,
+      content: '',
+      category: 'evidence',
       mediaUrl
     }
   }

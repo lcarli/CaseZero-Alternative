@@ -178,7 +178,7 @@ const ButtonContainer = styled.button<{ $loading?: boolean }>`
     transform: none;
   }
   
-  ${props => props.loading && `
+  ${props => props.$loading && `
     pointer-events: none;
   `}
 `

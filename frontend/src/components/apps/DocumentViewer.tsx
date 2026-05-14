@@ -1,7 +1,19 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
-import type { FileItem } from '../../types/case'
 import { caseObjectApi } from '../../services/api'
+
+export interface FileItem {
+  id: string
+  name: string
+  type: 'text' | 'image' | 'pdf' | 'video' | 'audio'
+  icon: string
+  size: string
+  modified: string
+  content: string
+  category: string
+  evidenceId?: string
+  mediaUrl?: string
+}
 
 const ViewerContainer = styled.div`
   height: 100%;

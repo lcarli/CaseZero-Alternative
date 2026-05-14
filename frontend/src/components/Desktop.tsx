@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect } from 'react'
 import styled from 'styled-components'
 import { useNavigate } from 'react-router-dom'
 import Dock from './Dock'
 import Window from './Window'
 import { useWindowContext } from '../hooks/useWindowContext'
 import { useCase } from '../hooks/useCaseContext'
+import { useAssets, useEmails } from '../contexts/CaseContext'
 import { useAuth } from '../hooks/useAuthContext'
 import { useTimeContext } from '../hooks/useTimeContext'
 import { useLanguage } from '../hooks/useLanguageContext'
-import { caseSessionApi, assetsApi, emailsApi, forensicsApi } from '../services/api'
-import { forensicsSignalR } from '../services/forensicsSignalR'
+import { caseSessionApi } from '../services/api'
 import logoMetroPolice from '../assets/LogoMetroPolice_transparent.png'
 
 const DesktopContainer = styled.div`
@@ -97,17 +97,11 @@ const Desktop: React.FC = () => {
     updateWindowSize,
     maximizeWindow,
     minimizeWindow,
-    updateWindowProps,
-    isWindowOpen
   } = useWindowContext()
 
   const { currentCase } = useCase()
-  
-  // Task 47: State for assets, emails, and forensics
-  const [assets, setAssets] = useState<any[]>([])
-  const [_emails, setEmails] = useState<any[]>([])
-  const [_forensics, setForensics] = useState<any[]>([])
-  const [_loading, setLoading] = useState(true)
+  const assets = useAssets()
+  const emails = useEmails()
 
   // Add desktop-mode class when component mounts, remove when it unmounts
   useEffect(() => {
@@ -117,147 +111,16 @@ const Desktop: React.FC = () => {
     }
   }, [])
 
-  // Task 47: Load session data on mount
-  useEffect(() => {
-    const loadSessionData = async () => {
-      if (!currentCase) return
-
-      try {
-        setLoading(true)
-        
-        // Load assets, emails, and forensics in parallel
-        const [assetsData, emailsData, forensicsData] = await Promise.all([
-          assetsApi.getAssets(currentCase),
-          emailsApi.getEmails(currentCase),
-          forensicsApi.getPendingRequests(currentCase)
-        ])
-
-        setAssets(assetsData)
-        setEmails(emailsData)
-        setForensics(forensicsData)
-
-        console.log('✅ Session data loaded:', {
-          assets: assetsData.length,
-          emails: emailsData.length,
-          forensics: forensicsData.length
-        })
-        
-        if (assetsData.length > 0) {
-          console.log('🔍 First asset:', assetsData[0])
-        }
-      } catch (error) {
-        console.error('❌ Failed to load session data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadSessionData()
-  }, [currentCase])
-
-  // Task 52: SignalR Hub for real-time forensic updates (replaces Task 51 polling)
-  useEffect(() => {
-    if (!currentCase) return
-
-    const token = localStorage.getItem('token')
-    if (!token) {
-      console.warn('No token found, cannot connect to SignalR')
-      return
-    }
-
-    let cleanupListener: (() => void) | null = null
-
-    const initSignalR = async () => {
-      try {
-        await forensicsSignalR.connect(token)
-        console.log('✅ SignalR connected for case:', currentCase)
-
-        // Listen for forensic completion events
-        cleanupListener = forensicsSignalR.onForensicCompleted(async (data) => {
-          console.log('🔔 Forensic completed notification:', data)
-          
-          // Refetch forensics and emails
-          try {
-            const [forensicsData, emailsData] = await Promise.all([
-              forensicsApi.getPendingRequests(currentCase),
-              emailsApi.getEmails(currentCase)
-            ])
-            setForensics(forensicsData)
-            setEmails(emailsData)
-            console.log('✅ Data refreshed after forensic completion')
-          } catch (error) {
-            console.error('❌ Failed to refresh data after forensic completion:', error)
-          }
-        })
-      } catch (error) {
-        console.error('❌ Failed to connect to SignalR:', error)
-        // Fallback to polling if SignalR fails
-        console.log('⚠️ Falling back to polling mode')
-        startPolling()
-      }
-    }
-
-    // Fallback polling function
-    const startPolling = () => {
-      const pollForensics = setInterval(async () => {
-        try {
-          const forensicsData = await forensicsApi.getPendingRequests(currentCase)
-          setForensics(forensicsData)
-          
-          const hasCompleted = forensicsData.some((f: any) => f.status === 'completed')
-          if (hasCompleted) {
-            const emailsData = await emailsApi.getEmails(currentCase)
-            setEmails(emailsData)
-          }
-        } catch (error) {
-          console.error('❌ Failed to poll forensics:', error)
-        }
-      }, 30000)
-
-      return () => clearInterval(pollForensics)
-    }
-
-    initSignalR()
-
-    return () => {
-      if (cleanupListener) {
-        cleanupListener()
-      }
-      forensicsSignalR.disconnect()
-    }
-  }, [currentCase])
-
-  // Task 50: Refetch assets after attachment download
-  const refetchAssets = async () => {
-    if (!currentCase) return
-    try {
-      const assetsData = await assetsApi.getAssets(currentCase)
-      setAssets(assetsData)
-      
-      // Update FileViewer props if window is open
-      if (isWindowOpen('file-viewer')) {
-        updateWindowProps('file-viewer', { assets: assetsData })
-      }
-    } catch (error) {
-      console.error('❌ Failed to refetch assets:', error)
-    }
-  }
-
   // Task 48-49: Wrapper to inject props into app windows
   const handleOpenWindow = (id: string, title: string, component: React.ComponentType<any>) => {
-    // If opening FileViewer, pass assets and refresh callback
     if (id === 'file-viewer') {
-      openWindow(id, title, component, { assets, onRefresh: refetchAssets })
-    } 
-    // If opening EmailApp, pass emails and caseId
-    else if (id === 'email-app') {
-      openWindow(id, title, component, { 
-        emails: _emails, 
+      openWindow(id, title, component, { assets })
+    } else if (id === 'email-app') {
+      openWindow(id, title, component, {
+        emails,
         caseId: currentCase,
-        onRefetchAssets: refetchAssets 
       })
-    } 
-    else {
+    } else {
       openWindow(id, title, component)
     }
   }
