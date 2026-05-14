@@ -182,6 +182,15 @@ namespace CaseZeroApi.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("EmailAttachmentOverrides")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FiredRuleIds")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FiredTemporalEventIds")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("GameTimeAtEnd")
                         .HasColumnType("nvarchar(max)");
 
@@ -190,6 +199,12 @@ namespace CaseZeroApi.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<string>("Notifications")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RevealedSuspectIds")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("SessionDurationMinutes")
                         .HasColumnType("int");
@@ -202,6 +217,15 @@ namespace CaseZeroApi.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
+
+                    b.Property<string>("SuspectAlibiVerified")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SuspectStatusOverrides")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SyntheticEmails")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -330,6 +354,9 @@ namespace CaseZeroApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("int");
+
                     b.Property<string>("CaseId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -355,6 +382,9 @@ namespace CaseZeroApi.Migrations
 
                     b.Property<string>("Reasoning")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RequestPayloadJson")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<double>("Score")

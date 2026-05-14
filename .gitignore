@@ -195,3 +195,8 @@ __blobstorage__
 __queuestorage__
 AzuriteConfig
 test-output/
+# Local backend dev override (SQLite / local SQL)
+backend/CaseZeroApi/appsettings.Local.json
+backend/CaseZeroApi/*.db
+backend/CaseZeroApi/*.db-shm
+backend/CaseZeroApi/*.db-wal

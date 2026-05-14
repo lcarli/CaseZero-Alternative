@@ -10,6 +10,10 @@ using CaseZeroApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Optional local override (gitignored) — lets developers point at SQLite/local SQL
+// without editing the shared appsettings.Development.json.
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 // Add services to the container.
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -44,16 +48,27 @@ if (!isTestingEnvironment && !string.IsNullOrEmpty(connectionString) &&
 // Configure DbContext (tests will override this configuration)
 if (!isTestingEnvironment)
 {
+    var useSqlite = builder.Configuration.GetValue<bool>("UseSqlite")
+        || (connectionString?.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase) ?? false);
+
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
     {
-        options.UseSqlServer(connectionString, sqlOptions =>
+        if (useSqlite)
         {
-            sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
-                errorNumbersToAdd: null);
-            sqlOptions.CommandTimeout(60);
-        });
+            var sqliteConn = connectionString ?? "Data Source=casezero-dev.db";
+            options.UseSqlite(sqliteConn);
+        }
+        else
+        {
+            options.UseSqlServer(connectionString, sqlOptions =>
+            {
+                sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorNumbersToAdd: null);
+                sqlOptions.CommandTimeout(60);
+            });
+        }
     });
 }
 
@@ -187,6 +202,11 @@ builder.Services.AddScoped<DataSeedingService>();
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<ICaseV1SanitizerService, CaseV1SanitizerService>();
 builder.Services.AddScoped<ICaseV1StorageService, CaseV1StorageService>();
+// v2 services
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ICaseV2SanitizerService, CaseV2SanitizerService>();
+builder.Services.AddScoped<ICaseV2StorageService, CaseV2StorageService>();
+builder.Services.AddScoped<ISolutionService, SolutionService>();
 builder.Services.AddScoped<IVisibilityService, VisibilityService>();
 builder.Services.AddScoped<IRulesEngineService, RulesEngineService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>(); // P86: Audit Log
@@ -295,10 +315,19 @@ if (environment.EnvironmentName != "Testing")
     {
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        
-        // Always use migrations for SQL Server
-        logger.LogInformation("🗄️ Applying SQL Server migrations...");
-        context.Database.Migrate();
+
+        // For SQLite (local dev) the SQL-Server migrations are not portable —
+        // EnsureCreated builds the schema from the current model snapshot.
+        if (context.Database.IsSqlite())
+        {
+            logger.LogInformation("🗄️ Ensuring SQLite schema (local dev mode)...");
+            context.Database.EnsureCreated();
+        }
+        else
+        {
+            logger.LogInformation("🗄️ Applying SQL Server migrations...");
+            context.Database.Migrate();
+        }
         
         // Seed test users if none exist
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();

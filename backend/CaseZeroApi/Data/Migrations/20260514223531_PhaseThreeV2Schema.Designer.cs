@@ -9,12 +9,13 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace CaseZeroApi.Migrations
+namespace CaseZeroApi.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260101000001_PhaseThreeV2Schema")]
+    [Migration("20260514223531_PhaseThreeV2Schema")]
     partial class PhaseThreeV2Schema
     {
+        /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
@@ -356,12 +357,12 @@ namespace CaseZeroApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("int");
+
                     b.Property<string>("CaseId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("AttemptNumber")
-                        .HasColumnType("int");
 
                     b.Property<DateTime?>("EvaluatedAt")
                         .HasColumnType("datetime2");
@@ -1429,4 +1430,3 @@ namespace CaseZeroApi.Migrations
         }
     }
 }
-
