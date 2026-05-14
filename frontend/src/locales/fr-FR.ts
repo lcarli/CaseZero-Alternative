@@ -426,4 +426,32 @@ export const frFR: Translations = {
   itemDeleted: 'Élément supprimé',
   noItemsOnBoard: 'Aucun élément sur le tableau',
   dropHereToAdd: 'Déposer ici pour ajouter',
+
+  // Submit Case (v2)
+  submitCaseTitle: 'Soumission du dossier',
+  submitCaseSuspectLabel: 'Suspect principal',
+  submitCaseEvidenceLabel: 'Preuves',
+  submitCaseAnalysisLabel: 'Analyses médico-légales',
+  submitCaseQuestionsHeader: "Questions d'enquête",
+  submitCaseSubmitButton: 'Soumettre le dossier',
+  submitCaseAttemptsRemaining: '{n} tentatives restantes',
+  submitCaseAttemptsExhausted: 'Aucune tentative restante',
+  submitCaseResultCorrect: '✅ Correct ! Dossier résolu.',
+  submitCaseResultIncorrect: '❌ Incorrect. Révisez vos preuves.',
+  submitCaseScore: 'Score',
+  submitCaseBreakdownCulprit: 'Suspect',
+  submitCaseBreakdownEvidence: 'Preuves',
+  submitCaseBreakdownAnalysis: 'Analyse',
+  submitCaseBreakdownQuestions: 'Questions',
+  submitCaseExplanationHeader: 'Explication du dossier',
+
+  // Dashboard V2
+  dashboardRequiredRank: 'Rang requis',
+  dashboardDifficulty: 'Difficulté',
+  dashboardEmpty: 'Aucun dossier disponible pour votre grade.',
+
+  // Notifications
+  notificationsEntityRevealedEmail: 'Nouvel e-mail reçu.',
+  notificationsEntityRevealedAsset: 'Nouvelle preuve révélée.',
+  notificationsEntityRevealedSuspect: 'Nouveau suspect identifié.',
 };

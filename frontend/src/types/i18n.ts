@@ -430,6 +430,34 @@ export interface Translations {
   itemDeleted: string;
   noItemsOnBoard: string;
   dropHereToAdd: string;
+
+  // Submit Case (v2)
+  submitCaseTitle: string;
+  submitCaseSuspectLabel: string;
+  submitCaseEvidenceLabel: string;
+  submitCaseAnalysisLabel: string;
+  submitCaseQuestionsHeader: string;
+  submitCaseSubmitButton: string;
+  submitCaseAttemptsRemaining: string;
+  submitCaseAttemptsExhausted: string;
+  submitCaseResultCorrect: string;
+  submitCaseResultIncorrect: string;
+  submitCaseScore: string;
+  submitCaseBreakdownCulprit: string;
+  submitCaseBreakdownEvidence: string;
+  submitCaseBreakdownAnalysis: string;
+  submitCaseBreakdownQuestions: string;
+  submitCaseExplanationHeader: string;
+
+  // Dashboard V2
+  dashboardRequiredRank: string;
+  dashboardDifficulty: string;
+  dashboardEmpty: string;
+
+  // Notifications
+  notificationsEntityRevealedEmail: string;
+  notificationsEntityRevealedAsset: string;
+  notificationsEntityRevealedSuspect: string;
 }
 
 export const SUPPORTED_LANGUAGES: Language[] = [

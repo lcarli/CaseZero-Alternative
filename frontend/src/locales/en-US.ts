@@ -426,4 +426,32 @@ export const enUS: Translations = {
   itemDeleted: 'Item deleted',
   noItemsOnBoard: 'No items on board',
   dropHereToAdd: 'Drop here to add',
+
+  // Submit Case (v2)
+  submitCaseTitle: 'Case Submission',
+  submitCaseSuspectLabel: 'Primary Suspect',
+  submitCaseEvidenceLabel: 'Evidence',
+  submitCaseAnalysisLabel: 'Forensic Analyses',
+  submitCaseQuestionsHeader: 'Investigation Questions',
+  submitCaseSubmitButton: 'Submit Case',
+  submitCaseAttemptsRemaining: '{n} attempts remaining',
+  submitCaseAttemptsExhausted: 'No attempts remaining',
+  submitCaseResultCorrect: '✅ Correct! Case solved.',
+  submitCaseResultIncorrect: '❌ Incorrect. Review your evidence.',
+  submitCaseScore: 'Score',
+  submitCaseBreakdownCulprit: 'Suspect',
+  submitCaseBreakdownEvidence: 'Evidence',
+  submitCaseBreakdownAnalysis: 'Analysis',
+  submitCaseBreakdownQuestions: 'Questions',
+  submitCaseExplanationHeader: 'Case Explanation',
+
+  // Dashboard V2
+  dashboardRequiredRank: 'Required Rank',
+  dashboardDifficulty: 'Difficulty',
+  dashboardEmpty: 'No cases available at your rank.',
+
+  // Notifications
+  notificationsEntityRevealedEmail: 'New email received.',
+  notificationsEntityRevealedAsset: 'New asset revealed.',
+  notificationsEntityRevealedSuspect: 'New suspect identified.',
 };

@@ -426,4 +426,32 @@ export const ptBR: Translations = {
   itemDeleted: 'Item excluído',
   noItemsOnBoard: 'Nenhum item no quadro',
   dropHereToAdd: 'Solte aqui para adicionar',
+
+  // Submit Case (v2)
+  submitCaseTitle: 'Submissão do Caso',
+  submitCaseSuspectLabel: 'Suspeito Principal',
+  submitCaseEvidenceLabel: 'Evidências',
+  submitCaseAnalysisLabel: 'Análises Forenses',
+  submitCaseQuestionsHeader: 'Perguntas da Investigação',
+  submitCaseSubmitButton: 'Submeter Caso',
+  submitCaseAttemptsRemaining: '{n} tentativas restantes',
+  submitCaseAttemptsExhausted: 'Nenhuma tentativa restante',
+  submitCaseResultCorrect: '✅ Correto! Caso resolvido.',
+  submitCaseResultIncorrect: '❌ Incorreto. Revise as evidências.',
+  submitCaseScore: 'Pontuação',
+  submitCaseBreakdownCulprit: 'Suspeito',
+  submitCaseBreakdownEvidence: 'Evidências',
+  submitCaseBreakdownAnalysis: 'Análise',
+  submitCaseBreakdownQuestions: 'Perguntas',
+  submitCaseExplanationHeader: 'Explicação do Caso',
+
+  // Dashboard V2
+  dashboardRequiredRank: 'Rank Necessário',
+  dashboardDifficulty: 'Dificuldade',
+  dashboardEmpty: 'Nenhum caso disponível para o seu rank.',
+
+  // Notifications
+  notificationsEntityRevealedEmail: 'Novo e-mail recebido.',
+  notificationsEntityRevealedAsset: 'Nova evidência revelada.',
+  notificationsEntityRevealedSuspect: 'Novo suspeito identificado.',
 };
