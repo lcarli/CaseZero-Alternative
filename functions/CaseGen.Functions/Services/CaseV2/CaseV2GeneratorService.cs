@@ -1,0 +1,407 @@
+using System.Diagnostics;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using CaseGen.Functions.Models.CaseV2;
+using CaseGen.Functions.Services.CaseV2.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Schema;
+
+namespace CaseGen.Functions.Services.CaseV2;
+
+public interface ICaseV2GeneratorService
+{
+    Task<GenerateCaseV2Response> GenerateAsync(GenerateCaseV2Request request, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Fine-grained orchestrator: each LLM call is a micro-task with a focused prompt.
+/// Tasks that share a phase but are independent (per-suspect, per-asset, per-outcome,
+/// per-question) run in parallel via <see cref="Task.WhenAll(IEnumerable{Task})"/>.
+/// Final assembly + schema validation runs in deterministic C#.
+/// </summary>
+public class CaseV2GeneratorService : ICaseV2GeneratorService
+{
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
+
+    private readonly ILLMProvider _llm;
+    private readonly IConfiguration _config;
+    private readonly ILogger<CaseV2GeneratorService> _logger;
+    private readonly JSchema _v2Schema;
+
+    public CaseV2GeneratorService(ILLMProvider llm, IConfiguration config, ILogger<CaseV2GeneratorService> logger)
+    {
+        _llm = llm;
+        _config = config;
+        _logger = logger;
+
+        var schemaPath = ResolveSchemaPath();
+        _v2Schema = JSchema.Parse(File.ReadAllText(schemaPath));
+        _logger.LogInformation("CaseV2 generator loaded schema from {Path}", schemaPath);
+    }
+
+    public async Task<GenerateCaseV2Response> GenerateAsync(GenerateCaseV2Request request, CancellationToken ct = default)
+    {
+        var draft = new CaseDraft
+        {
+            CaseId = NormaliseCaseId(request.CaseId),
+            Request = request
+        };
+
+        var stageMs = new Dictionary<string, double>();
+
+        _logger.LogInformation("Generating v2 case {CaseId} (difficulty={Difficulty}, theme={Theme})",
+            draft.CaseId, request.Difficulty, request.Theme);
+
+        // === Phase 1: plot outline (sequential gate)
+        await TimeStage("plotOutline", stageMs, () => new PlotOutlineTask(_llm, _logger).RunAsync(draft, ct));
+
+        // === Phase 2: suspect cards in parallel
+        await TimeStage("suspectCards", stageMs, async () =>
+        {
+            var task = new SuspectCardTask(_llm, _logger);
+            var results = await Task.WhenAll(draft.SuspectStubs.Select(stub => task.RunAsync(draft, stub, ct)));
+            draft.SuspectFull = results.ToList();
+        });
+
+        // === Phase 3: asset plan (gate)
+        await TimeStage("assetPlan", stageMs, () => new AssetPlanTask(_llm, _logger).RunAsync(draft, ct));
+
+        // === Phase 4: asset cards + timeline + briefing in parallel
+        await TimeStage("assetsAndTimelineAndBriefing", stageMs, async () =>
+        {
+            var assetTask = new AssetCardTask(_llm, _logger);
+            var assetsTask = Task.WhenAll(draft.AssetStubs.Select(stub => assetTask.RunAsync(draft, stub, ct)));
+
+            var timelineTask = new TimelineTask(_llm, _logger).RunAsync(draft, ct);
+            var briefingTask = new BriefingEmailTask(_llm, _logger).RunAsync(draft, ct);
+
+            var assets = await assetsTask;
+            await timelineTask;
+            await briefingTask;
+            draft.AssetFull = assets.ToList();
+        });
+
+        // === Phase 5: forensics plan (gate)
+        await TimeStage("forensicsPlan", stageMs, () => new ForensicsPlanTask(_llm, _logger).RunAsync(draft, ct));
+
+        // === Phase 6: outcome details + initial emails in parallel
+        await TimeStage("outcomesAndInitialEmails", stageMs, async () =>
+        {
+            var outcomeTask = new ForensicOutcomeTask(_llm, _logger);
+            var detailTasks = draft.ForensicStubs.Select(s => outcomeTask.RunAsync(draft, s, ct));
+            var emailsTask = new InitialEmailsTask(_llm, _logger).RunAsync(draft, ct);
+
+            var details = await Task.WhenAll(detailTasks);
+            await emailsTask;
+
+            foreach (var (full, asset, email) in details)
+            {
+                draft.ForensicFull.Add(full);
+                if (asset is not null) draft.ResultAssets.Add(asset);
+                if (email is not null) draft.ResultEmails.Add(email);
+            }
+        });
+
+        // === Phase 7: rules + solution skeleton in parallel
+        await TimeStage("rulesAndSolutionSkeleton", stageMs, async () =>
+        {
+            var rulesTask = new RulesTask(_llm, _logger).RunAsync(draft, ct);
+            var skeletonTask = new SolutionSkeletonTask(_llm, _logger).RunAsync(draft, ct);
+            await Task.WhenAll(rulesTask, skeletonTask);
+        });
+
+        // === Phase 8: questions (parallel) + explanation
+        await TimeStage("questionsAndExplanation", stageMs, async () =>
+        {
+            var qTask = new QuestionTask(_llm, _logger);
+            var qTasks = draft.QuestionTopics.Select(t => qTask.RunAsync(draft, t, ct));
+            var explanationTask = new ExplanationTask(_llm, _logger).RunAsync(draft, ct);
+
+            var questions = await Task.WhenAll(qTasks);
+            await explanationTask;
+            draft.Questions = questions.ToList();
+        });
+
+        // === Phase 9: assemble + validate + persist (deterministic)
+        var assembled = Assemble(draft);
+        var json = assembled.ToJsonString(JsonOpts);
+        var errors = Validate(json);
+
+        var outputPath = string.Empty;
+        if (errors.Count == 0 && request.WriteToDisk)
+            outputPath = WriteToDisk(draft.CaseId, json);
+        else if (errors.Count > 0)
+            _logger.LogWarning("Case {CaseId} failed schema validation: {Errors}", draft.CaseId, string.Join("; ", errors));
+
+        return new GenerateCaseV2Response
+        {
+            CaseId = draft.CaseId,
+            OutputPath = outputPath,
+            CaseJson = json,
+            ValidationErrors = errors,
+            StageLatencyMs = stageMs
+        };
+    }
+
+    // ----------------------------------------------------------------------
+    // Assembly
+    // ----------------------------------------------------------------------
+
+    private JsonObject Assemble(CaseDraft d)
+    {
+        var assetsNode = new JsonArray();
+        foreach (var a in d.AssetFull) assetsNode.Add(BuildAssetNode(d.CaseId, a));
+        foreach (var a in d.ResultAssets) assetsNode.Add(BuildAssetNode(d.CaseId, a));
+
+        var emailsNode = new JsonArray { BuildBriefingNode(d) };
+        foreach (var e in d.FollowUpEmails) emailsNode.Add(BuildEmailNode(e, "initial"));
+        foreach (var e in d.ResultEmails) emailsNode.Add(BuildEmailNode(e, "hidden"));
+
+        var suspectsNode = new JsonArray();
+        foreach (var s in d.SuspectFull)
+        {
+            suspectsNode.Add(new JsonObject
+            {
+                ["id"] = s.Id,
+                ["name"] = s.Name,
+                ["age"] = s.Age,
+                ["occupation"] = s.Occupation,
+                ["relationship"] = s.Relationship,
+                ["motive"] = s.Motive,
+                ["alibi"] = s.Alibi,
+                ["alibiVerified"] = s.AlibiVerified,
+                ["status"] = "suspect",
+                ["background"] = s.Background,
+                ["visibility"] = "initial"
+            });
+        }
+
+        var timeline = JsonSerializer.SerializeToNode(d.Timeline, JsonOpts)!.AsArray();
+        var temporalEvents = JsonSerializer.SerializeToNode(d.TemporalEvents, JsonOpts)!.AsArray();
+        var rules = JsonSerializer.SerializeToNode(d.Rules, JsonOpts)!.AsArray();
+        var forensicOutcomes = JsonSerializer.SerializeToNode(d.ForensicFull, JsonOpts)!.AsArray();
+
+        var forensicsDefaults = new JsonObject
+        {
+            ["analysisTypes"] = JsonSerializer.SerializeToNode(d.AnalysisTypes, JsonOpts),
+            ["noFindingsEmail"] = new JsonObject
+            {
+                ["template"] = "Detective,\n\nThe {{analysisType}} analysis on {{assetName}} did not reveal any actionable leads.\n\nForensics Lab",
+                ["from"] = "Forensics Lab <lab@citypolice.gov>",
+                ["subject"] = "Analysis Results — {{analysisType}} — No Findings"
+            }
+        };
+
+        // Normalise solution partial credit weights to sum 1.0
+        var partial = new SolutionPartialCredit();
+        var total = partial.CulpritWeight + partial.EvidenceWeight + partial.AnalysisWeight + partial.QuestionsWeight;
+        if (Math.Abs(total - 1.0) > 0.001)
+        {
+            partial.CulpritWeight /= total; partial.EvidenceWeight /= total;
+            partial.AnalysisWeight /= total; partial.QuestionsWeight /= total;
+        }
+
+        var solution = new JsonObject
+        {
+            ["culpritId"] = d.CulpritId,
+            ["requiredEvidenceIds"] = JsonSerializer.SerializeToNode(d.RequiredEvidenceIds, JsonOpts),
+            ["requiredAnalysisIds"] = JsonSerializer.SerializeToNode(d.RequiredAnalysisIds, JsonOpts),
+            ["questions"] = JsonSerializer.SerializeToNode(d.Questions, JsonOpts),
+            ["explanation"] = d.Explanation,
+            ["minimumScore"] = 0.7,
+            ["maxAttempts"] = 3,
+            ["partialCreditRules"] = JsonSerializer.SerializeToNode(partial, JsonOpts)
+        };
+
+        var metadata = JsonSerializer.SerializeToNode(d.Metadata, JsonOpts)!.AsObject();
+        if (string.Equals(d.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase))
+            metadata["unlockMode"] = "all_initial";
+        else if (!metadata.ContainsKey("unlockMode"))
+            metadata["unlockMode"] = "gated";
+        if (!metadata.ContainsKey("estimatedDurationMinutes"))
+            metadata["estimatedDurationMinutes"] = 90;
+
+        var gameMetadata = new JsonObject
+        {
+            ["schemaVersion"] = "2.0",
+            ["createdAt"] = DateTime.UtcNow.ToString("o"),
+            ["tags"] = JsonSerializer.SerializeToNode(d.Metadata.Tags, JsonOpts),
+            ["contentWarnings"] = new JsonArray(),
+            ["localizations"] = new JsonArray { d.Request.Language ?? "en-US" },
+            ["generation"] = new JsonObject
+            {
+                ["pipelineVersion"] = "v2-microtasks",
+                ["model"] = _config["AzureFoundry:ModelName"] ?? "unknown",
+                ["seed"] = d.Request.Seed ?? 0,
+                ["bundleChecksum"] = string.Empty
+            }
+        };
+
+        return new JsonObject
+        {
+            ["version"] = "2.0",
+            ["caseId"] = d.CaseId,
+            ["metadata"] = metadata,
+            ["assets"] = assetsNode,
+            ["emails"] = emailsNode,
+            ["suspects"] = suspectsNode,
+            ["timeline"] = timeline,
+            ["temporalEvents"] = temporalEvents,
+            ["rules"] = rules,
+            ["forensicsDefaults"] = forensicsDefaults,
+            ["forensicOutcomes"] = forensicOutcomes,
+            ["solution"] = solution,
+            ["gameMetadata"] = gameMetadata
+        };
+    }
+
+    private static JsonNode BuildAssetNode(string caseId, EvidenceAsset a)
+    {
+        var ext = a.Type switch
+        {
+            "photo" or "image" => "jpg",
+            "pdf" or "document" => "pdf",
+            "audio" => "mp3",
+            "video" => "mp4",
+            "digital" => "bin",
+            _ => "bin"
+        };
+        return new JsonObject
+        {
+            ["id"] = a.Id,
+            ["type"] = a.Type,
+            ["title"] = a.Title,
+            ["description"] = a.Description,
+            ["uri"] = $"case://{caseId}/assets/{a.Id.Replace("asset.", "")}.{ext}",
+            ["visibility"] = a.Visibility ?? "initial",
+            ["category"] = a.Category
+        };
+    }
+
+    private static JsonNode BuildBriefingNode(CaseDraft d)
+    {
+        var initialAttachmentIds = d.AssetFull
+            .Where(a => a.Visibility == "initial")
+            .Take(2)
+            .Select(a => a.Id)
+            .ToList();
+        return new JsonObject
+        {
+            ["id"] = "email.briefing",
+            ["from"] = string.IsNullOrEmpty(d.Briefing.From) ? "Chief of Police <chief@citypolice.gov>" : d.Briefing.From,
+            ["to"] = new JsonArray("Detective Alex Morgan <detective@citypolice.gov>"),
+            ["subject"] = string.IsNullOrEmpty(d.Briefing.Subject) ? "URGENT: Case Assignment" : d.Briefing.Subject,
+            ["body"] = d.Briefing.Body,
+            ["sentAt"] = string.IsNullOrEmpty(d.Metadata.OpenedAt) ? DateTime.UtcNow.ToString("o") : d.Metadata.OpenedAt,
+            ["priority"] = "urgent",
+            ["attachments"] = new JsonArray(initialAttachmentIds.Select(id => (JsonNode?)id).ToArray()),
+            ["visibility"] = "initial"
+        };
+    }
+
+    private static JsonNode BuildEmailNode(EvidenceEmail e, string defaultVisibility)
+    {
+        return new JsonObject
+        {
+            ["id"] = e.Id,
+            ["from"] = e.From,
+            ["to"] = new JsonArray("Detective Alex Morgan <detective@citypolice.gov>"),
+            ["subject"] = e.Subject,
+            ["body"] = e.Body,
+            ["sentAt"] = string.IsNullOrEmpty(e.SentAt) ? DateTime.UtcNow.ToString("o") : e.SentAt,
+            ["priority"] = e.Priority ?? "normal",
+            ["attachments"] = new JsonArray((e.Attachments ?? new()).Select(a => (JsonNode?)a).ToArray()),
+            ["visibility"] = string.IsNullOrEmpty(e.Visibility) ? defaultVisibility : e.Visibility
+        };
+    }
+
+    // ----------------------------------------------------------------------
+    // Validation + utilities
+    // ----------------------------------------------------------------------
+
+    private List<string> Validate(string json)
+    {
+        var errors = new List<string>();
+        try
+        {
+            var jObject = JObject.Parse(json);
+            if (!jObject.IsValid(_v2Schema, out IList<string> messages))
+                errors.AddRange(messages);
+        }
+        catch (Exception ex)
+        {
+            errors.Add($"JSON parse error: {ex.Message}");
+        }
+        return errors;
+    }
+
+    private string WriteToDisk(string caseId, string json)
+    {
+        var basePath = ResolveCasesBasePath();
+        var caseDir = Path.Combine(basePath, caseId);
+        Directory.CreateDirectory(caseDir);
+        var path = Path.Combine(caseDir, "case.json");
+        File.WriteAllText(path, json);
+        _logger.LogInformation("Wrote case {CaseId} to {Path}", caseId, path);
+        return path;
+    }
+
+    private string ResolveCasesBasePath()
+    {
+        var configured = _config["CaseGenV2:CasesBasePath"];
+        if (!string.IsNullOrWhiteSpace(configured) && Directory.Exists(configured)) return configured!;
+
+        foreach (var rel in new[] { "../../cases", "../../../cases", "../../../../cases" })
+        {
+            var candidate = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, rel));
+            var parent = Path.GetDirectoryName(candidate);
+            if (Directory.Exists(candidate)) return candidate;
+            if (!string.IsNullOrEmpty(parent) && Directory.Exists(parent)) return candidate;
+        }
+
+        var fallback = Path.Combine(AppContext.BaseDirectory, "cases");
+        Directory.CreateDirectory(fallback);
+        return fallback;
+    }
+
+    private static string ResolveSchemaPath()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "Schemas", "case.v2.schema.json"),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Schemas", "case.v2.schema.json"),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "schemas", "case.schema.json")
+        };
+        foreach (var c in candidates)
+        {
+            var full = Path.GetFullPath(c);
+            if (File.Exists(full)) return full;
+        }
+        throw new FileNotFoundException("Could not locate case.v2 schema next to the build output.");
+    }
+
+    private static string NormaliseCaseId(string? caseId)
+    {
+        if (!string.IsNullOrWhiteSpace(caseId))
+        {
+            var s = caseId.Trim().ToLowerInvariant().Replace('-', '_');
+            if (!s.StartsWith("case_")) s = "case_" + s;
+            return s;
+        }
+        return $"case_{DateTime.UtcNow:yyyyMMdd_HHmmss}";
+    }
+
+    private static async Task TimeStage(string name, Dictionary<string, double> sink, Func<Task> body)
+    {
+        var sw = Stopwatch.StartNew();
+        try { await body(); }
+        finally { sink[name] = sw.Elapsed.TotalMilliseconds; }
+    }
+}

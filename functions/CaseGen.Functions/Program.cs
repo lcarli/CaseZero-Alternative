@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Azure.Functions.Worker.Builder;
 using CaseGen.Functions.Services;
 using CaseGen.Functions.Services.CaseGeneration;
+using CaseGen.Functions.Services.CaseV2;
 using CaseGen.Functions.Data;
 using Azure.Storage.Blobs;
 using Microsoft.EntityFrameworkCore;
@@ -60,6 +61,8 @@ builder.Services
     .AddScoped<IPrecisionEditor, PrecisionEditor>()
     .AddScoped<ILLMService, LLMService>()
     .AddSingleton<IRedTeamCacheService, RedTeamCacheService>()
+    // v2 case generator (5-stage pipeline)
+    .AddScoped<ICaseV2GeneratorService, CaseV2GeneratorService>()
     // Configure Context Manager for granular context storage
     .AddSingleton<IContextManager>(serviceProvider =>
     {
