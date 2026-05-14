@@ -66,6 +66,13 @@ public class GenerateCaseV2Function
                 outputPath = result.OutputPath,
                 stageLatencyMs = result.StageLatencyMs,
                 validationErrors = result.ValidationErrors,
+                rendering = new
+                {
+                    pdfsWritten = result.AssetsRenderedPdfs,
+                    imagesWritten = result.AssetsRenderedImages,
+                    skipped = result.AssetsSkipped,
+                    errors = result.AssetRenderingErrors
+                },
                 preview = TryPreview(result.CaseJson)
             }, ct);
             return http;

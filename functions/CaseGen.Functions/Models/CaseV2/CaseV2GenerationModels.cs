@@ -25,6 +25,10 @@ public class GenerateCaseV2Response
     public string CaseJson { get; set; } = string.Empty;
     public List<string> ValidationErrors { get; set; } = new();
     public Dictionary<string, double> StageLatencyMs { get; set; } = new();
+    public int AssetsRenderedPdfs { get; set; }
+    public int AssetsRenderedImages { get; set; }
+    public int AssetsSkipped { get; set; }
+    public List<string> AssetRenderingErrors { get; set; } = new();
 }
 
 // ----- Stage 1: Plot -----
@@ -95,6 +99,10 @@ public class EvidenceAsset
     [JsonPropertyName("description")] public string? Description { get; set; }
     [JsonPropertyName("visibility")] public string Visibility { get; set; } = "initial";
     [JsonPropertyName("category")] public string? Category { get; set; }
+
+    /// <summary>Long-form body used by <see cref="Services.CaseV2.AssetRenderingService"/>:
+    /// markdown for pdf/document assets (rendered with QuestPDF) or an image prompt for photo/image assets.</summary>
+    [JsonPropertyName("body")] public string? Body { get; set; }
 }
 
 public class EvidenceTimelineEntry

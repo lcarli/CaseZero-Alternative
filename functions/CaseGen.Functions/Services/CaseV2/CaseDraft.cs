@@ -42,24 +42,60 @@ public class CaseDraft
     public List<SolutionQuestion> Questions { get; set; } = new();
     public string Explanation { get; set; } = string.Empty;
 
-    /// <summary>Builds a compact JSON summary for downstream prompts (avoid token bloat).</summary>
+    /// <summary>Builds a context summary for downstream prompts. Rich enough for coherence,
+    /// trimmed enough to keep token cost predictable.</summary>
     public string ToSummaryJson() => System.Text.Json.JsonSerializer.Serialize(new
     {
         caseId = CaseId,
         metadata = new
         {
             title = Metadata.Title,
+            description = Metadata.Description,
             location = Metadata.Location,
+            incidentDate = Metadata.IncidentDate,
+            openedAt = Metadata.OpenedAt,
             difficulty = Metadata.Difficulty,
             requiredRank = Metadata.RequiredRank,
             category = Metadata.Category,
-            victim = Metadata.Victim
+            victim = Metadata.Victim,
+            tags = Metadata.Tags
         },
         culpritId = CulpritId,
-        suspects = SuspectStubs.Select(s => new { s.Id, s.Name, s.Role }),
-        assets = AssetStubs.Select(a => new { a.Id, a.Type, a.Title, a.Role, a.Visibility }),
-        forensics = ForensicStubs.Select(f => new { f.InputAssetId, f.AnalysisType, f.Findings, f.MatchedSuspectId, f.Role }),
-        analysisTypes = AnalysisTypes.Select(t => new { t.Type, t.AvailableFor })
+        // Suspects: use full profile if available, otherwise fall back to the stub
+        suspects = (SuspectFull.Count > 0 ? SuspectFull.Select(s => new
+        {
+            s.Id, s.Name, s.Age, s.Occupation, s.Relationship,
+            s.Motive, s.Alibi, s.AlibiVerified, s.Background,
+            isCulprit = s.Id == CulpritId
+        }).Cast<object>().ToList() : SuspectStubs.Select(s => new
+        {
+            s.Id, s.Name, role = s.Role, isCulprit = s.IsCulprit
+        }).Cast<object>().ToList()),
+        // Assets: full short description if available, body NOT included to keep tokens manageable
+        assets = (AssetFull.Count > 0 ? AssetFull.Select(a => new
+        {
+            a.Id, a.Type, a.Title, a.Description, a.Visibility, a.Category
+        }).Cast<object>().ToList() : AssetStubs.Select(a => new
+        {
+            a.Id, a.Type, a.Title, role = a.Role, a.Visibility
+        }).Cast<object>().ToList()),
+        // Result PDFs (forensics output)
+        resultAssets = ResultAssets.Select(a => new { a.Id, a.Type, a.Title, a.Description }),
+        timeline = Timeline.Select(t => new { t.Time, t.Event, t.Source, t.Verified, t.Importance }),
+        temporalEvents = TemporalEvents.Select(t => new { t.Id, t.TriggerAtMinutes, t.Type, message = t.Payload?.Message ?? t.Payload?.EmailId ?? t.Payload?.AssetId }),
+        analysisTypes = AnalysisTypes.Select(t => new { t.Type, t.DurationMinutes, t.AvailableFor }),
+        // Forensics: include conclusionText so question/explanation tasks see the lab findings
+        forensics = (ForensicFull.Count > 0 ? ForensicFull.Select(f => new
+        {
+            f.InputAssetId, f.AnalysisType, f.Findings, f.MatchedSuspectId, f.ConclusionText
+        }).Cast<object>().ToList() : ForensicStubs.Select(f => new
+        {
+            f.InputAssetId, f.AnalysisType, f.Findings, f.MatchedSuspectId, role = f.Role
+        }).Cast<object>().ToList()),
+        // Briefing + follow-up emails: subjects only (bodies stay where they're written)
+        briefing = new { Briefing.From, Briefing.Subject },
+        followUpEmails = FollowUpEmails.Select(e => new { e.Id, e.From, e.Subject, e.SentAt, e.Visibility }),
+        resultEmails = ResultEmails.Select(e => new { e.Id, e.From, e.Subject, e.Visibility })
     }, new System.Text.Json.JsonSerializerOptions
     {
         WriteIndented = false,

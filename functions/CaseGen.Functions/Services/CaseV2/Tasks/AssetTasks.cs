@@ -57,20 +57,38 @@ public class AssetCardTask
 
     private const string Schema = """
     {
-      "type":"object","required":["id","type","title","description","visibility","category"],
+      "type":"object","required":["id","type","title","description","visibility","category","body"],
       "properties":{
         "id":{"type":"string","pattern":"^asset\\.[a-z0-9_]+$"},
         "type":{"type":"string"},
-        "visibility":{"type":"string","enum":["initial","hidden"]}
+        "visibility":{"type":"string","enum":["initial","hidden"]},
+        "body":{"type":"string","minLength":40}
       }
     }
     """;
 
     public async Task<EvidenceAsset> RunAsync(CaseDraft draft, AssetStub stub, CancellationToken ct)
     {
-        var system = @"You are writing the **detail card** for ONE evidence asset.
-Echo the id and type exactly. Produce: a 1-3 sentence description, a short category label (Document / Digital / Physical / Biological),
-and visibility (`initial` for this stage).";
+        var bodyGuidance = stub.Type switch
+        {
+            "pdf" or "document" => "Markdown long-form content for the document. 6-20 paragraphs. For interrogation transcripts use a Q/A pattern with the detective and the suspect. For forensic preliminaries or police memos use the appropriate genre conventions. Anchor dates and times to the case timeline (incidentDate / openedAt).",
+            "photo" or "image" => "A vivid image prompt that an image model can render. Describe lighting, composition, framing, mood, and any visible details that match the asset's role in the case. Avoid abstractions.",
+            "audio" or "video" => "A descriptive note + (optional) a short transcript/scene description. The runtime will store this as the asset's sidecar.",
+            "digital" => "A description of the contents the detective would see when triaging this digital artefact (call logs, file listings, app activity).",
+            _ => "A short note describing what's in this asset."
+        };
+
+        var system = $@"You are writing the **detail card** for ONE evidence asset.
+Echo the supplied id and type exactly.
+
+Produce:
+- `description`: 1-3 sentence summary visible in the case-file listing.
+- `category`: short label (Document / Digital / Physical / Biological / Communication).
+- `visibility`: `initial` (this stage only emits initial-visibility assets).
+- `body`: {bodyGuidance}
+
+Keep continuity with the supplied case draft (suspects, motives, alibis, location, incidentDate, openedAt).";
+
         var user = $@"CASE DRAFT (read-only):
 {draft.ToSummaryJson()}
 

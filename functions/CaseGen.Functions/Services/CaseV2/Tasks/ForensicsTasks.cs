@@ -84,7 +84,7 @@ public class ForensicOutcomeTask
       "type":"object","required":["conclusionText","resultAsset","resultEmail"],
       "properties":{
         "conclusionText":{"type":"string"},
-        "resultAsset":{"type":["object","null"],"properties":{"id":{"type":"string","pattern":"^asset\\.report_[a-z0-9_]+$"},"type":{"type":"string","enum":["pdf","document"]},"title":{"type":"string"},"description":{"type":"string"},"visibility":{"type":"string","enum":["hidden"]}}},
+        "resultAsset":{"type":["object","null"],"properties":{"id":{"type":"string","pattern":"^asset\\.report_[a-z0-9_]+$"},"type":{"type":"string","enum":["pdf","document"]},"title":{"type":"string"},"description":{"type":"string"},"body":{"type":"string"},"visibility":{"type":"string","enum":["hidden"]}}},
         "resultEmail":{"type":["object","null"],"properties":{"id":{"type":"string","pattern":"^email\\.lab_[a-z0-9_]+$"},"from":{"type":"string"},"subject":{"type":"string"},"body":{"type":"string"},"sentAt":{"type":"string"},"visibility":{"type":"string","enum":["hidden"]}}}
       }
     }
@@ -93,10 +93,14 @@ public class ForensicOutcomeTask
     public async Task<(ForensicsOutcome full, EvidenceAsset? asset, EvidenceEmail? email)> RunAsync(CaseDraft draft, ForensicOutcomeStub stub, CancellationToken ct)
     {
         var system = @"You are writing the **detailed forensic outcome** for ONE (inputAssetId × analysisType) pair.
+
 Produce:
 - `conclusionText`: 1-3 sentence neutral lab conclusion. If `findings == false`, keep it dry (no actionable lead).
-- `resultAsset`: ONLY if `findings == true`. A hidden PDF report (`asset.report_<slug>`).
-- `resultEmail`: ONLY if `findings == true`. A hidden email from the lab (`email.lab_<slug>`). Body is 3-5 paragraph markdown with key findings.
+- `resultAsset` (ONLY if `findings == true`): a hidden PDF report (`asset.report_<slug>`). MUST include:
+    * `title` — official short report name
+    * `description` — 1-2 sentence summary visible in case-file listing
+    * `body` — markdown long-form (8-20 paragraphs) that a PDF renderer will use. Include sections: Chain of Custody, Methodology, Findings, Conclusion. Dates and times MUST align with the case's `incidentDate`/`openedAt`.
+- `resultEmail` (ONLY if `findings == true`): a hidden email from the lab (`email.lab_<slug>`). Body is 3-5 paragraph markdown summarising the report.
 If `findings == false`, set `resultAsset` and `resultEmail` to null.";
         var user = $@"CASE DRAFT (read-only):
 {draft.ToSummaryJson()}

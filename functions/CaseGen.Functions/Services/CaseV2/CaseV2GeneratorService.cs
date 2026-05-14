@@ -32,13 +32,15 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
     private readonly ILLMProvider _llm;
     private readonly IConfiguration _config;
+    private readonly IAssetRenderingService _renderer;
     private readonly ILogger<CaseV2GeneratorService> _logger;
     private readonly JSchema _v2Schema;
 
-    public CaseV2GeneratorService(ILLMProvider llm, IConfiguration config, ILogger<CaseV2GeneratorService> logger)
+    public CaseV2GeneratorService(ILLMProvider llm, IConfiguration config, IAssetRenderingService renderer, ILogger<CaseV2GeneratorService> logger)
     {
         _llm = llm;
         _config = config;
+        _renderer = renderer;
         _logger = logger;
 
         var schemaPath = ResolveSchemaPath();
@@ -135,10 +137,22 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         var errors = Validate(json);
 
         var outputPath = string.Empty;
+        AssetRenderingReport? renderingReport = null;
         if (errors.Count == 0 && request.WriteToDisk)
+        {
             outputPath = WriteToDisk(draft.CaseId, json);
+            // Materialise PDFs / images / sidecars next to case.json
+            await TimeStage("renderAssets", stageMs, async () =>
+            {
+                var basePath = ResolveCasesBasePath();
+                var allAssets = draft.AssetFull.Concat(draft.ResultAssets).ToList();
+                renderingReport = await _renderer.RenderAllAsync(draft.CaseId, basePath, allAssets, ct);
+            });
+        }
         else if (errors.Count > 0)
+        {
             _logger.LogWarning("Case {CaseId} failed schema validation: {Errors}", draft.CaseId, string.Join("; ", errors));
+        }
 
         return new GenerateCaseV2Response
         {
@@ -146,7 +160,11 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             OutputPath = outputPath,
             CaseJson = json,
             ValidationErrors = errors,
-            StageLatencyMs = stageMs
+            StageLatencyMs = stageMs,
+            AssetsRenderedPdfs = renderingReport?.PdfsWritten ?? 0,
+            AssetsRenderedImages = renderingReport?.ImagesWritten ?? 0,
+            AssetsSkipped = renderingReport?.Skipped ?? 0,
+            AssetRenderingErrors = renderingReport?.Errors ?? new()
         };
     }
 

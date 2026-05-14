@@ -61,8 +61,9 @@ builder.Services
     .AddScoped<IPrecisionEditor, PrecisionEditor>()
     .AddScoped<ILLMService, LLMService>()
     .AddSingleton<IRedTeamCacheService, RedTeamCacheService>()
-    // v2 case generator (5-stage pipeline)
+    // v2 case generator (micro-task pipeline + PDF/image rendering)
     .AddScoped<ICaseV2GeneratorService, CaseV2GeneratorService>()
+    .AddScoped<IAssetRenderingService, AssetRenderingService>()
     // Configure Context Manager for granular context storage
     .AddSingleton<IContextManager>(serviceProvider =>
     {
