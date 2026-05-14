@@ -17,7 +17,7 @@ namespace CaseZeroApi.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<EmailsController> _logger;
-        private readonly ICaseV1StorageService _caseStorageService;
+        private readonly ICaseV2StorageService _caseStorageService;
         private readonly BlobServiceClient _blobServiceClient;
         private readonly IConfiguration _configuration;
         private readonly IAuditLogService _auditLogService; // P86
@@ -26,7 +26,7 @@ namespace CaseZeroApi.Controllers
         public EmailsController(
             ApplicationDbContext context,
             ILogger<EmailsController> logger,
-            ICaseV1StorageService caseStorageService,
+            ICaseV2StorageService caseStorageService,
             IConfiguration configuration,
             IAuditLogService auditLogService, // P86
             IVisibilityService visibilityService) // Asset unlock
@@ -101,8 +101,7 @@ namespace CaseZeroApi.Controllers
                 }
 
                 // 4. Carregar case.json para obter dados dos emails
-                // 🔒 IMPORTANT: Use GetCaseRawAsync to access all emails (visibility already filtered)
-                var caseData = await _caseStorageService.GetCaseRawAsync(caseId);
+                var caseData = await _caseStorageService.GetRawAsync(caseId);
                 if (caseData == null || caseData.Emails == null || !caseData.Emails.Any())
                 {
                     _logger.LogWarning("Case data or emails not found for case {CaseId}", caseId);
@@ -111,7 +110,7 @@ namespace CaseZeroApi.Controllers
 
                 // 5. Filtrar emails pelo IDs visíveis
                 var visibleEmails = caseData.Emails
-                    .Where(e => visibleEmailIds.Contains(e.EmailId))
+                    .Where(e => visibleEmailIds.Contains(e.Id))
                     .ToList();
 
                 // 6. Buscar estados dos emails (lidos, contagem de aberturas)
@@ -122,17 +121,17 @@ namespace CaseZeroApi.Controllers
                 // 7. Converter para DTOs
                 var emailDtos = visibleEmails.Select(email => new CaseEmailDto
                 {
-                    EmailId = email.EmailId,
+                    EmailId = email.Id,
                     From = email.From,
-                    To = email.To,
+                    To = email.To.FirstOrDefault() ?? string.Empty,
                     Subject = email.Subject,
                     SentAt = email.SentAt,
-                    Priority = email.Priority,
+                    Priority = email.Priority ?? string.Empty,
                     HasAttachments = email.Attachments?.Any() ?? false,
                     AttachmentCount = email.Attachments?.Count ?? 0,
-                    IsRead = emailStates.ContainsKey(email.EmailId) && emailStates[email.EmailId].ReadAt.HasValue,
-                    ReadAt = emailStates.ContainsKey(email.EmailId) ? emailStates[email.EmailId].ReadAt : null,
-                    OpenCount = emailStates.ContainsKey(email.EmailId) ? emailStates[email.EmailId].OpenCount : 0
+                    IsRead = emailStates.ContainsKey(email.Id) && emailStates[email.Id].ReadAt.HasValue,
+                    ReadAt = emailStates.ContainsKey(email.Id) ? emailStates[email.Id].ReadAt : null,
+                    OpenCount = emailStates.ContainsKey(email.Id) ? emailStates[email.Id].OpenCount : 0
                 }).ToList();
 
                 _logger.LogInformation("Returned {Count} visible emails for user {UserId} in case {CaseId}",
@@ -288,8 +287,7 @@ namespace CaseZeroApi.Controllers
                 }
 
                 // 3. Carregar case.json para obter email completo
-                // 🔒 IMPORTANT: Use GetCaseRawAsync to access email content (visibility already checked)
-                var caseData = await _caseStorageService.GetCaseRawAsync(caseId);
+                var caseData = await _caseStorageService.GetRawAsync(caseId);
                 if (caseData == null || caseData.Emails == null)
                 {
                     _logger.LogWarning("Case data or emails not found for case {CaseId}", caseId);
@@ -297,7 +295,7 @@ namespace CaseZeroApi.Controllers
                 }
 
                 // 4. Buscar email específico
-                var email = caseData.Emails.FirstOrDefault(e => e.EmailId == emailId);
+                var email = caseData.Emails.FirstOrDefault(e => e.Id == emailId);
                 if (email == null)
                 {
                     _logger.LogWarning("Email {EmailId} not found in case {CaseId}", emailId, caseId);
@@ -311,13 +309,13 @@ namespace CaseZeroApi.Controllers
                 // 6. Retornar email completo
                 var emailDetails = new
                 {
-                    emailId = email.EmailId,
+                    emailId = email.Id,
                     from = email.From,
                     to = email.To,
                     subject = email.Subject,
                     sentAt = email.SentAt,
                     priority = email.Priority,
-                    content = email.Content,
+                    content = email.Body,
                     attachments = email.Attachments ?? new List<string>(),
                     metadata = email.Metadata,
                     isRead = emailState?.ReadAt.HasValue ?? false,
@@ -380,15 +378,14 @@ namespace CaseZeroApi.Controllers
                 }
 
                 // 3. Carregar email para verificar se assetId está nos attachments
-                // 🔒 IMPORTANT: Use GetCaseRawAsync to access hidden emails (visibility already checked above)
-                var caseData = await _caseStorageService.GetCaseRawAsync(caseId);
+                var caseData = await _caseStorageService.GetRawAsync(caseId);
                 if (caseData == null || caseData.Emails == null)
                 {
                     _logger.LogWarning("Case data not found for case {CaseId}", caseId);
                     return NotFound(new { message = "Case not found" });
                 }
 
-                var email = caseData.Emails.FirstOrDefault(e => e.EmailId == emailId);
+                var email = caseData.Emails.FirstOrDefault(e => e.Id == emailId);
                 if (email == null)
                 {
                     _logger.LogWarning("Email {EmailId} not found in case {CaseId}", emailId, caseId);
@@ -403,26 +400,21 @@ namespace CaseZeroApi.Controllers
                     return BadRequest(new { message = "Asset is not an attachment of this email" });
                 }
 
-                // 5. Buscar metadata do asset para obter filePath correto
-                var asset = caseData.Assets?.FirstOrDefault(a => a.AssetId == assetId);
+                // 5. Buscar metadata do asset para obter URI correto
+                var asset = caseData.Assets?.FirstOrDefault(a => a.Id == assetId);
                 if (asset == null)
                 {
                     _logger.LogWarning("Asset {AssetId} metadata not found in case {CaseId}", assetId, caseId);
                     return NotFound(new { message = "Asset metadata not found" });
                 }
 
-                // 6. Download do blob usando filePath do asset
+                // 6. Download do blob usando URI do asset
                 var containerName = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
                 var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
                 
-                // Extract blob path from filePath
-                // filePath format: "/cases/case_001/assets/briefing.pdf"
-                // Need: "case_001/assets/briefing.pdf"
-                var blobPath = asset.FilePath.TrimStart('/');
-                if (blobPath.StartsWith("cases/"))
-                {
-                    blobPath = blobPath.Substring("cases/".Length);
-                }
+                // Parse case:// URI to blob path
+                var relativePath = CaseV2StorageService.ParseCaseUri(asset.Uri, caseId) ?? assetId;
+                var blobPath = $"{caseId}/{relativePath}";
                 
                 var blobClient = containerClient.GetBlobClient(blobPath);
 

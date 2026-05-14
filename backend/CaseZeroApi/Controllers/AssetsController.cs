@@ -21,7 +21,7 @@ namespace CaseZeroApi.Controllers
         private readonly BlobServiceClient _blobServiceClient;
         private readonly IConfiguration _configuration;
         private readonly IAuditLogService _auditLogService; // P86
-        private readonly ICaseV1StorageService _caseStorageService; // P87
+        private readonly ICaseV2StorageService _caseStorageService; // v2
 
         public AssetsController(
             ApplicationDbContext context, 
@@ -29,7 +29,7 @@ namespace CaseZeroApi.Controllers
             IBlobStorageService blobStorageService,
             IConfiguration configuration,
             IAuditLogService auditLogService, // P86
-            ICaseV1StorageService caseStorageService) // P87
+            ICaseV2StorageService caseStorageService) // v2
         {
             _context = context;
             _logger = logger;
@@ -100,26 +100,28 @@ namespace CaseZeroApi.Controllers
                 }
 
                 // 4. Enriquecer metadata dos assets com dados do case.json
-                // Use GetCaseRawAsync to get ALL assets (including hidden ones)
-                var caseData = await _caseStorageService.GetCaseRawAsync(caseId);
+                // Use GetRawAsync to get ALL assets (including hidden ones)
+                var caseData = await _caseStorageService.GetRawAsync(caseId);
                 _logger.LogInformation("DEBUG: CaseData is null? {IsNull}, Assets count: {Count}", 
                     caseData == null, caseData?.Assets?.Count ?? 0);
                 
                 var assets = visibleAssetIds.Select(assetId =>
                 {
-                    var assetMetadata = caseData?.Assets?.FirstOrDefault(a => a.AssetId == assetId);
-                    _logger.LogInformation("DEBUG: Asset {AssetId} - Found metadata? {Found}, FilePath: {FilePath}", 
-                        assetId, assetMetadata != null, assetMetadata?.FilePath ?? "null");
+                    var assetMetadata = caseData?.Assets?.FirstOrDefault(a => a.Id == assetId);
+                    _logger.LogInformation("DEBUG: Asset {AssetId} - Found metadata? {Found}, Uri: {Uri}", 
+                        assetId, assetMetadata != null, assetMetadata?.Uri ?? "null");
                     
                     return new AssetDto
                     {
                         Id = assetId,
                         CaseId = caseId,
-                        Name = assetMetadata?.Name ?? assetId,
+                        Name = assetMetadata?.Title ?? assetId,
                         Type = assetMetadata?.Type ?? "file",
-                        FilePath = assetMetadata?.FilePath,
+                        FilePath = assetMetadata?.Uri,
                         IsVisible = true,
-                        Metadata = assetMetadata?.Metadata
+                        Metadata = assetMetadata?.Metadata?.ToDictionary(
+                            kv => kv.Key,
+                            kv => (object)kv.Value)
                     };
                 }).ToList();
 
@@ -200,8 +202,8 @@ namespace CaseZeroApi.Controllers
                 }
 
                 // P87: Buscar metadata do asset (incluindo checksum) do case.json
-                var caseData = await _caseStorageService.GetCaseAsync(caseId);
-                var assetMetadata = caseData?.Assets?.FirstOrDefault(a => a.AssetId == assetId);
+                var caseData = await _caseStorageService.GetRawAsync(caseId);
+                var assetMetadata = caseData?.Assets?.FirstOrDefault(a => a.Id == assetId);
 
                 // 4. Stream do arquivo e validação de checksum (P87)
                 var download = await blobClient.DownloadStreamingAsync();

@@ -30,6 +30,12 @@ public interface IRulesEngineService
     /// Task 42: Generate fallback "no findings" email when no rule matches
     /// </summary>
     Task<string> GenerateNoFindingsEmailAsync(string caseId, string userId, string inputAssetId, string analysisType);
+
+    /// <summary>
+    /// v2: evaluate any trigger and apply matching rules' actions to the user's session.
+    /// Idempotent per (ruleId, sessionId). See docs/CASE_JSON_V2_SPEC.md §15.
+    /// </summary>
+    Task EvaluateAndApplyAsync(string caseId, string userId, RuleTrigger trigger, CancellationToken ct = default);
 }
 
 /// <summary>
