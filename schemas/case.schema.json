@@ -1,9 +1,10 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://casezero.dev/schemas/case.v1.schema.json",
-  "title": "CaseZero Case v1.0 Schema",
-  "description": "Schema de validação para arquivos case.json v1.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://casezero.dev/schemas/case.v2.schema.json",
+  "title": "CaseZero Case v2.0 Schema",
+  "description": "Canonical schema for case.json v2 — single source of truth for the site (frontend + CaseZeroApi). See docs/CASE_JSON_V2_SPEC.md.",
   "type": "object",
+  "additionalProperties": false,
   "required": [
     "version",
     "caseId",
@@ -12,388 +13,218 @@
     "emails",
     "suspects",
     "rules",
-    "forensicsDefaults"
+    "forensicsDefaults",
+    "forensicOutcomes",
+    "solution",
+    "gameMetadata"
   ],
   "properties": {
-    "version": {
-      "type": "string",
-      "const": "1.0",
-      "description": "Versão do schema (sempre '1.0')"
-    },
+    "version": { "const": "2.0" },
     "caseId": {
       "type": "string",
-      "pattern": "^case_[a-z0-9_]+$",
-      "description": "ID único do caso (formato: case_nnn)"
+      "pattern": "^case_[a-z0-9_]+$"
     },
-    "metadata": {
-      "$ref": "#/definitions/Metadata"
-    },
+    "metadata": { "$ref": "#/$defs/Metadata" },
     "assets": {
       "type": "array",
       "minItems": 1,
-      "items": {
-        "$ref": "#/definitions/Asset"
-      },
-      "description": "Lista de assets (evidências, documentos, mídia)"
+      "items": { "$ref": "#/$defs/Asset" }
     },
     "emails": {
       "type": "array",
       "minItems": 1,
-      "items": {
-        "$ref": "#/definitions/Email"
-      },
-      "description": "Lista de emails"
+      "items": { "$ref": "#/$defs/Email" }
     },
     "suspects": {
       "type": "array",
       "minItems": 1,
-      "items": {
-        "$ref": "#/definitions/Suspect"
-      },
-      "description": "Lista de suspeitos"
+      "items": { "$ref": "#/$defs/Suspect" }
+    },
+    "timeline": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/TimelineEntry" }
+    },
+    "temporalEvents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/TemporalEvent" }
     },
     "rules": {
       "type": "array",
-      "items": {
-        "$ref": "#/definitions/Rule"
-      },
-      "description": "Regras de progressão (server-side APENAS)"
+      "items": { "$ref": "#/$defs/Rule" }
     },
-    "forensicsDefaults": {
-      "$ref": "#/definitions/ForensicsDefaults"
-    }
+    "forensicsDefaults": { "$ref": "#/$defs/ForensicsDefaults" },
+    "forensicOutcomes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ForensicOutcome" }
+    },
+    "solution": { "$ref": "#/$defs/Solution" },
+    "gameMetadata": { "$ref": "#/$defs/GameMetadata" }
   },
-  "additionalProperties": false,
-  "definitions": {
+  "$defs": {
+    "Difficulty": {
+      "type": "string",
+      "enum": ["Rookie", "Detective", "Detective2", "Sergeant", "Lieutenant", "Captain", "Commander"]
+    },
+    "Rank": { "$ref": "#/$defs/Difficulty" },
+    "Visibility": {
+      "type": "string",
+      "enum": ["initial", "hidden"]
+    },
+    "AssetIdRef": {
+      "type": "string",
+      "pattern": "^asset\\.[a-z0-9_]+$"
+    },
+    "EmailIdRef": {
+      "type": "string",
+      "pattern": "^email\\.[a-z0-9_]+$"
+    },
+    "SuspectIdRef": {
+      "type": "string",
+      "pattern": "^suspect\\.[a-z0-9_]+$"
+    },
     "Metadata": {
       "type": "object",
-      "required": [
-        "title",
-        "description",
-        "difficulty",
-        "estimatedTimeMinutes",
-        "requiredRank",
-        "location",
-        "incidentDate",
-        "category",
-        "briefing"
-      ],
+      "additionalProperties": false,
+      "required": ["title", "description", "location", "incidentDate", "openedAt", "difficulty", "requiredRank"],
       "properties": {
-        "title": {
-          "type": "string",
-          "minLength": 5,
-          "maxLength": 100,
-          "description": "Título do caso"
-        },
-        "description": {
-          "type": "string",
-          "minLength": 20,
-          "maxLength": 500,
-          "description": "Descrição curta do caso"
-        },
-        "difficulty": {
-          "type": "string",
-          "enum": ["Rookie", "Intermediate", "Advanced", "Expert"],
-          "description": "Nível de dificuldade"
-        },
-        "estimatedTimeMinutes": {
-          "type": "integer",
-          "minimum": 30,
-          "maximum": 240,
-          "description": "Tempo estimado em minutos reais"
-        },
-        "requiredRank": {
-          "type": "string",
-          "enum": [
-            "Cadet",
-            "Officer",
-            "Detective",
-            "Sergeant",
-            "Lieutenant",
-            "Captain",
-            "Chief"
-          ],
-          "description": "Rank mínimo necessário"
-        },
-        "location": {
-          "type": "string",
-          "description": "Cidade/estado do caso"
-        },
-        "incidentDate": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Data/hora do incidente (ISO 8601)"
-        },
-        "category": {
-          "type": "string",
-          "enum": ["Murder", "Theft", "Missing Person", "Fraud", "Assault"],
-          "description": "Categoria do crime"
-        },
-        "briefing": {
-          "type": "string",
-          "minLength": 200,
-          "maxLength": 2000,
-          "description": "Texto do briefing inicial"
-        },
+        "title": { "type": "string", "minLength": 3 },
+        "description": { "type": "string", "minLength": 10 },
+        "location": { "type": "string" },
+        "incidentDate": { "type": "string", "format": "date-time" },
+        "openedAt": { "type": "string", "format": "date-time" },
+        "difficulty": { "$ref": "#/$defs/Difficulty" },
+        "requiredRank": { "$ref": "#/$defs/Rank" },
+        "unlockMode": { "type": "string", "enum": ["gated", "all_initial"] },
+        "estimatedDurationMinutes": { "type": "integer", "minimum": 5, "maximum": 600 },
+        "category": { "type": "string" },
+        "briefing": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
         "victim": {
           "type": "object",
+          "additionalProperties": true,
           "properties": {
-            "name": {
-              "type": "string"
-            },
-            "age": {
-              "type": "integer",
-              "minimum": 0
-            },
-            "occupation": {
-              "type": "string"
-            },
-            "lastSeen": {
-              "type": "string",
-              "format": "date-time"
-            }
-          },
-          "required": ["name", "age"]
+            "name": { "type": "string" },
+            "age": { "type": "integer", "minimum": 0 },
+            "occupation": { "type": "string" },
+            "lastSeen": { "type": "string", "format": "date-time" }
+          }
         }
-      },
-      "additionalProperties": false
+      }
     },
     "Asset": {
       "type": "object",
-      "required": [
-        "assetId",
-        "name",
-        "type",
-        "category",
-        "description",
-        "filePath",
-        "visibility"
-      ],
+      "additionalProperties": false,
+      "required": ["id", "type", "title", "uri", "visibility"],
       "properties": {
-        "assetId": {
-          "type": "string",
-          "pattern": "^asset\\.[a-z0-9_]+$",
-          "description": "ID único do asset (formato: asset.nome_descritivo)"
-        },
-        "name": {
-          "type": "string",
-          "minLength": 3,
-          "maxLength": 100,
-          "description": "Nome amigável do asset"
-        },
-        "type": {
-          "type": "string",
-          "enum": ["document", "image", "video", "audio", "physical", "digital"],
-          "description": "Tipo de asset"
-        },
-        "category": {
-          "type": "string",
-          "enum": [
-            "Document",
-            "Digital",
-            "Physical",
-            "Biological",
-            "Communication",
-            "Technical"
-          ],
-          "description": "Categoria do asset"
-        },
-        "description": {
-          "type": "string",
-          "minLength": 10,
-          "maxLength": 500,
-          "description": "Descrição detalhada"
-        },
-        "filePath": {
-          "type": "string",
-          "pattern": "^/cases/[a-z0-9_]+/assets/[a-zA-Z0-9_\\-\\.]+$",
-          "description": "Caminho relativo no Blob Storage"
-        },
-        "visibility": {
-          "type": "string",
-          "enum": ["initial", "hidden"],
-          "description": "Visibilidade inicial do asset"
-        },
-        "checksum": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$",
-          "description": "SHA256 checksum do arquivo (opcional, para validação de integridade)"
-        },
-        "metadata": {
-          "type": "object",
-          "description": "Metadados específicos do tipo"
-        }
-      },
-      "additionalProperties": false
+        "id": { "$ref": "#/$defs/AssetIdRef" },
+        "type": { "type": "string", "enum": ["photo", "pdf", "audio", "video", "document", "image", "digital", "physical"] },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "uri": { "type": "string", "minLength": 1 },
+        "checksum": { "type": "string", "pattern": "^(sha256:)?[a-f0-9]{64}$" },
+        "visibility": { "$ref": "#/$defs/Visibility" },
+        "category": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "metadata": { "type": "object", "additionalProperties": true }
+      }
     },
     "Email": {
       "type": "object",
-      "required": [
-        "emailId",
-        "from",
-        "to",
-        "subject",
-        "sentAt",
-        "priority",
-        "visibility",
-        "content"
-      ],
+      "additionalProperties": false,
+      "required": ["id", "from", "to", "subject", "body", "sentAt", "visibility"],
       "properties": {
-        "emailId": {
-          "type": "string",
-          "pattern": "^email\\.[a-z0-9_]+$",
-          "description": "ID único do email (formato: email.nome_descritivo)"
-        },
-        "from": {
-          "type": "string",
-          "pattern": "^.+ <[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}>$",
-          "description": "Remetente (formato: Nome <email@domain>)"
-        },
+        "id": { "$ref": "#/$defs/EmailIdRef" },
+        "from": { "type": "string", "minLength": 1 },
         "to": {
-          "type": "string",
-          "pattern": "^.+ <[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}>$",
-          "description": "Destinatário (formato: Nome <email@domain>)"
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+          ]
         },
-        "subject": {
-          "type": "string",
-          "minLength": 5,
-          "maxLength": 200,
-          "description": "Assunto do email"
-        },
-        "sentAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Timestamp ISO 8601"
-        },
-        "priority": {
-          "type": "string",
-          "enum": ["normal", "high", "urgent"],
-          "description": "Prioridade do email"
-        },
-        "visibility": {
-          "type": "string",
-          "enum": ["initial", "hidden"],
-          "description": "Visibilidade inicial do email"
-        },
-        "content": {
-          "type": "string",
-          "minLength": 50,
-          "maxLength": 5000,
-          "description": "Corpo do email"
-        },
+        "subject": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "priority": { "type": "string", "enum": ["normal", "high", "urgent"] },
+        "visibility": { "$ref": "#/$defs/Visibility" },
         "attachments": {
           "type": "array",
-          "items": {
-            "type": "string",
-            "pattern": "^asset\\.[a-z0-9_]+$"
-          },
-          "description": "Array de assetIds anexados"
+          "items": { "$ref": "#/$defs/AssetIdRef" }
         },
-        "metadata": {
-          "type": "object",
-          "description": "Metadados adicionais"
-        }
-      },
-      "additionalProperties": false
+        "metadata": { "type": "object", "additionalProperties": true }
+      }
     },
     "Suspect": {
       "type": "object",
-      "required": [
-        "suspectId",
-        "name",
-        "age",
-        "occupation",
-        "relationship",
-        "motive",
-        "alibi",
-        "alibiVerified",
-        "background",
-        "visibility"
-      ],
+      "additionalProperties": false,
+      "required": ["id", "name", "visibility"],
       "properties": {
-        "suspectId": {
-          "type": "string",
-          "pattern": "^suspect\\.[a-z0-9_]+$",
-          "description": "ID único do suspeito (formato: suspect.nome_completo)"
-        },
-        "name": {
-          "type": "string",
-          "minLength": 3,
-          "maxLength": 100,
-          "description": "Nome completo"
-        },
-        "age": {
-          "type": "integer",
-          "minimum": 10,
-          "maximum": 120,
-          "description": "Idade"
-        },
-        "occupation": {
-          "type": "string",
-          "description": "Profissão/ocupação"
-        },
-        "relationship": {
-          "type": "string",
-          "description": "Relação com vítima/caso"
-        },
-        "motive": {
-          "type": "string",
-          "description": "Possível motivo"
-        },
-        "alibi": {
-          "type": "string",
-          "description": "Álibi alegado"
-        },
-        "alibiVerified": {
-          "type": "boolean",
-          "description": "Se o álibi foi verificado"
-        },
-        "background": {
-          "type": "string",
-          "minLength": 100,
-          "maxLength": 2000,
-          "description": "Background detalhado"
-        },
-        "linkedAssets": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "pattern": "^asset\\.[a-z0-9_]+$"
-          },
-          "description": "Array de assetIds relacionados"
-        },
-        "visibility": {
-          "type": "string",
-          "enum": ["initial", "hidden"],
-          "description": "Visibilidade inicial do suspeito"
+        "id": { "$ref": "#/$defs/SuspectIdRef" },
+        "name": { "type": "string" },
+        "alias": { "type": "string" },
+        "age": { "type": "integer", "minimum": 0 },
+        "occupation": { "type": "string" },
+        "relationship": { "type": "string" },
+        "description": { "type": "string" },
+        "motive": { "type": "string" },
+        "alibi": { "type": "string" },
+        "alibiVerified": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["suspect", "cleared", "confirmed_culprit"] },
+        "background": { "type": "string" },
+        "relatedAssets": { "type": "array", "items": { "$ref": "#/$defs/AssetIdRef" } },
+        "photo": { "$ref": "#/$defs/AssetIdRef" },
+        "visibility": { "$ref": "#/$defs/Visibility" }
+      }
+    },
+    "TimelineEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["time", "event"],
+      "properties": {
+        "time": { "type": "string", "format": "date-time" },
+        "event": { "type": "string" },
+        "source": { "type": "string", "enum": ["investigation", "witness", "sensor", "forensic"] },
+        "sourceAssetId": { "$ref": "#/$defs/AssetIdRef" },
+        "verified": { "type": "boolean" },
+        "importance": { "type": "string", "enum": ["low", "medium", "high", "critical"] }
+      }
+    },
+    "TemporalEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "triggerAtMinutes", "type"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^tevt\\.[a-z0-9_]+$" },
+        "triggerAtMinutes": { "type": "integer", "minimum": 0 },
+        "type": { "type": "string", "enum": ["memo", "witness", "alert", "email"] },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "emailId": { "$ref": "#/$defs/EmailIdRef" },
+            "assetId": { "$ref": "#/$defs/AssetIdRef" },
+            "message": { "type": "string" }
+          }
         }
-      },
-      "additionalProperties": false
+      }
     },
     "Rule": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["ruleId", "trigger", "actions"],
       "properties": {
-        "ruleId": {
-          "type": "string",
-          "pattern": "^rule\\.[a-z0-9_]+$",
-          "description": "ID único da regra (formato: rule.nome_descritivo)"
-        },
-        "trigger": {
-          "$ref": "#/definitions/Trigger"
-        },
+        "ruleId": { "type": "string", "pattern": "^rule\\.[a-z0-9_]+$" },
+        "description": { "type": "string" },
+        "trigger": { "$ref": "#/$defs/Trigger" },
         "actions": {
           "type": "array",
           "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/Action"
-          }
+          "items": { "$ref": "#/$defs/Action" }
         }
-      },
-      "additionalProperties": false
+      }
     },
     "Trigger": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["type"],
       "properties": {
         "type": {
@@ -403,33 +234,27 @@
             "attachment_download",
             "asset_viewed",
             "email_opened",
-            "time_elapsed"
+            "time_elapsed",
+            "suspect_viewed",
+            "multiple_conditions"
           ]
         },
-        "inputAssetId": {
-          "type": "string",
-          "pattern": "^asset\\.[a-z0-9_]+$"
-        },
-        "analysisType": {
-          "type": "string"
-        },
-        "emailId": {
-          "type": "string",
-          "pattern": "^email\\.[a-z0-9_]+$"
-        },
-        "assetId": {
-          "type": "string",
-          "pattern": "^asset\\.[a-z0-9_]+$"
-        },
-        "gameTimeMinutes": {
-          "type": "integer",
-          "minimum": 0
+        "inputAssetId": { "$ref": "#/$defs/AssetIdRef" },
+        "analysisType": { "type": "string" },
+        "emailId": { "$ref": "#/$defs/EmailIdRef" },
+        "assetId": { "$ref": "#/$defs/AssetIdRef" },
+        "suspectId": { "$ref": "#/$defs/SuspectIdRef" },
+        "atMinutes": { "type": "integer", "minimum": 0 },
+        "operator": { "type": "string", "enum": ["AND", "OR"] },
+        "conditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Trigger" }
         }
-      },
-      "additionalProperties": false
+      }
     },
     "Action": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["type"],
       "properties": {
         "type": {
@@ -438,91 +263,152 @@
             "reveal_email",
             "reveal_asset",
             "reveal_suspect",
-            "send_notification"
+            "add_email_attachment",
+            "send_notification",
+            "update_suspect_status",
+            "mark_alibi_verified"
           ]
         },
-        "emailId": {
-          "type": "string",
-          "pattern": "^email\\.[a-z0-9_]+$"
-        },
-        "assetId": {
-          "type": "string",
-          "pattern": "^asset\\.[a-z0-9_]+$"
-        },
-        "suspectId": {
-          "type": "string",
-          "pattern": "^suspect\\.[a-z0-9_]+$"
-        },
-        "message": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
+        "emailId": { "$ref": "#/$defs/EmailIdRef" },
+        "assetId": { "$ref": "#/$defs/AssetIdRef" },
+        "suspectId": { "$ref": "#/$defs/SuspectIdRef" },
+        "level": { "type": "string", "enum": ["info", "warn", "critical"] },
+        "message": { "type": "string" },
+        "status": { "type": "string", "enum": ["suspect", "cleared", "confirmed_culprit"] },
+        "verified": { "type": "boolean" }
+      }
     },
     "ForensicsDefaults": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["analysisTypes", "noFindingsEmail"],
       "properties": {
         "analysisTypes": {
           "type": "array",
           "minItems": 1,
-          "items": {
-            "$ref": "#/definitions/AnalysisType"
-          }
+          "items": { "$ref": "#/$defs/AnalysisType" }
         },
         "noFindingsEmail": {
           "type": "object",
+          "additionalProperties": false,
           "required": ["template", "from", "subject"],
           "properties": {
-            "template": {
-              "type": "string",
-              "description": "Template do email de 'sem achados' (pode usar {{assetName}})"
-            },
-            "from": {
-              "type": "string",
-              "pattern": "^.+ <[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}>$"
-            },
-            "subject": {
-              "type": "string"
-            }
+            "template": { "type": "string" },
+            "from": { "type": "string" },
+            "subject": { "type": "string" }
           }
         }
-      },
-      "additionalProperties": false
+      }
     },
     "AnalysisType": {
       "type": "object",
+      "additionalProperties": false,
       "required": ["type", "durationMinutes", "availableFor"],
       "properties": {
-        "type": {
-          "type": "string",
-          "enum": [
-            "DNA",
-            "Fingerprint",
-            "DigitalForensics",
-            "Ballistics",
-            "Toxicology",
-            "HandwritingAnalysis",
-            "VoiceAnalysis",
-            "Trace"
-          ]
-        },
-        "durationMinutes": {
-          "type": "integer",
-          "minimum": 60,
-          "maximum": 720,
-          "description": "Duração da análise em minutos de jogo"
-        },
+        "type": { "type": "string" },
+        "durationMinutes": { "type": "integer", "minimum": 1 },
         "availableFor": {
           "type": "array",
           "minItems": 1,
-          "items": {
-            "type": "string"
-          },
-          "description": "Lista de tipos de assets compatíveis"
+          "items": { "type": "string" }
         }
-      },
-      "additionalProperties": false
+      }
+    },
+    "ForensicOutcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inputAssetId", "analysisType", "findings"],
+      "properties": {
+        "inputAssetId": { "$ref": "#/$defs/AssetIdRef" },
+        "analysisType": { "type": "string" },
+        "findings": { "type": "boolean" },
+        "matchedSuspectId": { "$ref": "#/$defs/SuspectIdRef" },
+        "matchedAssetId": { "$ref": "#/$defs/AssetIdRef" },
+        "conclusionText": { "type": "string" },
+        "resultAssetId": { "$ref": "#/$defs/AssetIdRef" },
+        "resultEmailId": { "$ref": "#/$defs/EmailIdRef" }
+      }
+    },
+    "Solution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["culpritId", "requiredEvidenceIds", "requiredAnalysisIds", "questions", "minimumScore", "maxAttempts", "partialCreditRules"],
+      "properties": {
+        "culpritId": { "$ref": "#/$defs/SuspectIdRef" },
+        "requiredEvidenceIds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/AssetIdRef" }
+        },
+        "requiredAnalysisIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^asset\\.[a-z0-9_]+:[A-Za-z0-9_]+$" }
+        },
+        "questions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Question" }
+        },
+        "explanation": { "type": "string" },
+        "minimumScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "maxAttempts": { "type": "integer", "minimum": 1 },
+        "partialCreditRules": { "$ref": "#/$defs/PartialCreditRules" }
+      }
+    },
+    "Question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "prompt", "options", "correctOptionId"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^q\\.[a-z0-9_]+$" },
+        "prompt": { "type": "string" },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^opt\\.[a-z0-9_]+$" },
+              "label": { "type": "string" }
+            }
+          }
+        },
+        "correctOptionId": { "type": "string", "pattern": "^opt\\.[a-z0-9_]+$" },
+        "weight": { "type": "number", "minimum": 0 }
+      }
+    },
+    "PartialCreditRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["culpritWeight", "evidenceWeight", "analysisWeight", "questionsWeight"],
+      "properties": {
+        "culpritWeight": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidenceWeight": { "type": "number", "minimum": 0, "maximum": 1 },
+        "analysisWeight": { "type": "number", "minimum": 0, "maximum": 1 },
+        "questionsWeight": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "GameMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "createdAt"],
+      "properties": {
+        "schemaVersion": { "const": "2.0" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "contentWarnings": { "type": "array", "items": { "type": "string" } },
+        "localizations": { "type": "array", "items": { "type": "string" } },
+        "generation": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "pipelineVersion": { "type": "string" },
+            "model": { "type": "string" },
+            "seed": { "type": "integer" },
+            "bundleChecksum": { "type": "string" }
+          }
+        }
+      }
     }
   }
 }

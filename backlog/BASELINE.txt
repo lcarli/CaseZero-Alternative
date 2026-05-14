@@ -1,0 +1,9 @@
+Backend build: OK (2 pre-existing warnings)
+  - DevCasesController.cs(98,31) CS8619 nullability mismatch
+  - AuthController.cs(261,36) CS1998 async without await
+
+Backend tests: 22 passed, 1 FAILED (PromptLibrary_GeneratesCompletePrompts) — this file is deleted in Phase 2.
+
+Frontend build: FAILED (2 pre-existing TS errors)
+  - src/components/apps/FileViewer.tsx(76,78): TS6133 'onRefresh' declared but never read
+  - src/components/ui/LoadingComponents.tsx(181,20): TS2551 'loading' should be '$loading'
