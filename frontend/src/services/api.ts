@@ -328,8 +328,6 @@ export const caseObjectApi = {
 }
 
 // Cases V1 API - for case.json v1.0 cases from Azure Blob Storage
-import type { CaseV1 } from '../types/caseV1'
-
 export const casesV1Api = {
   listCases: async (): Promise<Array<{
     caseId: string
@@ -342,11 +340,11 @@ export const casesV1Api = {
     return apiFetch('/cases/v1')
   },
 
-  getCase: async (caseId: string): Promise<CaseV1> => {
+  getCase: async (caseId: string): Promise<unknown> => {
     return apiFetch(`/cases/v1/${caseId}`)
   },
 
-  getCaseRaw: async (caseId: string): Promise<CaseV1> => {
+  getCaseRaw: async (caseId: string): Promise<unknown> => {
     return apiFetch(`/cases/v1/${caseId}/raw`)
   },
 
@@ -763,6 +761,49 @@ export const forensicsApi = {
       body: JSON.stringify({ caseId, inputAssetId, analysisType })
     })
   }
+}
+
+// ── V2 Cases API ─────────────────────────────────────────────────────────────
+import type { CaseV2Sanitized, SubmitCaseRequest, SubmitCaseResult, CaseDashboardItem } from '../types/caseV2'
+
+export const casesV2Api = {
+  getDashboard: async (): Promise<{ cases: CaseDashboardItem[] }> =>
+    apiFetch('/cases/dashboard'),
+
+  getCase: async (caseId: string): Promise<CaseV2Sanitized> =>
+    apiFetch(`/cases/${caseId}`),
+
+  viewAsset: async (caseId: string, assetId: string): Promise<void> =>
+    apiFetch(`/cases/${caseId}/assets/${assetId}/view`, { method: 'POST' }),
+
+  openEmail: async (caseId: string, emailId: string): Promise<void> =>
+    apiFetch(`/cases/${caseId}/emails/${emailId}/open`, { method: 'POST' }),
+
+  viewSuspect: async (caseId: string, suspectId: string): Promise<void> =>
+    apiFetch(`/cases/${caseId}/suspects/${suspectId}/view`, { method: 'POST' }),
+
+  downloadAttachment: async (caseId: string, emailId: string, assetId: string): Promise<Blob> => {
+    const url = `${API_BASE_URL}/cases/${caseId}/emails/${emailId}/attachments/${assetId}/download`
+    const token = tokenStorage.get()
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    if (!response.ok) throw new ApiError(response.status, 'Failed to download attachment')
+    return response.blob()
+  },
+
+  submitCase: async (caseId: string, payload: SubmitCaseRequest): Promise<SubmitCaseResult> =>
+    apiFetch(`/cases/${caseId}/submit`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+
+  postGameTime: async (caseId: string, gameTimeMinutes: number): Promise<void> =>
+    apiFetch(`/cases/${caseId}/time`, {
+      method: 'POST',
+      body: JSON.stringify({ gameTimeMinutes })
+    }),
 }
 
 export { ApiError }

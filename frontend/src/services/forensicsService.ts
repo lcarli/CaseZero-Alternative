@@ -1,5 +1,22 @@
-import type { ForensicRequest, ForensicAnalysisType } from '../types/case'
 import { forensicRequestApi, type ForensicRequestDTO } from './api'
+
+export type ForensicAnalysisType = 'DNA' | 'Fingerprint' | 'DigitalForensics' | 'Ballistics'
+
+export type ForensicRequestStatus = 'pending' | 'in-progress' | 'completed' | 'cancelled'
+
+export interface ForensicRequest {
+  id: string
+  caseId: string
+  evidenceId: string
+  evidenceName: string
+  analysisType: ForensicAnalysisType
+  requestedAt: Date
+  estimatedCompletionTime: Date
+  completedAt?: Date
+  status: ForensicRequestStatus
+  resultDocumentId?: string
+  notes?: string
+}
 
 /**
  * Forensic analysis durations in game time (minutes)
@@ -56,7 +73,7 @@ function dtoToForensicRequest(dto: ForensicRequestDTO): ForensicRequest {
     requestedAt: new Date(dto.requestedAt),
     estimatedCompletionTime: new Date(dto.estimatedCompletionTime),
     completedAt: dto.completedAt ? new Date(dto.completedAt) : undefined,
-    status: dto.status as any,
+    status: dto.status as ForensicRequestStatus,
     resultDocumentId: dto.resultDocumentId,
     notes: dto.notes
   }
