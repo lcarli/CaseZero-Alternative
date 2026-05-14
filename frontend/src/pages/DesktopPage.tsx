@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import Desktop from '../components/Desktop'
 import { CaseProvider } from '../contexts/CaseContext'
@@ -9,52 +9,54 @@ import { useAuth } from '../hooks/useAuthContext'
 
 const DesktopPage = () => {
   const { caseId } = useParams()
+  const navigate = useNavigate()
   const { isAuthenticated } = useAuth()
   const [initialGameTime, setInitialGameTime] = useState<Date | undefined>(undefined)
   const [isLoadingSession, setIsLoadingSession] = useState(true)
-  
-  // Default to CASE-2024-001 if no caseId in URL
-  const activeCaseId = caseId || 'CASE-2024-001'
-  
-  console.log('Loading desktop for case:', activeCaseId)
+
+  // If no caseId in URL, redirect to dashboard
+  useEffect(() => {
+    if (!caseId) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [caseId, navigate])
 
   // Load last session and start new session when entering case
   useEffect(() => {
     const initializeSession = async () => {
-      if (isAuthenticated && activeCaseId) {
+      if (isAuthenticated && caseId) {
         try {
           setIsLoadingSession(true)
-          
+
           // Try to get last session to resume from
           try {
-            const lastSession = await caseSessionApi.getLastSession(activeCaseId)
-            
+            const lastSession = await caseSessionApi.getLastSession(caseId)
+
             if (lastSession.gameTimeAtEnd) {
-              // Resume from where user left off
               const resumeTime = new Date(lastSession.gameTimeAtEnd)
               setInitialGameTime(resumeTime)
               console.log('Resuming from previous session at:', resumeTime)
             }
-          } catch (error) {
-            // No previous session found - will use default 8:00 AM
+          } catch {
             console.log('No previous session found, starting fresh')
           }
-          
-          // Start new session
+
           const startTime = initialGameTime || (() => {
             const defaultTime = new Date()
             defaultTime.setHours(8, 0, 0, 0)
             return defaultTime
           })()
-          
+
           await caseSessionApi.startSession({
-            caseId: activeCaseId,
+            caseId,
             gameTimeAtStart: startTime.toISOString()
           })
-          console.log('Session started for case:', activeCaseId)
+          console.log('Session started for case:', caseId)
         } catch (error) {
           console.error('Failed to initialize session:', error)
-          // Continue even if session initialization fails
+          // If session start fails, redirect back to dashboard
+          navigate('/dashboard', { replace: true })
+          return
         } finally {
           setIsLoadingSession(false)
         }
@@ -62,7 +64,12 @@ const DesktopPage = () => {
     }
 
     initializeSession()
-  }, [activeCaseId, isAuthenticated])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caseId, isAuthenticated])
+
+  if (!caseId) {
+    return null
+  }
 
   // Wait for session to load before rendering
   if (isLoadingSession) {
@@ -80,10 +87,10 @@ const DesktopPage = () => {
       </div>
     )
   }
-  
+
   return (
-    <CaseProvider caseId={activeCaseId}>
-      <TimeProvider caseId={activeCaseId} initialGameTime={initialGameTime}>
+    <CaseProvider caseId={caseId}>
+      <TimeProvider caseId={caseId} initialGameTime={initialGameTime}>
         <TimeSync>
           <Desktop />
         </TimeSync>
