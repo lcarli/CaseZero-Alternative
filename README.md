@@ -261,15 +261,9 @@ curl -H "Authorization: Bearer $TOKEN" \
 │       ├── Models/              # Domain models
 │       └── Schemas/             # JSON schemas
 ├── cases/                        # Casos investigativos
-│   ├── CASE-2024-001/           # Exemplo: Homicídio Corporativo
-│   ├── CASE-2024-002/           # Exemplo: Roubo em Clínica
-│   └── CASE-2024-003/           # Exemplo: Apropriação Indébita
-│       ├── case.json            # Configuração do caso
-│       ├── evidence/            # Evidências
-│       ├── suspects/            # Suspeitos
-│       ├── forensics/           # Análises forenses
-│       ├── memos/               # Memorandos temporais
-│       └── witnesses/           # Testemunhas
+│   └── case_001/                # The Missing Heir (v2 reference case)
+│       ├── case.json            # Configuração do caso (v2)
+│       └── assets/              # Assets do caso (PDFs, fotos, áudio, etc.)
 ├── tests/
 │   └── http-requests/           # Testes HTTP REST Client
 │       ├── test-casegen.http    # Testes gerais
@@ -281,7 +275,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 └── docs/                        # Documentação técnica
     ├── BACKEND_ARCHITECTURE.md
     ├── CASE_GENERATION_PIPELINE.md
-    ├── OBJETO_CASO.md
+    ├── CASE_JSON_V2_SPEC.md     # ← Canonical case contract
     └── PDF_DOCUMENT_TEMPLATES.md
 ```
 
@@ -336,7 +330,7 @@ Content-Type: application/json
 
 1. **Copie a estrutura de um caso existente**:
 ```bash
-cp -r cases/CASE-2024-001 cases/CASE-2024-004
+cp -r cases/case_001 cases/case_002
 ```
 
 2. **Edite o arquivo `case.json`** com novos dados

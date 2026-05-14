@@ -3,38 +3,23 @@ namespace CaseZeroApi.Services;
 public interface IBlobStorageService
 {
     /// <summary>
-    /// Lists all generated cases from blob storage
+    /// Lists all generated case manifests from blob storage.
     /// </summary>
     Task<List<CaseManifest>> ListCasesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the manifest for a specific case
+    /// Gets the manifest for a specific case.
     /// </summary>
     Task<CaseManifest?> GetCaseManifestAsync(string caseId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the full normalized case bundle for a specific case ID
-    /// </summary>
-    Task<Models.NormalizedCaseBundle?> GetCaseBundleAsync(string caseId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets a specific document from a case
-    /// </summary>
-    Task<string?> GetCaseDocumentAsync(string caseId, string documentId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets all documents for a case as FileViewerItems
-    /// </summary>
-    Task<Models.CaseFilesResponse> GetCaseFilesAsync(string caseId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Gets the URL for a media file
+    /// Returns a URL/URI to a media file for a case.
     /// </summary>
     string GetMediaUrl(string caseId, string fileName);
 }
 
 /// <summary>
-/// Represents the manifest file for a generated case
+/// Represents the manifest file for a generated case.
 /// </summary>
 public class CaseManifest
 {

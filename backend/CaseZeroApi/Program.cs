@@ -182,25 +182,8 @@ builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>()
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<DataSeedingService>();
-builder.Services.AddScoped<ICaseObjectService, CaseObjectService>(); // Used by CaseObjectController (fallback)
-// OBSOLETE: Removed ICaseAccessService, ICaseProcessingService, IEmailService (moved to Services/OBSOLETE/)
 
-// Register AI Case Generation services
-builder.Services.AddHttpClient<LlmClient>();
-builder.Services.AddSingleton(serviceProvider =>
-{
-    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-    return new LlmOptions
-    {
-        Endpoint = configuration["AzureOpenAI:Endpoint"] ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured"),
-        Deployment = configuration["AzureOpenAI:Deployment"] ?? "gpt-4",
-        ApiVersion = configuration["AzureOpenAI:ApiVersion"] ?? "2024-02-15-preview",
-        ApiKey = configuration["AzureOpenAI:ApiKey"] ?? throw new InvalidOperationException("AzureOpenAI:ApiKey not configured"),
-        ApiKeyHeaderName = configuration["AzureOpenAI:ApiKeyHeaderName"] ?? "api-key"
-    };
-});
-builder.Services.AddScoped<ICaseGenerationService, CaseGenerationService>();
-// OBSOLETE: Removed ICaseFormatService (moved to Services/OBSOLETE/)
+// Case storage (blob manifest + v2 case loading)
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
 builder.Services.AddScoped<ICaseV1SanitizerService, CaseV1SanitizerService>();
 builder.Services.AddScoped<ICaseV1StorageService, CaseV1StorageService>();

@@ -11,8 +11,6 @@ import RegisterPage from './pages/RegisterPage'
 import EmailVerificationPage from './pages/EmailVerificationPage'
 import DashboardPage from './pages/DashboardPage'
 import DesktopPage from './pages/DesktopPage'
-import GenerateCasePage from './pages/GenerateCasePage'
-import CaseGeneratorAIPage from './pages/CaseGeneratorAIPage'
 
 function App() {
   return (
@@ -27,37 +25,21 @@ function App() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/verify-email" element={<EmailVerificationPage />} />
-                <Route 
-                  path="/dashboard" 
+                <Route
+                  path="/dashboard"
                   element={
                     <ProtectedRoute>
                       <DashboardPage />
                     </ProtectedRoute>
-                  } 
+                  }
                 />
-                <Route 
-                  path="/generate-case" 
-                  element={
-                    <ProtectedRoute>
-                      <GenerateCasePage />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/case-generator-ai" 
-                  element={
-                    <ProtectedRoute>
-                      <CaseGeneratorAIPage />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/desktop/:caseId?" 
+                <Route
+                  path="/desktop/:caseId?"
                   element={
                     <ProtectedRoute>
                       <DesktopPage />
                     </ProtectedRoute>
-                  } 
+                  }
                 />
               </Routes>
             </Router>
