@@ -46,9 +46,25 @@ public class ValidationService
     {
         _logger.LogInformation("Validating case rules");
 
-        var systemPrompt = """
+        // Extract difficulty from normalized JSON to apply profile validation
+        string? difficulty = null;
+        try
+        {
+            var doc = JsonDocument.Parse(normalizedJson);
+            if (doc.RootElement.TryGetProperty("difficulty", out var diffProp))
+            {
+                difficulty = diffProp.GetString();
+            }
+        }
+        catch { }
+
+        var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+
+        var systemPrompt = $@"
             You are a specialist in validating detective game cases. 
             Verify compliance with gameplay, narrative consistency, and quality standards.
+
+            {difficultyProfile.ToQAPromptSection()}
             
             Pay special attention to TEMPORAL CONSISTENCY:
             - All timestamps must use consistent timezone offset
@@ -57,23 +73,30 @@ public class ValidationService
             - Interview timestamps must be properly sequenced
             - No overlapping or conflicting timestamps
             - Chain of custody timestamps must be chronologically ordered
-            """;
+            
+            DIFFICULTY COMPLIANCE:
+            - Verify evidence counts match expected ranges
+            - Check evidence role distribution matches budget
+            - Validate reasoning requirements are supported
+            - Ensure contradictions are within expected range
+            ";
 
-        var userPrompt = $"""
+        var userPrompt = $@"
             Validate this normalized case against quality rules:
             
             {normalizedJson}
             
             Check: 
-            1. TEMPORAL CONSISTENCY: Verify timestamps, timezone consistency, chronological logic
-            2. Narrative consistency and logical flow
-            3. Gameplay balance and challenge level
-            4. Completeness of clues and evidence
-            5. Realism and authenticity
-            6. Overall case quality and solvability
+            1. DIFFICULTY COMPLIANCE: Verify counts, roles, and reasoning requirements match profile
+            2. TEMPORAL CONSISTENCY: Verify timestamps, timezone consistency, chronological logic
+            3. Narrative consistency and logical flow
+            4. Gameplay balance and challenge level
+            5. Completeness of clues and evidence
+            6. Realism and authenticity
+            7. Overall case quality and solvability
             
-            Flag timestamp inconsistencies, timezone mismatches, or chronological errors as critical issues.
-            """;
+            Flag timestamp inconsistencies, timezone mismatches, chronological errors, or difficulty non-compliance as critical issues.
+            ";
 
         return await _llmService.GenerateAsync(caseId, systemPrompt, userPrompt, cancellationToken);
     }

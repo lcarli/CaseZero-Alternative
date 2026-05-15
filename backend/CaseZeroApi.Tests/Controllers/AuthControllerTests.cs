@@ -15,7 +15,8 @@ namespace CaseZeroApi.Tests.Controllers
         private readonly Mock<UserManager<User>> _mockUserManager;
         private readonly Mock<SignInManager<User>> _mockSignInManager;
         private readonly Mock<IJwtService> _mockJwtService;
-        private readonly Mock<IEmailService> _mockEmailService;
+        // OBSOLETE: IEmailService removed from AuthController
+        // private readonly Mock<IEmailService> _mockEmailService;
         private readonly Mock<ILogger<AuthController>> _mockLogger;
         private readonly AuthController _controller;
 
@@ -33,14 +34,14 @@ namespace CaseZeroApi.Tests.Controllers
             _mockSignInManager = new Mock<SignInManager<User>>(_mockUserManager.Object, contextAccessor.Object, claimsFactory.Object, null!, null!, null!, null!);
             
             _mockJwtService = new Mock<IJwtService>();
-            _mockEmailService = new Mock<IEmailService>();
+            // _mockEmailService = new Mock<IEmailService>(); // OBSOLETE
             _mockLogger = new Mock<ILogger<AuthController>>();
 
             _controller = new AuthController(
                 _mockUserManager.Object,
                 _mockSignInManager.Object,
                 _mockJwtService.Object,
-                _mockEmailService.Object,
+                // _mockEmailService.Object, // OBSOLETE
                 _mockLogger.Object);
         }
 
@@ -61,9 +62,13 @@ namespace CaseZeroApi.Tests.Controllers
             
             _mockUserManager.Setup(x => x.CreateAsync(It.IsAny<User>(), It.IsAny<string>()))
                 .ReturnsAsync(IdentityResult.Success);
+            
+            _mockUserManager.Setup(x => x.UpdateAsync(It.IsAny<User>()))
+                .ReturnsAsync(IdentityResult.Success);
 
-            _mockEmailService.Setup(x => x.SendEmailVerificationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-                .Returns(Task.CompletedTask);
+            // OBSOLETE: Email service removed
+            // _mockEmailService.Setup(x => x.SendEmailVerificationAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            //     .Returns(Task.CompletedTask);
 
             // Act
             var result = await _controller.Register(request);

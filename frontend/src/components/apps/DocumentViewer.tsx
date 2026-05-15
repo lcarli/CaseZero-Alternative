@@ -1,7 +1,19 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
-import type { FileItem } from '../../types/case'
 import { caseObjectApi } from '../../services/api'
+
+export interface FileItem {
+  id: string
+  name: string
+  type: 'text' | 'image' | 'pdf' | 'video' | 'audio'
+  icon: string
+  size: string
+  modified: string
+  content: string
+  category: string
+  evidenceId?: string
+  mediaUrl?: string
+}
 
 const ViewerContainer = styled.div`
   height: 100%;
@@ -218,16 +230,32 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, caseId, onClose }
   const [imageLoading, setImageLoading] = useState(true)
   const [imageError, setImageError] = useState(false)
   const [zoom, setZoom] = useState(100)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [pdfError, setPdfError] = useState(false)
+
+  console.log('📄 DocumentViewer rendering:', {
+    fileName: file.name,
+    fileType: file.type,
+    mediaUrl: file.mediaUrl,
+    caseId
+  })
 
   React.useEffect(() => {
+    console.log('📄 useEffect triggered, file.type:', file.type)
     if (file.type === 'image') {
       loadImage()
+    } else if (file.type === 'pdf') {
+      loadPdf()
     }
 
     return () => {
-      if (imageUrl && !file.mediaUrl) {
-        // Only revoke blob URLs, not direct media URLs
+      // Cleanup blob URLs
+      if (imageUrl) {
         URL.revokeObjectURL(imageUrl)
+      }
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl)
       }
     }
   }, [file.id, caseId])
@@ -237,9 +265,21 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, caseId, onClose }
       setImageError(false)
       setImageLoading(true)
       
-      // Use mediaUrl if available (for generated media from blob storage)
+      // Fetch image with authentication headers (same approach as PDF)
       if (file.mediaUrl) {
-        setImageUrl(file.mediaUrl)
+        const response = await fetch(file.mediaUrl.split('?')[0], {
+          headers: {
+            'Authorization': `Bearer ${file.mediaUrl.split('token=')[1]}`
+          }
+        })
+        
+        if (!response.ok) {
+          throw new Error(`Failed to load image: ${response.status}`)
+        }
+        
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        setImageUrl(url)
         setImageLoading(false)
         return
       }
@@ -253,6 +293,38 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, caseId, onClose }
       console.error('Failed to load image:', error)
       setImageError(true)
       setImageLoading(false)
+    }
+  }
+
+  const loadPdf = async () => {
+    try {
+      setPdfError(false)
+      setPdfLoading(true)
+      
+      // Fetch PDF with authentication headers instead of token in URL
+      if (file.mediaUrl) {
+        const response = await fetch(file.mediaUrl.split('?')[0], {
+          headers: {
+            'Authorization': `Bearer ${file.mediaUrl.split('token=')[1]}`
+          }
+        })
+        
+        if (!response.ok) {
+          throw new Error(`Failed to load PDF: ${response.status}`)
+        }
+        
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        setPdfUrl(url)
+        setPdfLoading(false)
+      } else {
+        setPdfError(true)
+        setPdfLoading(false)
+      }
+    } catch (error) {
+      console.error('Failed to load PDF:', error)
+      setPdfError(true)
+      setPdfLoading(false)
     }
   }
 
@@ -325,13 +397,41 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ file, caseId, onClose }
     }
 
     if (file.type === 'pdf') {
+      if (pdfLoading) {
+        return (
+          <LoadingPlaceholder>
+            <div style={{ fontSize: '48px' }}>⏳</div>
+            <div>Loading PDF...</div>
+          </LoadingPlaceholder>
+        )
+      }
+
+      if (pdfError || !pdfUrl) {
+        return (
+          <ErrorPlaceholder>
+            <div style={{ fontSize: '48px' }}>❌</div>
+            <div style={{ fontWeight: 'bold' }}>Failed to load PDF</div>
+            <div style={{ fontSize: '12px' }}>File: {file.name}</div>
+          </ErrorPlaceholder>
+        )
+      }
+
+      // Use blob URL to display PDF (avoids CSP and authentication issues)
       return (
-        <PDFContainer>
-          <div style={{ marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '2px solid #ddd' }}>
-            <strong style={{ fontSize: '16px' }}>📋 {file.name}</strong>
-          </div>
-          <PDFContent>{file.content}</PDFContent>
-        </PDFContainer>
+        <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <iframe
+            src={pdfUrl}
+            style={{
+              flex: 1,
+              width: '100%',
+              border: 'none',
+              borderRadius: '8px',
+              backgroundColor: 'white',
+              minHeight: '600px'
+            }}
+            title={file.name}
+          />
+        </div>
       )
     }
 

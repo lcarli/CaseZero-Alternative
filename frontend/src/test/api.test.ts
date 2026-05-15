@@ -38,6 +38,8 @@ describe('API Service', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
+        headers: { get: vi.fn((h: string) => h === 'content-type' ? 'application/json' : null) },
         json: async () => mockResponse
       })
 
@@ -51,7 +53,7 @@ describe('API Service', () => {
       const result = await authApi.login(loginData)
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:5000/api/auth/login',
+        'http://localhost:5001/api/auth/login',
         expect.objectContaining({
           method: 'POST',
           headers: {
@@ -90,6 +92,8 @@ describe('API Service', () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
+        status: 200,
+        headers: { get: vi.fn((h: string) => h === 'content-type' ? 'application/json' : null) },
         json: async () => mockResponse
       })
 
@@ -106,7 +110,7 @@ describe('API Service', () => {
       const result = await authApi.register(registerData)
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:5000/api/auth/register',
+        'http://localhost:5001/api/auth/register',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({

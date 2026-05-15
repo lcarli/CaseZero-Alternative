@@ -1,7 +1,6 @@
 import React from 'react'
-import DocumentViewer from './DocumentViewer'
+import DocumentViewer, { type FileItem } from './DocumentViewer'
 import { useCase } from '../../hooks/useCaseContext'
-import type { FileItem } from '../../types/case'
 
 /**
  * Wrapper component for DocumentViewer that can be used as a Window component.

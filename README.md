@@ -185,15 +185,14 @@ TOKEN=$(curl -X POST "http://localhost:5000/api/auth/login" \
 
 # 2. Listar casos disponíveis
 curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:5000/api/caseobject
+  http://localhost:5001/api/cases/dashboard
 
-# 3. Carregar Case001
+# 3. Carregar case_001 (sanitizado, com estado de sessão)
 curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:5000/api/caseobject/Case001
+  http://localhost:5001/api/cases/case_001
 
-# 4. Validar estrutura do caso
-curl -H "Authorization: Bearer $TOKEN" \
-  http://localhost:5000/api/caseobject/Case001/validate
+# 4. Ver a spec canônica do contrato case.json v2
+# docs/CASE_JSON_V2_SPEC.md
 ```
 
 ## 🏗️ Arquitetura
@@ -213,7 +212,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 - **Autenticação:** JWT + ASP.NET Identity
 - **API:** RESTful endpoints
 - **CORS:** Configurado para localhost:5173
-- **Sistema de Casos:** CaseObjectService + API endpoints
+- **Sistema de Casos:** `CaseV2StorageService` + `/api/cases` endpoints (contrato v2 em [`docs/CASE_JSON_V2_SPEC.md`](docs/CASE_JSON_V2_SPEC.md))
 
 **CaseGen.Functions** (Azure Functions)
 - **Runtime:** .NET 9.0 Isolated Worker
@@ -230,9 +229,11 @@ curl -H "Authorization: Bearer $TOKEN" \
 2. **Registro** - Registro simplificado com verificação por email
 3. **Verificação de Email** - Ativação da conta via email pessoal
 4. **Login** - Autenticação com email institucional/senha
-5. **Dashboard** - Visão geral de estatísticas e casos
-6. **Desktop** - Ambiente de trabalho para investigação de casos
-7. **Casos** - Sistema modular de casos investigativos
+5. **Dashboard** (`GET /api/cases/dashboard`) - Lista de casos disponíveis (ex: `case_001`) com metadata v2
+6. **Desktop** - Ambiente de trabalho para investigação; URL: `/desktop/case_001`
+7. **Investigação** - Email app, file viewer, análise forense, submissão de solução via `POST /api/cases/{id}/submit`
+
+> O contrato canônico do arquivo `case.json` está em [`docs/CASE_JSON_V2_SPEC.md`](docs/CASE_JSON_V2_SPEC.md). O caso de referência é `cases/case_001/case.json`.
 
 ## 🗂️ Estrutura do Projeto
 
@@ -261,15 +262,9 @@ curl -H "Authorization: Bearer $TOKEN" \
 │       ├── Models/              # Domain models
 │       └── Schemas/             # JSON schemas
 ├── cases/                        # Casos investigativos
-│   ├── CASE-2024-001/           # Exemplo: Homicídio Corporativo
-│   ├── CASE-2024-002/           # Exemplo: Roubo em Clínica
-│   └── CASE-2024-003/           # Exemplo: Apropriação Indébita
-│       ├── case.json            # Configuração do caso
-│       ├── evidence/            # Evidências
-│       ├── suspects/            # Suspeitos
-│       ├── forensics/           # Análises forenses
-│       ├── memos/               # Memorandos temporais
-│       └── witnesses/           # Testemunhas
+│   └── case_001/                # The Missing Heir (v2 reference case)
+│       ├── case.json            # Configuração do caso (v2)
+│       └── assets/              # Assets do caso (PDFs, fotos, áudio, etc.)
 ├── tests/
 │   └── http-requests/           # Testes HTTP REST Client
 │       ├── test-casegen.http    # Testes gerais
@@ -281,7 +276,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 └── docs/                        # Documentação técnica
     ├── BACKEND_ARCHITECTURE.md
     ├── CASE_GENERATION_PIPELINE.md
-    ├── OBJETO_CASO.md
+    ├── CASE_JSON_V2_SPEC.md     # ← Canonical case contract
     └── PDF_DOCUMENT_TEMPLATES.md
 ```
 
@@ -336,16 +331,16 @@ Content-Type: application/json
 
 1. **Copie a estrutura de um caso existente**:
 ```bash
-cp -r cases/CASE-2024-001 cases/CASE-2024-004
+cp -r cases/case_001 cases/case_002
 ```
 
 2. **Edite o arquivo `case.json`** com novos dados
 
 3. **Substitua os arquivos** nas subpastas com novo conteúdo
 
-4. **Teste via API** com os endpoints do CaseObjectController
+4. **Teste via API** com os endpoints de `/api/cases`
 
-Ver [documentação completa](docs/OBJETO_CASO.md) para detalhes sobre estrutura de casos.
+Ver [spec canônica v2](docs/CASE_JSON_V2_SPEC.md) para detalhes sobre a estrutura do `case.json`.
 
 ## 🛡️ Segurança
 

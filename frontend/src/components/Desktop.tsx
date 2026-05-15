@@ -5,6 +5,7 @@ import Dock from './Dock'
 import Window from './Window'
 import { useWindowContext } from '../hooks/useWindowContext'
 import { useCase } from '../hooks/useCaseContext'
+import { useAssets, useEmails } from '../contexts/CaseContext'
 import { useAuth } from '../hooks/useAuthContext'
 import { useTimeContext } from '../hooks/useTimeContext'
 import { useLanguage } from '../hooks/useLanguageContext'
@@ -95,10 +96,12 @@ const Desktop: React.FC = () => {
     updateWindowPosition,
     updateWindowSize,
     maximizeWindow,
-    minimizeWindow
+    minimizeWindow,
   } = useWindowContext()
 
   const { currentCase } = useCase()
+  const assets = useAssets()
+  const emails = useEmails()
 
   // Add desktop-mode class when component mounts, remove when it unmounts
   useEffect(() => {
@@ -107,6 +110,20 @@ const Desktop: React.FC = () => {
       document.body.classList.remove('desktop-mode')
     }
   }, [])
+
+  // Task 48-49: Wrapper to inject props into app windows
+  const handleOpenWindow = (id: string, title: string, component: React.ComponentType<any>) => {
+    if (id === 'file-viewer') {
+      openWindow(id, title, component, { assets })
+    } else if (id === 'email-app') {
+      openWindow(id, title, component, {
+        emails,
+        caseId: currentCase,
+      })
+    } else {
+      openWindow(id, title, component)
+    }
+  }
 
   const handleCaseDisconnect = async () => {
     console.log('🚪 Case disconnect button clicked!')
@@ -145,6 +162,22 @@ const Desktop: React.FC = () => {
     }
   }
 
+  const handleResetVisibility = async () => {
+    if (!currentCase) return
+    
+    if (confirm('⚠️ Reset visibility? This will clear all unlocked assets and emails for testing.')) {
+      try {
+        const result = await caseSessionApi.resetVisibility(currentCase)
+        console.log('✅ Visibility reset:', result)
+        alert(`Reset complete! Removed ${result.assetsRemoved} assets, ${result.emailsRemoved} emails, ${result.downloadsRemoved} downloads`)
+        window.location.reload()
+      } catch (error) {
+        console.error('Failed to reset visibility:', error)
+        alert('Failed to reset visibility')
+      }
+    }
+  }
+
   return (
     <DesktopContainer>
       <SystemInfo>
@@ -154,6 +187,9 @@ const Desktop: React.FC = () => {
         <div><span className="label">{t('currentCase')}:</span> {currentCase || 'No Case'}</div>
         <div><span className="label">{t('currentLanguage')}:</span> {language.flag} {language.code}</div>
         <div><span className="label">Status:</span> Active</div>
+        <button onClick={handleResetVisibility} style={{ marginTop: '0.5rem', padding: '0.5rem', background: '#ff4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+          🔄 Reset Visibility (DEV)
+        </button>
       </SystemInfo>
       
       <DesktopArea>
@@ -170,7 +206,7 @@ const Desktop: React.FC = () => {
           />
         ))}
       </DesktopArea>
-      <Dock onOpenWindow={openWindow} onCaseDisconnect={handleCaseDisconnect} />
+      <Dock onOpenWindow={handleOpenWindow} onCaseDisconnect={handleCaseDisconnect} />
     </DesktopContainer>
   )
 }

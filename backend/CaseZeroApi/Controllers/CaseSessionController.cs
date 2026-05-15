@@ -5,6 +5,7 @@ using System.Security.Claims;
 using CaseZeroApi.Data;
 using CaseZeroApi.DTOs;
 using CaseZeroApi.Models;
+using CaseZeroApi.Services;
 
 namespace CaseZeroApi.Controllers
 {
@@ -14,11 +15,16 @@ namespace CaseZeroApi.Controllers
     public class CaseSessionController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IVisibilityService _visibilityService;
         private readonly ILogger<CaseSessionController> _logger;
 
-        public CaseSessionController(ApplicationDbContext context, ILogger<CaseSessionController> logger)
+        public CaseSessionController(
+            ApplicationDbContext context, 
+            IVisibilityService visibilityService,
+            ILogger<CaseSessionController> logger)
         {
             _context = context;
+            _visibilityService = visibilityService;
             _logger = logger;
         }
 
@@ -36,13 +42,36 @@ namespace CaseZeroApi.Controllers
 
             try
             {
+                // For V1.0 cases (from blob), we don't enforce UserCases table
+                // These cases exist in blob storage, not in the Cases table
+                var isV1Case = request.CaseId.StartsWith("case_") || request.CaseId.StartsWith("CASE-");
+                
+                if (!isV1Case)
+                {
+                    // Only check UserCases for legacy cases (stored in SQL)
+                    var userCase = await _context.UserCases
+                        .FirstOrDefaultAsync(uc => uc.UserId == userId && uc.CaseId == request.CaseId);
+
+                    if (userCase == null)
+                    {
+                        _logger.LogInformation("Auto-assigning case {CaseId} to user {UserId}", request.CaseId, userId);
+                        _context.UserCases.Add(new UserCase
+                        {
+                            UserId = userId,
+                            CaseId = request.CaseId,
+                            AssignedAt = DateTime.UtcNow
+                        });
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
                 // End any active session for this user/case
                 var existingSession = await _context.CaseSessions
-                    .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == request.CaseId && cs.IsActive);
+                    .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == request.CaseId && cs.Status == SessionStatus.Active);
 
                 if (existingSession != null)
                 {
-                    existingSession.IsActive = false;
+                    existingSession.Status = SessionStatus.Paused;
                     existingSession.SessionEnd = DateTime.UtcNow;
                     existingSession.SessionDurationMinutes = 
                         (int)(existingSession.SessionEnd.Value - existingSession.SessionStart).TotalMinutes;
@@ -55,11 +84,23 @@ namespace CaseZeroApi.Controllers
                     CaseId = request.CaseId,
                     SessionStart = DateTime.UtcNow,
                     GameTimeAtStart = request.GameTimeAtStart,
-                    IsActive = true
+                    Status = SessionStatus.Active
                 };
 
                 _context.CaseSessions.Add(newSession);
                 await _context.SaveChangesAsync();
+
+                // Apply initial visibility rules (unlock initial assets/emails)
+                try
+                {
+                    var (assetsUnlocked, emailsUnlocked) = await _visibilityService.ApplyInitialRulesAsync(userId, request.CaseId);
+                    _logger.LogInformation("Initial visibility applied: {Assets} assets, {Emails} emails unlocked", assetsUnlocked, emailsUnlocked);
+                }
+                catch (Exception visEx)
+                {
+                    _logger.LogError(visEx, "Failed to apply initial visibility rules, but session was created");
+                    // Continue - session is valid even if visibility fails
+                }
 
                 var sessionDto = new CaseSessionDto
                 {
@@ -71,7 +112,7 @@ namespace CaseZeroApi.Controllers
                     SessionDurationMinutes = newSession.SessionDurationMinutes,
                     GameTimeAtStart = newSession.GameTimeAtStart,
                     GameTimeAtEnd = newSession.GameTimeAtEnd,
-                    IsActive = newSession.IsActive
+                    Status = newSession.Status
                 };
 
                 return Ok(sessionDto);
@@ -105,7 +146,7 @@ namespace CaseZeroApi.Controllers
                 _logger.LogInformation("🔍 Looking for active session for userId: {UserId}, caseId: {CaseId}", userId, caseId);
                 
                 var activeSession = await _context.CaseSessions
-                    .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == caseId && cs.IsActive);
+                    .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == caseId && cs.Status == SessionStatus.Active);
 
                 if (activeSession == null)
                 {
@@ -115,7 +156,7 @@ namespace CaseZeroApi.Controllers
 
                 _logger.LogInformation("✅ Active session found: {SessionId}", activeSession.Id);
                 
-                activeSession.IsActive = false;
+                activeSession.Status = SessionStatus.Paused;
                 activeSession.SessionEnd = DateTime.UtcNow;
                 activeSession.GameTimeAtEnd = request.GameTimeAtEnd;
                 activeSession.SessionDurationMinutes = 
@@ -135,7 +176,7 @@ namespace CaseZeroApi.Controllers
                     SessionDurationMinutes = activeSession.SessionDurationMinutes,
                     GameTimeAtStart = activeSession.GameTimeAtStart,
                     GameTimeAtEnd = activeSession.GameTimeAtEnd,
-                    IsActive = activeSession.IsActive
+                    Status = activeSession.Status
                 };
 
                 return Ok(sessionDto);
@@ -181,7 +222,7 @@ namespace CaseZeroApi.Controllers
                     SessionDurationMinutes = lastSession.SessionDurationMinutes,
                     GameTimeAtStart = lastSession.GameTimeAtStart,
                     GameTimeAtEnd = lastSession.GameTimeAtEnd,
-                    IsActive = lastSession.IsActive
+                    Status = lastSession.Status
                 };
 
                 return Ok(sessionDto);
@@ -220,7 +261,7 @@ namespace CaseZeroApi.Controllers
                         SessionDurationMinutes = cs.SessionDurationMinutes,
                         GameTimeAtStart = cs.GameTimeAtStart,
                         GameTimeAtEnd = cs.GameTimeAtEnd,
-                        IsActive = cs.IsActive
+                        Status = cs.Status
                     })
                     .ToListAsync();
 
@@ -229,6 +270,194 @@ namespace CaseZeroApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving sessions for user {UserId} and case {CaseId}", userId, caseId);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Get complete session state for a case including visible assets/emails
+        /// </summary>
+        [HttpGet("/api/cases/{caseId}/session")]
+        public async Task<IActionResult> GetCaseSessionState(string caseId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                // Get active or most recent session
+                var session = await _context.CaseSessions
+                    .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
+                    .OrderByDescending(cs => cs.SessionStart)
+                    .FirstOrDefaultAsync();
+
+                CaseSessionDto? sessionDto = null;
+                if (session != null)
+                {
+                    sessionDto = new CaseSessionDto
+                    {
+                        Id = session.Id,
+                        UserId = session.UserId,
+                        CaseId = session.CaseId,
+                        SessionStart = session.SessionStart,
+                        SessionEnd = session.SessionEnd,
+                        SessionDurationMinutes = session.SessionDurationMinutes,
+                        GameTimeAtStart = session.GameTimeAtStart,
+                        GameTimeAtEnd = session.GameTimeAtEnd,
+                        Status = session.Status
+                    };
+                }
+
+                // Get visible assets
+                var visibleAssets = await _context.CaseSessionVisibleAssets
+                    .Where(va => va.UserId == userId && va.CaseId == caseId)
+                    .Select(va => va.AssetId)
+                    .ToListAsync();
+
+                // Get visible emails
+                var visibleEmails = await _context.CaseSessionVisibleEmails
+                    .Where(ve => ve.UserId == userId && ve.CaseId == caseId)
+                    .Select(ve => ve.EmailId)
+                    .ToListAsync();
+
+                // Get email states
+                var emailStates = await _context.CaseSessionEmailStates
+                    .Where(es => es.UserId == userId && es.CaseId == caseId)
+                    .ToDictionaryAsync(
+                        es => es.EmailId,
+                        es => new EmailStateDto
+                        {
+                            EmailId = es.EmailId,
+                            ReadAt = es.ReadAt,
+                            OpenCount = es.OpenCount
+                        });
+
+                var stateDto = new CaseSessionStateDto
+                {
+                    Session = sessionDto,
+                    VisibleAssetIds = visibleAssets,
+                    VisibleEmailIds = visibleEmails,
+                    EmailStates = emailStates
+                };
+
+                return Ok(stateDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving session state for user {UserId} and case {CaseId}", userId, caseId);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Resume a paused case session
+        /// </summary>
+        [HttpPost("/api/cases/{caseId}/resume")]
+        public async Task<IActionResult> ResumeSession(string caseId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                // Find the most recent paused session
+                var pausedSession = await _context.CaseSessions
+                    .Where(cs => cs.UserId == userId && cs.CaseId == caseId && cs.Status == SessionStatus.Paused)
+                    .OrderByDescending(cs => cs.SessionStart)
+                    .FirstOrDefaultAsync();
+
+                if (pausedSession == null)
+                {
+                    return NotFound("No paused session found for this case");
+                }
+
+                // Mark as active
+                pausedSession.Status = SessionStatus.Active;
+                pausedSession.SessionEnd = null; // Clear end time since we're resuming
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("✅ Resumed session {SessionId} for user {UserId} on case {CaseId}", 
+                    pausedSession.Id, userId, caseId);
+
+                var sessionDto = new CaseSessionDto
+                {
+                    Id = pausedSession.Id,
+                    UserId = pausedSession.UserId,
+                    CaseId = pausedSession.CaseId,
+                    SessionStart = pausedSession.SessionStart,
+                    SessionEnd = pausedSession.SessionEnd,
+                    SessionDurationMinutes = pausedSession.SessionDurationMinutes,
+                    GameTimeAtStart = pausedSession.GameTimeAtStart,
+                    GameTimeAtEnd = pausedSession.GameTimeAtEnd,
+                    Status = pausedSession.Status
+                };
+
+                return Ok(sessionDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resuming session for user {UserId} and case {CaseId}", userId, caseId);
+                return StatusCode(500, "Internal server error");
+            }
+        }
+
+        /// <summary>
+        /// Reset visibility for a case (useful for testing)
+        /// DELETE /api/CaseSession/reset-visibility/{caseId}
+        /// </summary>
+        [HttpDelete("reset-visibility/{caseId}")]
+        public async Task<IActionResult> ResetVisibility(string caseId)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                // Remove all visible assets for this user/case
+                var visibleAssets = await _context.CaseSessionVisibleAssets
+                    .Where(va => va.UserId == userId && va.CaseId == caseId)
+                    .ToListAsync();
+                
+                _context.CaseSessionVisibleAssets.RemoveRange(visibleAssets);
+
+                // Remove all visible emails for this user/case
+                var visibleEmails = await _context.CaseSessionVisibleEmails
+                    .Where(ve => ve.UserId == userId && ve.CaseId == caseId)
+                    .ToListAsync();
+                
+                _context.CaseSessionVisibleEmails.RemoveRange(visibleEmails);
+
+                // Remove attachment downloads
+                var downloads = await _context.EmailAttachmentsDownloaded
+                    .Where(d => d.UserId == userId && d.CaseId == caseId)
+                    .ToListAsync();
+                
+                _context.EmailAttachmentsDownloaded.RemoveRange(downloads);
+
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Reset visibility for user {UserId} on case {CaseId}. Removed {Assets} assets, {Emails} emails, {Downloads} downloads", 
+                    userId, caseId, visibleAssets.Count, visibleEmails.Count, downloads.Count);
+
+                return Ok(new { 
+                    message = "Visibility reset successfully",
+                    assetsRemoved = visibleAssets.Count,
+                    emailsRemoved = visibleEmails.Count,
+                    downloadsRemoved = downloads.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting visibility for user {UserId} and case {CaseId}", userId, caseId);
                 return StatusCode(500, "Internal server error");
             }
         }

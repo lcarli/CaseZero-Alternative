@@ -68,8 +68,9 @@ public class ExpandService
         var systemPrompt = $@"
 You are an expert in developing detailed suspect profiles for investigative cases.
 
-DIFFICULTY: {difficulty}
-COMPLEXITY FACTORS: {string.Join(", ", difficultyProfile.ComplexityFactors)}
+DIFFICULTY LEVEL: {difficulty}
+
+{difficultyProfile.ToPromptSection()}
 
 Expand this suspect's profile with rich, investigatively-relevant details:
 - Background: Occupation, history, personality traits, past events
@@ -84,6 +85,7 @@ IMPORTANT:
 - Do NOT reveal if this is the culprit
 - Create plausible complexity appropriate to difficulty level
 - All details must be investigatively useful
+- Consider reasoning requirements: {string.Join(", ", difficultyProfile.ReasoningRequirements)}
 
 OUTPUT: ONLY valid JSON conforming to ExpandSuspect schema.";
 
@@ -170,25 +172,55 @@ OUTPUT FORMAT: ONLY JSON valid by ExpandSuspect schema.";
         var systemPrompt = $@"
 You are an expert case designer creating detailed evidence for a {difficulty}-level detective case.
 
-DIFFICULTY: {difficulty}
-COMPLEXITY FACTORS: {string.Join(", ", difficultyProfile.ComplexityFactors)}
+DIFFICULTY LEVEL: {difficulty}
+
+{difficultyProfile.ToPromptSection()}
 
 Create a comprehensive expansion for evidence item {evidenceId} (type: {evidenceType}).
 
-REQUIREMENTS:
-1. Generate detailed physical description and discovery context
-2. Include complete chain of custody with realistic timestamps
-3. Add forensic analysis if appropriate for evidence type
-4. Link to relevant suspects and events using IDs (S001, E001, etc.)
-5. Reference golden truth facts this evidence supports (FACT001, etc.)
-6. Assess significance and investigative value
-7. Consider player discovery mechanics
+MANDATORY FIELDS (EPIC 2.1):
+1. role: Select ONE from these options based on profile budget:
+   - 'conclusive': Proves something definitively (e.g., fingerprint match, DNA evidence, video proof)
+   - 'supporting': Corroborates other evidence (e.g., witness corroboration, timeline support)
+   - 'ambiguous': Multiple valid interpretations possible (e.g., partial data, unclear motive)
+   - 'red_herring': Misleading but plausible (e.g., false trail, coincidental evidence)
+
+2. purpose: Clear ONE-sentence statement of investigative purpose:
+   - Examples: 'Corroborate suspect alibi for time window 18:00-20:00'
+             'Contradict witness statement about location'
+             'Establish motive through financial records'
+             'Create false lead toward innocent party'
+
+3. allowedInferences: Array of VALID conclusions from this evidence
+   - Be specific and actionable
+   - Example: ['Suspect was at scene between 19:00-19:30', 'Object belongs to victim']
+
+4. forbiddenInferences: Array of INVALID conclusions (prevents overreach)
+   - Example: ['Does not prove intent', 'Cannot identify perpetrator alone']
+
+OTHER REQUIREMENTS:
+5. Generate detailed physical description and discovery context
+6. Include complete chain of custody with realistic timestamps
+7. Add forensic analysis if appropriate for evidence type
+8. Link to relevant suspects and events using IDs (S001, E001, etc.)
+9. Reference golden truth facts this evidence supports (FACT001, etc.)
+10. Assess significance and investigative value
+11. Consider player discovery mechanics
+
+DISTRIBUTION AWARENESS:
+You are creating evidence {evidenceId} out of approximately {difficultyProfile.Evidences.Max} total items.
+The overall distribution should respect:
+- Conclusive: {difficultyProfile.EvidenceRoles.Conclusive.Min}-{difficultyProfile.EvidenceRoles.Conclusive.Max}
+- Supporting: {difficultyProfile.EvidenceRoles.Supporting.Min}-{difficultyProfile.EvidenceRoles.Supporting.Max}
+- Ambiguous: {difficultyProfile.EvidenceRoles.Ambiguous.Min}-{difficultyProfile.EvidenceRoles.Ambiguous.Max}
+- Red herrings: {difficultyProfile.EvidenceRoles.RedHerring.Min}-{difficultyProfile.EvidenceRoles.RedHerring.Max}
 
 IMPORTANT:
 - All timestamps must use ISO-8601 format with timezone offset
 - Chain of custody must be complete and realistic
-- Evidence significance should match difficulty level
+- Evidence significance should match difficulty level and role
 - Do NOT reveal the solution directly
+- Respect reasoning requirements: {string.Join(", ", difficultyProfile.ReasoningRequirements)}
 
 OUTPUT: ONLY valid JSON conforming to ExpandEvidence schema.";
 
@@ -206,13 +238,19 @@ GOLDEN TRUTH FACTS (for reference):
 {factsJson}
 
 Generate the detailed evidence expansion with:
+- role: Select appropriate role (conclusive/supporting/ambiguous/red_herring)
+- purpose: One clear sentence explaining investigative purpose
+- allowedInferences: Array of valid conclusions from this evidence
+- forbiddenInferences: Array of invalid conclusions (what NOT to infer)
 - Complete discovery context
 - Physical details
 - Chain of custody
 - Forensic analysis (if applicable)
 - Relationships to suspects/events/facts
-- Significance assessment
-- Player visibility settings";
+- Significance assessment aligned with role
+- Player visibility settings
+
+CRITICAL: Ensure role, purpose, allowedInferences, and forbiddenInferences are present and meaningful.";
 
         var jsonSchema = _schemaProvider.GetSchema("ExpandEvidence");
         var result = await _llmService.GenerateStructuredAsync(caseId, systemPrompt, userPrompt, jsonSchema, cancellationToken);

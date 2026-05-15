@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
 
 // Types matching the backend DTOs
 export interface LoginRequest {
@@ -253,7 +253,7 @@ export const authApi = {
 // Cases API
 export const casesApi = {
   getDashboard: async (): Promise<Dashboard> => {
-    return apiFetch('/cases/dashboard')
+    return apiFetch('/cases/v1/dashboard')
   },
   
   getCases: async (): Promise<Case[]> => {
@@ -291,6 +291,12 @@ export const caseSessionApi = {
   
   getCaseSessions: async (caseId: string): Promise<CaseSession[]> => {
     return apiFetch(`/casesession/${caseId}`)
+  },
+
+  resetVisibility: async (caseId: string): Promise<{ message: string; assetsRemoved: number; emailsRemoved: number; downloadsRemoved: number }> => {
+    return apiFetch(`/casesession/reset-visibility/${caseId}`, {
+      method: 'DELETE'
+    })
   }
 }
 
@@ -318,6 +324,69 @@ export const caseObjectApi = {
     const url = `${API_BASE_URL}/caseobject/${caseId}/files/${fileName}`
     // For images, we can return the URL directly since the browser will handle authentication
     return token ? `${url}?token=${token}` : url
+  }
+}
+
+// Cases V1 API - for case.json v1.0 cases from Azure Blob Storage
+export const casesV1Api = {
+  listCases: async (): Promise<Array<{
+    caseId: string
+    title: string
+    description: string
+    difficulty: number
+    category: string
+    estimatedTimeMinutes: number
+  }>> => {
+    return apiFetch('/cases/v1')
+  },
+
+  getCase: async (caseId: string): Promise<unknown> => {
+    return apiFetch(`/cases/v1/${caseId}`)
+  },
+
+  getCaseRaw: async (caseId: string): Promise<unknown> => {
+    return apiFetch(`/cases/v1/${caseId}/raw`)
+  },
+
+  getAsset: async (caseId: string, assetId: string): Promise<Blob> => {
+    const url = `${API_BASE_URL}/cases/v1/${caseId}/assets/${assetId}`
+    const token = tokenStorage.get()
+    
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    })
+    
+    if (!response.ok) {
+      throw new ApiError(response.status, `Failed to load asset: ${assetId}`)
+    }
+    
+    return response.blob()
+  },
+
+  getAssetUrl: (caseId: string, assetId: string): string => {
+    const token = tokenStorage.get()
+    const url = `${API_BASE_URL}/cases/v1/${caseId}/assets/${assetId}`
+    return token ? `${url}?token=${token}` : url
+  },
+
+  caseExists: async (caseId: string): Promise<boolean> => {
+    try {
+      const url = `${API_BASE_URL}/cases/v1/${caseId}`
+      const token = tokenStorage.get()
+      
+      const response = await fetch(url, {
+        method: 'HEAD',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      })
+      
+      return response.ok
+    } catch {
+      return false
+    }
   }
 }
 
@@ -409,20 +478,6 @@ export interface NormalizedCaseBundle {
     plan: Record<string, string>
     expand: Record<string, string>
   }
-}
-
-export interface ForensicRequestDTO {
-  id?: number
-  caseId: string
-  evidenceId: string
-  evidenceName: string
-  analysisType: 'DNA' | 'Fingerprint' | 'DigitalForensics' | 'Ballistics'
-  requestedAt: string // ISO string
-  estimatedCompletionTime: string // ISO string
-  completedAt?: string // ISO string
-  status: 'pending' | 'in-progress' | 'completed' | 'cancelled'
-  resultDocumentId?: string
-  notes?: string
 }
 
 export const caseFilesApi = {
@@ -573,5 +628,191 @@ export const notesApi = {
   }
 }
 
-export { ApiError }
+// Task 48: Assets API (replaces evidence API)
+export interface AssetDTO {
+  id: string // Backend returns 'id' not 'assetId'
+  assetId?: string // Optional alias for compatibility
+  caseId: string
+  type: string
+  name?: string
+  title?: string // v2 alias
+  filePath?: string
+  uri?: string // v2 alias
+  description?: string
+  visibility?: string
+  category?: string
+  isVisible?: boolean
+  metadata?: Record<string, any>
+}
 
+export const assetsApi = {
+  /**
+   * Get all visible assets for a case (Task 48)
+   */
+  getAssets: async (caseId: string): Promise<AssetDTO[]> => {
+    return apiFetch(`/cases/${caseId}/assets`)
+  },
+
+  /**
+   * Download an asset file
+   */
+  downloadAsset: async (caseId: string, assetId: string): Promise<Blob> => {
+    const url = `${API_BASE_URL}/cases/${caseId}/assets/${assetId}/download`
+    const token = tokenStorage.get()
+    
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    })
+    
+    if (!response.ok) {
+      throw new ApiError(response.status, 'Failed to download asset')
+    }
+    
+    return response.blob()
+  }
+}
+
+// Task 49-50: Emails API
+export interface EmailDTO {
+  emailId: string
+  from: string
+  to: string
+  subject: string
+  content: string
+  sentAt: string
+  priority?: string
+  attachments: string[]
+  metadata?: Record<string, any>
+  isRead: boolean
+  readAt?: string | null
+  openCount: number
+}
+
+export interface EmailListDTO {
+  emailId: string
+  from: string
+  to: string
+  subject: string
+  sentAt: string
+  priority?: string
+  hasAttachments: boolean
+  attachmentCount: number
+  isRead: boolean
+  readAt?: string | null
+  openCount: number
+}
+
+export const emailsApi = {
+  /**
+   * Get all visible emails for a case (Task 49)
+   */
+  getEmails: async (caseId: string): Promise<EmailListDTO[]> => {
+    return apiFetch(`/cases/${caseId}/emails`)
+  },
+
+  /**
+   * Open an email (marks as read) and get full content (Task 49)
+   */
+  openEmail: async (caseId: string, emailId: string): Promise<EmailDTO> => {
+    await apiFetch(`/cases/${caseId}/emails/${emailId}/open`, {
+      method: 'POST'
+    })
+    return apiFetch(`/cases/${caseId}/emails/${emailId}`)
+  },
+
+  /**
+   * Download email attachment (Task 50)
+   */
+  downloadAttachment: async (caseId: string, emailId: string, assetId: string): Promise<void> => {
+    return apiFetch(`/cases/${caseId}/emails/${emailId}/attachments/${assetId}/download`, {
+      method: 'POST'
+    })
+  }
+}
+
+// Task 51: Forensic Requests API
+export interface ForensicRequestDTO {
+  id?: number
+  caseId: string
+  userId: string
+  inputAssetId: string
+  inputAssetName?: string
+  analysisType: string
+  requestedAt: string
+  estimatedCompletionTime: string
+  completedAt?: string
+  status: string
+  resultDocumentId?: string
+  resultEmailId?: string
+  notes?: string
+}
+
+export const forensicsApi = {
+  /**
+   * Get pending forensic requests for a case (Task 51)
+   */
+  getPendingRequests: async (caseId: string): Promise<ForensicRequestDTO[]> => {
+    return apiFetch(`/forensicrequest/${caseId}/pending`)
+  },
+
+  /**
+   * Submit a new forensic request
+   */
+  submitRequest: async (caseId: string, inputAssetId: string, analysisType: string): Promise<ForensicRequestDTO> => {
+    return apiFetch(`/forensicrequest`, {
+      method: 'POST',
+      body: JSON.stringify({ caseId, inputAssetId, analysisType })
+    })
+  }
+}
+
+// ── V2 Cases API ─────────────────────────────────────────────────────────────
+import type { CaseV2Sanitized, SubmitCaseRequest, SubmitCaseResult, CaseDashboardItem } from '../types/caseV2'
+
+export const casesV2Api = {
+  getDashboard: async (): Promise<{
+    cases: CaseDashboardItem[]
+    stats?: { casesResolved: number; casesActive: number; successRate: number; averageRating: number }
+    recentActivities?: Array<{ description: string; date: string; type?: string; caseId?: string }>
+  }> =>
+    apiFetch('/cases/dashboard'),
+
+  getCase: async (caseId: string): Promise<CaseV2Sanitized> =>
+    apiFetch(`/cases/${caseId}`),
+
+  viewAsset: async (caseId: string, assetId: string): Promise<void> =>
+    apiFetch(`/cases/${caseId}/assets/${assetId}/view`, { method: 'POST' }),
+
+  openEmail: async (caseId: string, emailId: string): Promise<void> =>
+    apiFetch(`/cases/${caseId}/emails/${emailId}/open`, { method: 'POST' }),
+
+  viewSuspect: async (caseId: string, suspectId: string): Promise<void> =>
+    apiFetch(`/cases/${caseId}/suspects/${suspectId}/view`, { method: 'POST' }),
+
+  downloadAttachment: async (caseId: string, emailId: string, assetId: string): Promise<Blob> => {
+    const url = `${API_BASE_URL}/cases/${caseId}/emails/${emailId}/attachments/${assetId}/download`
+    const token = tokenStorage.get()
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+    if (!response.ok) throw new ApiError(response.status, 'Failed to download attachment')
+    return response.blob()
+  },
+
+  submitCase: async (caseId: string, payload: SubmitCaseRequest): Promise<SubmitCaseResult> =>
+    apiFetch(`/cases/${caseId}/submit`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
+
+  postGameTime: async (caseId: string, gameTimeMinutes: number): Promise<void> =>
+    apiFetch(`/cases/${caseId}/time`, {
+      method: 'POST',
+      body: JSON.stringify({ gameTimeMinutes })
+    }),
+}
+
+export { ApiError }

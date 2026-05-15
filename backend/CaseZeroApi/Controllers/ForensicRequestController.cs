@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CaseZeroApi.Data;
 using CaseZeroApi.Models;
+using CaseZeroApi.Services; // P86
 using System.Security.Claims;
 
 namespace CaseZeroApi.Controllers
@@ -14,11 +15,19 @@ namespace CaseZeroApi.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<ForensicRequestController> _logger;
+        private readonly IAuditLogService _auditLogService; // P86
+        private readonly IForensicQueueService _forensicQueueService; // Azure Queue integration
 
-        public ForensicRequestController(ApplicationDbContext context, ILogger<ForensicRequestController> logger)
+        public ForensicRequestController(
+            ApplicationDbContext context, 
+            ILogger<ForensicRequestController> logger,
+            IAuditLogService auditLogService, // P86
+            IForensicQueueService forensicQueueService) // Azure Queue integration
         {
             _context = context;
             _logger = logger;
+            _auditLogService = auditLogService; // P86
+            _forensicQueueService = forensicQueueService; // Azure Queue integration
         }
 
         // GET: api/forensicrequest/{caseId}
@@ -94,6 +103,23 @@ namespace CaseZeroApi.Controllers
 
             _context.ForensicRequests.Add(request);
             await _context.SaveChangesAsync();
+
+            // P86: Audit log - forensic request criado
+            await _auditLogService.LogActionAsync(
+                userId,
+                "forensic_request",
+                $"{request.CaseId}/forensic/{request.Id}",
+                request.CaseId,
+                "success",
+                $"{{{{\"inputAssetId\":\"{request.InputAssetId}\",\"analysisType\":\"{request.AnalysisType}\"}}}}");
+
+            // Enqueue forensic request to Azure Queue for async processing
+            await _forensicQueueService.EnqueueForensicRequestAsync(
+                request.Id,
+                request.CaseId,
+                userId,
+                request.InputAssetId!,
+                request.AnalysisType!);
 
             return CreatedAtAction(nameof(GetForensicRequest), 
                 new { caseId = request.CaseId, id = request.Id }, request);

@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom'
-import { useState, useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import styled from 'styled-components'
-import { Activity, Shield, Briefcase, Target, AlertTriangle, Radio, Layers, ArrowRight } from 'react-feather'
+import { Briefcase, Clock, MapPin, ArrowRight, Shield, Target, Activity, FileText, CheckCircle } from 'react-feather'
 import { useAuth } from '../hooks/useAuthContext'
 import { useLanguage } from '../hooks/useLanguageContext'
-import { casesApi } from '../services/api'
+import { casesV2Api } from '../services/api'
+import type { CaseDashboardItem } from '../types/caseV2'
 import LanguageSelector from '../components/LanguageSelector'
-import type { Dashboard } from '../services/api'
 import departmentBadge from '../assets/LogoMetroPolice_transparent.png'
 
 const PageContainer = styled.div`
@@ -90,26 +90,6 @@ const AgentMeta = styled.div`
   color: rgba(226, 232, 240, 0.8);
 `
 
-const HeaderBadges = styled.div`
-  display: flex;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-`
-
-const HeaderBadge = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: rgba(15, 23, 42, 0.55);
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(148, 197, 255, 0.9);
-`
-
 const HeaderControls = styled.div`
   display: flex;
   align-items: center;
@@ -127,23 +107,10 @@ const LogoutButton = styled.button`
   font-weight: 600;
   letter-spacing: 0.05em;
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
 
   &:hover {
     border-color: rgba(248, 113, 113, 0.8);
     background: rgba(248, 113, 113, 0.2);
-  }
-`
-
-const ContentGrid = styled.div`
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-  gap: clamp(1rem, 2vw, 1.5rem);
-
-  @media (max-width: 1100px) {
-    grid-template-columns: 1fr;
   }
 `
 
@@ -152,10 +119,11 @@ const Panel = styled.section`
   border: 1px solid rgba(56, 189, 248, 0.15);
   border-radius: 1.25rem;
   padding: clamp(1rem, 2vw, 1.5rem);
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.4);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  position: relative;
+  z-index: 1;
 `
 
 const PanelHeader = styled.div`
@@ -168,298 +136,175 @@ const PanelHeader = styled.div`
   color: rgba(148, 197, 255, 0.85);
 `
 
-const StatGrid = styled.div`
+const CaseGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1rem;
 `
 
-const StatCard = styled.div`
+const CaseCard = styled.button`
+  text-align: left;
+  background: rgba(7, 11, 26, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.15);
   border-radius: 1rem;
   padding: 1rem;
-  background: rgba(15, 23, 42, 0.65);
-  border: 1px solid rgba(56, 189, 248, 0.15);
+  color: inherit;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.6rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(56, 189, 248, 0.4);
+  }
 `
 
-const StatusSummary = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.65rem;
-  margin-top: 0.5rem;
-`
-
-const StatusPill = styled.span<{ $tone: 'open' | 'progress' | 'resolved' }>`
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  background: ${({ $tone }) => ($tone === 'resolved' ? 'rgba(34, 197, 94, 0.15)' : $tone === 'progress' ? 'rgba(250, 204, 21, 0.15)' : 'rgba(248, 113, 113, 0.15)')};
-  color: ${({ $tone }) => ($tone === 'resolved' ? '#86efac' : $tone === 'progress' ? '#fde047' : '#fca5a5')};
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  display: inline-flex;
-  gap: 0.35rem;
-  align-items: center;
-`
-
-const StatLabel = styled.span`
-  font-size: 0.85rem;
-  color: rgba(148, 197, 255, 0.75);
-`
-
-const StatValue = styled.div`
-  font-size: 1.75rem;
+const CardTitle = styled.div`
+  font-size: 1rem;
   font-weight: 600;
   color: #e0f2fe;
   display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
 `
 
-const CaseTable = styled.div`
-  border-radius: 1rem;
-  border: 1px solid rgba(56, 189, 248, 0.12);
-  overflow: hidden;
-`
-
-const TableHeader = styled.div`
-  display: grid;
-  grid-template-columns: 1.2fr 1.2fr 0.9fr 0.9fr 1fr;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  background: rgba(15, 23, 42, 0.85);
-  color: rgba(148, 197, 255, 0.7);
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1.5fr 1fr 1fr;
-    & > span:nth-child(3),
-    & > span:nth-child(4) {
-      display: none;
-    }
-  }
-`
-
-const CaseRow = styled.button`
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1.2fr 1.2fr 0.9fr 0.9fr 1fr;
-  gap: 0.75rem;
-  padding: 1rem;
-  background: rgba(7, 11, 26, 0.7);
-  border: none;
-  border-bottom: 1px solid rgba(56, 189, 248, 0.08);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background 0.15s ease;
-
-  &:hover {
-    background: rgba(15, 23, 42, 0.95);
-  }
-
-  @media (max-width: 900px) {
-    grid-template-columns: 1.5fr 1fr 1fr;
-    & > span:nth-child(3),
-    & > span:nth-child(4) {
-      display: none;
-    }
-  }
-`
-
-const StatusBadge = styled.span<{ $status: 'open' | 'progress' | 'resolved' }>`
-  padding: 0.25rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  justify-self: flex-start;
-  background: ${({ $status }) => {
-    if ($status === 'resolved') return 'rgba(34, 197, 94, 0.15)'
-    if ($status === 'progress') return 'rgba(250, 204, 21, 0.15)'
-    return 'rgba(248, 113, 113, 0.15)'
-  }};
-  color: ${({ $status }) => {
-    if ($status === 'resolved') return '#86efac'
-    if ($status === 'progress') return '#fde047'
-    return '#fca5a5'
-  }};
-  border: 1px solid rgba(255, 255, 255, 0.08);
-`
-
-const PriorityTag = styled.span<{ $priority: string }>`
-  padding: 0.25rem 0.6rem;
-  border-radius: 0.5rem;
-  font-size: 0.8rem;
-  background: ${({ $priority }) => {
-    switch ($priority) {
-      case 'Critical': return 'rgba(248, 113, 113, 0.15)'
-      case 'High': return 'rgba(251, 191, 36, 0.15)'
-      case 'Medium': return 'rgba(96, 165, 250, 0.15)'
-      default: return 'rgba(34, 197, 94, 0.15)'
-    }
-  }};
-  color: ${({ $priority }) => {
-    switch ($priority) {
-      case 'Critical': return '#fca5a5'
-      case 'High': return '#fbbf24'
-      case 'Medium': return '#93c5fd'
-      default: return '#86efac'
-    }
-  }};
-`
-
-const ActivityList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-`
-
-const ActivityItem = styled.div`
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.75rem;
-  align-items: start;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid rgba(56, 189, 248, 0.1);
-
-  &:last-child {
-    border-bottom: none;
-  }
-`
-
-const ActivityIcon = styled.div`
-  width: 36px;
-  height: 36px;
-  border-radius: 0.75rem;
-  background: rgba(56, 189, 248, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`
-
-const ActivityText = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-`
-
-const ActivityTimestamp = styled.span`
-  font-size: 0.75rem;
-  color: rgba(148, 163, 184, 0.85);
-`
-
-const HeatmapBar = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-`
-
-const HeatmapTrack = styled.div`
-  flex: 1;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.75);
-  overflow: hidden;
-`
-
-const HeatmapFill = styled.div<{ $width: number; $priority: string }>`
-  height: 100%;
-  width: ${({ $width }) => `${$width}%`};
-  border-radius: 999px;
-  background: ${({ $priority }) => {
-    switch ($priority) {
-      case 'Critical': return 'linear-gradient(90deg, #f87171, #ef4444)'
-      case 'High': return 'linear-gradient(90deg, #fbbf24, #ea580c)'
-      case 'Medium': return 'linear-gradient(90deg, #60a5fa, #2563eb)'
-      default: return 'linear-gradient(90deg, #34d399, #059669)'
-    }
-  }};
-`
-
-const ProgressTable = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-`
-
-const ProgressRow = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-`
-
-const ProgressMeta = styled.div`
-  display: flex;
-  justify-content: space-between;
+const CardDescription = styled.p`
+  margin: 0;
   font-size: 0.85rem;
-  color: rgba(148, 163, 184, 0.9);
+  line-height: 1.4;
+  color: rgba(203, 213, 225, 0.85);
 `
 
-const ProgressTrack = styled.div`
-  width: 100%;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.75);
-`
-
-const ProgressFill = styled.div<{ $value: number }>`
-  height: 100%;
-  width: ${({ $value }) => `${$value}%`};
-  border-radius: 999px;
-  background: linear-gradient(90deg, #22d3ee, #2563eb);
-`
-
-const BulletinList = styled.div`
+const MetaRow = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: rgba(148, 163, 184, 0.95);
 `
 
-const BulletinCard = styled.div`
-  border-radius: 1rem;
-  border: 1px solid rgba(56, 189, 248, 0.15);
-  padding: 0.75rem 1rem;
-  background: rgba(7, 11, 26, 0.7);
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-`
-
-const BulletinContent = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.9rem;
-`
-
-const BulletinCTA = styled.button`
+const MetaItem = styled.span`
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.45rem 0.9rem;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem;
   border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  background: transparent;
-  color: #bfdbfe;
-  cursor: pointer;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.12);
+`
 
-  &:hover {
-    background: rgba(56, 189, 248, 0.15);
+const TagRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+`
+
+const Tag = styled.span`
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.12);
+  color: #bfdbfe;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+`
+
+const EmptyMessage = styled.div`
+  padding: 2rem;
+  text-align: center;
+  color: rgba(148, 163, 184, 0.8);
+  font-size: 0.95rem;
+`
+
+const ErrorMessage = styled.div`
+  padding: 2rem;
+  text-align: center;
+  color: #fecaca;
+`
+
+const StatsGrid = styled.div`
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: clamp(0.75rem, 2vw, 1.25rem);
+  margin-bottom: clamp(1rem, 3vw, 2rem);
+`
+
+const StatCard = styled.div`
+  background: rgba(8, 12, 28, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+`
+
+const StatLabel = styled.span`
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(191, 219, 254, 0.85);
+`
+
+const StatValue = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.65rem;
+  font-weight: 600;
+  color: #f8fafc;
+`
+
+const SecondaryLayout = styled.div`
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  margin-top: clamp(1rem, 3vw, 2rem);
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
   }
+`
+
+const ActivityList = styled.ul`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`
+
+const ActivityItem = styled.li`
+  background: rgba(8, 12, 28, 0.5);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  border-radius: 0.6rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: rgba(226, 232, 240, 0.9);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`
+
+const ActivityMeta = styled.span`
+  font-size: 0.7rem;
+  color: rgba(148, 163, 184, 0.8);
 `
 
 const DashboardPage = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const { t, language } = useLanguage()
-  const [dashboard, setDashboard] = useState<Dashboard | null>(null)
+  const { t } = useLanguage()
+  const [cases, setCases] = useState<CaseDashboardItem[]>([])
+  const [stats, setStats] = useState<{ casesResolved: number; casesActive: number; successRate: number; averageRating: number } | null>(null)
+  const [activities, setActivities] = useState<Array<{ description: string; date: string; type?: string; caseId?: string }>>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -468,9 +313,12 @@ const DashboardPage = () => {
       setIsLoading(true)
       setError('')
       try {
-        const data = await casesApi.getDashboard()
-        setDashboard(data)
+        const data = await casesV2Api.getDashboard()
+        setCases(data?.cases ?? [])
+        setStats(data?.stats ?? null)
+        setActivities(data?.recentActivities ?? [])
       } catch (err) {
+        console.error('Failed to load dashboard:', err)
         setError(t('error'))
       } finally {
         setIsLoading(false)
@@ -480,7 +328,16 @@ const DashboardPage = () => {
     loadDashboard()
   }, [t])
 
-  const locale = language?.code || 'en-US'
+  // Counts derived from the cases list — works even if backend stats are stubbed.
+  const totals = useMemo(() => {
+    const total = cases.length
+    const byRank = cases.reduce<Record<string, number>>((acc, c) => {
+      const r = c.requiredRank || 'Unknown'
+      acc[r] = (acc[r] ?? 0) + 1
+      return acc
+    }, {})
+    return { total, byRank }
+  }, [cases])
 
   const handleLogout = () => {
     logout()
@@ -490,108 +347,6 @@ const DashboardPage = () => {
   const handleCaseClick = (caseId: string) => {
     navigate(`/desktop/${caseId}`)
   }
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'Open': return t('statusOpen')
-      case 'InProgress': return t('statusInProgress')
-      case 'Resolved':
-      case 'Closed':
-        return t('statusClosed')
-      default: return status
-    }
-  }
-
-  const getStatusStyle = (status: string): 'open' | 'progress' | 'resolved' => {
-    if (status === 'Resolved' || status === 'Closed') return 'resolved'
-    if (status === 'InProgress') return 'progress'
-    return 'open'
-  }
-
-  const getPriorityText = (priority: string) => {
-    switch (priority) {
-      case 'Low': return t('priorityLow')
-      case 'Medium': return t('priorityMedium')
-      case 'High': return t('priorityHigh')
-      case 'Critical': return t('priorityCritical')
-      default: return priority
-    }
-  }
-
-  const formatDate = (value?: string) => {
-    if (!value) return '—'
-    return new Intl.DateTimeFormat(locale, {
-      dateStyle: 'short',
-      timeStyle: 'short'
-    }).format(new Date(value))
-  }
-
-  const statusBreakdown = useMemo(() => {
-    if (!dashboard) return { Open: 0, InProgress: 0, Resolved: 0, Closed: 0 }
-    return dashboard.cases.reduce((acc, case_) => {
-      acc[case_.status] = (acc[case_.status] || 0) + 1
-      return acc
-    }, { Open: 0, InProgress: 0, Resolved: 0, Closed: 0 } as Record<string, number>)
-  }, [dashboard])
-
-  const priorityBreakdown = useMemo(() => {
-    if (!dashboard) return { Critical: 0, High: 0, Medium: 0, Low: 0 }
-    return dashboard.cases.reduce((acc, case_) => {
-      acc[case_.priority] = (acc[case_.priority] || 0) + 1
-      return acc
-    }, { Critical: 0, High: 0, Medium: 0, Low: 0 } as Record<string, number>)
-  }, [dashboard])
-
-  const progressEntries = useMemo(() => {
-    if (!dashboard) return []
-    return dashboard.cases
-      .filter(case_ => case_.userProgress)
-      .map(case_ => ({
-        id: case_.id,
-        title: case_.title,
-        completion: case_.userProgress?.completionPercentage || 0,
-        evidences: case_.userProgress?.evidencesCollected || 0,
-        interviews: case_.userProgress?.interviewsCompleted || 0
-      }))
-      .slice(0, 4)
-  }, [dashboard])
-
-  const sortedCases = useMemo(() => {
-    if (!dashboard) return []
-    return [...dashboard.cases].sort((a, b) => {
-      const aDate = a.userProgress?.lastActivity || a.createdAt
-      const bDate = b.userProgress?.lastActivity || b.createdAt
-      return new Date(bDate).getTime() - new Date(aDate).getTime()
-    })
-  }, [dashboard])
-
-  if (isLoading) {
-    return (
-      <PageContainer>
-        <BackgroundGrid />
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-          <span>{t('loading')}</span>
-        </div>
-      </PageContainer>
-    )
-  }
-
-  if (error) {
-    return (
-      <PageContainer>
-        <BackgroundGrid />
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', color: '#fecaca' }}>
-          <span>{error}</span>
-        </div>
-      </PageContainer>
-    )
-  }
-
-  if (!dashboard) {
-    return null
-  }
-
-  const totalCases = dashboard.cases.length || 1
 
   return (
     <PageContainer>
@@ -607,10 +362,6 @@ const DashboardPage = () => {
               {user?.badgeNumber && <span>Badge #{user.badgeNumber}</span>}
               {user?.department && <span>{user.department}</span>}
             </AgentMeta>
-            <HeaderBadges>
-              <HeaderBadge>{t('loginBadgeSecure')}</HeaderBadge>
-              <HeaderBadge>{t('loginBadgeMonitored')}</HeaderBadge>
-            </HeaderBadges>
           </IdentityText>
         </IdentityBlock>
         <HeaderControls>
@@ -619,175 +370,123 @@ const DashboardPage = () => {
         </HeaderControls>
       </Header>
 
-      <ContentGrid>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <Panel>
-            <PanelHeader>
-              <Activity size={16} />
-              {t('performanceStats')}
-            </PanelHeader>
-            <StatGrid>
-              <StatCard>
-                <StatLabel>{t('casesResolved')}</StatLabel>
-                <StatValue><Shield size={20} />{dashboard.stats.casesResolved}</StatValue>
-              </StatCard>
-              <StatCard>
-                <StatLabel>{t('casesActive')}</StatLabel>
-                <StatValue><Briefcase size={20} />{dashboard.stats.casesActive}</StatValue>
-              </StatCard>
-              <StatCard>
-                <StatLabel>{t('successRate')}</StatLabel>
-                <StatValue><Target size={20} />{dashboard.stats.successRate}%</StatValue>
-              </StatCard>
-              <StatCard>
-                <StatLabel>{t('averageRating')}</StatLabel>
-                <StatValue><Activity size={20} />{dashboard.stats.averageRating}</StatValue>
-              </StatCard>
-            </StatGrid>
-            <StatusSummary>
-              <StatusPill $tone="open">
-                {statusBreakdown.Open ?? 0}
-                <span>{t('statusOpen')}</span>
-              </StatusPill>
-              <StatusPill $tone="progress">
-                {statusBreakdown.InProgress ?? 0}
-                <span>{t('statusInProgress')}</span>
-              </StatusPill>
-              <StatusPill $tone="resolved">
-                {(statusBreakdown.Resolved ?? 0) + (statusBreakdown.Closed ?? 0)}
-                <span>{t('statusClosed')}</span>
-              </StatusPill>
-            </StatusSummary>
-          </Panel>
+      <StatsGrid>
+        <StatCard>
+          <StatLabel>{t('casesActive')}</StatLabel>
+          <StatValue><Briefcase size={20} />{stats?.casesActive ?? totals.total}</StatValue>
+        </StatCard>
+        <StatCard>
+          <StatLabel>{t('casesResolved')}</StatLabel>
+          <StatValue><CheckCircle size={20} />{stats?.casesResolved ?? 0}</StatValue>
+        </StatCard>
+        <StatCard>
+          <StatLabel>{t('successRate')}</StatLabel>
+          <StatValue><Target size={20} />{stats?.successRate ?? 0}%</StatValue>
+        </StatCard>
+        <StatCard>
+          <StatLabel>{t('averageRating')}</StatLabel>
+          <StatValue><Activity size={20} />{stats?.averageRating ?? 0}</StatValue>
+        </StatCard>
+      </StatsGrid>
 
-          <Panel>
-            <PanelHeader>
-              <Briefcase size={16} />
-              {t('availableCases')}
-            </PanelHeader>
-            <CaseTable>
-              <TableHeader>
-                <span>{t('caseNumber')}</span>
-                <span>{t('caseTitle')}</span>
-                <span>{t('caseStatus')}</span>
-                <span>{t('priority')}</span>
-                <span>{t('lastSession')}</span>
-              </TableHeader>
-              {sortedCases.map(case_ => (
-                <CaseRow key={case_.id} onClick={() => handleCaseClick(case_.id)}>
-                  <span>{case_.id}</span>
-                  <span>{case_.title}</span>
-                  <StatusBadge $status={getStatusStyle(case_.status)}>{getStatusText(case_.status)}</StatusBadge>
-                  <PriorityTag $priority={case_.priority}>{getPriorityText(case_.priority)}</PriorityTag>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#94a3b8' }}>
-                    {case_.userProgress?.lastActivity ? formatDate(case_.userProgress.lastActivity) : formatDate(case_.createdAt)}
-                    <ArrowRight size={16} />
-                  </span>
-                </CaseRow>
-              ))}
-            </CaseTable>
-          </Panel>
+      <Panel>
+        <PanelHeader>
+          <Briefcase size={16} />
+          {t('availableCases')}
+        </PanelHeader>
 
-          <Panel>
-            <PanelHeader>
-              <Radio size={16} />
-              {t('recentHistory')}
-            </PanelHeader>
+        {isLoading && <EmptyMessage>{t('loading')}</EmptyMessage>}
+        {!isLoading && error && <ErrorMessage>{error}</ErrorMessage>}
+        {!isLoading && !error && cases.length === 0 && (
+          <EmptyMessage>{t('dashboardEmpty')}</EmptyMessage>
+        )}
+
+        {!isLoading && !error && cases.length > 0 && (
+          <CaseGrid>
+            {cases.map(c => (
+              <CaseCard key={c.caseId} onClick={() => handleCaseClick(c.caseId)}>
+                <CardTitle>
+                  <span>{c.title}</span>
+                  <ArrowRight size={16} />
+                </CardTitle>
+                <CardDescription>{c.description}</CardDescription>
+                <MetaRow>
+                  <MetaItem>
+                    <MapPin size={12} />
+                    {c.location}
+                  </MetaItem>
+                  <MetaItem>
+                    <Shield size={12} />
+                    {t('dashboardDifficulty')}: {c.difficulty}
+                  </MetaItem>
+                  <MetaItem>
+                    <Shield size={12} />
+                    {t('dashboardRequiredRank')}: {c.requiredRank}
+                  </MetaItem>
+                  {typeof c.estimatedDurationMinutes === 'number' && (
+                    <MetaItem>
+                      <Clock size={12} />
+                      {c.estimatedDurationMinutes} min
+                    </MetaItem>
+                  )}
+                </MetaRow>
+                {c.tags && c.tags.length > 0 && (
+                  <TagRow>
+                    {c.tags.map(tag => (
+                      <Tag key={tag}>{tag}</Tag>
+                    ))}
+                  </TagRow>
+                )}
+              </CaseCard>
+            ))}
+          </CaseGrid>
+        )}
+      </Panel>
+
+      <SecondaryLayout>
+        <Panel>
+          <PanelHeader>
+            <Activity size={16} />
+            {t('recentHistory')}
+          </PanelHeader>
+          {activities.length === 0 ? (
+            <EmptyMessage>{t('noRecentActivity')}</EmptyMessage>
+          ) : (
             <ActivityList>
-              {dashboard.recentActivities.length === 0 && (
-                <span style={{ color: 'rgba(148,163,184,0.8)' }}>{t('noRecentActivity')}</span>
-              )}
-              {dashboard.recentActivities.map((activity, index) => (
-                <ActivityItem key={activity.caseId ?? index}>
-                  <ActivityIcon>
-                    {activity.caseId ? <Radio size={16} color="#93c5fd" /> : <Activity size={16} color="#93c5fd" />}
-                  </ActivityIcon>
-                  <ActivityText>
-                    <span>{activity.description}</span>
-                    <ActivityTimestamp>{formatDate(activity.date)}</ActivityTimestamp>
-                  </ActivityText>
+              {activities.slice(0, 8).map((a, i) => (
+                <ActivityItem key={`${a.date}-${i}`}>
+                  <span>{a.description}</span>
+                  <ActivityMeta>
+                    {new Date(a.date).toLocaleString()}
+                    {a.caseId ? ` · ${a.caseId}` : ''}
+                  </ActivityMeta>
                 </ActivityItem>
               ))}
             </ActivityList>
-          </Panel>
-        </div>
+          )}
+        </Panel>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <Panel>
-            <PanelHeader>
-              <Layers size={16} />
-              {t('divisionHeatmap')}
-            </PanelHeader>
-            {(['Critical', 'High', 'Medium', 'Low'] as const).map(priority => (
-              <HeatmapBar key={priority}>
-                <span style={{ width: '85px', fontSize: '0.85rem', color: 'rgba(148,163,184,0.9)' }}>
-                  {getPriorityText(priority)}
-                </span>
-                <HeatmapTrack>
-                  <HeatmapFill
-                    $priority={priority}
-                    $width={(priorityBreakdown[priority] / totalCases) * 100}
-                  />
-                </HeatmapTrack>
-                <span style={{ fontSize: '0.85rem', color: 'rgba(226,232,240,0.85)' }}>
-                  {priorityBreakdown[priority]}
-                </span>
-              </HeatmapBar>
-            ))}
-          </Panel>
-
-          <Panel>
-            <PanelHeader>
-              <Target size={16} />
-              {t('evidenceProgress')}
-            </PanelHeader>
-            <ProgressTable>
-              {progressEntries.length === 0 && (
-                <span style={{ color: 'rgba(148,163,184,0.8)' }}>{t('noDataAvailable')}</span>
-              )}
-              {progressEntries.map(entry => (
-                <ProgressRow key={entry.id}>
-                  <span style={{ fontSize: '0.9rem', color: '#e2e8f0' }}>{entry.title}</span>
-                  <ProgressMeta>
-                    <span>{entry.completion}%</span>
-                    <span>{entry.evidences} {t('evidence')} / {entry.interviews} {t('witnesses')}</span>
-                  </ProgressMeta>
-                  <ProgressTrack>
-                    <ProgressFill $value={entry.completion} />
-                  </ProgressTrack>
-                </ProgressRow>
+        <Panel>
+          <PanelHeader>
+            <FileText size={16} />
+            {t('casesByRank')}
+          </PanelHeader>
+          {Object.keys(totals.byRank).length === 0 ? (
+            <EmptyMessage>{t('dashboardEmpty')}</EmptyMessage>
+          ) : (
+            <ActivityList>
+              {Object.entries(totals.byRank).map(([rank, count]) => (
+                <ActivityItem key={rank}>
+                  <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <strong>{rank}</strong>
+                    <span>{count}</span>
+                  </span>
+                </ActivityItem>
               ))}
-            </ProgressTable>
-          </Panel>
-
-          <Panel>
-            <PanelHeader>
-              <AlertTriangle size={16} />
-              {t('commandBulletins')}
-            </PanelHeader>
-            <BulletinList>
-              {dashboard.recentActivities.slice(0, 3).map((activity, index) => {
-                const relatedCaseId = activity.caseId
-                return (
-                  <BulletinCard key={`bulletin-${relatedCaseId ?? index}`}>
-                    <AlertTriangle size={20} color="#fbbf24" />
-                    <BulletinContent>
-                      <span>{activity.description}</span>
-                      <ActivityTimestamp>{formatDate(activity.date)}</ActivityTimestamp>
-                    </BulletinContent>
-                    {relatedCaseId && (
-                      <BulletinCTA onClick={() => handleCaseClick(relatedCaseId)}>
-                        {t('viewDossier')}
-                        <ArrowRight size={14} />
-                      </BulletinCTA>
-                    )}
-                  </BulletinCard>
-                )
-              })}
-            </BulletinList>
-          </Panel>
-        </div>
-      </ContentGrid>
+            </ActivityList>
+          )}
+        </Panel>
+      </SecondaryLayout>
     </PageContainer>
   )
 }

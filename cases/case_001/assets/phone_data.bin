@@ -1,0 +1,22 @@
+BINARY DATA FILE - iPhone 14 Pro Forensic Image
+
+Device: iPhone 14 Pro
+Owner: Thomas Blackwood Jr.
+Status: Password-locked
+Last Activity: 2025-12-15 14:15:00
+
+[Simulated Binary Data]
+00000000: 504b 0304 1400 0800 0800 7b4e 5a5f 0000  PK........{NZ_..
+00000010: 0000 0000 0000 0000 0000 1400 0000 6465  ..............de
+00000020: 7669 6365 5f69 6e66 6f2e 6a73 6f6e 4b2c  vice_info.jsonK,
+00000030: 4acf 4bce f348 1028 48ca cf4b 8d31 313c  J.K..H.(H..K.11<
+00000040: e2e5 ca49 2c2e 71cc 2e c9cc 2b2d cd4a  ...I,.q...-..J
+
+Call Logs:
+- 10:30 AM to +1-503-555-0100 (Father)
+- 13:45 PM to +1-503-555-0142 (Unknown)
+- 14:10 PM to +1-503-555-0142 (Unknown)
+
+GPS Last Known: 45.5152° N, 122.6784° W (Portland, OR)
+
+[END OF FORENSIC IMAGE]

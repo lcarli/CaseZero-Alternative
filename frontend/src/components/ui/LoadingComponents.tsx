@@ -147,7 +147,7 @@ interface LoadingButtonProps {
   className?: string
 }
 
-const ButtonContainer = styled.button<{ loading?: boolean }>`
+const ButtonContainer = styled.button<{ $loading?: boolean }>`
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -178,7 +178,7 @@ const ButtonContainer = styled.button<{ loading?: boolean }>`
     transform: none;
   }
   
-  ${props => props.loading && `
+  ${props => props.$loading && `
     pointer-events: none;
   `}
 `
@@ -196,7 +196,7 @@ const LoadingButton: React.FC<LoadingButtonProps> = ({
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
-      loading={loading}
+      $loading={loading}
       className={className}
       aria-busy={loading}
     >

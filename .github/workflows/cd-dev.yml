@@ -2,7 +2,14 @@ name: 🚀 Deploy to DEV Environment
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'GDD/**'
+      - 'GDD-BR/**'
+      - 'backlog/**'
+      - '.gitignore'
   workflow_dispatch:
     inputs:
       environment:
@@ -16,9 +23,13 @@ on:
 env:
   AZURE_WEBAPP_NAME: casezero-api-dev
   AZURE_STATIC_WEB_APP_NAME: casezero-web-dev
+  AZURE_STATIC_WEB_APP_RG: casezero-web-dev-rg
   AZURE_RESOURCE_GROUP: casezero-api-dev-rg
+  AZURE_FUNCTIONAPP_NAME: casegen-func-dev
+  AZURE_FUNCTIONAPP_RG: casezero-func-dev-rg
   DOTNET_VERSION: '8.0.x'
-  NODE_VERSION: '18'
+  DOTNET_FUNCTIONS_VERSION: '9.0.x'
+  NODE_VERSION: '20'
 
 jobs:
   build-and-test:
@@ -67,6 +78,17 @@ jobs:
         working-directory: ./frontend
         continue-on-error: false
 
+      - name: ✅ Validate case.json files against v2 schema
+        run: |
+          npm install -g ajv-cli@5 ajv-formats@3
+          shopt -s nullglob
+          fail=0
+          for f in cases/*/case.json; do
+            echo "validating $f"
+            ajv validate -s schemas/case.schema.json -d "$f" --spec=draft2020 --strict=false -c ajv-formats || fail=1
+          done
+          exit $fail
+
       - name: 📦 Publish backend
         run: dotnet publish -c Release -o ./publish
         working-directory: ./backend/CaseZeroApi
@@ -83,24 +105,53 @@ jobs:
           name: frontend-build
           path: ./frontend/dist
 
+      - name: 🔧 Setup .NET 9 (for functions)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_FUNCTIONS_VERSION }}
+
+      - name: 📦 Publish CaseGen.Functions
+        run: dotnet publish -c Release -o ./publish
+        working-directory: ./functions/CaseGen.Functions
+
+      - name: 📤 Upload functions artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: functions-build
+          path: ./functions/CaseGen.Functions/publish
+
   deploy-to-dev:
     name: 🚀 Deploy to Development
     runs-on: ubuntu-latest
     needs: build-and-test
     environment: development
-    
+
     steps:
+      - name: 📥 Checkout (for EF migrations)
+        uses: actions/checkout@v4
+
       - name: 📥 Download backend artifacts
         uses: actions/download-artifact@v4
         with:
           name: backend-build
-          path: ./backend
+          path: ./artifacts/backend
 
       - name: 📥 Download frontend artifacts
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
-          path: ./frontend
+          path: ./artifacts/frontend
+
+      - name: 📥 Download functions artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: functions-build
+          path: ./artifacts/functions
+
+      - name: 🔧 Setup .NET (for EF tooling)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: 🔐 Azure Login
         uses: azure/login@v2
@@ -115,25 +166,61 @@ jobs:
             --connection-string-type SQLAzure \
             --settings DefaultConnection="Server=tcp:casezero-sql-dev.database.windows.net,1433;Initial Catalog=casezero-db;Persist Security Info=False;User ID=casezero_admin;Password=${{ secrets.SQL_ADMIN_PASSWORD }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
 
+      - name: 🗄️ Apply EF Core migrations
+        run: |
+          echo "Applying EF migrations to dev database..."
+          dotnet tool install -g dotnet-ef --version 8.0.* || dotnet tool update -g dotnet-ef --version 8.0.*
+          export PATH="$PATH:/home/runner/.dotnet/tools"
+          # idempotent SQL script — applies anything pending
+          dotnet ef migrations script --idempotent --output ./migrations.sql \
+            --project ./backend/CaseZeroApi/CaseZeroApi.csproj
+          if [ ! -s ./migrations.sql ]; then
+            echo "ℹ️ No migrations to apply"
+            exit 0
+          fi
+          # Run via sqlcmd on Azure SQL (uses the password from secret)
+          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/$(lsb_release -rs)/prod $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/microsoft-prod.list
+          sudo apt-get update -y
+          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+          export PATH="$PATH:/opt/mssql-tools18/bin"
+          sqlcmd -S "tcp:casezero-sql-dev.database.windows.net,1433" \
+                 -d "casezero-db" \
+                 -U "casezero_admin" \
+                 -P "${{ secrets.SQL_ADMIN_PASSWORD }}" \
+                 -i ./migrations.sql -C
+        continue-on-error: true  # do not block deploy when migrations are no-op
+
       - name: 🚀 Deploy Backend to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           slot-name: 'production'
-          package: ./backend
+          package: ./artifacts/backend
+
+      - name: 🧮 Deploy CaseGen.Functions
+        run: |
+          if ! az functionapp show --name ${{ env.AZURE_FUNCTIONAPP_NAME }} --resource-group ${{ env.AZURE_FUNCTIONAPP_RG }} >/dev/null 2>&1; then
+            echo "⚠️ Function App ${{ env.AZURE_FUNCTIONAPP_NAME }} not found. Skipping function deploy."
+            exit 0
+          fi
+          cd ./artifacts/functions
+          zip -r ../functions.zip . >/dev/null
+          cd ..
+          az functionapp deployment source config-zip \
+            --resource-group ${{ env.AZURE_FUNCTIONAPP_RG }} \
+            --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
+            --src ./functions.zip
 
       - name: 🌐 Deploy Frontend to Azure Static Web Apps
-        run: |
-          echo "Getting Static Web App deployment token..."
-          DEPLOYMENT_TOKEN=$(az staticwebapp secrets list \
-            --name ${{ env.AZURE_STATIC_WEB_APP_NAME }} \
-            --resource-group casezero-web-dev-rg \
-            --query "properties.apiKey" -o tsv)
-          
-          echo "Deploying frontend to Static Web App..."
-          npx @azure/static-web-apps-cli deploy ./frontend \
-            --deployment-token "$DEPLOYMENT_TOKEN" \
-            --env production
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_DEV }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: 'upload'
+          app_location: './artifacts/frontend'
+          skip_app_build: true
+          skip_api_build: true
 
   notify-deployment:
     name: 📢 Deployment Summary

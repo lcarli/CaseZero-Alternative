@@ -20,7 +20,11 @@ namespace CaseZeroApi.Models
         public string? Feedback { get; set; }
         public DateTime? EvaluatedAt { get; set; }
         public string? EvaluatedByUserId { get; set; }
-        
+
+        // v2 submission fields
+        public string? RequestPayloadJson { get; set; }
+        public int AttemptNumber { get; set; } = 1;
+
         // Navigation properties
         public virtual Case Case { get; set; } = null!;
         public virtual User SubmittedByUser { get; set; } = null!;

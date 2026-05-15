@@ -10,38 +10,67 @@ using CaseZeroApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Optional local override (gitignored) — lets developers point at SQLite/local SQL
+// without editing the shared appsettings.Development.json.
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // 🔒 SECURITY: Omitir propriedades null para não expor "rules":null
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 
 // Configure Entity Framework - Always use Azure SQL Database
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-if (string.IsNullOrEmpty(connectionString))
+// Skip validation in Testing environment (used by integration tests)
+var isTestingEnvironment = builder.Environment.EnvironmentName == "Testing";
+
+if (string.IsNullOrEmpty(connectionString) && !isTestingEnvironment)
 {
     throw new InvalidOperationException(
         "Database connection string 'DefaultConnection' is not configured. " +
         "Please set it in appsettings.json or appsettings.Development.json with your Azure SQL Database connection string.");
 }
 
-// Validate that it's not the placeholder value
-if (connectionString.Contains("your-server") || connectionString.Contains("your-username"))
+// Validate that it's not the placeholder value (skip in Testing environment)
+if (!isTestingEnvironment && !string.IsNullOrEmpty(connectionString) && 
+    (connectionString.Contains("your-server") || connectionString.Contains("your-username")))
 {
     throw new InvalidOperationException(
         "Database connection string contains placeholder values. " +
         "Please update appsettings.json or appsettings.Development.json with your actual Azure SQL Database credentials.");
 }
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+// Configure DbContext (tests will override this configuration)
+if (!isTestingEnvironment)
 {
-    options.UseSqlServer(connectionString, sqlOptions =>
+    var useSqlite = builder.Configuration.GetValue<bool>("UseSqlite")
+        || (connectionString?.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase) ?? false);
+
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
     {
-        sqlOptions.EnableRetryOnFailure(
-            maxRetryCount: 5,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
-            errorNumbersToAdd: null);
-        sqlOptions.CommandTimeout(60);
+        if (useSqlite)
+        {
+            var sqliteConn = connectionString ?? "Data Source=casezero-dev.db";
+            options.UseSqlite(sqliteConn);
+        }
+        else
+        {
+            options.UseSqlServer(connectionString, sqlOptions =>
+            {
+                sqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorNumbersToAdd: null);
+                sqlOptions.CommandTimeout(60);
+            });
+        }
     });
-});
+}
 
 // Configure Identity
 builder.Services.AddIdentity<User, IdentityRole>(options =>
@@ -121,13 +150,38 @@ builder.Services.Configure<IpRateLimitOptions>(options =>
         {
             Endpoint = "*/api/auth/*",
             Period = "15m", 
-            Limit = 5, // 5 authentication attempts per 15 minutes
+            Limit = 50, // 50 authentication attempts per 15 minutes (development)
         },
         new RateLimitRule
         {
             Endpoint = "POST:*/api/auth/login",
             Period = "5m",
-            Limit = 3, // 3 login attempts per 5 minutes
+            Limit = 50, // 50 login attempts per 5 minutes (development)
+        },
+        // P84: Rate limiting anti-brute-force específico
+        new RateLimitRule
+        {
+            Endpoint = "POST:*/api/forensicrequest*",
+            Period = "1h",
+            Limit = 10, // 10 forensics submissions per hour
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:*/api/cases/*/emails/*/open",
+            Period = "1h",
+            Limit = 100, // 100 email opens per hour
+        },
+        new RateLimitRule
+        {
+            Endpoint = "GET:*/api/cases/*/assets/*/download",
+            Period = "1h",
+            Limit = 50, // 50 asset downloads per hour
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:*/api/cases/*/submit",
+            Period = "24h",
+            Limit = 3, // 3 solution submissions per case per day
         }
     };
 });
@@ -143,34 +197,26 @@ builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>()
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<DataSeedingService>();
-builder.Services.AddScoped<ICaseObjectService, CaseObjectService>();
-builder.Services.AddScoped<ICaseAccessService, CaseAccessService>();
-builder.Services.AddScoped<ICaseProcessingService, CaseProcessingService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
 
-// Register AI Case Generation services
-builder.Services.AddHttpClient<LlmClient>();
-builder.Services.AddSingleton(serviceProvider =>
-{
-    var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-    return new LlmOptions
-    {
-        Endpoint = configuration["AzureOpenAI:Endpoint"] ?? throw new InvalidOperationException("AzureOpenAI:Endpoint not configured"),
-        Deployment = configuration["AzureOpenAI:Deployment"] ?? "gpt-4",
-        ApiVersion = configuration["AzureOpenAI:ApiVersion"] ?? "2024-02-15-preview",
-        ApiKey = configuration["AzureOpenAI:ApiKey"] ?? throw new InvalidOperationException("AzureOpenAI:ApiKey not configured"),
-        ApiKeyHeaderName = configuration["AzureOpenAI:ApiKeyHeaderName"] ?? "api-key"
-    };
-});
-builder.Services.AddScoped<ICaseGenerationService, CaseGenerationService>();
-builder.Services.AddScoped<ICaseFormatService, CaseFormatService>();
+// Case storage (blob manifest + v2 case loading)
 builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
+builder.Services.AddScoped<ICaseV1SanitizerService, CaseV1SanitizerService>();
+builder.Services.AddScoped<ICaseV1StorageService, CaseV1StorageService>();
+// v2 services
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ICaseV2SanitizerService, CaseV2SanitizerService>();
+builder.Services.AddScoped<ICaseV2StorageService, CaseV2StorageService>();
+builder.Services.AddScoped<ISolutionService, SolutionService>();
+builder.Services.AddScoped<IVisibilityService, VisibilityService>();
+builder.Services.AddScoped<IRulesEngineService, RulesEngineService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>(); // P86: Audit Log
+builder.Services.AddSingleton<IForensicQueueService, ForensicQueueService>();
 
 // Register background services
-builder.Services.AddHostedService<CaseProcessingBackgroundService>();
+// OBSOLETE: Removed CaseProcessingBackgroundService (uses obsolete CaseProcessingService from Services/OBSOLETE/)
 
-// Configure Email Settings
-builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+// OBSOLETE: EmailSettings removed (was part of old email system)
+// builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -185,20 +231,52 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Security Headers Middleware
+// P90: Security Headers Middleware - Proteção contra ataques comuns
 app.Use(async (context, next) =>
 {
+    // Previne clickjacking: não permite embedding em iframes
     context.Response.Headers["X-Frame-Options"] = "DENY";
-    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
-    context.Response.Headers["Content-Security-Policy"] = 
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'";
     
+    // Previne MIME-type sniffing
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    
+    // Controla informações de referrer em navegação
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    
+    // Proteção XSS legacy (browsers antigos)
+    context.Response.Headers["X-XSS-Protection"] = "1; mode=block";
+    
+    // P90: Content Security Policy - Controle granular de recursos
+    // Restringe origens de scripts, estilos, imagens, conexões
+    context.Response.Headers["Content-Security-Policy"] = 
+        "default-src 'self'; " +                           // Recursos padrão apenas do mesmo domínio
+        "script-src 'self'; " +                            // Scripts apenas do mesmo domínio (sem inline ou eval)
+        "style-src 'self' 'unsafe-inline'; " +             // Estilos do domínio + inline (para componentes)
+        "img-src 'self' data: blob:; " +                   // Imagens do domínio + data URLs + blob (para uploads)
+        "font-src 'self' data:; " +                        // Fontes do domínio + data URLs
+        "connect-src 'self'; " +                           // Conexões API apenas para o mesmo domínio
+        "media-src 'self' blob:; " +                       // Áudio/vídeo do domínio + blob
+        "object-src 'none'; " +                            // Bloqueia <object>, <embed>, <applet>
+        "frame-ancestors 'none'; " +                       // Previne embedding (complementa X-Frame-Options)
+        "base-uri 'self'; " +                              // Restringe <base> tag ao mesmo domínio
+        "form-action 'self'";                              // Formulários só podem submeter para o mesmo domínio
+    
+    // P90: Permissions Policy - Controle de features do navegador
+    context.Response.Headers["Permissions-Policy"] = 
+        "geolocation=(), " +                               // Bloqueia acesso à localização
+        "microphone=(), " +                                // Bloqueia acesso ao microfone
+        "camera=(), " +                                    // Bloqueia acesso à câmera
+        "payment=(), " +                                   // Bloqueia Payment Request API
+        "usb=(), " +                                       // Bloqueia WebUSB
+        "magnetometer=(), " +                              // Bloqueia magnetômetro
+        "gyroscope=(), " +                                 // Bloqueia giroscópio
+        "accelerometer=()";                                // Bloqueia acelerômetro
+    
+    // HSTS: Force HTTPS em produção (inclui subdomínios, 1 ano)
     if (context.Request.IsHttps || app.Environment.IsDevelopment())
     {
         context.Response.Headers["Strict-Transport-Security"] = 
-            "max-age=31536000; includeSubDomains";
+            "max-age=31536000; includeSubDomains; preload";
     }
     
     await next();
@@ -211,10 +289,14 @@ if (app.Environment.IsProduction())
     app.UseHsts();
 }
 
+// CORS must be before rate limiting and other middlewares
+app.UseCors("AllowFrontend");
+
 // Rate limiting middleware
 app.UseIpRateLimiting();
 
-app.UseCors("AllowFrontend");
+// P85: ID validation middleware - previne injection e valida formato
+app.UseMiddleware<CaseZeroApi.Middleware.IdValidationMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -225,27 +307,39 @@ app.MapHub<CaseZeroApi.Hubs.ForensicsHub>("/hubs/forensics");
 // Check if --seed-only argument is provided
 var seedOnly = args.Contains("--seed-only");
 
-// Initialize database
-using (var scope = app.Services.CreateScope())
+// Initialize database (skip in Testing environment - tests manage their own database)
+var environment = app.Services.GetRequiredService<IHostEnvironment>();
+if (environment.EnvironmentName != "Testing")
 {
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    
-    // Always use migrations for SQL Server
-    logger.LogInformation("🗄️ Applying SQL Server migrations...");
-    context.Database.Migrate();
-    
-    // Seed test users if none exist
-    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-    if (!userManager.Users.Any())
+    using (var scope = app.Services.CreateScope())
     {
-        // Primary test user following new pattern
-        var testUser1 = new User
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+        // For SQLite (local dev) the SQL-Server migrations are not portable —
+        // EnsureCreated builds the schema from the current model snapshot.
+        if (context.Database.IsSqlite())
         {
-            UserName = "john.doe@fic-police.gov",
-            Email = "john.doe@fic-police.gov",
-            FirstName = "John",
-            LastName = "Doe",
+            logger.LogInformation("🗄️ Ensuring SQLite schema (local dev mode)...");
+            context.Database.EnsureCreated();
+        }
+        else
+        {
+            logger.LogInformation("🗄️ Applying SQL Server migrations...");
+            context.Database.Migrate();
+        }
+        
+        // Seed test users if none exist
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+        if (!userManager.Users.Any())
+        {
+            // Primary test user following new pattern
+            var testUser1 = new User
+            {
+                UserName = "john.doe@fic-police.gov",
+                Email = "john.doe@fic-police.gov",
+                FirstName = "John",
+                LastName = "Doe",
             PersonalEmail = "john.doe.personal@example.com",
             Department = "ColdCase",
             Position = "rook",
@@ -314,6 +408,12 @@ using (var scope = app.Services.CreateScope())
         logger.LogInformation("✅ Database seeding completed. Exiting (--seed-only mode).");
         Environment.Exit(0);
     }
+    }
+}
+else
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("🧪 Testing environment - skipping database initialization");
 }
 
 app.Run();

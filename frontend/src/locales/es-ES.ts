@@ -88,6 +88,7 @@ export const esES: Translations = {
   openWorkspace: 'Abrir Espacio de Trabajo',
   weeklyGoals: 'Objetivos Semanales',
   recentHistory: 'Historial Reciente',
+  casesByRank: 'Casos por rango',
   lastSession: 'Última sesión',
   priority: 'Prioridad',
   divisionHeatmap: 'Mapa de calor de divisiones',
@@ -426,4 +427,32 @@ export const esES: Translations = {
   itemDeleted: 'Elemento eliminado',
   noItemsOnBoard: 'No hay elementos en el tablero',
   dropHereToAdd: 'Soltar aquí para agregar',
+
+  // Submit Case (v2)
+  submitCaseTitle: 'Envío del Caso',
+  submitCaseSuspectLabel: 'Sospechoso Principal',
+  submitCaseEvidenceLabel: 'Evidencias',
+  submitCaseAnalysisLabel: 'Análisis Forenses',
+  submitCaseQuestionsHeader: 'Preguntas de Investigación',
+  submitCaseSubmitButton: 'Enviar Caso',
+  submitCaseAttemptsRemaining: '{n} intentos restantes',
+  submitCaseAttemptsExhausted: 'Sin intentos restantes',
+  submitCaseResultCorrect: '✅ ¡Correcto! Caso resuelto.',
+  submitCaseResultIncorrect: '❌ Incorrecto. Revisa las evidencias.',
+  submitCaseScore: 'Puntuación',
+  submitCaseBreakdownCulprit: 'Sospechoso',
+  submitCaseBreakdownEvidence: 'Evidencias',
+  submitCaseBreakdownAnalysis: 'Análisis',
+  submitCaseBreakdownQuestions: 'Preguntas',
+  submitCaseExplanationHeader: 'Explicación del Caso',
+
+  // Dashboard V2
+  dashboardRequiredRank: 'Rango Requerido',
+  dashboardDifficulty: 'Dificultad',
+  dashboardEmpty: 'No hay casos disponibles para tu rango.',
+
+  // Notifications
+  notificationsEntityRevealedEmail: 'Nuevo correo recibido.',
+  notificationsEntityRevealedAsset: 'Nueva evidencia revelada.',
+  notificationsEntityRevealedSuspect: 'Nuevo sospechoso identificado.',
 };

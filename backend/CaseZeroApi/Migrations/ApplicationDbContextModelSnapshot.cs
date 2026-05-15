@@ -22,6 +22,46 @@ namespace CaseZeroApi.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("CaseZeroApi.Models.AuditLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CaseId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Resource")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AuditLogs");
+                });
+
             modelBuilder.Entity("CaseZeroApi.Models.Case", b =>
                 {
                     b.Property<string>("Id")
@@ -142,6 +182,15 @@ namespace CaseZeroApi.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("EmailAttachmentOverrides")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FiredRuleIds")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FiredTemporalEventIds")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("GameTimeAtEnd")
                         .HasColumnType("nvarchar(max)");
 
@@ -151,6 +200,12 @@ namespace CaseZeroApi.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<string>("Notifications")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RevealedSuspectIds")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("SessionDurationMinutes")
                         .HasColumnType("int");
 
@@ -159,6 +214,18 @@ namespace CaseZeroApi.Migrations
 
                     b.Property<DateTime>("SessionStart")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SuspectAlibiVerified")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SuspectStatusOverrides")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SyntheticEmails")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -171,6 +238,114 @@ namespace CaseZeroApi.Migrations
                     b.ToTable("CaseSessions");
                 });
 
+            modelBuilder.Entity("CaseZeroApi.Models.CaseSessionEmailState", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CaseId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("CaseSessionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EmailId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("OpenCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaseSessionId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CaseSessionEmailStates");
+                });
+
+            modelBuilder.Entity("CaseZeroApi.Models.CaseSessionVisibleAsset", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AssetId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CaseId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("CaseSessionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("UnlockedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaseSessionId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CaseSessionVisibleAssets");
+                });
+
+            modelBuilder.Entity("CaseZeroApi.Models.CaseSessionVisibleEmail", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CaseId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("CaseSessionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EmailId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("UnlockedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaseSessionId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CaseSessionVisibleEmails");
+                });
+
             modelBuilder.Entity("CaseZeroApi.Models.CaseSubmission", b =>
                 {
                     b.Property<int>("Id")
@@ -178,6 +353,9 @@ namespace CaseZeroApi.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("int");
 
                     b.Property<string>("CaseId")
                         .IsRequired()
@@ -204,6 +382,9 @@ namespace CaseZeroApi.Migrations
 
                     b.Property<string>("Reasoning")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RequestPayloadJson")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<double>("Score")
@@ -300,6 +481,40 @@ namespace CaseZeroApi.Migrations
                     b.HasIndex("ToUserId");
 
                     b.ToTable("Emails");
+                });
+
+            modelBuilder.Entity("CaseZeroApi.Models.EmailAttachmentDownloaded", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AssetId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CaseId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("DownloadedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EmailId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("EmailAttachmentsDownloaded");
                 });
 
             modelBuilder.Entity("CaseZeroApi.Models.Evidence", b =>
@@ -447,11 +662,11 @@ namespace CaseZeroApi.Migrations
                     b.Property<DateTime>("EstimatedCompletionTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("EvidenceId")
+                    b.Property<string>("InputAssetId")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("EvidenceName")
+                    b.Property<string>("InputAssetName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -462,6 +677,9 @@ namespace CaseZeroApi.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("ResultDocumentId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResultEmailId")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Status")
@@ -868,6 +1086,17 @@ namespace CaseZeroApi.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("CaseZeroApi.Models.AuditLog", b =>
+                {
+                    b.HasOne("CaseZeroApi.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CaseZeroApi.Models.CaseProgress", b =>
                 {
                     b.HasOne("CaseZeroApi.Models.Case", "Case")
@@ -894,6 +1123,57 @@ namespace CaseZeroApi.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CaseZeroApi.Models.CaseSessionEmailState", b =>
+                {
+                    b.HasOne("CaseZeroApi.Models.CaseSession", "CaseSession")
+                        .WithMany("EmailStates")
+                        .HasForeignKey("CaseSessionId");
+
+                    b.HasOne("CaseZeroApi.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CaseSession");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CaseZeroApi.Models.CaseSessionVisibleAsset", b =>
+                {
+                    b.HasOne("CaseZeroApi.Models.CaseSession", "CaseSession")
+                        .WithMany("VisibleAssets")
+                        .HasForeignKey("CaseSessionId");
+
+                    b.HasOne("CaseZeroApi.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CaseSession");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CaseZeroApi.Models.CaseSessionVisibleEmail", b =>
+                {
+                    b.HasOne("CaseZeroApi.Models.CaseSession", "CaseSession")
+                        .WithMany("VisibleEmails")
+                        .HasForeignKey("CaseSessionId");
+
+                    b.HasOne("CaseZeroApi.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CaseSession");
 
                     b.Navigation("User");
                 });
@@ -946,6 +1226,17 @@ namespace CaseZeroApi.Migrations
                     b.Navigation("FromUser");
 
                     b.Navigation("ToUser");
+                });
+
+            modelBuilder.Entity("CaseZeroApi.Models.EmailAttachmentDownloaded", b =>
+                {
+                    b.HasOne("CaseZeroApi.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("CaseZeroApi.Models.Evidence", b =>
@@ -1104,6 +1395,15 @@ namespace CaseZeroApi.Migrations
                     b.Navigation("Suspects");
 
                     b.Navigation("UserCases");
+                });
+
+            modelBuilder.Entity("CaseZeroApi.Models.CaseSession", b =>
+                {
+                    b.Navigation("EmailStates");
+
+                    b.Navigation("VisibleAssets");
+
+                    b.Navigation("VisibleEmails");
                 });
 
             modelBuilder.Entity("CaseZeroApi.Models.Evidence", b =>

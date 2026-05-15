@@ -1,0 +1,296 @@
+{
+  "version": "2.0",
+  "caseId": "case_001",
+  "metadata": {
+    "title": "The Missing Heir",
+    "description": "Investigate the disappearance of a wealthy businessman's son who vanished under mysterious circumstances.",
+    "location": "Portland, Oregon",
+    "incidentDate": "2025-12-15T14:30:00Z",
+    "openedAt": "2025-12-16T08:00:00Z",
+    "difficulty": "Detective",
+    "requiredRank": "Detective",
+    "unlockMode": "gated",
+    "estimatedDurationMinutes": 90,
+    "category": "Missing Person",
+    "briefing": "Thomas Blackwood Jr., son of CEO Thomas Blackwood Sr., disappeared after leaving his apartment at 2:30 PM on December 15. The family's prominence demands urgency and discretion.",
+    "tags": ["missing-person", "white-collar", "family-dispute"],
+    "victim": {
+      "name": "Thomas Blackwood Jr.",
+      "age": 28,
+      "occupation": "Software Engineer",
+      "lastSeen": "2025-12-15T14:30:00Z"
+    }
+  },
+  "assets": [
+    {
+      "id": "asset.briefing_doc",
+      "type": "pdf",
+      "title": "Initial Case Briefing",
+      "description": "Official case assignment document from Chief of Police with preliminary details.",
+      "uri": "case://case_001/assets/briefing.pdf",
+      "visibility": "initial",
+      "category": "Document",
+      "metadata": { "pages": 2, "fileSize": "245KB", "format": "PDF" }
+    },
+    {
+      "id": "asset.victim_photo",
+      "type": "photo",
+      "title": "Photo of Thomas Blackwood Jr.",
+      "description": "Recent photograph of the missing person taken at a company event three weeks ago.",
+      "uri": "case://case_001/assets/victim_photo.jpg",
+      "visibility": "initial",
+      "category": "Document",
+      "metadata": { "resolution": "1920x1080", "dateTaken": "2025-11-22" }
+    },
+    {
+      "id": "asset.phone_data",
+      "type": "digital",
+      "title": "Victim's Mobile Phone",
+      "description": "Thomas Jr.'s smartphone found in his apartment, locked but intact. Likely holds call logs, messages and app data.",
+      "uri": "case://case_001/assets/phone_data.bin",
+      "visibility": "initial",
+      "category": "Digital",
+      "metadata": { "model": "iPhone 14 Pro", "condition": "Intact, password-locked", "physicalType": "phone" }
+    },
+    {
+      "id": "asset.phone_forensics_report",
+      "type": "pdf",
+      "title": "Digital Forensics Report — Phone Dump",
+      "description": "Detailed report from the digital forensics lab summarizing the recovered call history, deleted messages and GPS data.",
+      "uri": "case://case_001/assets/phone_forensics_report.pdf",
+      "visibility": "hidden",
+      "category": "Document",
+      "metadata": { "pages": 6 }
+    }
+  ],
+  "emails": [
+    {
+      "id": "email.briefing",
+      "from": "Chief Sarah Mitchell <chief@citypolice.gov>",
+      "to": ["Detective Alex Morgan <detective@citypolice.gov>"],
+      "subject": "URGENT: Missing Person Case Assignment",
+      "sentAt": "2025-12-16T08:00:00Z",
+      "priority": "urgent",
+      "visibility": "initial",
+      "body": "Detective Morgan,\n\nYou've been assigned to investigate the disappearance of Thomas Blackwood Jr., a 28-year-old software engineer who went missing yesterday afternoon. He was last seen leaving his downtown Portland apartment at 2:30 PM.\n\nHis father, Thomas Blackwood Sr., CEO of Blackwood Industries, reported him missing this morning when Thomas Jr. failed to attend a critical board meeting. Given the Blackwood family's prominence, handle this with urgency and discretion.\n\nThe initial briefing and a recent photo of Thomas Jr. are attached.\n\nChief Mitchell\nPortland Police Department",
+      "attachments": ["asset.briefing_doc", "asset.victim_photo"],
+      "metadata": { "thread": "case_assignment" }
+    },
+    {
+      "id": "email.forensics_phone_result",
+      "from": "Digital Forensics Lab <digitallab@citypolice.gov>",
+      "to": ["Detective Alex Morgan <detective@citypolice.gov>"],
+      "subject": "Digital Forensics Analysis — Phone Dump",
+      "sentAt": "2025-12-16T10:15:00Z",
+      "priority": "high",
+      "visibility": "hidden",
+      "body": "Detective Morgan,\n\nDigital forensics on the iPhone 14 Pro recovered from Thomas Blackwood Jr.'s apartment is complete.\n\nKey findings:\n\n1. **Last activity:** device used at 2:15 PM on December 15th, about 15 minutes before he was last seen.\n2. **Call logs:** three outgoing calls on the day of disappearance — to his father (10:30 AM, 4 min), to an unknown number 503-555-0142 (1:45 PM, 12 min) and to the same number (2:10 PM, 2 min). The unknown number traces back to a burner phone purchased at a convenience store in Northeast Portland.\n3. **Text messages:** deleted messages recovered from the unknown-number conversation suggest a planned meeting at an undisclosed location.\n4. **Location data:** GPS history shows the victim visited 1247 Riverside Drive twice in the week before disappearance. Property is registered to Marcus Reeve.\n\nFull report attached.\n\nTech Specialist Rodriguez\nDigital Forensics Lab",
+      "attachments": ["asset.phone_forensics_report"],
+      "metadata": { "thread": "forensics_results", "analysisType": "DigitalForensics" }
+    }
+  ],
+  "suspects": [
+    {
+      "id": "suspect.thomas_blackwood_sr",
+      "name": "Thomas Blackwood Sr.",
+      "age": 58,
+      "occupation": "CEO, Blackwood Industries",
+      "relationship": "Father of victim",
+      "motive": "Recent financial disputes with son over company succession and ethics disagreements.",
+      "alibi": "Claims to have been at company board meeting from 1:00 PM to 5:00 PM on December 15th.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Thomas Blackwood Sr. is a self-made multi-millionaire who built Blackwood Industries over 30 years. Demanding and controlling, recently in conflict with Thomas Jr. over ethically questionable deals.",
+      "relatedAssets": ["asset.briefing_doc"],
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.marcus_reeve",
+      "name": "Marcus Reeve",
+      "age": 34,
+      "occupation": "Independent contractor",
+      "relationship": "Acquaintance of victim",
+      "motive": "Possible blackmail — internal company memos suggest Reeve was paid for fixer work and recently demanded more.",
+      "alibi": "No verified alibi for the afternoon of December 15th.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Owner of the property at 1247 Riverside Drive visited by the victim twice in the prior week. Burner phone linked to him in forensic phone dump.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.eva_blackwood",
+      "name": "Eva Blackwood",
+      "age": 31,
+      "occupation": "VP of Operations, Blackwood Industries",
+      "relationship": "Half-sister of victim",
+      "motive": "Stood to gain Thomas Jr.'s board seat and the succession line.",
+      "alibi": "Says she was on a conference call with the European division from 2:00 PM to 4:00 PM.",
+      "alibiVerified": true,
+      "status": "suspect",
+      "background": "Has clashed with Thomas Jr. publicly over executive bonuses but the conference call was independently verified by the European team.",
+      "visibility": "initial"
+    }
+  ],
+  "timeline": [
+    {
+      "time": "2025-12-15T13:45:00Z",
+      "event": "Thomas Jr. takes 12-min call from burner phone (503-555-0142).",
+      "source": "forensic",
+      "sourceAssetId": "asset.phone_data",
+      "verified": true,
+      "importance": "high"
+    },
+    {
+      "time": "2025-12-15T14:30:00Z",
+      "event": "Thomas Jr. last seen leaving his apartment building.",
+      "source": "witness",
+      "verified": true,
+      "importance": "critical"
+    },
+    {
+      "time": "2025-12-16T07:50:00Z",
+      "event": "Thomas Blackwood Sr. reports his son missing after failed board meeting.",
+      "source": "investigation",
+      "verified": true,
+      "importance": "high"
+    }
+  ],
+  "temporalEvents": [
+    {
+      "id": "tevt.chief_followup_30min",
+      "triggerAtMinutes": 30,
+      "type": "memo",
+      "payload": {
+        "message": "The Chief expects an initial status update within the hour. Prioritize the phone forensics."
+      }
+    }
+  ],
+  "rules": [
+    {
+      "ruleId": "rule.phone_forensics_reveals_email",
+      "description": "When the phone digital forensic completes, reveal the forensics result email.",
+      "trigger": {
+        "type": "forensics_complete",
+        "inputAssetId": "asset.phone_data",
+        "analysisType": "DigitalForensics"
+      },
+      "actions": [
+        { "type": "reveal_email", "emailId": "email.forensics_phone_result" }
+      ]
+    },
+    {
+      "ruleId": "rule.phone_result_reveals_reeve_link",
+      "description": "When the detective opens the phone forensics email, mark Marcus Reeve as the linked suspect highlight.",
+      "trigger": {
+        "type": "email_opened",
+        "emailId": "email.forensics_phone_result"
+      },
+      "actions": [
+        { "type": "send_notification", "level": "info", "message": "GPS history places the victim at Marcus Reeve's address twice. Worth a closer look." }
+      ]
+    },
+    {
+      "ruleId": "rule.eva_alibi_verified_when_briefing_read",
+      "description": "Eva's alibi was independently verified before the case opened — surface that the moment the detective reads the briefing.",
+      "trigger": {
+        "type": "email_opened",
+        "emailId": "email.briefing"
+      },
+      "actions": [
+        { "type": "mark_alibi_verified", "suspectId": "suspect.eva_blackwood", "verified": true }
+      ]
+    }
+  ],
+  "forensicsDefaults": {
+    "analysisTypes": [
+      { "type": "DNA",              "durationMinutes": 300, "availableFor": ["blood", "hair", "saliva", "tissue"] },
+      { "type": "Fingerprint",      "durationMinutes": 150, "availableFor": ["print", "surface", "object", "document", "photo"] },
+      { "type": "DigitalForensics", "durationMinutes": 360, "availableFor": ["phone", "computer", "hard_drive", "usb", "digital"] },
+      { "type": "Ballistics",       "durationMinutes": 240, "availableFor": ["bullet", "casing", "firearm"] }
+    ],
+    "noFindingsEmail": {
+      "template": "Detective,\n\nThe {{analysisType}} analysis on {{assetName}} did not reveal any actionable leads.\n\nForensics Lab\nPortland Police Department",
+      "from": "Forensics Lab <lab@citypolice.gov>",
+      "subject": "Analysis Results — {{analysisType}} — No Findings"
+    }
+  },
+  "forensicOutcomes": [
+    {
+      "inputAssetId": "asset.phone_data",
+      "analysisType": "DigitalForensics",
+      "findings": true,
+      "matchedSuspectId": "suspect.marcus_reeve",
+      "conclusionText": "Burner phone calls + GPS history place the victim at Marcus Reeve's property twice in the week before disappearance.",
+      "resultAssetId": "asset.phone_forensics_report",
+      "resultEmailId": "email.forensics_phone_result"
+    },
+    {
+      "inputAssetId": "asset.victim_photo",
+      "analysisType": "Fingerprint",
+      "findings": false,
+      "conclusionText": "No usable prints recovered from the photographic print surface."
+    }
+  ],
+  "solution": {
+    "culpritId": "suspect.marcus_reeve",
+    "requiredEvidenceIds": ["asset.phone_data", "asset.phone_forensics_report"],
+    "requiredAnalysisIds": ["asset.phone_data:DigitalForensics"],
+    "questions": [
+      {
+        "id": "q.motive",
+        "prompt": "What was the most likely motive?",
+        "options": [
+          { "id": "opt.blackmail", "label": "Blackmail / fixer dispute" },
+          { "id": "opt.succession", "label": "Corporate succession" },
+          { "id": "opt.passion", "label": "Crime of passion" }
+        ],
+        "correctOptionId": "opt.blackmail",
+        "weight": 1.0
+      },
+      {
+        "id": "q.method",
+        "prompt": "Where did the encounter most likely take place?",
+        "options": [
+          { "id": "opt.apartment", "label": "The victim's apartment" },
+          { "id": "opt.riverside", "label": "1247 Riverside Drive" },
+          { "id": "opt.office", "label": "Blackwood Industries office" }
+        ],
+        "correctOptionId": "opt.riverside",
+        "weight": 1.0
+      },
+      {
+        "id": "q.contact_channel",
+        "prompt": "How was the meeting coordinated?",
+        "options": [
+          { "id": "opt.burner", "label": "Burner phone 503-555-0142" },
+          { "id": "opt.work_email", "label": "Corporate email" },
+          { "id": "opt.in_person", "label": "In-person at the office" }
+        ],
+        "correctOptionId": "opt.burner",
+        "weight": 0.5
+      }
+    ],
+    "explanation": "The phone forensics tied a burner number to Marcus Reeve, whose property the victim visited twice in the prior week. Eva's alibi was independently verified by the European team. Thomas Sr. was at a board meeting attended by multiple witnesses.",
+    "minimumScore": 0.7,
+    "maxAttempts": 3,
+    "partialCreditRules": {
+      "culpritWeight": 0.4,
+      "evidenceWeight": 0.2,
+      "analysisWeight": 0.2,
+      "questionsWeight": 0.2
+    }
+  },
+  "gameMetadata": {
+    "schemaVersion": "2.0",
+    "createdAt": "2025-12-15T00:00:00Z",
+    "tags": ["missing-person", "white-collar"],
+    "contentWarnings": [],
+    "localizations": ["en-US"],
+    "generation": {
+      "pipelineVersion": "manual-migration-v2",
+      "model": "n/a",
+      "seed": 0,
+      "bundleChecksum": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  }
+}

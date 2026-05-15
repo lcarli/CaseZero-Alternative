@@ -1,5 +1,12 @@
 namespace CaseZeroApi.Models
 {
+    public enum SessionStatus
+    {
+        Active,
+        Paused,
+        Completed
+    }
+
     public class CaseSession
     {
         public int Id { get; set; }
@@ -11,8 +18,22 @@ namespace CaseZeroApi.Models
         public string? GameTimeAtStart { get; set; }
         public string? GameTimeAtEnd { get; set; }
         public bool IsActive { get; set; } = true;
-        
+        public SessionStatus Status { get; set; } = SessionStatus.Active;
+
+        // v2 session state (JSON-serialized lists/dicts) — see CaseV2SanitizerService and RulesEngineService.
+        public string? FiredRuleIds { get; set; }
+        public string? RevealedSuspectIds { get; set; }
+        public string? EmailAttachmentOverrides { get; set; }
+        public string? SuspectStatusOverrides { get; set; }
+        public string? SuspectAlibiVerified { get; set; }
+        public string? Notifications { get; set; }
+        public string? SyntheticEmails { get; set; }
+        public string? FiredTemporalEventIds { get; set; }
+
         // Navigation properties
         public virtual User User { get; set; } = null!;
+        public virtual ICollection<CaseSessionVisibleAsset> VisibleAssets { get; set; } = new List<CaseSessionVisibleAsset>();
+        public virtual ICollection<CaseSessionVisibleEmail> VisibleEmails { get; set; } = new List<CaseSessionVisibleEmail>();
+        public virtual ICollection<CaseSessionEmailState> EmailStates { get; set; } = new List<CaseSessionEmailState>();
     }
 }

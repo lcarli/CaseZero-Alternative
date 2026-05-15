@@ -57,7 +57,10 @@ public class NormalizerService : INormalizerService
             await ValidateIdsAndReferencesAsync(parsedDocuments, parsedMedia, logEntries, validationResults);
             
             // Step 3: Apply difficulty validation
-            var difficultyProfile = ValidateDifficultyRules(input.Difficulty, parsedDocuments, parsedMedia, logEntries, validationResults);
+            var difficultyProfile = ValidateDifficultyRules(input.Difficulty, input.PlanJson, parsedDocuments, parsedMedia, logEntries, validationResults);
+            
+            // Step 3.1: Validate planned contradictions (EPIC 3.1)
+            await ValidatePlannedContradictionsAsync(input.DesignJson, parsedDocuments, parsedMedia, difficultyProfile, logEntries, validationResults);
             
             // Step 4: Build and validate gating graph
             var gatingGraph = BuildGatingGraph(parsedDocuments, parsedMedia, logEntries, validationResults);
@@ -75,6 +78,12 @@ public class NormalizerService : INormalizerService
             
             // Step 8: Create manifest
             var manifest = CreateManifest(input.CaseId, i18nDocuments, i18nMedia);
+            
+            // Step 8.5: Consolidate canonical media (EPIC 7.2)
+            (i18nMedia, manifest) = ConsolidateCanonicalMedia(i18nMedia, manifest, logEntries, validationResults);
+            
+            // Update bundle with consolidated media
+            normalizedBundle = CreateNormalizedBundle(input, i18nDocuments, i18nMedia, gatingGraph, difficultyProfile);
             
             // Step 9: Final validation
             await ValidateNormalizedBundleAsync(normalizedBundle, logEntries, validationResults);
@@ -343,8 +352,26 @@ public class NormalizerService : INormalizerService
         var kind = mediaData.GetValueOrDefault("kind")?.ToString() ?? throw new ArgumentException("Missing kind");
         var title = mediaData.GetValueOrDefault("title")?.ToString() ?? throw new ArgumentException("Missing title");
         var prompt = mediaData.GetValueOrDefault("prompt")?.ToString() ?? "";
+        var role = mediaData.GetValueOrDefault("role")?.ToString(); // EPIC 2.1
+        
+        // EPIC 2.2: Extract Evidence Canon fields
+        var canonical = mediaData.TryGetValue("canonical", out var canonicalObj) && canonicalObj is bool c ? (bool?)c : null;
+        var canonicalGroup = mediaData.GetValueOrDefault("canonicalGroup")?.ToString();
+        var maxVisualVariants = mediaData.TryGetValue("maxVisualVariants", out var variantsObj) && int.TryParse(variantsObj?.ToString(), out var v) ? (int?)v : null;
         
         var deferred = bool.TryParse(mediaData.GetValueOrDefault("deferred")?.ToString(), out var deferredValue) && deferredValue;
+        
+        // Validate role if present
+        if (role != null && !EvidenceRoles.IsValid(role))
+        {
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "WARN",
+                Message = $"Invalid evidence role '{role}' for {evidenceId}, should be one of: {string.Join(", ", EvidenceRoles.AllRoles)}"
+            });
+            role = null;
+        }
         
         // Handle constraints
         Dictionary<string, object>? constraints = null;
@@ -369,6 +396,10 @@ public class NormalizerService : INormalizerService
         return new NormalizedMedia
         {
             EvidenceId = evidenceId,
+            Role = role, // EPIC 2.1
+            Canonical = canonical, // EPIC 2.2
+            CanonicalGroup = canonicalGroup, // EPIC 2.2
+            MaxVisualVariants = maxVisualVariants, // EPIC 2.2
             Kind = kind,
             Title = title,
             Prompt = prompt,
@@ -443,6 +474,74 @@ public class NormalizerService : INormalizerService
             }
         }
 
+        // EPIC 6.2: Extract and validate IDs referenced in document content
+        var evidenceIdPattern = new Regex(@"\bEV\d{3}\b", RegexOptions.IgnoreCase);
+        var suspectIdPattern = new Regex(@"\bS\d{3}\b", RegexOptions.IgnoreCase);
+        
+        var brokenEvidenceRefs = new Dictionary<string, List<string>>(); // docId -> list of broken evidence IDs
+        var brokenSuspectRefs = new Dictionary<string, List<string>>();  // docId -> list of broken suspect IDs
+        
+        foreach (var doc in documents)
+        {
+            var content = doc.Content;
+            
+            // Extract evidence IDs from content
+            var evidenceMatches = evidenceIdPattern.Matches(content);
+            foreach (Match match in evidenceMatches)
+            {
+                var evidenceId = match.Value.ToUpper();
+                if (!mediaIds.Contains(evidenceId))
+                {
+                    if (!brokenEvidenceRefs.ContainsKey(doc.DocId))
+                        brokenEvidenceRefs[doc.DocId] = new List<string>();
+                    
+                    if (!brokenEvidenceRefs[doc.DocId].Contains(evidenceId))
+                        brokenEvidenceRefs[doc.DocId].Add(evidenceId);
+                }
+            }
+            
+            // Extract suspect IDs from content (Note: Suspects are in Plan, not in normalized media/docs)
+            // We'll log these for now but not fail, as suspects aren't in the manifest
+            var suspectMatches = suspectIdPattern.Matches(content);
+            foreach (Match match in suspectMatches)
+            {
+                var suspectId = match.Value.ToUpper();
+                // Store for logging purposes
+                if (!brokenSuspectRefs.ContainsKey(doc.DocId))
+                    brokenSuspectRefs[doc.DocId] = new List<string>();
+                
+                if (!brokenSuspectRefs[doc.DocId].Contains(suspectId))
+                    brokenSuspectRefs[doc.DocId].Add(suspectId);
+            }
+        }
+        
+        // Report broken evidence references
+        foreach (var (docId, brokenIds) in brokenEvidenceRefs)
+        {
+            validationResults.Add(new ValidationResult
+            {
+                Rule = "EPIC_6.2_EVIDENCE_REFERENCE_INTEGRITY",
+                Status = "FAIL",
+                Description = $"Document {docId} references non-existent evidence: {string.Join(", ", brokenIds)}",
+                Details = $"Found {brokenIds.Count} broken evidence reference(s). Available evidence IDs: {string.Join(", ", mediaIds.OrderBy(id => id))}"
+            });
+        }
+        
+        // Log suspect references (informational, not a failure since suspects are in Plan)
+        if (brokenSuspectRefs.Any())
+        {
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = $"EPIC 6.2: Found {brokenSuspectRefs.Sum(kvp => kvp.Value.Count)} suspect ID references in documents",
+                Details = new Dictionary<string, object>
+                {
+                    ["suspectReferences"] = brokenSuspectRefs.SelectMany(kvp => kvp.Value).Distinct().OrderBy(id => id).ToArray()
+                }
+            });
+        }
+
         if (!duplicateDocIds.Any() && !duplicateMediaIds.Any())
         {
             validationResults.Add(new ValidationResult
@@ -458,13 +557,221 @@ public class NormalizerService : INormalizerService
         {
             Timestamp = DateTime.UtcNow,
             Level = "INFO",
-            Message = "ID and reference validation completed",
+            Message = $"EPIC 6.2: ID and reference validation completed - {brokenEvidenceRefs.Count} doc(s) with broken evidence references",
             Details = new Dictionary<string, object>
             {
                 ["documentIds"] = documentIds.Count,
                 ["evidenceIds"] = mediaIds.Count,
                 ["duplicateDocuments"] = duplicateDocIds.Count(),
-                ["duplicateEvidence"] = duplicateMediaIds.Count()
+                ["duplicateEvidence"] = duplicateMediaIds.Count(),
+                ["brokenEvidenceReferences"] = brokenEvidenceRefs.Count
+            }
+        });
+
+        return Task.CompletedTask;
+    }
+
+    // EPIC 3.1: Validação de contradições planejadas
+    private Task ValidatePlannedContradictionsAsync(
+        string? designJson, NormalizedDocument[] documents, NormalizedMedia[] media, 
+        DifficultyProfile profile, List<LogEntry> logEntries, List<ValidationResult> validationResults)
+    {
+        if (string.IsNullOrEmpty(designJson))
+        {
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = "EPIC 3.1: No Design JSON provided, skipping contradiction validation"
+            });
+            return Task.CompletedTask;
+        }
+
+        var documentIds = documents.Select(d => d.DocId).ToHashSet();
+        var mediaIds = media.Select(m => m.EvidenceId).ToHashSet();
+        
+        List<PlannedContradiction> contradictions = new();
+        int contradictionCount = 0;
+
+        try
+        {
+            var designDoc = JsonDocument.Parse(designJson);
+            if (designDoc.RootElement.TryGetProperty("plannedContradictions", out var contradictionsElement) &&
+                contradictionsElement.ValueKind == JsonValueKind.Array)
+            {
+                contradictionCount = contradictionsElement.GetArrayLength();
+                
+                foreach (var contrElement in contradictionsElement.EnumerateArray())
+                {
+                    var contrId = contrElement.GetProperty("contradictionId").GetString() ?? "";
+                    var contrType = contrElement.GetProperty("type").GetString() ?? "";
+                    var description = contrElement.GetProperty("description").GetString() ?? "";
+                    
+                    var involvedDocs = new List<string>();
+                    if (contrElement.TryGetProperty("involvedDocuments", out var docsArr))
+                    {
+                        foreach (var docId in docsArr.EnumerateArray())
+                            involvedDocs.Add(docId.GetString() ?? "");
+                    }
+                    
+                    var involvedEvidences = new List<string>();
+                    if (contrElement.TryGetProperty("involvedEvidences", out var evidArr))
+                    {
+                        foreach (var evidId in evidArr.EnumerateArray())
+                            involvedEvidences.Add(evidId.GetString() ?? "");
+                    }
+                    
+                    var involvedSuspects = new List<string>();
+                    if (contrElement.TryGetProperty("involvedSuspects", out var suspArr))
+                    {
+                        foreach (var suspId in suspArr.EnumerateArray())
+                            involvedSuspects.Add(suspId.GetString() ?? "");
+                    }
+                    
+                    // Validate involved documents exist
+                    var missingDocs = involvedDocs.Where(id => !documentIds.Contains(id)).ToList();
+                    if (missingDocs.Any())
+                    {
+                        validationResults.Add(new ValidationResult
+                        {
+                            Rule = "EPIC_3.1_CONTRADICTION_INTEGRITY",
+                            Status = "FAIL",
+                            Description = $"Contradiction {contrId} references non-existent documents: {string.Join(", ", missingDocs)}",
+                            Details = $"All involved documents must exist in the case manifest"
+                        });
+                    }
+                    
+                    // Validate involved evidences exist
+                    var missingEvidence = involvedEvidences.Where(id => !mediaIds.Contains(id)).ToList();
+                    if (missingEvidence.Any())
+                    {
+                        validationResults.Add(new ValidationResult
+                        {
+                            Rule = "EPIC_3.1_CONTRADICTION_INTEGRITY",
+                            Status = "FAIL",
+                            Description = $"Contradiction {contrId} references non-existent evidence: {string.Join(", ", missingEvidence)}",
+                            Details = $"All involved evidences must exist in the case manifest"
+                        });
+                    }
+                    
+                    // Validate resolution exists and has valid references
+                    if (contrElement.TryGetProperty("resolution", out var resolutionElement))
+                    {
+                        var resolvingDocs = new List<string>();
+                        if (resolutionElement.TryGetProperty("resolvingDocuments", out var resDocsArr))
+                        {
+                            foreach (var docId in resDocsArr.EnumerateArray())
+                                resolvingDocs.Add(docId.GetString() ?? "");
+                        }
+                        
+                        var resolvingEvidences = new List<string>();
+                        if (resolutionElement.TryGetProperty("resolvingEvidences", out var resEvidArr))
+                        {
+                            foreach (var evidId in resEvidArr.EnumerateArray())
+                                resolvingEvidences.Add(evidId.GetString() ?? "");
+                        }
+                        
+                        // Validate resolving documents exist
+                        var missingResolvingDocs = resolvingDocs.Where(id => !documentIds.Contains(id)).ToList();
+                        if (missingResolvingDocs.Any())
+                        {
+                            validationResults.Add(new ValidationResult
+                            {
+                                Rule = "EPIC_3.1_CONTRADICTION_RESOLUTION",
+                                Status = "FAIL",
+                                Description = $"Contradiction {contrId} resolution references non-existent documents: {string.Join(", ", missingResolvingDocs)}",
+                                Details = $"All resolving documents must exist in the case manifest"
+                            });
+                        }
+                        
+                        // Validate resolving evidences exist
+                        var missingResolvingEvidence = resolvingEvidences.Where(id => !mediaIds.Contains(id)).ToList();
+                        if (missingResolvingEvidence.Any())
+                        {
+                            validationResults.Add(new ValidationResult
+                            {
+                                Rule = "EPIC_3.1_CONTRADICTION_RESOLUTION",
+                                Status = "FAIL",
+                                Description = $"Contradiction {contrId} resolution references non-existent evidence: {string.Join(", ", missingResolvingEvidence)}",
+                                Details = $"All resolving evidences must exist in the case manifest"
+                            });
+                        }
+                        
+                        // Check if resolution is empty (no documents or evidences to resolve)
+                        if (!resolvingDocs.Any() && !resolvingEvidences.Any())
+                        {
+                            validationResults.Add(new ValidationResult
+                            {
+                                Rule = "EPIC_3.1_CONTRADICTION_RESOLUTION",
+                                Status = "FAIL",
+                                Description = $"Contradiction {contrId} has no resolution path (empty resolvingDocuments and resolvingEvidences)",
+                                Details = $"Every contradiction must specify documents or evidences that help resolve it"
+                            });
+                        }
+                    }
+                    else
+                    {
+                        validationResults.Add(new ValidationResult
+                        {
+                            Rule = "EPIC_3.1_CONTRADICTION_RESOLUTION",
+                            Status = "FAIL",
+                            Description = $"Contradiction {contrId} is missing resolution strategy",
+                            Details = $"Every planned contradiction must specify how it can be resolved"
+                        });
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "ERROR",
+                Message = $"EPIC 3.1: Failed to parse or validate planned contradictions: {ex.Message}"
+            });
+            
+            validationResults.Add(new ValidationResult
+            {
+                Rule = "EPIC_3.1_CONTRADICTION_PARSING",
+                Status = "FAIL",
+                Description = "Failed to parse planned contradictions from Design JSON",
+                Details = ex.Message
+            });
+            
+            return Task.CompletedTask;
+        }
+        
+        // EPIC 3.1: Validate contradiction count against profile budget
+        if (contradictionCount < profile.PlannedContradictions.Min || contradictionCount > profile.PlannedContradictions.Max)
+        {
+            validationResults.Add(new ValidationResult
+            {
+                Rule = "EPIC_3.1_CONTRADICTION_BUDGET",
+                Status = "FAIL",
+                Description = $"Contradiction count ({contradictionCount}) outside difficulty budget {profile.PlannedContradictions.Min}-{profile.PlannedContradictions.Max}",
+                Details = $"Profile: {profile.Description}. Adjust the number of planned contradictions to match the difficulty level."
+            });
+        }
+        else if (contradictionCount > 0)
+        {
+            validationResults.Add(new ValidationResult
+            {
+                Rule = "EPIC_3.1_CONTRADICTION_BUDGET",
+                Status = "PASS",
+                Description = $"Contradiction count ({contradictionCount}) within difficulty budget"
+            });
+        }
+        
+        logEntries.Add(new LogEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            Level = "INFO",
+            Message = $"EPIC 3.1: Planned contradictions validation completed - {contradictionCount} contradiction(s) found",
+            Details = new Dictionary<string, object>
+            {
+                ["contradictionCount"] = contradictionCount,
+                ["requiredRange"] = $"{profile.PlannedContradictions.Min}-{profile.PlannedContradictions.Max}"
             }
         });
 
@@ -472,76 +779,420 @@ public class NormalizerService : INormalizerService
     }
 
     private DifficultyProfile ValidateDifficultyRules(
-        string? difficulty, NormalizedDocument[] documents, NormalizedMedia[] media,
+        string? difficulty, string? planJson, NormalizedDocument[] documents, NormalizedMedia[] media,
         List<LogEntry> logEntries, List<ValidationResult> validationResults)
     {
         var profile = DifficultyLevels.GetProfile(difficulty);
         
-        // Validate document count
+        // EPIC 6.1: Extract and validate suspect count from Plan
+        int suspectCount = 0;
+        if (!string.IsNullOrEmpty(planJson))
+        {
+            try
+            {
+                var planDoc = JsonDocument.Parse(planJson);
+                if (planDoc.RootElement.TryGetProperty("suspects", out var suspectsElement) && 
+                    suspectsElement.ValueKind == JsonValueKind.Array)
+                {
+                    suspectCount = suspectsElement.GetArrayLength();
+                }
+            }
+            catch (Exception ex)
+            {
+                logEntries.Add(new LogEntry
+                {
+                    Timestamp = DateTime.UtcNow,
+                    Level = "WARN",
+                    Message = $"Failed to extract suspect count from Plan: {ex.Message}"
+                });
+            }
+        }
+
+        // EPIC 6.1: Validate suspect count against profile budget
+        if (suspectCount > 0)
+        {
+            if (suspectCount < profile.Suspects.Min || suspectCount > profile.Suspects.Max)
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EPIC_6.1_SUSPECT_COUNT_BUDGET",
+                    Status = "FAIL",
+                    Description = $"Suspect count ({suspectCount}) outside difficulty budget {profile.Suspects.Min}-{profile.Suspects.Max} for {difficulty ?? "auto"} level",
+                    Details = $"Profile: {profile.Description}. This case has too {'f'}{(suspectCount < profile.Suspects.Min ? "ew" : "many")} suspects for the difficulty level."
+                });
+            }
+            else
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EPIC_6.1_SUSPECT_COUNT_BUDGET",
+                    Status = "PASS",
+                    Description = $"Suspect count ({suspectCount}) within difficulty budget for {difficulty ?? "auto"} level"
+                });
+            }
+        }
+        
+        // EPIC 6.1: Validate document count against profile budget
         var docCount = documents.Length;
         if (docCount < profile.Documents.Min || docCount > profile.Documents.Max)
         {
             validationResults.Add(new ValidationResult
             {
-                Rule = "DIFFICULTY_DOCUMENT_COUNT",
+                Rule = "EPIC_6.1_DOCUMENT_COUNT_BUDGET",
                 Status = "FAIL",
-                Description = $"Document count ({docCount}) outside range {profile.Documents.Min}-{profile.Documents.Max} for {difficulty ?? "auto"} level",
-                Details = profile.Description
+                Description = $"Document count ({docCount}) outside difficulty budget {profile.Documents.Min}-{profile.Documents.Max} for {difficulty ?? "auto"} level",
+                Details = $"Profile: {profile.Description}. This case has too {'f'}{(docCount < profile.Documents.Min ? "ew" : "many")} documents for the difficulty level."
             });
         }
         else
         {
             validationResults.Add(new ValidationResult
             {
-                Rule = "DIFFICULTY_DOCUMENT_COUNT",
+                Rule = "EPIC_6.1_DOCUMENT_COUNT_BUDGET",
                 Status = "PASS",
-                Description = $"Document count ({docCount}) within range for {difficulty ?? "auto"} level"
+                Description = $"Document count ({docCount}) within difficulty budget for {difficulty ?? "auto"} level"
             });
         }
 
-        // Validate evidence count
+        // EPIC 6.1: Validate evidence count against profile budget
         var evidenceCount = media.Length;
         if (evidenceCount < profile.Evidences.Min || evidenceCount > profile.Evidences.Max)
         {
             validationResults.Add(new ValidationResult
             {
-                Rule = "DIFFICULTY_EVIDENCE_COUNT",
+                Rule = "EPIC_6.1_EVIDENCE_COUNT_BUDGET",
                 Status = "FAIL",
-                Description = $"Evidence count ({evidenceCount}) outside range {profile.Evidences.Min}-{profile.Evidences.Max} for {difficulty ?? "auto"} level",
-                Details = profile.Description
+                Description = $"Evidence count ({evidenceCount}) outside difficulty budget {profile.Evidences.Min}-{profile.Evidences.Max} for {difficulty ?? "auto"} level",
+                Details = $"Profile: {profile.Description}. This case has too {'f'}{(evidenceCount < profile.Evidences.Min ? "ew" : "many")} evidence items for the difficulty level."
             });
         }
         else
         {
             validationResults.Add(new ValidationResult
             {
-                Rule = "DIFFICULTY_EVIDENCE_COUNT",
+                Rule = "EPIC_6.1_EVIDENCE_COUNT_BUDGET",
                 Status = "PASS",
-                Description = $"Evidence count ({evidenceCount}) within range for {difficulty ?? "auto"} level"
+                Description = $"Evidence count ({evidenceCount}) within difficulty budget for {difficulty ?? "auto"} level"
             });
         }
 
-        // Validate gated documents count
+        // EPIC 6.1: Validate gated documents count against profile budget
         var gatedCount = documents.Count(d => d.Gated);
         if (gatedCount != profile.GatedDocuments)
         {
             validationResults.Add(new ValidationResult
             {
-                Rule = "DIFFICULTY_GATED_COUNT",
+                Rule = "EPIC_6.1_GATED_COUNT_BUDGET",
                 Status = gatedCount == 0 && profile.GatedDocuments == 0 ? "PASS" : "WARN",
                 Description = $"Gated document count ({gatedCount}) differs from expected {profile.GatedDocuments} for {difficulty ?? "auto"} level",
-                Details = "May indicate difficulty level mismatch"
+                Details = $"Profile expects exactly {profile.GatedDocuments} gated documents. Found {gatedCount}. This may indicate difficulty level mismatch."
             });
         }
         else
         {
             validationResults.Add(new ValidationResult
             {
-                Rule = "DIFFICULTY_GATED_COUNT", 
+                Rule = "EPIC_6.1_GATED_COUNT_BUDGET", 
                 Status = "PASS",
                 Description = $"Gated document count ({gatedCount}) matches expected for {difficulty ?? "auto"} level"
             });
         }
+
+        // EPIC 6.1: Log budget validation summary
+        logEntries.Add(new LogEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            Level = "INFO",
+            Message = $"EPIC 6.1: Budget validation complete - Suspects:{suspectCount}/{profile.Suspects.Min}-{profile.Suspects.Max}, Docs:{docCount}/{profile.Documents.Min}-{profile.Documents.Max}, Evidence:{evidenceCount}/{profile.Evidences.Min}-{profile.Evidences.Max}, Gated:{gatedCount}/{profile.GatedDocuments}"
+        });
+
+        // EPIC 2.1: Validate evidence role distribution
+        var roleCounts = new Dictionary<string, int>
+        {
+            [EvidenceRoles.Conclusive] = 0,
+            [EvidenceRoles.Supporting] = 0,
+            [EvidenceRoles.Ambiguous] = 0,
+            [EvidenceRoles.RedHerring] = 0
+        };
+
+        // Count roles from media
+        foreach (var m in media)
+        {
+            if (m.Role != null && roleCounts.ContainsKey(m.Role))
+            {
+                roleCounts[m.Role]++;
+            }
+        }
+
+        var totalWithRoles = roleCounts.Values.Sum();
+        if (totalWithRoles > 0)
+        {
+            // Validate Conclusive
+            var conclusiveCount = roleCounts[EvidenceRoles.Conclusive];
+            if (conclusiveCount < profile.EvidenceRoles.Conclusive.Min || conclusiveCount > profile.EvidenceRoles.Conclusive.Max)
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EVIDENCE_ROLE_CONCLUSIVE",
+                    Status = "WARN",
+                    Description = $"Conclusive evidence count ({conclusiveCount}) outside expected range {profile.EvidenceRoles.Conclusive.Min}-{profile.EvidenceRoles.Conclusive.Max}",
+                    Details = $"Difficulty: {difficulty ?? "auto"}"
+                });
+            }
+
+            // Validate Supporting
+            var supportingCount = roleCounts[EvidenceRoles.Supporting];
+            if (supportingCount < profile.EvidenceRoles.Supporting.Min || supportingCount > profile.EvidenceRoles.Supporting.Max)
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EVIDENCE_ROLE_SUPPORTING",
+                    Status = "WARN",
+                    Description = $"Supporting evidence count ({supportingCount}) outside expected range {profile.EvidenceRoles.Supporting.Min}-{profile.EvidenceRoles.Supporting.Max}",
+                    Details = $"Difficulty: {difficulty ?? "auto"}"
+                });
+            }
+
+            // Validate Ambiguous
+            var ambiguousCount = roleCounts[EvidenceRoles.Ambiguous];
+            if (ambiguousCount < profile.EvidenceRoles.Ambiguous.Min || ambiguousCount > profile.EvidenceRoles.Ambiguous.Max)
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EVIDENCE_ROLE_AMBIGUOUS",
+                    Status = "WARN",
+                    Description = $"Ambiguous evidence count ({ambiguousCount}) outside expected range {profile.EvidenceRoles.Ambiguous.Min}-{profile.EvidenceRoles.Ambiguous.Max}",
+                    Details = $"Difficulty: {difficulty ?? "auto"}"
+                });
+            }
+
+            // Validate Red Herrings
+            var redHerringCount = roleCounts[EvidenceRoles.RedHerring];
+            if (redHerringCount < profile.EvidenceRoles.RedHerring.Min || redHerringCount > profile.EvidenceRoles.RedHerring.Max)
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EVIDENCE_ROLE_RED_HERRING",
+                    Status = "WARN",
+                    Description = $"Red herring count ({redHerringCount}) outside expected range {profile.EvidenceRoles.RedHerring.Min}-{profile.EvidenceRoles.RedHerring.Max}",
+                    Details = $"Difficulty: {difficulty ?? "auto"}"
+                });
+            }
+
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = $"EPIC 2.1: Evidence role distribution - Conclusive:{conclusiveCount}, Supporting:{supportingCount}, Ambiguous:{ambiguousCount}, RedHerring:{redHerringCount}"
+            });
+        }
+        else
+        {
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = "EPIC 2.1: No evidence roles found in media specs - validation skipped"
+            });
+        }
+
+        // EPIC 2.2: Validate Evidence Canon (canonical groups and visual variants)
+        var canonicalGroups = media
+            .Where(m => !string.IsNullOrEmpty(m.CanonicalGroup))
+            .GroupBy(m => m.CanonicalGroup);
+
+        foreach (var group in canonicalGroups)
+        {
+            var groupMedia = group.ToList();
+            var maxVariants = groupMedia.Max(m => m.MaxVisualVariants ?? 1);
+            
+            // POLICY 7.1: Check for multiple media of same kind in same canonical group
+            var duplicateKinds = groupMedia
+                .GroupBy(m => m.Kind)
+                .Where(g => g.Count() > 1)
+                .ToList();
+
+            if (duplicateKinds.Any())
+            {
+                foreach (var kindGroup in duplicateKinds)
+                {
+                    validationResults.Add(new ValidationResult
+                    {
+                        Rule = "EPIC_2.2_POLICY_7.1",
+                        Status = "FAIL",
+                        Description = $"Canonical group '{group.Key}' has {kindGroup.Count()} media of kind '{kindGroup.Key}' (expected 1)",
+                        Details = $"Evidence IDs: {string.Join(", ", kindGroup.Select(m => m.EvidenceId))}. POLICY 7.1: One evidence = one media (same kind)"
+                    });
+                }
+            }
+
+            // Validate maxVisualVariants consistency within group
+            if (groupMedia.Select(m => m.MaxVisualVariants).Distinct().Count() > 1)
+            {
+                validationResults.Add(new ValidationResult
+                {
+                    Rule = "EPIC_2.2_CANONICAL_CONSISTENCY",
+                    Status = "WARN",
+                    Description = $"Canonical group '{group.Key}' has inconsistent maxVisualVariants values",
+                    Details = $"All media in same canonical group should have same maxVisualVariants. Found: {string.Join(", ", groupMedia.Select(m => $"{m.EvidenceId}={m.MaxVisualVariants}"))}"
+                });
+            }
+
+            // Validate maxVisualVariants based on difficulty
+            if (difficulty != null)
+            {
+                var isRookieOrDetective = difficulty == "Rookie" || difficulty == "Detective";
+                if (isRookieOrDetective && maxVariants > 1)
+                {
+                    validationResults.Add(new ValidationResult
+                    {
+                        Rule = "EPIC_2.2_DIFFICULTY_VARIANTS",
+                        Status = "FAIL",
+                        Description = $"Canonical group '{group.Key}' has maxVisualVariants={maxVariants} but difficulty is {difficulty}",
+                        Details = "Rookie/Detective must have maxVisualVariants=1 (no variation)"
+                    });
+                }
+            }
+
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = $"EPIC 2.2: Canonical group '{group.Key}' validated - {groupMedia.Count} media, maxVariants={maxVariants}"
+            });
+        }
+
+        // Log canonical summary
+        var totalCanonical = media.Count(m => m.Canonical == true);
+        var totalGroups = canonicalGroups.Count();
+        logEntries.Add(new LogEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            Level = "INFO",
+            Message = $"EPIC 2.2: Evidence Canon summary - {totalCanonical} canonical media in {totalGroups} groups"
+        });
+
+        // EPIC 2.3: Validate Media Determinism compliance
+        if (difficulty != null)
+        {
+            var difficultyProfile = DifficultyLevels.GetProfile(difficulty);
+            var determinismLevel = difficultyProfile.MediaDeterminism;
+
+            // Count media by role for determinism validation
+            var conclusiveSupportingMedia = media.Where(m => 
+                m.Role == EvidenceRoles.Conclusive || m.Role == EvidenceRoles.Supporting).ToList();
+            
+            var ambiguousMedia = media.Where(m => m.Role == EvidenceRoles.Ambiguous).ToList();
+            var redHerringMedia = media.Where(m => m.Role == EvidenceRoles.RedHerring).ToList();
+
+            // Validate High determinism (Rookie/Detective): NO variation at all
+            if (determinismLevel == MediaDeterminismLevel.High)
+            {
+                var anyVariation = media.Any(m => (m.MaxVisualVariants ?? 1) > 1);
+                if (anyVariation)
+                {
+                    validationResults.Add(new ValidationResult
+                    {
+                        Rule = "EPIC_2.3_HIGH_DETERMINISM",
+                        Status = "FAIL",
+                        Description = $"HIGH determinism violated: found media with maxVisualVariants > 1",
+                        Details = $"Difficulty {difficulty} requires MediaDeterminism=High (no variation allowed). Evidence: {string.Join(", ", media.Where(m => (m.MaxVisualVariants ?? 1) > 1).Select(m => m.EvidenceId))}"
+                    });
+                }
+            }
+
+            // Validate Controlled determinism: variation only for ambiguous/red_herring
+            if (determinismLevel == MediaDeterminismLevel.Controlled)
+            {
+                var invalidVariation = conclusiveSupportingMedia.Where(m => (m.MaxVisualVariants ?? 1) > 1).ToList();
+                if (invalidVariation.Any())
+                {
+                    validationResults.Add(new ValidationResult
+                    {
+                        Rule = "EPIC_2.3_CONTROLLED_DETERMINISM",
+                        Status = "FAIL",
+                        Description = $"CONTROLLED determinism violated: conclusive/supporting media has variation",
+                        Details = $"Conclusive/supporting evidence must have maxVisualVariants=1. Violators: {string.Join(", ", invalidVariation.Select(m => $"{m.EvidenceId} (role={m.Role}, variants={m.MaxVisualVariants})"))}"
+                    });
+                }
+            }
+
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = $"EPIC 2.3: Media determinism validated - Level={determinismLevel}, Conclusive/Supporting={conclusiveSupportingMedia.Count}, Ambiguous={ambiguousMedia.Count}, RedHerring={redHerringMedia.Count}"
+            });
+        }
+
+        // POLICY 7.1: Validate 1 evidence = 1 media (except different kinds)
+        var evidenceIdGroups = media.GroupBy(m => m.EvidenceId);
+        foreach (var group in evidenceIdGroups)
+        {
+            var mediaCount = group.Count();
+            
+            if (mediaCount > 1)
+            {
+                // Check if they are different kinds (allowed exception)
+                var distinctKinds = group.Select(m => m.Kind).Distinct().Count();
+                
+                if (distinctKinds == mediaCount)
+                {
+                    // All different kinds - this is allowed (e.g., photo + document_scan)
+                    logEntries.Add(new LogEntry
+                    {
+                        Timestamp = DateTime.UtcNow,
+                        Level = "INFO",
+                        Message = $"POLICY 7.1: EvidenceId '{group.Key}' has {mediaCount} media of different kinds (allowed): {string.Join(", ", group.Select(m => m.Kind))}"
+                    });
+                }
+                else
+                {
+                    // Some kinds are duplicated - VIOLATION
+                    var duplicateKinds = group
+                        .GroupBy(m => m.Kind)
+                        .Where(kg => kg.Count() > 1)
+                        .Select(kg => $"{kg.Key} (x{kg.Count()})");
+                    
+                    validationResults.Add(new ValidationResult
+                    {
+                        Rule = "POLICY_7.1_ONE_EVIDENCE_ONE_MEDIA",
+                        Status = "FAIL",
+                        Description = $"EvidenceId '{group.Key}' has {mediaCount} media with duplicate kinds",
+                        Details = $"POLICY 7.1 violation: One evidence should have ONE media per kind. Duplicates: {string.Join(", ", duplicateKinds)}. Total media: {string.Join(", ", group.Select(m => $"{m.Kind}"))}"
+                    });
+                }
+            }
+        }
+
+        // Special validation for Rookie/Detective: NEVER multiple media per evidence
+        if (difficulty != null && (difficulty == "Rookie" || difficulty == "Detective"))
+        {
+            var multiMediaEvidence = evidenceIdGroups.Where(g => g.Count() > 1).ToList();
+            if (multiMediaEvidence.Any())
+            {
+                foreach (var group in multiMediaEvidence)
+                {
+                    validationResults.Add(new ValidationResult
+                    {
+                        Rule = "POLICY_7.1_ROOKIE_DETECTIVE_STRICT",
+                        Status = "FAIL",
+                        Description = $"Rookie/Detective must have exactly 1 media per evidence",
+                        Details = $"EvidenceId '{group.Key}' has {group.Count()} media. Rookie/Detective difficulty requires maximum simplicity: 1 evidence = 1 media (NO exceptions)"
+                    });
+                }
+            }
+        }
+
+        var totalEvidenceIds = evidenceIdGroups.Count();
+        var multiMediaCount = evidenceIdGroups.Count(g => g.Count() > 1);
+        logEntries.Add(new LogEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            Level = "INFO",
+            Message = $"POLICY 7.1: Validated {totalEvidenceIds} evidence IDs - {multiMediaCount} have multiple media"
+        });
+
 
         // Validate forensics reports have Cadeia de Custódia
         var forensicsReports = documents.Where(d => d.Type == DocumentTypes.ForensicsReport);
@@ -1066,6 +1717,127 @@ public class NormalizerService : INormalizerService
         return Task.CompletedTask;
     }
 
+
+    /// <summary>
+    /// EPIC 7.2: Fallback de consolidação de mídias canônicas
+    /// Agrupa mídias por canonicalGroup, mantém apenas a principal e atualiza referências
+    /// </summary>
+    private (NormalizedMedia[] media, CaseManifest manifest) ConsolidateCanonicalMedia(
+        NormalizedMedia[] media,
+        CaseManifest manifest,
+        List<LogEntry> logEntries,
+        List<ValidationResult> validationResults)
+    {
+        var consolidatedMedia = new List<NormalizedMedia>();
+        var removedMediaIds = new List<string>();
+        var mediaIdMapping = new Dictionary<string, string>(); // old ID -> new ID
+
+        // Group media by canonicalGroup
+        var canonicalGroups = media
+            .Where(m => !string.IsNullOrEmpty(m.CanonicalGroup))
+            .GroupBy(m => m.CanonicalGroup)
+            .ToList();
+
+        // Add media without canonical groups as-is
+        var nonCanonicalMedia = media.Where(m => string.IsNullOrEmpty(m.CanonicalGroup)).ToList();
+        consolidatedMedia.AddRange(nonCanonicalMedia);
+
+        logEntries.Add(new LogEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            Level = "INFO",
+            Message = "Starting canonical media consolidation",
+            Details = new Dictionary<string, object>
+            {
+                ["totalMedia"] = media.Length,
+                ["canonicalGroups"] = canonicalGroups.Count,
+                ["nonCanonicalMedia"] = nonCanonicalMedia.Count
+            }
+        });
+
+        // Process each canonical group
+        foreach (var group in canonicalGroups)
+        {
+            var groupMedia = group.ToList();
+            
+            if (groupMedia.Count == 1)
+            {
+                // Single media in group, keep as-is
+                consolidatedMedia.Add(groupMedia[0]);
+                continue;
+            }
+
+            // Select primary media (first one with Canonical = true, or first in list)
+            var primaryMedia = groupMedia.FirstOrDefault(m => m.Canonical == true) ?? groupMedia[0];
+            consolidatedMedia.Add(primaryMedia);
+
+            // Track removed media
+            var removedInGroup = groupMedia.Where(m => m.EvidenceId != primaryMedia.EvidenceId).ToList();
+            foreach (var removed in removedInGroup)
+            {
+                removedMediaIds.Add(removed.EvidenceId);
+                mediaIdMapping[removed.EvidenceId] = primaryMedia.EvidenceId;
+            }
+
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = $"Consolidated canonical group: {group.Key}",
+                Details = new Dictionary<string, object>
+                {
+                    ["canonicalGroup"] = group.Key,
+                    ["totalVariants"] = groupMedia.Count,
+                    ["primaryMediaId"] = primaryMedia.EvidenceId,
+                    ["removedMediaIds"] = removedInGroup.Select(m => m.EvidenceId).ToArray()
+                }
+            });
+
+            validationResults.Add(new ValidationResult
+            {
+                Rule = "CANONICAL_CONSOLIDATION",
+                Status = "PASS",
+                Description = $"Consolidated {groupMedia.Count} variants into primary media {primaryMedia.EvidenceId}",
+                Details = $"Canonical group: {group.Key}"
+            });
+        }
+
+        // Update manifest to remove consolidated media
+        if (removedMediaIds.Any())
+        {
+            var updatedManifestMedia = manifest.Media
+                .Where(m => !removedMediaIds.Contains(m.Id))
+                .ToArray();
+
+            manifest = manifest with { Media = updatedManifestMedia };
+
+            logEntries.Add(new LogEntry
+            {
+                Timestamp = DateTime.UtcNow,
+                Level = "INFO",
+                Message = "Updated manifest after consolidation",
+                Details = new Dictionary<string, object>
+                {
+                    ["removedMediaCount"] = removedMediaIds.Count,
+                    ["finalMediaCount"] = updatedManifestMedia.Length,
+                    ["removedIds"] = removedMediaIds.ToArray()
+                }
+            });
+        }
+
+        // Update the media array
+        var finalMedia = consolidatedMedia.ToArray();
+
+        validationResults.Add(new ValidationResult
+        {
+            Rule = "CANONICAL_CONSOLIDATION_SUMMARY",
+            Status = "PASS",
+            Description = $"Consolidated {removedMediaIds.Count} duplicate canonical media",
+            Details = $"Final media count: {finalMedia.Length} (from {media.Length})"
+        });
+
+        return (finalMedia, manifest);
+    }
     private static string ComputeHash(string content)
     {
         using var sha256 = SHA256.Create();
