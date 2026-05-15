@@ -119,6 +119,7 @@ jobs:
         with:
           name: functions-build
           path: ./functions/CaseGen.Functions/publish
+          include-hidden-files: true  # .azurefunctions/ is required by Flex Consumption
 
   deploy-to-dev:
     name: 🚀 Deploy to Development
@@ -179,8 +180,10 @@ jobs:
             exit 0
           fi
           # Run via sqlcmd on Azure SQL (uses the password from secret)
-          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg
-          echo "deb [signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/$(lsb_release -rs)/prod $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/microsoft-prod.list
+          sudo mkdir -p /etc/apt/keyrings
+          # Store the ASCII-armored key directly (avoids gpg --dearmor + /dev/tty issues on the runner)
+          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/keyrings/microsoft.asc >/dev/null
+          echo "deb [signed-by=/etc/apt/keyrings/microsoft.asc] https://packages.microsoft.com/ubuntu/$(lsb_release -rs)/prod $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/microsoft-prod.list
           sudo apt-get update -y
           sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
           export PATH="$PATH:/opt/mssql-tools18/bin"
