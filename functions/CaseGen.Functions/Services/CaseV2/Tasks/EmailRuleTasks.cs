@@ -72,9 +72,15 @@ public class RulesTask
 
     private const string Schema = """
     {"type":"object","required":["rules"],
-     "properties":{"rules":{"type":"array","minItems":1,"maxItems":10,
+     "properties":{"rules":{"type":"array","minItems":0,"maxItems":10,
        "items":{"type":"object","required":["ruleId","trigger","actions"],
-         "properties":{"ruleId":{"type":"string","pattern":"^rule\\.[a-z0-9_]+$"}}}}}}
+         "properties":{
+           "ruleId":{"type":"string","pattern":"^rule\\.[a-z0-9_]+$"},
+           "trigger":{"type":"object","required":["type"],
+             "properties":{"type":{"type":"string","enum":["forensics_complete","attachment_download","asset_viewed","email_opened","time_elapsed","suspect_viewed","multiple_conditions"]}}},
+           "actions":{"type":"array","minItems":1,"maxItems":6,
+             "items":{"type":"object","required":["type"],
+               "properties":{"type":{"type":"string","enum":["reveal_email","reveal_asset","reveal_suspect","add_email_attachment","send_notification","update_suspect_status","mark_alibi_verified"]}}}}}}}}}
     """;
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
@@ -83,9 +89,13 @@ public class RulesTask
             .Where(f => f.Findings && (f.ResultEmailId is not null || f.ResultAssetId is not null))
             .Select(f => new { f.InputAssetId, f.AnalysisType, f.ResultEmailId, f.ResultAssetId });
 
+        var unlockMode = string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase)
+            ? "all_initial" : "gated";
+
         var ctxJson = System.Text.Json.JsonSerializer.Serialize(new
         {
             culpritId = draft.CulpritId,
+            unlockMode,
             assets = draft.AssetStubs.Select(a => a.Id),
             resultAssets = draft.ResultAssets.Select(a => a.Id),
             emails = draft.FollowUpEmails.Select(e => e.Id),
@@ -95,11 +105,26 @@ public class RulesTask
         });
 
         var system = @"You are writing the `rules` array for the case runtime.
-Each rule fires at most once per session. Output ONE rule per forensicReveal (`trigger.type: forensics_complete`) whose actions reveal that outcome's resultEmail (and resultAsset if any).
-You may also emit:
-- a rule that fires `send_notification` (level=info) when the player opens a key result email and the matchedSuspect is the culprit;
-- a rule that triggers off `email_opened` for the briefing email to set initial visibility status notes.
-All IDs MUST exist in the supplied context.";
+
+ALLOWED trigger.type values (use EXACTLY these strings, no others):
+  forensics_complete, attachment_download, asset_viewed, email_opened, time_elapsed, suspect_viewed, multiple_conditions
+
+ALLOWED action.type values (use EXACTLY these strings, no others):
+  reveal_email, reveal_asset, reveal_suspect, add_email_attachment, send_notification, update_suspect_status, mark_alibi_verified
+
+DO NOT invent new action types (e.g. `set_visibility` does NOT exist — use `reveal_email`/`reveal_asset`/`reveal_suspect` instead).
+
+Each rule fires at most once per session. Emit AT LEAST one rule per `forensicReveals` entry (trigger `forensics_complete`
+matching that inputAssetId+analysisType, actions reveal_email + reveal_asset for the result).
+
+When `unlockMode == ""all_initial""` (Rookie cases), emit only 0-2 rules at most — mostly `send_notification` flavour for narrative
+beats, because revealing is already automatic.
+
+When `unlockMode == ""gated""`, emit a rule per forensicReveal plus optionally one rule that fires `send_notification` (level=info)
+when the player opens a key result email pointing at the culprit, and one rule that `mark_alibi_verified` for a verified-decoy
+suspect when the briefing email is opened.
+
+All referenced IDs MUST exist in the supplied context.";
 
         var user = $@"CONTEXT:
 {ctxJson}

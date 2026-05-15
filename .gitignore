@@ -200,3 +200,6 @@ backend/CaseZeroApi/appsettings.Local.json
 backend/CaseZeroApi/*.db
 backend/CaseZeroApi/*.db-shm
 backend/CaseZeroApi/*.db-wal
+
+# Azurite runtime data
+AzuriteData/

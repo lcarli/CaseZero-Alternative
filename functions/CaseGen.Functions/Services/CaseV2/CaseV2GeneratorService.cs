@@ -291,6 +291,14 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             "digital" => "bin",
             _ => "bin"
         };
+        var category = a.Category ?? a.Type switch
+        {
+            "photo" or "image" => "Document",
+            "pdf" or "document" => "Document",
+            "audio" or "video" => "Communication",
+            "digital" => "Digital",
+            _ => "Document"
+        };
         return new JsonObject
         {
             ["id"] = a.Id,
@@ -299,7 +307,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             ["description"] = a.Description,
             ["uri"] = $"case://{caseId}/assets/{a.Id.Replace("asset.", "")}.{ext}",
             ["visibility"] = a.Visibility ?? "initial",
-            ["category"] = a.Category
+            ["category"] = category
         };
     }
 
@@ -376,14 +384,22 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         var configured = _config["CaseGenV2:CasesBasePath"];
         if (!string.IsNullOrWhiteSpace(configured) && Directory.Exists(configured)) return configured!;
 
-        foreach (var rel in new[] { "../../cases", "../../../cases", "../../../../cases" })
+        // Walk up from the binary looking for the repo-root `cases/` directory
+        // (identified by the presence of `case_001` or by being a sibling of `functions/`).
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        for (int i = 0; i < 8 && dir is not null; i++)
         {
-            var candidate = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, rel));
-            var parent = Path.GetDirectoryName(candidate);
-            if (Directory.Exists(candidate)) return candidate;
-            if (!string.IsNullOrEmpty(parent) && Directory.Exists(parent)) return candidate;
+            var candidate = Path.Combine(dir.FullName, "cases");
+            if (Directory.Exists(candidate) &&
+                (Directory.Exists(Path.Combine(candidate, "case_001")) ||
+                 Directory.Exists(Path.Combine(dir.FullName, "functions"))))
+            {
+                return candidate;
+            }
+            dir = dir.Parent;
         }
 
+        // Fallback: create alongside the binary.
         var fallback = Path.Combine(AppContext.BaseDirectory, "cases");
         Directory.CreateDirectory(fallback);
         return fallback;

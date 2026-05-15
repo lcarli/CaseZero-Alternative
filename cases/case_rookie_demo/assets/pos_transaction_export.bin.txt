@@ -1,0 +1,20 @@
+# Placeholder for POS Transaction Log (02:45–03:45) (digital)
+
+Exported POS transaction and event log covering the hour around the 03:18 break-in. It time-stamps register activity at the front counter to corroborate staff location and actions during the incident window.
+
+CSV export from the diner’s front POS (terminal ID: FRONT-01) for 2026-05-11, 02:45:00–03:45:00 (America/Los_Angeles). Columns visible: timestamp, terminal_id, user, event_type, check_id, payment_type, amount, void_flag, manager_override, notes.
+
+Notable entries the detective sees in the listing:
+- 02:49:12 — User Z.CALDWELL — OPEN_CHECK — Check #1842 — table/counter note: “late-night coffee”.
+- 02:55:34 — User Z.CALDWELL — CASH_SALE — $6.78 — no override.
+- 03:06:08 — User Z.CALDWELL — OPEN_CHECK — Check #1849.
+- 03:13:22 — User Z.CALDWELL — CARD_AUTH — VISA — $18.44 — approved.
+- 03:15:01 — User Z.CALDWELL — PRINT_RECEIPT — Check #1849.
+- 03:17:09 — System — DRAWER_OPEN — reason: “cash drawer opened” — no sale recorded on this line.
+- 03:18:03 — User Z.CALDWELL — CARD_CAPTURE — VISA — $18.44 — completed.
+- 03:18:40 — User Z.CALDWELL — TIP_ADJUST — $3.00 — associated with Check #1849.
+- 03:22:11 — System — NO_SALE — drawer opened — no user indicated.
+- 03:24:55 — User Z.CALDWELL — CLOSE_CHECK — Check #1849.
+- 03:31:08 — User Z.CALDWELL — SHIFT_REPORT_RUN — “Server Z.CALDWELL”.
+
+The export shows continuous front-register activity by user Z.CALDWELL across the incident window, with two drawer-open/no-sale style events (03:17:09 and 03:22:11) that stand out as not directly tied to a cash transaction. No entries in this hour show a manager override field populated or any login by a manager account.

@@ -125,10 +125,16 @@ public class TimelineTask
     {
       "type":"object","required":["timeline","temporalEvents"],
       "properties":{
-        "timeline":{"type":"array","minItems":2,"maxItems":8},
+        "timeline":{"type":"array","minItems":2,"maxItems":8,
+          "items":{"type":"object","required":["time","event"],
+            "properties":{
+              "source":{"type":"string","enum":["investigation","witness","sensor","forensic"]},
+              "importance":{"type":"string","enum":["low","medium","high","critical"]}}}},
         "temporalEvents":{"type":"array","minItems":0,"maxItems":3,
           "items":{"type":"object","required":["id","triggerAtMinutes","type"],
-            "properties":{"id":{"type":"string","pattern":"^tevt\\.[a-z0-9_]+$"}}}}
+            "properties":{
+              "id":{"type":"string","pattern":"^tevt\\.[a-z0-9_]+$"},
+              "type":{"type":"string","enum":["memo","witness","alert","email"]}}}}
       }
     }
     """;
@@ -138,6 +144,12 @@ public class TimelineTask
         var system = @"You are writing the **narrative timeline** and optional **temporalEvents** for an in-progress case.
 The timeline is the verified chain of events visible to the player; it spans from the incident to the moment the chief opens the case.
 `temporalEvents` are scripted memos/witness recall that fire by game time (minutes since case opening, range 5-120).
+
+STRICT enums (use these EXACT strings — do NOT invent new ones):
+- timeline[].source: investigation | witness | sensor | forensic
+- timeline[].importance: low | medium | high | critical
+- temporalEvents[].type: memo | witness | alert | email
+
 Reference asset/email IDs only if they exist in the draft.";
         var user = $@"CASE DRAFT (read-only):
 {draft.ToSummaryJson()}
