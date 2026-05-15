@@ -17,8 +17,13 @@ Esta pasta contém toda a documentação técnica detalhada do projeto CaseZero-
 
 ### 🔧 APIs e Integrações
 - **[API_COMPLETE.md](API_COMPLETE.md)** - Documentação completa da REST API
-- **[OBJETO_CASO.md](OBJETO_CASO.md)** - Sistema de casos modulares
+- **[CASE_JSON_V2_SPEC.md](CASE_JSON_V2_SPEC.md)** - Especificação do `case.json` v2 (contrato único de casos)
 - **[CASE_GENERATOR_SETUP.md](CASE_GENERATOR_SETUP.md)** - Setup do gerador de casos com AI
+- **[RUNNING_FUNCTIONS_LOCALLY.md](RUNNING_FUNCTIONS_LOCALLY.md)** - Rodar a Function App localmente (gerar caso em dev)
+
+### 🎮 Game Design Document (GDD)
+- **[gdd/en/](gdd/en/)** - GDD em inglês (source of truth)
+- **[gdd/br/](gdd/br/)** - GDD em português (tradução espelho)
 
 ### 🚀 Planejamento e Evolução
 - **[FUTURE_FEATURES.md](FUTURE_FEATURES.md)** - Futuras funcionalidades e melhorias planejadas
@@ -46,10 +51,10 @@ Se você vai fazer deploy ou manter o sistema:
 
 ### 🎮 Game Designers / Content Creators
 Se você vai criar novos casos investigativos:
-1. Leia [OBJETO_CASO.md](OBJETO_CASO.md) para entender a estrutura manual
+1. Leia [CASE_JSON_V2_SPEC.md](CASE_JSON_V2_SPEC.md) para entender o contrato `case.json`
 2. Consulte [CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md) para geração automática com AI
 3. Use [CASE_GENERATOR_SETUP.md](CASE_GENERATOR_SETUP.md) para configurar o gerador
-4. Consulte [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) seção "Contribuindo com Novos Casos"
+4. Para o design do jogo em si, veja o GDD em [gdd/en/](gdd/en/) ou [gdd/br/](gdd/br/)
 
 ### 🏢 Product Managers/Stakeholders
 Se você quer entender o sistema tecnicamente:
@@ -129,9 +134,8 @@ Procurando informações sobre:
 
 ## 🔄 Versionamento da Documentação
 
-A documentação segue o versionamento do projeto principal. Mudanças significativas na documentação:
-
-- **v1.0.0** - Documentação inicial básica
-- **v2.0.0** - Documentação técnica completa (atual)
+A documentação acompanha as mudanças significativas do projeto. A versão atual
+reflete o estado do site e do gerador após a migração para o contrato
+`case.json` **v2** (PRs A–F mergeados em maio/2026).
 
 Para versões anteriores da documentação, consulte as tags do repositório.

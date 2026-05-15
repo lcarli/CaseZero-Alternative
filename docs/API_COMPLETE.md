@@ -281,14 +281,6 @@ Clients connect with JWT access token factory. Each authenticated connection is 
 
 ---
 
-## Deprecated: `api/cases/v1`
-
-`CasesV1Controller` is still present at `/api/cases/v1` (dashboard, list, GET by id, raw, HEAD).  
-It is **deprecated** and kept only because integration tests reference it.  
-Removal is tracked in the roadmap. Do not use it in new code.
-
----
-
 ## Error Envelope
 
 All non-2xx responses return a JSON error object:
