@@ -68,15 +68,21 @@ jobs:
       - name: 🔨 Build backend
         run: dotnet build ./CaseZero-Alternative.sln --no-restore --configuration Release
 
-      - name: 🧪 Run backend tests
+      - name: 🧪 Run backend unit tests
         run: dotnet test --no-build --configuration Release --verbosity normal
         working-directory: ./backend/CaseZeroApi.Tests
-        continue-on-error: false
+
+      - name: 🧪 Run backend integration tests
+        run: dotnet test --no-build --configuration Release --verbosity normal
+        working-directory: ./backend/CaseZeroApi.IntegrationTests
+
+      - name: 🧪 Run functions unit tests
+        run: dotnet test --no-build --configuration Release --verbosity normal
+        working-directory: ./functions/CaseGen.Functions.Tests
 
       - name: 🧪 Run frontend tests
         run: npm run test:run
         working-directory: ./frontend
-        continue-on-error: false
 
       - name: ✅ Validate case.json files against v2 schema
         run: |

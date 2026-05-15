@@ -17,27 +17,24 @@ namespace CaseZeroApi.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<AssetsController> _logger;
-        private readonly IBlobStorageService _blobStorageService;
         private readonly BlobServiceClient _blobServiceClient;
         private readonly IConfiguration _configuration;
         private readonly IAuditLogService _auditLogService; // P86
         private readonly ICaseV2StorageService _caseStorageService; // v2
 
         public AssetsController(
-            ApplicationDbContext context, 
+            ApplicationDbContext context,
             ILogger<AssetsController> logger,
-            IBlobStorageService blobStorageService,
             IConfiguration configuration,
             IAuditLogService auditLogService, // P86
             ICaseV2StorageService caseStorageService) // v2
         {
             _context = context;
             _logger = logger;
-            _blobStorageService = blobStorageService;
             _configuration = configuration;
             _auditLogService = auditLogService; // P86
             _caseStorageService = caseStorageService; // P87
-            
+
             // Initialize BlobServiceClient for direct blob access
             var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
                 ?? configuration["AzureWebJobsStorage"]
@@ -187,50 +184,41 @@ namespace CaseZeroApi.Controllers
                     return StatusCode(403, new { message = "Asset not visible in current session" });
                 }
 
-                // 3. Download do blob
-                var containerName = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
-                var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
-                
-                // Asset path: {caseId}/assets/{assetId}
-                var blobPath = $"{caseId}/assets/{assetId}";
-                var blobClient = containerClient.GetBlobClient(blobPath);
-
-                if (!await blobClient.ExistsAsync())
+                // 3. Resolve asset stream via storage service. This walks the filesystem
+                // first (cases/<id>/assets/...) and falls back to blob storage. Works in
+                // local dev without Azurite and in production from the bundles container.
+                var stream = await _caseStorageService.GetAssetStreamAsync(caseId, assetId);
+                if (stream is null)
                 {
-                    _logger.LogWarning("Asset file not found in blob storage: {BlobPath}", blobPath);
+                    _logger.LogWarning("Asset file not found: {CaseId}/{AssetId}", caseId, assetId);
                     return NotFound(new { message = "Asset file not found" });
                 }
 
-                // P87: Buscar metadata do asset (incluindo checksum) do case.json
                 var caseData = await _caseStorageService.GetRawAsync(caseId);
                 var assetMetadata = caseData?.Assets?.FirstOrDefault(a => a.Id == assetId);
 
-                // 4. Stream do arquivo e validação de checksum (P87)
-                var download = await blobClient.DownloadStreamingAsync();
-                var properties = await blobClient.GetPropertiesAsync();
-                
-                var contentType = properties.Value.ContentType;
+                var contentType = await _caseStorageService.GetAssetContentTypeAsync(caseId, assetId)
+                    ?? "application/octet-stream";
                 var fileName = assetId.Contains('/') ? assetId.Split('/').Last() : assetId;
 
-                // P87: Validar checksum se disponível no case.json
+                // P87: Validate checksum if declared in case.json
                 string? calculatedChecksum = null;
                 if (!string.IsNullOrEmpty(assetMetadata?.Checksum))
                 {
                     using var sha256 = System.Security.Cryptography.SHA256.Create();
                     using var memoryStream = new MemoryStream();
-                    await download.Value.Content.CopyToAsync(memoryStream);
+                    await stream.CopyToAsync(memoryStream);
                     memoryStream.Position = 0;
-                    
+
                     var hashBytes = await sha256.ComputeHashAsync(memoryStream);
                     calculatedChecksum = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-                    
+
                     if (calculatedChecksum != assetMetadata.Checksum.ToLowerInvariant())
                     {
                         _logger.LogWarning(
                             "⚠️ Checksum mismatch for asset {AssetId} in case {CaseId}. Expected: {Expected}, Got: {Actual}",
                             assetId, caseId, assetMetadata.Checksum, calculatedChecksum);
-                        
-                        // Audit log de falha de integridade
+
                         await _auditLogService.LogActionAsync(
                             userId,
                             "asset_checksum_mismatch",
@@ -238,17 +226,16 @@ namespace CaseZeroApi.Controllers
                             caseId,
                             "integrity_failure",
                             $"{{{{\"expected\":\"{assetMetadata.Checksum}\",\"actual\":\"{calculatedChecksum}\"}}}}");
-                        
+
                         return StatusCode(500, new { message = "Asset integrity validation failed. The file may have been tampered with." });
                     }
-                    
+
                     _logger.LogInformation("✅ Checksum validated for asset {AssetId}: {Checksum}", assetId, calculatedChecksum);
                     memoryStream.Position = 0;
-                    
-                    // P86: Audit log - download bem-sucedido com checksum validado
+
                     await _auditLogService.LogActionAsync(
-                        userId, 
-                        "asset_download", 
+                        userId,
+                        "asset_download",
                         $"{caseId}/asset/{assetId}",
                         caseId,
                         "success",
@@ -259,17 +246,17 @@ namespace CaseZeroApi.Controllers
 
                 // Sem checksum - download normal
                 await _auditLogService.LogActionAsync(
-                    userId, 
-                    "asset_download", 
+                    userId,
+                    "asset_download",
                     $"{caseId}/asset/{assetId}",
                     caseId,
                     "success",
                     $"{{{{\"fileName\":\"{fileName}\",\"contentType\":\"{contentType}\",\"checksumValidated\":false}}}}");
 
-                _logger.LogInformation("User {UserId} downloaded asset {AssetId} from case {CaseId}", 
+                _logger.LogInformation("User {UserId} downloaded asset {AssetId} from case {CaseId}",
                     userId, assetId, caseId);
 
-                return File(download.Value.Content, contentType, fileName);
+                return File(stream, contentType, fileName);
             }
             catch (Exception ex)
             {

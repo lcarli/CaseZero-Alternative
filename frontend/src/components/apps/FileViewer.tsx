@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import styled from 'styled-components'
 import type { AssetDTO } from '../../services/api'
-import { casesV1Api } from '../../services/api'
+import { casesApi } from '../../services/api'
 import { useWindowContext } from '../../hooks/useWindowContext'
 import { useCase } from '../../hooks/useCaseContext'
 import { DocumentViewerWindow } from './DocumentViewerWindow'
@@ -112,7 +112,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [] }) =
   // Convert AssetDTO to FileItem for DocumentViewer
   const assetToFileItem = (asset: AssetDTO): FileItem => {
     // Get the asset URL for images/media
-    const mediaUrl = currentCase ? casesV1Api.getAssetUrl(currentCase, asset.id) : undefined
+    const mediaUrl = currentCase ? casesApi.getAssetUrl(currentCase, asset.id) : undefined
 
     return {
       id: asset.id,
