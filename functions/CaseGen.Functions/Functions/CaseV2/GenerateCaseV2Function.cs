@@ -71,7 +71,8 @@ public class GenerateCaseV2Function
                     pdfsWritten = result.AssetsRenderedPdfs,
                     imagesWritten = result.AssetsRenderedImages,
                     skipped = result.AssetsSkipped,
-                    errors = result.AssetRenderingErrors
+                    errors = result.AssetRenderingErrors,
+                    blobsPublished = result.BlobsPublished
                 },
                 consistency = result.Consistency is null ? null : new
                 {
