@@ -1,4 +1,3 @@
-using CaseGen.Functions.Models;
 using CaseGen.Functions.Services.Pdf.Models;
 using CaseGen.Functions.Services.Pdf.Parsing;
 using Microsoft.Extensions.Configuration;
@@ -13,155 +12,18 @@ namespace CaseGen.Functions.Services;
 
 public class PdfRenderingService : IPdfRenderingService
 {
-    private readonly IStorageService _storageService;
-    private readonly ICaseLoggingService _caseLogging;
     private readonly IConfiguration _configuration;
     private readonly ILogger<PdfRenderingService> _logger;
 
     public PdfRenderingService(
-        IStorageService storageService,
-        ICaseLoggingService caseLogging,
         IConfiguration configuration,
         ILogger<PdfRenderingService> logger)
     {
-        _storageService = storageService;
-        _caseLogging = caseLogging;
         _configuration = configuration;
         _logger = logger;
 
         // Configure QuestPDF for realistic document generation
         QuestPDF.Settings.License = LicenseType.Community;
-    }
-
-    public async Task<string> RenderDocumentFromJsonAsync(string docId, string documentJson, string caseId, CancellationToken cancellationToken = default)
-    {
-        _logger.LogInformation("Rendering document [{DocId}] from JSON to MD and PDF", docId);
-
-        try
-        {
-            using var doc = JsonDocument.Parse(documentJson);
-            var root = doc.RootElement;
-
-            if (!root.TryGetProperty("docId", out var docIdProp) ||
-                !root.TryGetProperty("title", out var titleProp) ||
-                !root.TryGetProperty("sections", out var sectionsProp))
-            {
-                throw new InvalidOperationException($"Invalid document JSON structure for {docId}");
-            }
-
-            var title = titleProp.GetString() ?? "Untitled Document";
-            var sections = sectionsProp.EnumerateArray();
-
-            // Generate Markdown content
-            var markdownBuilder = new StringBuilder();
-            markdownBuilder.AppendLine($"# {title}");
-            markdownBuilder.AppendLine();
-
-            foreach (var section in sections)
-            {
-                if (section.TryGetProperty("title", out var sectionTitle) &&
-                    section.TryGetProperty("content", out var sectionContent))
-                {
-                    markdownBuilder.AppendLine($"## {sectionTitle.GetString()}");
-                    markdownBuilder.AppendLine();
-                    markdownBuilder.AppendLine(sectionContent.GetString());
-                    markdownBuilder.AppendLine();
-                }
-            }
-
-            var markdownContent = markdownBuilder.ToString();
-
-            // Determine document type from explicit type (if provided) or title fallback
-            var documentType = DetermineDocumentType(title);
-            if (root.TryGetProperty("type", out var typeProp) && !string.IsNullOrWhiteSpace(typeProp.GetString()))
-            {
-                documentType = typeProp.GetString()!;
-            }
-
-            PoliceReportData? policeReportData = null;
-            EvidenceLogData? evidenceLogData = null;
-            ForensicsReportData? forensicsReportData = null;
-            WitnessStatementData? witnessStatementData = null;
-
-            if (!string.IsNullOrWhiteSpace(documentType) &&
-                documentType.Equals("police_report", StringComparison.OrdinalIgnoreCase))
-            {
-                policeReportData = PoliceReportParser.TryParse(root, _logger);
-                if (policeReportData != null)
-                {
-                    policeReportData.CaseId = caseId;
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(documentType) &&
-                documentType.Equals("evidence_log", StringComparison.OrdinalIgnoreCase))
-            {
-                evidenceLogData = EvidenceLogParser.TryParse(root, _logger);
-                if (evidenceLogData != null)
-                {
-                    evidenceLogData.CaseId = caseId;
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(documentType) &&
-                (documentType.Equals("forensics_report", StringComparison.OrdinalIgnoreCase) ||
-                 documentType.Equals("lab_report", StringComparison.OrdinalIgnoreCase)))
-            {
-                forensicsReportData = ForensicsReportParser.TryParse(root, _logger);
-                if (forensicsReportData != null)
-                {
-                    forensicsReportData.CaseId = caseId;
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(documentType) &&
-                (documentType.Equals("witness_statement", StringComparison.OrdinalIgnoreCase) ||
-                 documentType.Equals("statement", StringComparison.OrdinalIgnoreCase)))
-            {
-                witnessStatementData = WitnessStatementParser.TryParse(root, _logger);
-                if (witnessStatementData != null)
-                {
-                    witnessStatementData.CaseId = caseId;
-                }
-            }
-
-            // Generate realistic PDF using QuestPDF
-            var pdfBytes = GenerateRealisticPdf(title, markdownContent, documentType, caseId, docId, policeReportData, evidenceLogData, forensicsReportData, witnessStatementData);
-
-            // Save files to bundles container
-            var bundlesContainer = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
-            var mdPath = $"{caseId}/documents/{docId}.md";
-            var pdfPath = $"{caseId}/documents/{docId}.pdf";
-
-            await _storageService.SaveFileAsync(bundlesContainer, mdPath, markdownContent, cancellationToken);
-            await _storageService.SaveFileAsync(bundlesContainer, pdfPath, pdfBytes, cancellationToken);
-
-            // Log the rendering step
-            await _caseLogging.LogStepResponseAsync(caseId, $"render/{docId}",
-                JsonSerializer.Serialize(new
-                {
-                    docId,
-                    markdownPath = mdPath,
-                    pdfPath = pdfPath,
-                    wordCount = markdownContent.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length
-                }, new JsonSerializerOptions { WriteIndented = true }),
-                cancellationToken);
-
-            _logger.LogInformation("Successfully generated and saved document [{DocId}] as MD and PDF", docId);
-
-            // Return a summary of the rendering operation  
-            return JsonSerializer.Serialize(new
-            {
-                docId,
-                status = "rendered",
-                files = new { markdown = mdPath, pdf = pdfPath }
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to render document [{DocId}] from JSON", docId);
-            throw;
-        }
     }
 
     public Task<byte[]> GenerateTestPdfAsync(string title, string markdownContent, string documentType = "general", CancellationToken cancellationToken = default)
