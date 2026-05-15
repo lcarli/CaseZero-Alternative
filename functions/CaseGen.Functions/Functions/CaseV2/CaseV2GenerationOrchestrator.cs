@@ -334,9 +334,13 @@ public class GetCaseV2JobStatusFunction
             }
             if (status == "failed")
             {
-                error = !string.IsNullOrEmpty(metadata.FailureDetails?.ErrorMessage)
-                    ? metadata.FailureDetails!.ErrorMessage
-                    : blobError ?? "Orchestration failed without details";
+                error = ExtractFailureMessage(metadata, blobError);
+                _logger.LogWarning(
+                    "Job {JobId} failed. FailureDetails present: {HasDetails}. ErrorType: {ErrorType}. Resolved error: {Error}",
+                    jobId,
+                    metadata.FailureDetails is not null,
+                    metadata.FailureDetails?.ErrorType,
+                    error);
             }
         }
 
@@ -353,6 +357,53 @@ public class GetCaseV2JobStatusFunction
             error
         }, ct);
         return response;
+    }
+
+    /// <summary>
+    /// Build a human-readable failure message from the Durable orchestration metadata.
+    /// Walks <see cref="TaskFailureDetails.InnerFailure"/> so the actual root-cause exception
+    /// is surfaced even when Durable wrapped it in a <c>TaskFailedException</c>. Falls back to
+    /// the blob-reported error and finally to a generic message so the GET response is never empty.
+    /// </summary>
+    private static string ExtractFailureMessage(OrchestrationMetadata metadata, string? blobError)
+    {
+        var details = metadata.FailureDetails;
+        if (details is not null)
+        {
+            // Walk to the deepest InnerFailure that still has a message — that's the true root cause.
+            var deepest = details;
+            while (deepest.InnerFailure is not null
+                   && !string.IsNullOrWhiteSpace(deepest.InnerFailure.ErrorMessage))
+            {
+                deepest = deepest.InnerFailure;
+            }
+
+            if (!string.IsNullOrWhiteSpace(deepest.ErrorMessage))
+            {
+                return !string.IsNullOrWhiteSpace(deepest.ErrorType)
+                    ? $"{deepest.ErrorType}: {deepest.ErrorMessage}"
+                    : deepest.ErrorMessage;
+            }
+
+            // Last resort within FailureDetails: surface ErrorType alone.
+            if (!string.IsNullOrWhiteSpace(details.ErrorType))
+            {
+                return $"Orchestration failed: {details.ErrorType}";
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(blobError)) return blobError;
+
+        // Some failure modes (worker crash, DI failure inside activity ctor) end up in SerializedOutput
+        // rather than FailureDetails. Surface a trimmed version so the caller has *something* to debug with.
+        if (!string.IsNullOrWhiteSpace(metadata.SerializedOutput))
+        {
+            var snippet = metadata.SerializedOutput;
+            if (snippet.Length > 600) snippet = snippet.Substring(0, 600) + "…";
+            return $"Orchestration failed (raw output): {snippet}";
+        }
+
+        return "Orchestration failed without details";
     }
 
     private static (string Status, bool IsTerminal) MapStatus(OrchestrationRuntimeStatus s) => s switch
