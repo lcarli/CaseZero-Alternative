@@ -30,6 +30,10 @@ public class GenerateCaseV2Response
     public int AssetsSkipped { get; set; }
     public List<string> AssetRenderingErrors { get; set; } = new();
     public int BlobsPublished { get; set; }
+    public List<string> AutoFixesApplied { get; set; } = new();
+    public bool RefineAttempted { get; set; }
+    public int RefineErrorsBefore { get; set; }
+    public int RefineErrorsAfter { get; set; }
     public Services.CaseV2.ConsistencyReport? Consistency { get; set; }
     public Services.CaseV2.Tasks.RedTeamTask.Report? RedTeam { get; set; }
     public Services.CaseV2.Tasks.SolverTask.SolverResult? Solver { get; set; }
