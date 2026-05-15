@@ -95,9 +95,34 @@ Implementado na branch `feat/task-c-async-generate` (PR pendente):
 
 Remover `CaseV1StorageService`, `CaseV1SanitizerService`, `CasesV1Controller` (`/api/cases/v1`) e os métodos legados em `IRulesEngineService` quando a Task B liberar (integration tests não dependerão mais deles). O frontend `FileViewer` ainda usa `casesV1Api.getAssetUrl` — substituir pela rota v2 nova quando o endpoint de asset stream estiver mapeado em `/api/cases/{id}/assets/{aid}` no `AssetsController` (já existe `download`, só falta apontar lá).
 
-### TASK E — Refine loop quando red-team retorna `reject`
+### TASK E — Refine loop quando algo dá errado ✅ **CONCLUÍDO**
 
-Quando `RedTeamTask` emite verdict `reject` com finding `high`, dispara um task novo (`RefineTask`) que recebe o caso + os findings e re-gera **só** as partes problemáticas (rules / solution). Hoje o reject já é reportado mas só serve de aviso — não corrige.
+Implementado na branch `feat/task-e-refine-loop` (PR pendente). Cobre dois caminhos:
+
+1. **Auto-fix determinístico** (`SchemaErrorAutoFixer`, ~ms): rewrites
+   ID-format slips comuns do LLM (`asset_xxx` → `asset.xxx`, `tevt_xxx`
+   → `tevt.xxx`, etc) sem custo de LLM. Cobre todos os 7 prefixos
+   (`asset`, `email`, `opt`, `q`, `rule`, `suspect`, `tevt`) + propriedades
+   referenciais (`assetId`, `ruleId`, `matchedSuspectId`, etc) + arrays
+   bare em `solution.requiredEvidenceIds`.
+2. **Refine via LLM** (`RefineCaseTask`, ~30-90s): se erros persistem
+   pós auto-fix OU se red-team retorna `reject` com finding `high`,
+   manda JSON + erros + findings pro LLM. Refined JSON só é aceito
+   se reduz erros (nunca regride).
+
+`GenerateCaseV2Response` e `CaseV2JobResult` ganharam
+`AutoFixesApplied`, `RefineAttempted`, `RefineErrorsBefore`,
+`RefineErrorsAfter`, `RedTeamVerdict` para visibilidade do operador.
+
+**Smoke validado**: 2 runs locais com seed=7 (o que falhou no smoke
+da TASK C). Run #1: auto-fixer limpou 3 erros `tevt_xxx → tevt.xxx`
+direto, refine LLM disparou por red-team `reject` mas pre-refine foi
+mantido. Run #2: zero erros de schema, red-team `reject`, refine não
+mudou nada. Ambos publicaram 10 blobs no Azurite.
+
+> ℹ️ Unit test do auto-fixer ficou bloqueado por **não existir projeto
+> `CaseGen.Functions.Tests`**. Quando esse projeto for criado (TASK B
+> ou similar), incluir os 5 erros do smoke da TASK C como fixture.
 
 ### TASK F — `functions/CaseGen.Functions` precisa emitir v2 nativo
 
@@ -135,4 +160,4 @@ Quando virar produção:
 4. **Gerador local**: `./scripts/run-functions.ps1` (Windows) ou `.sh` (Mac/Linux) — Azurite + func host local.
 5. **Smoke pós-deploy**: `https://casezero-api-dev.azurewebsites.net/swagger` (200) e a SWA em `https://gentle-ground-03dca4110.3.azurestaticapps.net/`.
 
-> Próximo foco recomendado: **TASK E** (refine loop) — primeira tentativa do smoke da TASK C falhou validação porque o LLM emitiu IDs `asset_xxx` em vez de `asset.xxx`; o refine loop converteria isso de "abortar pipeline" em "regenerar só a parte problemática".
+> Próximo foco recomendado: **TASK B** (port integration tests para v2) — destrava a possibilidade de adicionar unit tests para o `SchemaErrorAutoFixer` da TASK E e protege as próximas refatorações do `CaseV2GeneratorService` contra regressões.

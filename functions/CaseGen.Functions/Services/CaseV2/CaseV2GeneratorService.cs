@@ -42,8 +42,10 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
     private readonly ICaseV2BlobPublisher _blobPublisher;
     private readonly MechanicalRulesBuilder _mechanicalRules;
     private readonly IConsistencyValidator _consistency;
+    private readonly ISchemaErrorAutoFixer _autoFixer;
     private readonly ILogger<CaseV2GeneratorService> _logger;
     private readonly JSchema _v2Schema;
+    private readonly string _v2SchemaJson;
 
     public CaseV2GeneratorService(
         ILLMProvider llm,
@@ -52,6 +54,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         ICaseV2BlobPublisher blobPublisher,
         MechanicalRulesBuilder mechanicalRules,
         IConsistencyValidator consistency,
+        ISchemaErrorAutoFixer autoFixer,
         ILogger<CaseV2GeneratorService> logger)
     {
         _llm = llm;
@@ -60,10 +63,12 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         _blobPublisher = blobPublisher;
         _mechanicalRules = mechanicalRules;
         _consistency = consistency;
+        _autoFixer = autoFixer;
         _logger = logger;
 
         var schemaPath = ResolveSchemaPath();
-        _v2Schema = JSchema.Parse(File.ReadAllText(schemaPath));
+        _v2SchemaJson = File.ReadAllText(schemaPath);
+        _v2Schema = JSchema.Parse(_v2SchemaJson);
         _logger.LogInformation("CaseV2 generator loaded schema from {Path}", schemaPath);
     }
 
@@ -196,6 +201,27 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         if (consistencyReport is not null)
             errors.AddRange(consistencyReport.Errors);
 
+        // === Phase 11b: deterministic auto-fix for common LLM ID-format slips
+        //     (e.g. `asset_xxx` → `asset.xxx`). Runs only when there are errors.
+        var autoFixes = new List<string>();
+        if (errors.Count > 0)
+        {
+            await Stage("autoFixSchema", () =>
+            {
+                autoFixes.AddRange(_autoFixer.Fix(assembled));
+                if (autoFixes.Count > 0)
+                {
+                    json = assembled.ToJsonString(JsonOpts);
+                    var rev = Validate(json);
+                    if (consistencyReport is not null) rev.AddRange(consistencyReport.Errors);
+                    _logger.LogInformation("AutoFixer cleared {Before}→{After} validation errors",
+                        errors.Count, rev.Count);
+                    errors = rev;
+                }
+                return Task.CompletedTask;
+            });
+        }
+
         // === Phase 12: red-team + solver (semantic validation) — run in parallel
         // Always run these — even on schema-error cases the reports help diagnose what went wrong.
         Tasks.RedTeamTask.Report? redTeam = null;
@@ -208,7 +234,48 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             solver = await sv;
         });
 
-        // === Phase 11: persist + render assets
+        // === Phase 12b: refine via LLM if schema errors persist OR red-team rejected.
+        var refineAttempted = false;
+        var refineErrorsBefore = errors.Count;
+        var highFindings = redTeam?.Findings.Where(f =>
+            string.Equals(f.Severity, "high", StringComparison.OrdinalIgnoreCase)).ToList()
+            ?? new List<Tasks.RedTeamTask.Finding>();
+        var shouldRefine = errors.Count > 0
+            || (string.Equals(redTeam?.Verdict, "reject", StringComparison.OrdinalIgnoreCase) && highFindings.Count > 0);
+
+        if (shouldRefine)
+        {
+            await Stage("refineCase", async () =>
+            {
+                refineAttempted = true;
+                var result = await new Tasks.RefineCaseTask(_llm, _logger)
+                    .RunAsync(json, errors, highFindings, _v2SchemaJson, ct);
+
+                if (result.Succeeded)
+                {
+                    var refined = result.RefinedJson!;
+                    var revalidated = Validate(refined);
+                    if (revalidated.Count < errors.Count)
+                    {
+                        _logger.LogInformation("Refine improved errors {Before}→{After} — accepting refined JSON",
+                            errors.Count, revalidated.Count);
+                        json = refined;
+                        errors = revalidated;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Refine did NOT reduce error count ({Before}→{After}) — keeping pre-refine JSON",
+                            errors.Count, revalidated.Count);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("RefineCaseTask returned no document: {Error}", result.Error);
+                }
+            });
+        }
+
+        // === Phase 13: persist + render assets
         var outputPath = string.Empty;
         AssetRenderingReport? renderingReport = null;
         int blobsPublished = 0;
@@ -252,6 +319,10 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             AssetsSkipped = renderingReport?.Skipped ?? 0,
             AssetRenderingErrors = renderingReport?.Errors ?? new(),
             BlobsPublished = blobsPublished,
+            AutoFixesApplied = autoFixes,
+            RefineAttempted = refineAttempted,
+            RefineErrorsBefore = refineErrorsBefore,
+            RefineErrorsAfter = errors.Count,
             RedTeam = redTeam,
             Solver = solver,
             Consistency = consistencyReport
