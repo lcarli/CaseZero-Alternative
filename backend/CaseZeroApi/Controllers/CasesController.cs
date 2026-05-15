@@ -193,24 +193,6 @@ public class CasesController : ControllerBase
         return data is null ? NotFound(new { error = $"Case not found: {caseId}" }) : Ok(data);
     }
 
-    [HttpGet("{caseId}/assets")]
-    public async Task<IActionResult> ListCaseAssets(string caseId, CancellationToken ct)
-    {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
-        var data = await _storage.GetForUserAsync(caseId, userId, ct);
-        return data is null ? NotFound() : Ok(data.Assets);
-    }
-
-    [HttpGet("{caseId}/emails")]
-    public async Task<IActionResult> ListCaseEmails(string caseId, CancellationToken ct)
-    {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId)) return Unauthorized();
-        var data = await _storage.GetForUserAsync(caseId, userId, ct);
-        return data is null ? NotFound() : Ok(data.Emails);
-    }
-
     [HttpHead("{caseId}")]
     public async Task<IActionResult> CaseExists(string caseId, CancellationToken ct)
     {
