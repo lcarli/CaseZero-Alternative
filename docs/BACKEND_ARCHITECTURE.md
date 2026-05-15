@@ -109,12 +109,6 @@ TimeElapsedTrigger(int GameTimeMinutes)
 // multiple_conditions evaluated inside EvaluateAndApplyAsync using AND/OR combinator
 ```
 
-### Legacy v1 services (kept for integration tests — removal in roadmap)
-
-`CaseV1StorageService`, `CaseV1SanitizerService`, and the legacy methods on `IRulesEngineService`  
-(`EvaluateForensicRuleAsync`, `ApplyReveal*ActionAsync`, `GenerateNoFindingsEmailAsync`) are still  
-present. They are **not** called by any v2 controller.
-
 ---
 
 ## Controllers (`Controllers/`)
@@ -131,8 +125,6 @@ All controllers require `[Authorize]` unless noted.
 | `NotesController` | `api/notes` (controller name) | `GET case/{caseId}`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` |
 | `ForensicRequestController` | `api/forensicrequest` (controller name) | CRUD: `GET /{caseId}`, `/{caseId}/pending`, `/{caseId}/{id}`, `POST`, `PUT /{caseId}/{id}`, `DELETE /{caseId}/{id}` |
 | `CaseSessionController` | `api/casesession` (controller name) | `POST start`, `POST end/{caseId}`, `GET last/{caseId}`, `GET /{caseId}`, `GET /api/cases/{caseId}/session`, `POST /api/cases/{caseId}/resume`, `DELETE reset-visibility/{caseId}` |
-| `DevCasesController` | `api/dev/cases` | Dev environment only: list/serve cases from local filesystem |
-| `CasesV1Controller` | `api/cases/v1` | **Deprecated** — kept for integration tests; removal in roadmap |
 
 ---
 

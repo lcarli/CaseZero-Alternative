@@ -34,20 +34,20 @@ forense rodando na Function App, etc.
   - `FUTURE_FEATURES.md` — limpar features que viraram backlog desta lista ou que já foram entregues.
   - `cicd/` — verificar e atualizar.
 
-- `GDD/` (inglês, source-of-truth) — varrer todos os 12 capítulos + 3 apêndices + `TASKS.md`. Especial atenção a:
+- `docs/gdd/en/` (inglês, source-of-truth) — varrer todos os 12 capítulos + 3 apêndices + `TASKS.md`. Especial atenção a:
   - `04-CASE-STRUCTURE.md` — bater contra schema v2 atual
   - `09-DATA-SCHEMA.md` — idem
   - `10-CONTENT-PIPELINE.md` — pipeline v2
   - `08-TECHNICAL.md` — stack atual (sem SignalR/EF na function)
   - `12-ROADMAP.md` — ajustar status / próximos passos
 
-- `GDD-BR/` (português) — espelhar exatamente o que ficou em `GDD/` em inglês,
+- `docs/gdd/br/` (português) — espelhar exatamente o que ficou em `docs/gdd/en/` em inglês,
   preservando o estilo e exemplos já traduzidos. Não traduzir do zero: usar o
   inglês atualizado como referência e adaptar.
 
 **Critérios de aceitação:**
 
-- `grep -rni "case.*v1\|/v1/\|PlanStep\|ExpandStep\|DesignStep\|CaseV1\|casesV1Api\|ICaseV1\|ForensicProcessor"` nos diretórios `docs/`, `GDD/`, `GDD-BR/` retorna **zero** matches (exceto em changelog/history se houver).
+- `grep -rni "case.*v1\|/v1/\|PlanStep\|ExpandStep\|DesignStep\|CaseV1\|casesV1Api\|ICaseV1\|ForensicProcessor"` no diretório `docs/` retorna **zero** matches (exceto em changelog/history se houver).
 - `README.md` (raiz do repo) atualizado com a nova arquitetura.
 - Diagramas (se houver no `assets/` ou inline em mermaid) refeitos para refletir só v2.
 - GDD inglês e GDD-BR têm conteúdo equivalente.

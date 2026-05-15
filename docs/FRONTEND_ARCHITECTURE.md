@@ -131,14 +131,11 @@ Key namespaced exports used by v2:
 | `caseSessionApi` | `start`, `end`, `getLastSession`, `getState`, `resume` |
 | `tokenStorage` | `get`, `set`, `clear` |
 
-Legacy exports (`caseGenerationApi`, `caseObjectApi`, `casesV1Api`, `caseFilesApi`) remain in the file  
-but are not used by any active component.
-
 ### `services/forensicsSignalR.ts`
 
 Standalone singleton class that connects to `/hubs/forensics` and re-emits the `ForensicCompleted`  
-event to registered listeners. Used by legacy forensic polling; the `CaseContext`/`CaseEngine` path  
-wires its own inline SignalR client for tighter lifecycle management.
+event to registered listeners. The `CaseContext`/`CaseEngine` path additionally wires its own inline
+SignalR client for tighter lifecycle management.
 
 ---
 
