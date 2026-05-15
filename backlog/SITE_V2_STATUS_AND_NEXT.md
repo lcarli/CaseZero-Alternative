@@ -1,6 +1,6 @@
-# Status & próximas tarefas — branch `feat/site-contract-v2`
+# Status & próximas tarefas — `main` (post v2 launch)
 
-> Snapshot tirado em **2026-05-14**. Branch acumula **45 commits** acima de `V3-2026-newAI`. Working tree limpo, builds verdes, smoke ao vivo passou (site + gerador + caso jogável).
+> Snapshot tirado em **2026-05-15**. `feat/site-contract-v2` mergeada via PRs **#119–#123** e o workflow `cd-dev` ficou **verde** na run `25915855197`. Stack rodando em dev (`casezero-api-dev`, `casegen-func-dev`, `casezero-web-dev` SWA, `casezero-sql-dev`). Sem ambiente de produção.
 
 ---
 
@@ -35,20 +35,33 @@
 - **EvidenceDocumentRenderer** + **11 templates** (`CallLog`, `PosExport`, `PhoneDump`, `SensorLog`, `BrowserHistory`, `BankStatement`, `GpsTrack`, `FileListing`, `ChatExport`, `EmailExport`, `AccessLog`) que enriquecem o documento antes do QuestPDF renderizar.
 - **Image generation** via `gpt-image-1.5` no projeto Foundry `agenttestlucas`.
 - **Endpoint HTTP** `POST /api/cases/v2/generate` + scripts cross-platform (`scripts/run-functions.sh`/`.ps1`) + doc `docs/RUNNING_FUNCTIONS_LOCALLY.md`.
+- **`CaseV2BlobPublisher`** (PR #123): após geração, espelha `case.json` + `assets/*` pro container `bundles` do storage que o site lê. Usa `BlobServiceClientFactory` — MI em Azure, conn string em Azurite, no-op quando nenhum dos dois está configurado.
 
-### CI/CD — workflows GitHub Actions
-- `cd-prod.yml` (push `main`) e `cd-dev.yml` (push `develop`) revisados:
-  - Removido step `validate_case.sh` (script inexistente) → substituído por `ajv-cli` validando todos os `cases/*/case.json` contra o schema v2.
-  - Adicionado deploy das **Functions** (.NET 9) — setup-dotnet side-by-side, publish, `az functionapp deployment source config-zip`.
-  - Adicionado step de **EF migrations** (`dotnet ef migrations script --idempotent` + `sqlcmd`).
-  - **Health check ANTES do swap** (testa staging slot, swap só roda se passa).
-  - Substituído `actions/create-release@v1` (deprecated) por `softprops/action-gh-release@v2`.
-  - Static Web App deploy migrado pra `Azure/static-web-apps-deploy@v1` com `app_location: ./artifacts/frontend`.
-  - `npm audit` e `dotnet list package --vulnerable` agora `continue-on-error: true`.
-  - `paths-ignore` para `**.md`, `docs/**`, `GDD*/**`, `backlog/**`.
-  - Node 18 → 20.
-  - `await-approval` usa `environment: production-approval` (precisa setup no GitHub).
-  - `IntegrationTests` em `continue-on-error: true` (legacy v1 dependencies pendentes de portar).
+### CI/CD — workflows GitHub Actions (estado atual)
+- **`cd-prod.yml` foi DELETADO** (não existe ambiente PROD). Único workflow é **`cd-dev.yml`**, que dispara em push para `develop` OU `main` e deploya nos RGs `casezero-*-dev-rg`.
+- Removido step de **EF migrations** — `Program.cs:329` (`context.Database.Migrate()`) aplica no startup do webapp via MI.
+- Functions deploy via **`Azure/functions-action@v1` com RBAC** (sem publish profile). Compatível com Flex Consumption + identity-based deployment storage.
+- `actions/upload-artifact@v4` configurado com `include-hidden-files: true` — pasta `.azurefunctions/` precisa estar no zip pro Flex Consumption.
+- Substituído `actions/create-release@v1` (deprecated) por `softprops/action-gh-release@v2`.
+- Static Web App deploy via `Azure/static-web-apps-deploy@v1` com `app_location: ./artifacts/frontend`.
+- `npm audit` e `dotnet list package --vulnerable` em `continue-on-error: true`.
+- `paths-ignore` para `**.md`, `docs/**`, `GDD*/**`, `backlog/**`.
+- Node 18 → 20.
+- `IntegrationTests` em `continue-on-error: true` (legacy v1 dependencies pendentes de portar — ver TASK B).
+
+### Migração para Managed Identity end-to-end (esta sessão)
+- **Function App** `casegen-func-dev` migrada de Consumption Y1 para **Flex Consumption (FC1)**:
+  - System-assigned MI com Storage Blob Data Owner/Contributor + Queue/Table Contributor no `stcadevcabtlmvw4g`.
+  - Deployment storage com `--deployment-storage-auth-type SystemAssignedIdentity` (sem `WEBSITE_CONTENTAZUREFILECONNECTIONSTRING`).
+  - Key Vault Secrets User no `kv-ca-dev-oeq4agkmf6k4k` (modo RBAC).
+  - `BlobServiceClientFactory.cs` centraliza `BlobServiceClient`: prefere `CaseGeneratorStorage:AccountName` + `DefaultAzureCredential`, cai pra conn string só em Azurite.
+  - `StorageService`, `CaseLoggingService` e `CaseV2BlobPublisher` usam o factory.
+- **Backend** `casezero-api-dev`:
+  - System-assigned MI (`4f9fbbba-...`) adicionado como **`db_owner`** em `casezero-db`.
+  - Connection string trocada pra `Authentication=Active Directory Default` (sem senha).
+  - SQL Server permanece **AAD-only** (sem mudar do estado anterior).
+- **SQL** `casezero-sql-dev`: `publicNetworkAccess=Enabled` + firewall rule `AllowAzureServices` (tráfego pela backbone Azure). Sem private endpoint — F1 Free não suporta VNet Integration e Canada Central não tem quota pra B1+.
+- **Storage** `stcadevcabtlmvw4g`: `publicNetworkAccess=Enabled`, `defaultAction=Allow`, `bypass=AzureServices`, `allowSharedKeyAccess=false`. ⚠️ **Fechar a rede pública desse storage quebra o deploy do Functions** — o Kudu Legion precisa fazer upload pelo endpoint público.
 
 ### Conteúdo entregue
 - `cases/case_001/case.json` — The Missing Heir (Detective), migrado pra v2.
@@ -58,40 +71,17 @@
 
 ## 📋 Tarefas pendentes
 
-### TASK A — Configurar GitHub Environments + Secrets (alta prioridade)
+### TASK A — Configurar GitHub Environments + Secrets ✅ **CONCLUÍDO (dev)**
 
-**Onde:** outro computador com `az` logado e permissão de Owner no repo + Contributor nos resources Azure.
-
-**O que fazer:**
-
-1. **GitHub → Settings → Environments**
-   - Criar environment `production-approval` com **Required reviewers** = Lucas (você mesmo). Salvar.
-   - Criar environment `development` (sem required reviewer, pode deixar default).
-
-2. **GitHub → Settings → Secrets and variables → Actions → New repository secret**
-
-   Lista completa (a maioria pode já existir do setup anterior — checar e adicionar só os ausentes):
-
-   | Secret | Como pegar |
-   |--------|------------|
-   | `AZURE_CREDENTIALS_DEV` | `az ad sp create-for-rbac --name casezero-ci-dev --role contributor --scopes /subscriptions/$(az account show --query id -o tsv) --sdk-auth` — JSON inteiro |
-   | `AZURE_CREDENTIALS_PROD` | mesmo comando, nome `casezero-ci-prod` |
-   | `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV` | `az staticwebapp secrets list --name casezero-web-dev --resource-group casezero-web-dev-rg --query "properties.apiKey" -o tsv` |
-   | `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD` | `az staticwebapp secrets list --name casezero-web-prod --resource-group casezero-web-prod-rg --query "properties.apiKey" -o tsv` |
-   | `SQL_ADMIN_PASSWORD` | senha atual do `casezero_admin` em `casezero-sql-dev` (ou reseta com `az sql server update --name casezero-sql-dev --resource-group casezero-db-dev-rg --admin-password 'NovaSenha!2026'`) |
-   | `SQL_ADMIN_PASSWORD_PROD` | idem para `casezero-sql-prod` |
-
-3. **Validar:** criar uma branch `develop` (se ainda não existir) a partir de `feat/site-contract-v2`, fazer push pra disparar o workflow `cd-dev.yml`. Quando passar, abrir PR → `main` e validar o `cd-prod.yml` (vai pausar no approval — você aprova).
-
-4. **Verificar infraestrutura Azure existente:** se os Function Apps `casezero-functions-dev` / `casezero-functions-prod` ainda não existem, criar (Bicep em `infrastructure/Functions/` provavelmente cobre, ou rodar `infrastructure-3tier.yml`).
-
-**Critérios de aceitação:**
-- Push em `develop` → cd-dev verde, dev environment atualizado.
-- Push em `main` → cd-prod pausa no approval, após aprovação completa o deploy de backend + functions + frontend + migrations.
+- `AZURE_CREDENTIALS_DEV` rotacionado pro SP `casezero-ci-dev-v2b` (`625a2fab-37d6-4811-b044-dadb7971cdab`), Contributor na subscription + Storage Blob Data Contributor no `stcadevcabtlmvw4g` (pra Flex Consumption deploy).
+- `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV` configurado.
+- `SQL_ADMIN_PASSWORD` mantido — **não usado pelo workflow** (auth migrada pra MI), mas pode ser útil pra acesso emergencial via firewall rule + IP temporário.
+- Environments criados: `development` (em uso), `production-approval` (idle — sem cd-prod).
+- ❌ Secrets de PROD (`AZURE_CREDENTIALS_PROD`, `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD`, `SQL_ADMIN_PASSWORD_PROD`) **não criados** — sem ambiente PROD provisionado. Quando criar, regenerar e adicionar `cd-prod.yml` baseado no `cd-dev.yml` atual.
 
 ### TASK B — Portar `CaseZeroApi.IntegrationTests` para v2
 
-`cd-prod.yml` está com esses testes em `continue-on-error: true`. Eles referenciam o legacy `IRulesEngineService.EvaluateForensicRuleAsync`/`ApplyRevealEmailActionAsync`/etc — esses métodos ainda existem mas a forma do `case.json` v1 esperada no input não bate mais com o v2 que está em `cases/`. Substituir os fixtures + reescrever os 3-4 testes que dependem dessa superfície (estão em `AuditLogTests.cs`, `SecurityIntegrationTests.cs`).
+`cd-dev.yml` está com esses testes em `continue-on-error: true`. Eles referenciam o legacy `IRulesEngineService.EvaluateForensicRuleAsync`/`ApplyRevealEmailActionAsync`/etc — esses métodos ainda existem mas a forma do `case.json` v1 esperada no input não bate mais com o v2 que está em `cases/`. Substituir os fixtures + reescrever os 3-4 testes que dependem dessa superfície (estão em `AuditLogTests.cs`, `SecurityIntegrationTests.cs`).
 
 ### TASK C — Job assíncrono para `POST /api/cases/v2/generate`
 
@@ -112,14 +102,36 @@ Quando `RedTeamTask` emite verdict `reject` com finding `high`, dispara um task 
 
 Hoje só o **novo** endpoint `POST /api/cases/v2/generate` gera v2. O pipeline durável antigo (`PlanStep` / `ExpandStep` / `DesignStep` / etc) ainda emite v1. Quando estiver estável, substituir a saída do pipeline durável para usar `CaseV2GeneratorService` ou aposentá-lo.
 
+### TASK G — Hardening de infra dev (não-bloqueante)
+
+Trade-offs aceitos hoje em dev pra manter custo baixo / contornar quota:
+- **F1 (Free) no plano do backend** — 60 min CPU/dia, sem VNet Integration. Sem quota pra B1+ em Canada Central.
+- **SQL com `publicNetworkAccess=Enabled` + AllowAzureServices** — tráfego pela backbone Azure mas tecnicamente público.
+- **Storage com `publicNetworkAccess=Enabled` + defaultAction=Allow** — ⚠️ necessário pro deploy do Functions funcionar via Kudu Legion. Fechar quebra o deploy.
+- **Identity Functions antiga (`85ad3c95-...`) ainda tem role assignments orfãs** no `stcadevcabtlmvw4g` (limpar é cosmético).
+
+Quando virar produção:
+1. Solicitar quota App Service B1+ em CC (ou outra região onde toda a stack se mova junta).
+2. Subir plano pra B1/P1v3, criar VNet + 2 subnets (webapp delegada / PE).
+3. Criar Private Endpoint pro SQL + Private DNS Zone `privatelink.database.windows.net`.
+4. Criar Private Endpoint pro storage (`blob`, `queue`, `table` + DNS zones).
+5. Configurar GitHub runner self-hosted no VNet (ou usar Azure Container Apps Jobs como CI) pra o deploy alcançar os PEs.
+6. Fechar `publicNetworkAccess` em SQL e storage.
+
+### TASK H — Limpar artefatos cosméticos
+
+- `revert-99-copilot/fix-98` no remote — branch órfã do passado.
+- 53 branches `copilot/*` já deletadas nesta sessão.
+- Eventualmente arquivar `feat/site-contract-v2` (já mergeada via #119/#120/#121/#122/#123).
+
 ---
 
-## 🧭 Para o próximo computador
+## 🧭 Estado atual / como tocar daqui
 
-1. `git clone` o repo, `git checkout feat/site-contract-v2`.
-2. `./scripts/run-functions.sh` (Mac/Linux) ou `./scripts/run-functions.ps1` (Windows) — sobe Azurite + func host local pra geração.
-3. **Executar TASK A** (acima) primeiro: GitHub Environments + Secrets.
-4. Quando os secrets estiverem prontos, abrir um PR `feat/site-contract-v2` → `main` (depois de `develop`) pra validar o pipeline ponta a ponta.
-5. Seguir as TASKs B-F na ordem de prioridade.
+1. **Trabalho regular**: branch feature → PR pra `main` → merge dispara `cd-dev.yml` → deploy automático nos RGs dev.
+2. **Deploy manual**: `gh workflow run "Deploy to DEV Environment" --ref main`.
+3. **Migrations**: já automáticas no startup do `casezero-api-dev` via `Database.Migrate()` (auth MI).
+4. **Gerador local**: `./scripts/run-functions.ps1` (Windows) ou `.sh` (Mac/Linux) — Azurite + func host local.
+5. **Smoke pós-deploy**: `https://casezero-api-dev.azurewebsites.net/swagger` (200) e a SWA em `https://gentle-ground-03dca4110.3.azurestaticapps.net/`.
 
-> **Não merge antes de TASK A**. O cd-prod vai falhar sem os secrets novos (`AZURE_STATIC_WEB_APPS_API_TOKEN_PROD`, `SQL_ADMIN_PASSWORD_PROD`).
+> Próximo foco recomendado: **TASK C** (job async) — destrava poder gerar casos da SWA em produção sem timeout HTTP.
