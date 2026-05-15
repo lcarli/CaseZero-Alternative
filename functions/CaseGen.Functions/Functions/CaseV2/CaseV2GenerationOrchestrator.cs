@@ -69,7 +69,12 @@ public record CaseV2JobResult(
     int BlobsPublished,
     bool HasErrors,
     string? ErrorMessage,
-    Dictionary<string, double> StageLatencyMs);
+    Dictionary<string, double> StageLatencyMs,
+    List<string> AutoFixesApplied,
+    bool RefineAttempted,
+    int RefineErrorsBefore,
+    int RefineErrorsAfter,
+    string? RedTeamVerdict);
 
 /// <summary>
 /// The single long-running activity. Runs the v2 generator end-to-end and reports the current phase
@@ -131,7 +136,12 @@ public class CaseV2GenerateActivity
                 BlobsPublished: response.BlobsPublished,
                 HasErrors: hasErrors,
                 ErrorMessage: hasErrors ? string.Join(" · ", response.ValidationErrors) : null,
-                StageLatencyMs: response.StageLatencyMs);
+                StageLatencyMs: response.StageLatencyMs,
+                AutoFixesApplied: response.AutoFixesApplied,
+                RefineAttempted: response.RefineAttempted,
+                RefineErrorsBefore: response.RefineErrorsBefore,
+                RefineErrorsAfter: response.RefineErrorsAfter,
+                RedTeamVerdict: response.RedTeam?.Verdict);
         }
         catch (Exception ex)
         {
