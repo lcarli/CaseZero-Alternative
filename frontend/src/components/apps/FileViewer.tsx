@@ -84,15 +84,19 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [] }) =
 
   // Detect file type from asset.type (v2), filePath/uri (v1+v2) or name (legacy)
   const detectFileType = (asset: AssetDTO): 'text' | 'image' | 'pdf' | 'video' | 'audio' => {
-    // v2: trust asset.type directly when it's specific enough
+    // v2: trust asset.type directly when it's specific enough.
+    // - photo/image  → image
+    // - pdf/document → pdf (rendered by QuestPDF)
+    // - digital      → pdf (rendered by EvidenceDocumentRenderer)
+    // - audio/video  → matching media type
     const t = (asset.type || '').toLowerCase()
     if (t === 'photo' || t === 'image') return 'image'
-    if (t === 'pdf' || t === 'document') return 'pdf'
+    if (t === 'pdf' || t === 'document' || t === 'digital') return 'pdf'
     if (t === 'video') return 'video'
     if (t === 'audio') return 'audio'
 
-    // Fallback: pull extension from filePath/uri or name
-    const fileToCheck = asset.filePath || asset.name || ''
+    // Fallback: pull extension from uri (v2), filePath (v1), or name (legacy)
+    const fileToCheck = asset.uri || asset.filePath || asset.name || ''
     const ext = fileToCheck.split('.').pop()?.toLowerCase() || ''
 
     // Also check metadata.format if extension not found
