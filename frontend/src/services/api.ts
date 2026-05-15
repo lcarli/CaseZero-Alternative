@@ -772,7 +772,11 @@ export const forensicsApi = {
 import type { CaseV2Sanitized, SubmitCaseRequest, SubmitCaseResult, CaseDashboardItem } from '../types/caseV2'
 
 export const casesV2Api = {
-  getDashboard: async (): Promise<{ cases: CaseDashboardItem[] }> =>
+  getDashboard: async (): Promise<{
+    cases: CaseDashboardItem[]
+    stats?: { casesResolved: number; casesActive: number; successRate: number; averageRating: number }
+    recentActivities?: Array<{ description: string; date: string; type?: string; caseId?: string }>
+  }> =>
     apiFetch('/cases/dashboard'),
 
   getCase: async (caseId: string): Promise<CaseV2Sanitized> =>

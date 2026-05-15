@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import styled from 'styled-components'
-import { Briefcase, Clock, MapPin, ArrowRight, Shield } from 'react-feather'
+import { Briefcase, Clock, MapPin, ArrowRight, Shield, Target, Activity, FileText, CheckCircle } from 'react-feather'
 import { useAuth } from '../hooks/useAuthContext'
 import { useLanguage } from '../hooks/useLanguageContext'
 import { casesV2Api } from '../services/api'
@@ -224,11 +224,87 @@ const ErrorMessage = styled.div`
   color: #fecaca;
 `
 
+const StatsGrid = styled.div`
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: clamp(0.75rem, 2vw, 1.25rem);
+  margin-bottom: clamp(1rem, 3vw, 2rem);
+`
+
+const StatCard = styled.div`
+  background: rgba(8, 12, 28, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+`
+
+const StatLabel = styled.span`
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(191, 219, 254, 0.85);
+`
+
+const StatValue = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.65rem;
+  font-weight: 600;
+  color: #f8fafc;
+`
+
+const SecondaryLayout = styled.div`
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  margin-top: clamp(1rem, 3vw, 2rem);
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+`
+
+const ActivityList = styled.ul`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`
+
+const ActivityItem = styled.li`
+  background: rgba(8, 12, 28, 0.5);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  border-radius: 0.6rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  color: rgba(226, 232, 240, 0.9);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`
+
+const ActivityMeta = styled.span`
+  font-size: 0.7rem;
+  color: rgba(148, 163, 184, 0.8);
+`
+
 const DashboardPage = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { t } = useLanguage()
   const [cases, setCases] = useState<CaseDashboardItem[]>([])
+  const [stats, setStats] = useState<{ casesResolved: number; casesActive: number; successRate: number; averageRating: number } | null>(null)
+  const [activities, setActivities] = useState<Array<{ description: string; date: string; type?: string; caseId?: string }>>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -239,6 +315,8 @@ const DashboardPage = () => {
       try {
         const data = await casesV2Api.getDashboard()
         setCases(data?.cases ?? [])
+        setStats(data?.stats ?? null)
+        setActivities(data?.recentActivities ?? [])
       } catch (err) {
         console.error('Failed to load dashboard:', err)
         setError(t('error'))
@@ -249,6 +327,17 @@ const DashboardPage = () => {
 
     loadDashboard()
   }, [t])
+
+  // Counts derived from the cases list — works even if backend stats are stubbed.
+  const totals = useMemo(() => {
+    const total = cases.length
+    const byRank = cases.reduce<Record<string, number>>((acc, c) => {
+      const r = c.requiredRank || 'Unknown'
+      acc[r] = (acc[r] ?? 0) + 1
+      return acc
+    }, {})
+    return { total, byRank }
+  }, [cases])
 
   const handleLogout = () => {
     logout()
@@ -280,6 +369,25 @@ const DashboardPage = () => {
           <LogoutButton onClick={handleLogout}>{t('logout')}</LogoutButton>
         </HeaderControls>
       </Header>
+
+      <StatsGrid>
+        <StatCard>
+          <StatLabel>{t('casesActive')}</StatLabel>
+          <StatValue><Briefcase size={20} />{stats?.casesActive ?? totals.total}</StatValue>
+        </StatCard>
+        <StatCard>
+          <StatLabel>{t('casesResolved')}</StatLabel>
+          <StatValue><CheckCircle size={20} />{stats?.casesResolved ?? 0}</StatValue>
+        </StatCard>
+        <StatCard>
+          <StatLabel>{t('successRate')}</StatLabel>
+          <StatValue><Target size={20} />{stats?.successRate ?? 0}%</StatValue>
+        </StatCard>
+        <StatCard>
+          <StatLabel>{t('averageRating')}</StatLabel>
+          <StatValue><Activity size={20} />{stats?.averageRating ?? 0}</StatValue>
+        </StatCard>
+      </StatsGrid>
 
       <Panel>
         <PanelHeader>
@@ -334,6 +442,51 @@ const DashboardPage = () => {
           </CaseGrid>
         )}
       </Panel>
+
+      <SecondaryLayout>
+        <Panel>
+          <PanelHeader>
+            <Activity size={16} />
+            {t('recentHistory')}
+          </PanelHeader>
+          {activities.length === 0 ? (
+            <EmptyMessage>{t('noRecentActivity')}</EmptyMessage>
+          ) : (
+            <ActivityList>
+              {activities.slice(0, 8).map((a, i) => (
+                <ActivityItem key={`${a.date}-${i}`}>
+                  <span>{a.description}</span>
+                  <ActivityMeta>
+                    {new Date(a.date).toLocaleString()}
+                    {a.caseId ? ` · ${a.caseId}` : ''}
+                  </ActivityMeta>
+                </ActivityItem>
+              ))}
+            </ActivityList>
+          )}
+        </Panel>
+
+        <Panel>
+          <PanelHeader>
+            <FileText size={16} />
+            {t('casesByRank')}
+          </PanelHeader>
+          {Object.keys(totals.byRank).length === 0 ? (
+            <EmptyMessage>{t('dashboardEmpty')}</EmptyMessage>
+          ) : (
+            <ActivityList>
+              {Object.entries(totals.byRank).map(([rank, count]) => (
+                <ActivityItem key={rank}>
+                  <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <strong>{rank}</strong>
+                    <span>{count}</span>
+                  </span>
+                </ActivityItem>
+              ))}
+            </ActivityList>
+          )}
+        </Panel>
+      </SecondaryLayout>
     </PageContainer>
   )
 }

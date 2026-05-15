@@ -88,6 +88,7 @@ export const frFR: Translations = {
   openWorkspace: 'Ouvrir l\'Espace de Travail',
   weeklyGoals: 'Objectifs Hebdomadaires',
   recentHistory: 'Historique Récent',
+  casesByRank: 'Affaires par rang',
   lastSession: 'Dernière session',
   priority: 'Priorité',
   divisionHeatmap: 'Carte thermique des divisions',

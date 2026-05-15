@@ -111,6 +111,7 @@ export interface Translations {
   openWorkspace: string;
   weeklyGoals: string;
   recentHistory: string;
+  casesByRank: string;
   lastSession: string;
   priority: string;
   divisionHeatmap: string;

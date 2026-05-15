@@ -88,6 +88,7 @@ export const ptBR: Translations = {
   openWorkspace: 'Abrir Ambiente de Trabalho',
   weeklyGoals: 'Objetivos Semanais',
   recentHistory: 'Histórico Recente',
+  casesByRank: 'Casos por patente',
   lastSession: 'Última sessão',
   priority: 'Prioridade',
   divisionHeatmap: 'Mapa de calor das divisões',

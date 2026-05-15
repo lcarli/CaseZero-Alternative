@@ -88,6 +88,7 @@ export const esES: Translations = {
   openWorkspace: 'Abrir Espacio de Trabajo',
   weeklyGoals: 'Objetivos Semanales',
   recentHistory: 'Historial Reciente',
+  casesByRank: 'Casos por rango',
   lastSession: 'Última sesión',
   priority: 'Prioridad',
   divisionHeatmap: 'Mapa de calor de divisiones',

@@ -88,6 +88,7 @@ export const enUS: Translations = {
   openWorkspace: 'Open Workspace',
   weeklyGoals: 'Weekly Goals',
   recentHistory: 'Recent History',
+  casesByRank: 'Cases by rank',
   lastSession: 'Last session',
   priority: 'Priority',
   divisionHeatmap: 'Division Heatmap',
