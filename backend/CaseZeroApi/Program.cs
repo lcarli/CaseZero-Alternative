@@ -208,6 +208,13 @@ builder.Services.AddScoped<IRulesEngineService, RulesEngineService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>(); // P86: Audit Log
 builder.Services.AddSingleton<IForensicQueueService, ForensicQueueService>();
 
+// HTTP client for the case-generation Function App (proxied by CaseGenerationController).
+// Long timeout because some upstream calls (job status during heavy phases) can take a few seconds.
+builder.Services.AddHttpClient("case-generator", c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(30);
+});
+
 // Register background services
 // OBSOLETE: Removed CaseProcessingBackgroundService (uses obsolete CaseProcessingService from Services/OBSOLETE/)
 

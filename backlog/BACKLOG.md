@@ -6,6 +6,55 @@
 
 ## 🔥 Em aberto
 
+### TASK 2 — Página de geração de casos no site
+
+Botão no menu (visível para todos por enquanto) que abre uma nova página onde
+o usuário escolhe o nível de dificuldade e dispara a geração de um novo caso.
+A página acompanha o progresso em tempo (quase) real mostrando a fase atual da
+pipeline e os tempos por estágio.
+
+**Arquitetura:**
+- **Backend proxy** (`CaseZeroApi`): novo `CaseGenerationController` em
+  `/api/casegeneration` com `POST /generate` e `GET /jobs/{jobId}`. Proxy para
+  a Function App. Mantém tudo em mesma origem, JWT auth única, prepara
+  hook para audit/billing futuro.
+- **Polling** (não SignalR): a Function já expõe `GET /api/cases/v2/jobs/{id}`
+  com `currentPhase` + stage latencies. Geração leva 4-8 min, polling a cada
+  2.5 s = ~150 hits de <1 KB. SignalR seria over-engineering — exigiria
+  re-adicionar o package que foi removido na TASK F + um SignalR Service no
+  Azure. Polling resolve hoje e é trivial migrar pra SignalR depois.
+- **Config**: novo `CaseGenerator:FunctionBaseUrl` (e opcional
+  `CaseGenerator:FunctionKey` para prod). Em dev local: `http://localhost:7071`.
+
+**Frontend:**
+- Nova página `pages/CaseGenerationPage.tsx` em `/case-generation`.
+- Botão no nav menu (visível para todos).
+- Form: difficulty (Rookie / Detective / Detective2 / Sergeant / Lieutenant /
+  Captain / Commander) + opcionalmente título / theme / location / language /
+  seed.
+- Após `POST /generate` → polling do status com progress bar (% baseado no
+  índice da fase atual / total), badge de status (queued/running/done/failed),
+  fase atual em destaque, lista de stages concluídos com latência, e ao
+  completar mostra: blobs publicados, validation errors (se houver),
+  red-team verdict, refine telemetry.
+
+**Critérios de aceitação:**
+- Local end-to-end: usuário loga no frontend, clica no botão, escolhe Rookie,
+  vê o status atualizando em tempo (quase) real, vê a geração concluir e o
+  case aparece no dashboard depois do refresh.
+- Backend não vaza function-key para o browser.
+- Código pronto para teste em Azure dev (config via appsettings já está em
+  Program.cs).
+
+**Não-objetivos:**
+- Não implementar gating por rank ainda (botão público).
+- Não implementar billing / quota.
+- Não implementar UI de cancelamento (a Function tem singleton mas não
+  cancel).
+- Não implementar SignalR; deixar marcado como evolução futura se polling
+  ficar pesado.
+
+
 ### TASK 1 — Atualizar toda a documentação para refletir v2
 
 A reescrita pra v2 fechou (PRs A–F mergeados): o site, o gerador e os testes

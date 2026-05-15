@@ -109,29 +109,7 @@ export interface GeneratePoliceEmailResponse {
   policeEmail: string
 }
 
-export interface GenerateCaseRequest {
-  title: string
-  location: string
-  incidentDateTime: string
-  pitch: string
-  twist: string
-  difficulty?: string
-  targetDurationMinutes?: number
-  constraints?: string
-  timezone?: string
-  generateImages?: boolean
-}
-
-export interface SimpleCaseRequest {
-  difficulty: string
-}
-
-export interface CasePackage {
-  caseJson: string
-  generatedDocs: any[]
-  imagePrompts: any[]
-  evidenceManifest: any
-}
+// (Legacy v1 generation request shapes were here; replaced by the v2 GenerateCaseRequest below the new caseGenerationApi.)
 
 class ApiError extends Error {
   public status: number
@@ -369,34 +347,62 @@ export const caseObjectApi = {
 }
 
 // Case Generation API
+export interface GenerateCaseRequest {
+  caseId?: string
+  title?: string
+  theme?: string
+  location?: string
+  difficulty: string
+  requiredRank?: string
+  language?: string
+  seed?: number
+  writeToDisk?: boolean
+}
+
+export interface GenerateCaseStartResponse {
+  jobId: string
+  status: string
+  statusUri: string
+}
+
+export interface GenerateCaseStatus {
+  jobId: string
+  status: 'queued' | 'running' | 'done' | 'failed'
+  currentPhase?: string | null
+  runtimeStatus?: string
+  createdAt?: string
+  lastUpdatedAt?: string
+  error?: string | null
+  result?: {
+    JobId: string
+    CaseId: string
+    OutputPath: string
+    ValidationErrorsCount: number
+    AssetsRenderedPdfs: number
+    AssetsRenderedImages: number
+    BlobsPublished: number
+    HasErrors: boolean
+    ErrorMessage?: string | null
+    StageLatencyMs?: Record<string, number>
+    AutoFixesApplied?: string[]
+    RefineAttempted?: boolean
+    RefineErrorsBefore?: number
+    RefineErrorsAfter?: number
+    RedTeamVerdict?: string | null
+  } | null
+}
+
 export const caseGenerationApi = {
-  generateCase: async (request: GenerateCaseRequest): Promise<CasePackage> => {
-    return apiFetch('/casegeneration/generate', {
+  /** Kicks off a v2 case generation. Returns 202 + jobId immediately. */
+  start: async (request: GenerateCaseRequest): Promise<GenerateCaseStartResponse> =>
+    apiFetch('/casegeneration/generate', {
       method: 'POST',
       body: JSON.stringify(request)
-    })
-  },
-  
-  generateCaseJson: async (request: GenerateCaseRequest): Promise<{ caseJson: string }> => {
-    return apiFetch('/casegeneration/generate-json', {
-      method: 'POST',
-      body: JSON.stringify(request)
-    })
-  },
-  
-  generateSimpleCase: async (request: SimpleCaseRequest): Promise<CasePackage> => {
-    return apiFetch('/casegeneration/generate-simple', {
-      method: 'POST',
-      body: JSON.stringify(request)
-    })
-  },
-  
-  generateSimpleCaseJson: async (request: SimpleCaseRequest): Promise<{ caseJson: string }> => {
-    return apiFetch('/casegeneration/generate-simple-json', {
-      method: 'POST',
-      body: JSON.stringify(request)
-    })
-  }
+    }),
+
+  /** Polls a generation job's status. */
+  getJob: async (jobId: string): Promise<GenerateCaseStatus> =>
+    apiFetch(`/casegeneration/jobs/${jobId}`)
 }
 
 // Case Files API (for normalized case bundles)
