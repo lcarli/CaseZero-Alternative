@@ -253,7 +253,7 @@ export const authApi = {
 // Cases API
 export const casesApi = {
   getDashboard: async (): Promise<Dashboard> => {
-    return apiFetch('/cases/v1/dashboard')
+    return apiFetch('/cases/dashboard')
   },
   
   getCases: async (): Promise<Case[]> => {
@@ -266,6 +266,47 @@ export const casesApi = {
   
   getCaseData: async (id: string): Promise<any> => {
     return apiFetch(`/cases/${id}/data`)
+  },
+
+  getAssetUrl: (caseId: string, assetId: string): string => {
+    const token = tokenStorage.get()
+    const url = `${API_BASE_URL}/cases/${caseId}/assets/${assetId}/download`
+    return token ? `${url}?token=${token}` : url
+  },
+
+  getAsset: async (caseId: string, assetId: string): Promise<Blob> => {
+    const url = `${API_BASE_URL}/cases/${caseId}/assets/${assetId}/download`
+    const token = tokenStorage.get()
+
+    const response = await fetch(url, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    })
+
+    if (!response.ok) {
+      throw new ApiError(response.status, `Failed to load asset: ${assetId}`)
+    }
+
+    return response.blob()
+  },
+
+  caseExists: async (caseId: string): Promise<boolean> => {
+    try {
+      const url = `${API_BASE_URL}/cases/${caseId}`
+      const token = tokenStorage.get()
+
+      const response = await fetch(url, {
+        method: 'HEAD',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      })
+
+      return response.ok
+    } catch {
+      return false
+    }
   }
 }
 
@@ -324,69 +365,6 @@ export const caseObjectApi = {
     const url = `${API_BASE_URL}/caseobject/${caseId}/files/${fileName}`
     // For images, we can return the URL directly since the browser will handle authentication
     return token ? `${url}?token=${token}` : url
-  }
-}
-
-// Cases V1 API - for case.json v1.0 cases from Azure Blob Storage
-export const casesV1Api = {
-  listCases: async (): Promise<Array<{
-    caseId: string
-    title: string
-    description: string
-    difficulty: number
-    category: string
-    estimatedTimeMinutes: number
-  }>> => {
-    return apiFetch('/cases/v1')
-  },
-
-  getCase: async (caseId: string): Promise<unknown> => {
-    return apiFetch(`/cases/v1/${caseId}`)
-  },
-
-  getCaseRaw: async (caseId: string): Promise<unknown> => {
-    return apiFetch(`/cases/v1/${caseId}/raw`)
-  },
-
-  getAsset: async (caseId: string, assetId: string): Promise<Blob> => {
-    const url = `${API_BASE_URL}/cases/v1/${caseId}/assets/${assetId}`
-    const token = tokenStorage.get()
-    
-    const response = await fetch(url, {
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      }
-    })
-    
-    if (!response.ok) {
-      throw new ApiError(response.status, `Failed to load asset: ${assetId}`)
-    }
-    
-    return response.blob()
-  },
-
-  getAssetUrl: (caseId: string, assetId: string): string => {
-    const token = tokenStorage.get()
-    const url = `${API_BASE_URL}/cases/v1/${caseId}/assets/${assetId}`
-    return token ? `${url}?token=${token}` : url
-  },
-
-  caseExists: async (caseId: string): Promise<boolean> => {
-    try {
-      const url = `${API_BASE_URL}/cases/v1/${caseId}`
-      const token = tokenStorage.get()
-      
-      const response = await fetch(url, {
-        method: 'HEAD',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        }
-      })
-      
-      return response.ok
-    } catch {
-      return false
-    }
   }
 }
 

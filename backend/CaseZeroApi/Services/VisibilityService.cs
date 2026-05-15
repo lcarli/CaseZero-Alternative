@@ -7,12 +7,12 @@ namespace CaseZeroApi.Services
     public class VisibilityService : IVisibilityService
     {
         private readonly ApplicationDbContext _context;
-        private readonly ICaseV1StorageService _caseStorageService;
+        private readonly ICaseV2StorageService _caseStorageService;
         private readonly ILogger<VisibilityService> _logger;
 
         public VisibilityService(
             ApplicationDbContext context,
-            ICaseV1StorageService caseStorageService,
+            ICaseV2StorageService caseStorageService,
             ILogger<VisibilityService> logger)
         {
             _context = context;
@@ -26,8 +26,8 @@ namespace CaseZeroApi.Services
 
             try
             {
-                // Load case from blob storage
-                var caseData = await _caseStorageService.GetCaseAsync(caseId);
+                // Load case (v2 shape) from the storage service — filesystem in dev / blob in prod.
+                var caseData = await _caseStorageService.GetRawAsync(caseId);
                 if (caseData == null)
                 {
                     _logger.LogWarning("Case {CaseId} not found in storage", caseId);
@@ -51,7 +51,7 @@ namespace CaseZeroApi.Services
                     {
                         // Check if already unlocked
                         var exists = await _context.CaseSessionVisibleAssets
-                            .AnyAsync(va => va.UserId == userId && va.CaseId == caseId && va.AssetId == asset.AssetId);
+                            .AnyAsync(va => va.UserId == userId && va.CaseId == caseId && va.AssetId == asset.Id);
 
                         if (!exists)
                         {
@@ -59,13 +59,13 @@ namespace CaseZeroApi.Services
                             {
                                 UserId = userId,
                                 CaseId = caseId,
-                                AssetId = asset.AssetId,
+                                AssetId = asset.Id,
                                 UnlockedAt = DateTime.UtcNow
                             };
 
                             _context.CaseSessionVisibleAssets.Add(visibleAsset);
                             assetsUnlocked++;
-                            _logger.LogDebug("Unlocked asset {AssetId} for user {UserId}", asset.AssetId, userId);
+                            _logger.LogDebug("Unlocked asset {AssetId} for user {UserId}", asset.Id, userId);
                         }
                     }
                 }
@@ -74,7 +74,7 @@ namespace CaseZeroApi.Services
                 if (caseData.Emails != null)
                 {
                     _logger.LogDebug("Checking {Count} emails for initial visibility", caseData.Emails.Count);
-                    
+
                     var initialEmails = caseData.Emails
                         .Where(e => e.Visibility != null && e.Visibility.Equals("initial", StringComparison.OrdinalIgnoreCase))
                         .ToList();
@@ -83,12 +83,12 @@ namespace CaseZeroApi.Services
 
                     foreach (var email in initialEmails)
                     {
-                        _logger.LogDebug("Processing email {EmailId} with visibility={Visibility}", 
-                            email.EmailId, email.Visibility);
-                        
+                        _logger.LogDebug("Processing email {EmailId} with visibility={Visibility}",
+                            email.Id, email.Visibility);
+
                         // Check if already unlocked
                         var exists = await _context.CaseSessionVisibleEmails
-                            .AnyAsync(ve => ve.UserId == userId && ve.CaseId == caseId && ve.EmailId == email.EmailId);
+                            .AnyAsync(ve => ve.UserId == userId && ve.CaseId == caseId && ve.EmailId == email.Id);
 
                         if (!exists)
                         {
@@ -96,17 +96,17 @@ namespace CaseZeroApi.Services
                             {
                                 UserId = userId,
                                 CaseId = caseId,
-                                EmailId = email.EmailId,
+                                EmailId = email.Id,
                                 UnlockedAt = DateTime.UtcNow
                             };
 
                             _context.CaseSessionVisibleEmails.Add(visibleEmail);
                             emailsUnlocked++;
-                            _logger.LogDebug("Unlocked email {EmailId} for user {UserId}", email.EmailId, userId);
+                            _logger.LogDebug("Unlocked email {EmailId} for user {UserId}", email.Id, userId);
                         }
                         else
                         {
-                            _logger.LogDebug("Email {EmailId} already unlocked for user {UserId}", email.EmailId, userId);
+                            _logger.LogDebug("Email {EmailId} already unlocked for user {UserId}", email.Id, userId);
                         }
                     }
                 }

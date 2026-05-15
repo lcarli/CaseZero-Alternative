@@ -28,10 +28,8 @@ public class RulesEngineServiceTests : IDisposable
 
         _v2StorageMock = new Mock<ICaseV2StorageService>();
 
-        var v1StorageMock = new Mock<ICaseV1StorageService>();
         _sut = new RulesEngineService(
             _context,
-            v1StorageMock.Object,
             _v2StorageMock.Object,
             NullLogger<RulesEngineService>.Instance);
     }

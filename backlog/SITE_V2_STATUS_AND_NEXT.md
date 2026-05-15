@@ -113,9 +113,61 @@ Implementado na branch `feat/task-c-async-generate` (PR pendente):
 - Singleton best-effort: rejeita 409 se outra geração estiver Pending/Running (query por `InstanceIdPrefix` + nome do orquestrador).
 - Smoke local: gerou `case_smoke_v2` em ~4 min, 0 erros de validação, 11 blobs publicados em `bundles/` (Azurite).
 
-### TASK D — `CaseV1*` cleanup definitivo
+### TASK D — `CaseV1*` cleanup definitivo ✅ **CONCLUÍDO**
 
-Remover `CaseV1StorageService`, `CaseV1SanitizerService`, `CasesV1Controller` (`/api/cases/v1`) e os métodos legados em `IRulesEngineService` quando a Task B liberar (integration tests não dependerão mais deles). O frontend `FileViewer` ainda usa `casesV1Api.getAssetUrl` — substituir pela rota v2 nova quando o endpoint de asset stream estiver mapeado em `/api/cases/{id}/assets/{aid}` no `AssetsController` (já existe `download`, só falta apontar lá).
+Implementado na branch `feat/task-d-v1-cleanup` (PR pendente). Removeu **toda** a camada v1 do código de produção.
+
+**Removidos do backend** (8 arquivos):
+- `Controllers/CasesV1Controller.cs` (rota `/api/cases/v1`)
+- `Controllers/DevCasesController.cs` (rota `/api/dev/cases`, só usava v1)
+- `Services/CaseV1SanitizerService.cs` + interface
+- `Services/CaseV1StorageService.cs` + interface
+- `Services/BlobStorageService.cs` + interface (não tinha mais usuários)
+- `Models/CaseV1/CaseV1.cs` (modelo inteiro)
+- Métodos legacy do `IRulesEngineService`: `EvaluateForensicRuleAsync`,
+  `ApplyRevealEmailActionAsync`, `ApplyRevealAssetActionAsync`,
+  `ApplyAddEmailAttachmentActionAsync`, `GenerateNoFindingsEmailAsync`
+  (interface + impl reduzidas só para `EvaluateAndApplyAsync` v2)
+
+**Migrados para v2**:
+- `VisibilityService` agora consome `ICaseV2StorageService.GetRawAsync` (era v1)
+- `RulesEngineService` ctor agora pede 3 args (era 4) — sem mock v1 storage
+- `AssetsController` removeu o `IBlobStorageService` (era field não-usado)
+
+**Frontend** (`services/api.ts` + `FileViewer.tsx`):
+- Removido `casesV1Api` inteiro (~60 linhas)
+- `casesApi` ganhou `getAssetUrl`, `getAsset`, `caseExists`
+- `casesApi.getDashboard` agora chama `/cases/dashboard` (não `/cases/v1/dashboard`)
+- `FileViewer.tsx` usa `casesApi.getAssetUrl` (v2 endpoint
+  `/api/cases/{id}/assets/{aid}/download`)
+
+**Tests**:
+- `VisibilityServiceTests` reescrito para mockar `ICaseV2StorageService` e
+  usar o shape v2 (`CaseV2Asset.Id` em vez de `Asset.AssetId`)
+- `RulesEngineServiceTests` apenas ajustou o ctor (3 args)
+- 4 testes Azurite-mock-blob deletados (`DownloadAttachment_RevealsAsset`,
+  `ForensicsWithoutRule_GeneratesNoFindingsEmail`,
+  `ForensicsWithRule_GeneratesEmailWithAttachment`,
+  `GetCase_SanitizedResponse_NeverContainsSensitiveData`) + 3 helper
+  methods `CreateMockCase*`
+- `StartCase_CreatesSessionWithInitialEmail` reativado (passa agora que
+  `VisibilityService` está em v2)
+
+**CI** (`cd-dev.yml`): removido `continue-on-error: true` dos test steps
+e adicionados `CaseZeroApi.IntegrationTests` + `CaseGen.Functions.Tests`
+no pipeline.
+
+**Resultado da suíte completa**:
+| Projeto | Verdes | Skipped | Falhando |
+|---|---:|---:|---:|
+| `CaseZeroApi.Tests` (net8) | 47 | 0 | 0 |
+| `CaseZeroApi.IntegrationTests` (net8) | 34 | 2 | 0 |
+| `CaseGen.Functions.Tests` (net9) | 7 | 0 | 0 |
+| **Total** | **88** | **2** | **0** |
+
+> Dos 2 skips restantes: 1 é `GetCase_WithDangerousMetadata_IsFiltered`
+> com problema pré-existente de assertion não-relacionado a TASK D
+> (anotado para investigação separada).
 
 ### TASK E — Refine loop quando algo dá errado ✅ **CONCLUÍDO**
 
@@ -182,4 +234,4 @@ Quando virar produção:
 4. **Gerador local**: `./scripts/run-functions.ps1` (Windows) ou `.sh` (Mac/Linux) — Azurite + func host local.
 5. **Smoke pós-deploy**: `https://casezero-api-dev.azurewebsites.net/swagger` (200) e a SWA em `https://gentle-ground-03dca4110.3.azurestaticapps.net/`.
 
-> Próximo foco recomendado: **TASK D** (cleanup definitivo dos v1) — vai destravar os 7 testes skipados aqui e simplificar o codebase. Junto com isso, `cd-dev.yml` pode tirar o `continue-on-error: true` dos integration tests.
+> Próximo foco recomendado: **TASK F** (durable pipeline → v2 nativo) — vai aposentar o pipeline durável antigo (`PlanStep`/`ExpandStep`/etc) e fazer toda geração passar pelo `CaseV2GeneratorService` já consolidado.

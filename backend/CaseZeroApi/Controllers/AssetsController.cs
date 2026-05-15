@@ -17,27 +17,24 @@ namespace CaseZeroApi.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<AssetsController> _logger;
-        private readonly IBlobStorageService _blobStorageService;
         private readonly BlobServiceClient _blobServiceClient;
         private readonly IConfiguration _configuration;
         private readonly IAuditLogService _auditLogService; // P86
         private readonly ICaseV2StorageService _caseStorageService; // v2
 
         public AssetsController(
-            ApplicationDbContext context, 
+            ApplicationDbContext context,
             ILogger<AssetsController> logger,
-            IBlobStorageService blobStorageService,
             IConfiguration configuration,
             IAuditLogService auditLogService, // P86
             ICaseV2StorageService caseStorageService) // v2
         {
             _context = context;
             _logger = logger;
-            _blobStorageService = blobStorageService;
             _configuration = configuration;
             _auditLogService = auditLogService; // P86
             _caseStorageService = caseStorageService; // P87
-            
+
             // Initialize BlobServiceClient for direct blob access
             var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
                 ?? configuration["AzureWebJobsStorage"]

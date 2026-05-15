@@ -198,11 +198,7 @@ builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>()
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<DataSeedingService>();
 
-// Case storage (blob manifest + v2 case loading)
-builder.Services.AddScoped<IBlobStorageService, BlobStorageService>();
-builder.Services.AddScoped<ICaseV1SanitizerService, CaseV1SanitizerService>();
-builder.Services.AddScoped<ICaseV1StorageService, CaseV1StorageService>();
-// v2 services
+// Case storage (v2)
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ICaseV2SanitizerService, CaseV2SanitizerService>();
 builder.Services.AddScoped<ICaseV2StorageService, CaseV2StorageService>();
