@@ -6,6 +6,159 @@
 
 ## 🔥 Em aberto
 
+### TASK 4 — Persistir configuração da Function App no Bicep + corrigir fallback de disco
+
+Durante o TASK 3 (validar geração ponta-a-ponta em Azure dev) aplicamos uma
+série de mudanças direto no Azure via `az` que **não** estão no IaC do repo.
+Se alguém recriar o ambiente do zero hoje (`azd up` / `az deployment`), nada
+funciona. Além disso, o código tem um fallback de caminho que é uma armadilha
+para Flex Consumption Linux.
+
+**Drift atual entre o que existe em Azure dev e o que está no Bicep:**
+
+`infrastructure/functions/main.bicep` (Function App `casegen-func-dev`):
+- Linhas 205/209/213 ainda declaram as chaves antigas erradas
+  `AzureOpenAI__Endpoint/ApiKey/DeploymentName` — o código NÃO lê essas chaves.
+- Faltando: `LLM__UseAzureFoundry=true`
+- Faltando: `AzureFoundry__Endpoint`, `AzureFoundry__ApiKey`,
+  `AzureFoundry__ModelName`, `AzureFoundry__ImageDeploymentName` (Key Vault refs)
+- Faltando: `CaseGenV2__CasesBasePath=/tmp` (sem isso, geração falha com
+  `Access to /home/site/wwwroot/cases is denied` em Flex Consumption Linux)
+- Faltando: role assignment `Key Vault Secrets User` do MI da Function App
+  sobre o Key Vault `kv-ca-dev-oeq4agkmf6k4k`
+
+`infrastructure/api/main.bicep` (Web App `casezero-api-dev`):
+- Faltando: `CaseGenerator__FunctionBaseUrl=https://<func-app>.azurewebsites.net`
+
+`infrastructure/README.md`:
+- Ainda documenta `AzureOpenAI__*` em vez de `AzureFoundry__*`.
+
+**Bug latente no código:**
+
+`functions/CaseGen.Functions/Services/CaseV2/CaseV2GeneratorService.cs:564`
+em `ResolveCasesBasePath()` o fallback final é
+`Path.Combine(AppContext.BaseDirectory, "cases")`, que em Flex Consumption
+Linux resolve para `/home/site/wwwroot/cases` (mount read-only do pacote de
+deploy) → `UnauthorizedAccessException`. Trocar fallback para
+`Path.Combine(Path.GetTempPath(), "casegen")` funciona em Linux Function App,
+Windows local e macOS local sem precisar de app setting em prod.
+
+**Tarefas:**
+
+1. `infrastructure/functions/main.bicep`:
+   - Remover entradas `AzureOpenAI__*`.
+   - Adicionar entradas `LLM__UseAzureFoundry`, `AzureFoundry__Endpoint`,
+     `AzureFoundry__ApiKey`, `AzureFoundry__ModelName`,
+     `AzureFoundry__ImageDeploymentName` (apontando para os 4 secrets
+     `azure-foundry-*` que já criamos no Key Vault).
+   - Adicionar `CaseGenV2__CasesBasePath=/tmp` (até o item 4 ser feito; depois
+     vira opcional).
+   - Adicionar role assignment `Key Vault Secrets User` do MI da FA no escopo
+     do KV `kv-ca-dev-oeq4agkmf6k4k` (módulo `keyvault-rbac.bicep` já existe
+     para a API, replicar para a Function).
+
+2. `infrastructure/api/main.bicep`:
+   - Adicionar app setting `CaseGenerator__FunctionBaseUrl` derivado do
+     nome/host da Function App do mesmo deploy (parametrizar ou ler da
+     output do módulo de functions).
+
+3. `infrastructure/README.md`:
+   - Atualizar a seção de app settings da Function App para listar
+     `AzureFoundry__*` em vez de `AzureOpenAI__*` e mencionar
+     `CaseGenV2__CasesBasePath` + `LLM__UseAzureFoundry`.
+
+4. Código — `CaseV2GeneratorService.ResolveCasesBasePath`:
+   - Trocar fallback final de `Path.Combine(AppContext.BaseDirectory, "cases")`
+     para `Path.Combine(Path.GetTempPath(), "casegen")`.
+   - Manter walk-up para repo-root só quando rodando local (preservar DX local).
+   - Depois disso, `CaseGenV2__CasesBasePath=/tmp` pode sair do Bicep.
+
+**Notas:**
+
+- Os 4 secrets `azure-foundry-endpoint`, `azure-foundry-api-key`,
+  `azure-foundry-model-name`, `azure-foundry-image-deployment-name` já estão
+  populados no Key Vault dev — Bicep só precisa referenciá-los.
+- Os secrets antigos `azure-openai-endpoint/api-key/deployment-name` referenciados
+  pelo Bicep antigo **não existem** no KV (sempre falharam — só ninguém percebeu
+  porque o código defaultava para Mock provider).
+- Public Network Access do `kv-ca-dev-oeq4agkmf6k4k` foi habilitado nesta
+  sessão. Pra prod isso vira `Disabled` + private endpoint, mas é fora do
+  escopo dessa task.
+
+**Critério de aceitação:**
+
+- Rodar `az deployment ... what-if` ou `azd provision` na branch e ver que
+  as 4 mudanças acima ficaram aplicadas sem drift.
+- Geração ponta-a-ponta continua funcionando após o deploy do Bicep (sem
+  precisar de `az ... appsettings set` manual).
+- Em outra sub/ambiente novo, `azd up` deixa tudo funcionando do zero
+  (assumindo que os 4 secrets do AzureFoundry sejam pré-populados no KV ou
+  criados pelo próprio Bicep).
+
+### TASK 3 — Configurar Function App URL no Web App de Azure dev
+
+A página `/case-generation` está retornando **HTTP 503: "Case generator
+not configured"** em Azure dev. O `CaseGenerationController` exige o app
+setting `CaseGenerator__FunctionBaseUrl` apontando pra Function App, e o
+Web App `casezero-api-dev` não tem ele.
+
+**Passos (rodar do computador com `az login` válido para a subscription do dev):**
+
+1. Descobrir o nome e URL da Function App de dev:
+   ```bash
+   az functionapp list \
+     --query "[?contains(name, 'cgad') || contains(name, 'casegen') || contains(name, 'func')].{name:name, rg:resourceGroup, url:defaultHostName}" \
+     -o table
+   ```
+
+2. Descobrir o resource group do Web App:
+   ```bash
+   az webapp list \
+     --query "[?name=='casezero-api-dev'].{name:name, rg:resourceGroup}" \
+     -o table
+   ```
+
+3. Setar o app setting (substituir `<func-app>` e `<rg>` com o que vier acima):
+   ```bash
+   az webapp config appsettings set \
+     --name casezero-api-dev \
+     --resource-group <rg-do-webapp> \
+     --settings "CaseGenerator__FunctionBaseUrl=https://<func-app>.azurewebsites.net"
+   ```
+
+   O **`__` (duplo underscore)** é o separador que o .NET `IConfiguration`
+   usa pra mapear `CaseGenerator:FunctionBaseUrl` quando o valor vem de
+   variável de ambiente / app setting do App Service.
+
+4. O `az webapp config appsettings set` reinicia o Web App automaticamente.
+   Aguardar ~30 s e testar:
+   ```bash
+   curl -i -X POST https://casezero-api-dev.azurewebsites.net/api/casegeneration/generate \
+     -H "Authorization: Bearer <jwt-de-um-usuario-logado>" \
+     -H "Content-Type: application/json" \
+     -d '{"difficulty":"Rookie"}'
+   ```
+   Esperado: **202 Accepted** com `{ jobId, status, statusUri }`. Se vier
+   **502**, a Function App não está respondendo (ver TASK 4 abaixo se aplicar).
+   Se vier **503** de novo, o app setting não pegou — checar com
+   `az webapp config appsettings list --name casezero-api-dev --rg <rg>`.
+
+5. Validar pela UI: logar na SWA, ir em `/case-generation`, gerar um caso
+   Rookie, acompanhar o progresso, confirmar que o caso novo aparece no
+   dashboard depois.
+
+**Notas:**
+- CORS na Function App **não** é problema (proxy server-to-server via backend).
+- A Function App em dev usa Managed Identity pro Blob Storage; nenhuma key
+  é necessária no app setting do backend pra esse cenário (auth da Function
+  está como `AuthorizationLevel.Anonymous` nos endpoints v2).
+- Se preferir Function-level auth no futuro, adicionar
+  `CaseGenerator__FunctionKey=<key>` — o controller já injeta como header
+  `x-functions-key`.
+
+**Critério de aceitação:** geração ponta-a-ponta funcionando em Azure dev
+(SWA → Web App → Function App → Blob → Web App lê → SWA mostra o caso novo).
+
 ### TASK 2 — Página de geração de casos no site
 
 Botão no menu (visível para todos por enquanto) que abre uma nova página onde
