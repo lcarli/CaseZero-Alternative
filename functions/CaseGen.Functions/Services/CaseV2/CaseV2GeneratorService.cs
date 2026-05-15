@@ -131,11 +131,26 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             draft.Questions = questions.ToList();
         });
 
-        // === Phase 9: assemble + validate + persist (deterministic)
+        // === Phase 9: assemble + validate (deterministic structural check)
         var assembled = Assemble(draft);
         var json = assembled.ToJsonString(JsonOpts);
         var errors = Validate(json);
 
+        // === Phase 10: red-team + solver (semantic validation) — run in parallel
+        Tasks.RedTeamTask.Report? redTeam = null;
+        Tasks.SolverTask.SolverResult? solver = null;
+        if (errors.Count == 0)
+        {
+            await TimeStage("redTeamAndSolver", stageMs, async () =>
+            {
+                var rt = new Tasks.RedTeamTask(_llm, _logger).RunAsync(draft, json, ct);
+                var sv = new Tasks.SolverTask(_llm, _logger).RunAsync(draft, ct);
+                redTeam = await rt;
+                solver = await sv;
+            });
+        }
+
+        // === Phase 11: persist + render assets
         var outputPath = string.Empty;
         AssetRenderingReport? renderingReport = null;
         if (errors.Count == 0 && request.WriteToDisk)
@@ -164,7 +179,9 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             AssetsRenderedPdfs = renderingReport?.PdfsWritten ?? 0,
             AssetsRenderedImages = renderingReport?.ImagesWritten ?? 0,
             AssetsSkipped = renderingReport?.Skipped ?? 0,
-            AssetRenderingErrors = renderingReport?.Errors ?? new()
+            AssetRenderingErrors = renderingReport?.Errors ?? new(),
+            RedTeam = redTeam,
+            Solver = solver
         };
     }
 

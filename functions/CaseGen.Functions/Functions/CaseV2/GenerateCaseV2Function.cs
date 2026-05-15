@@ -73,6 +73,8 @@ public class GenerateCaseV2Function
                     skipped = result.AssetsSkipped,
                     errors = result.AssetRenderingErrors
                 },
+                redTeam = result.RedTeam,
+                solver = result.Solver,
                 preview = TryPreview(result.CaseJson)
             }, ct);
             return http;

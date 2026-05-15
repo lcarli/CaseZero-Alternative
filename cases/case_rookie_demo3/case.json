@@ -1,0 +1,510 @@
+{
+  "version": "2.0",
+  "caseId": "case_rookie_demo3",
+  "metadata": {
+    "title": "The Diner Break-In",
+    "description": "A small-time overnight burglary at a 24-hour diner leaves a broken back door and the register emptied, with no injuries reported.",
+    "location": "Eugene, Oregon",
+    "incidentDate": "2026-05-10T03:18:00-07:00",
+    "openedAt": "2026-05-10T09:05:00-07:00",
+    "difficulty": "Rookie",
+    "requiredRank": "Rookie",
+    "category": "Burglary",
+    "briefing": "The Night Owl Diner was hit before dawn: the rear door was forced and cash disappeared from the till. Your job is to sort a messy but low-stakes suspect pool and identify who actually broke in.",
+    "tags": [
+      "24h_diner",
+      "forced_entry",
+      "cash_theft",
+      "night_shift",
+      "small_time_burglary"
+    ],
+    "unlockMode": "all_initial",
+    "estimatedDurationMinutes": 90
+  },
+  "assets": [
+    {
+      "id": "asset.back_door_damage",
+      "type": "photo",
+      "title": "Back Door Frame Damage",
+      "description": "Close-up scene photo of the diner\u0027s rear entry showing damage to the door frame and latch area. Captures pry-like marks, splintering, and alignment of the strike plate to assess whether the forced entry appears staged or consistent with a real break-in attempt.",
+      "uri": "case://case_rookie_demo3/assets/back_door_damage.png",
+      "visibility": "initial",
+      "category": "Physical"
+    },
+    {
+      "id": "asset.register_drawer_empty",
+      "type": "photo",
+      "title": "Register Drawer After Theft",
+      "description": "Crime-scene photo of the diner\u2019s cash register drawer moments after the theft. Highlights what\u2019s missing and whether the drawer shows signs of prying, rummaging, or clean/controlled access consistent with a key or no-sale entry.",
+      "uri": "case://case_rookie_demo3/assets/register_drawer_empty.png",
+      "visibility": "initial",
+      "category": "Physical"
+    },
+    {
+      "id": "asset.rear_hallway_footprints",
+      "type": "photo",
+      "title": "Rear Hallway Floor Impressions",
+      "description": "Crime-scene photo of faint shoe impressions and debris in the diner\u2019s rear hallway, leading away from the damaged back door toward the interior. Intended to suggest a travel path and help compare tread patterns to staff or visitor footwear.",
+      "uri": "case://case_rookie_demo3/assets/rear_hallway_footprints.png",
+      "visibility": "initial",
+      "category": "Physical"
+    },
+    {
+      "id": "asset.initial_offense_report",
+      "type": "pdf",
+      "title": "Initial Police Offense Report",
+      "description": "Initial responding officer\u2019s written report documenting the burglary call at the 24-hour diner, including first observations of the back door damage, the reported cash loss, and the preliminary incident timeline around 03:18 on 2026-05-10.",
+      "uri": "case://case_rookie_demo3/assets/initial_offense_report.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.pos_transaction_log",
+      "type": "digital",
+      "title": "POS Transaction Log (01:30\u201304:30)",
+      "description": "Point-of-sale export covering the overnight window around the reported 03:18 break-in. Used to corroborate staff activity and identify voids, no-sales, refunds, or unusual drawer opens near the incident time.",
+      "uri": "case://case_rookie_demo3/assets/pos_transaction_log.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.staff_shift_and_clock_report",
+      "type": "digital",
+      "title": "Staff Clock-In/Out \u0026 Breaks Report",
+      "description": "Time-and-attendance export for overnight staff covering the incident window. Used to confirm who was on premises and identify any unaccounted gaps around the 03:18 break-in time.",
+      "uri": "case://case_rookie_demo3/assets/staff_shift_and_clock_report.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.camera_still_front_floor",
+      "type": "photo",
+      "title": "Front Floor Camera Still (03:10\u201303:30)",
+      "description": "A timestamped still from the diner\u2019s front-floor security camera during the 03:10\u201303:30 window, showing the dining area, counter, and who is visible. Used to anchor staff/customer positions relative to the 03:18 break-in time.",
+      "uri": "case://case_rookie_demo3/assets/camera_still_front_floor.png",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.manager_interview_audio",
+      "type": "audio",
+      "title": "Audio Interview: Assistant Manager Juniper Ross",
+      "description": "Recorded interview with Assistant Manager Juniper Ross regarding the overnight cash drop, their whereabouts during the 03:18 break-in window, and door/alarm routines. Includes notable pauses and qualifying language around the Wi\u2011Fi/at-home claim.",
+      "uri": "case://case_rookie_demo3/assets/manager_interview_audio.mp3",
+      "visibility": "initial",
+      "category": "Communication"
+    },
+    {
+      "id": "asset.report_footwear_impression_comparison_rear_hallway",
+      "type": "pdf",
+      "title": "Footwear Impression Comparison Report \u2013 Rear Hallway Impressions",
+      "description": "Laboratory comparison of photographed rear-hallway shoe impressions against known footwear for Juniper Ross. The impressions are consistent in class characteristics and size with Ross\u2019s work shoes, supporting presence along the rear hallway travel path during the incident window.",
+      "uri": "case://case_rookie_demo3/assets/report_footwear_impression_comparison_rear_hallway.pdf",
+      "visibility": "hidden",
+      "category": "Document"
+    }
+  ],
+  "emails": [
+    {
+      "id": "email.briefing",
+      "from": "Chief L. Alvarez",
+      "to": [
+        "Detective Alex Morgan \u003Cdetective@citypolice.gov\u003E"
+      ],
+      "subject": "Immediate Follow-Up: Diner Break-In (Eugene) \u2014 Discretion Required",
+      "body": "Detective Morgan,\n\nAt approximately 03:18 on 2026-05-10, we received a burglary report at the 24-hour diner in Eugene, Oregon. The business is the victim in this matter\u2014back door forced, register emptied, and no injuries reported\u2014but the speed and timing suggest we need a clean, controlled response.\n\nI want you on this immediately. Treat this as time-sensitive: secure the scene details, preserve any usable impressions from the rear hallway, and ensure we have the back-door damage and register photos logged properly. Pull the initial offense report and begin corroborating the incident window against the POS transaction log and staff clock/break records.\n\nPrioritize video confirmation for 03:10\u201303:30 and obtain any additional camera angles that may cover the rear corridor or exterior approach routes. Re-interview the overnight staff only after you\u2019ve reviewed timestamps so we can confront inconsistencies with specifics, not assumptions.\n\nUse discretion with all contacts. Do not speculate about who may have had access, and do not discuss internal angles with diner management or staff beyond what\u2019s necessary to collect statements and evidence. Keep your notes tight and your communications limited to need-to-know.\n\nUpdate me with your preliminary findings by end of day, sooner if you see any immediate risk of evidence loss or witness coordination.",
+      "sentAt": "2026-05-10T09:05:00-07:00",
+      "priority": "urgent",
+      "attachments": [
+        "asset.back_door_damage",
+        "asset.register_drawer_empty"
+      ],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.mara_kline_initial_note",
+      "from": "Mara Kline \u003Cm.kline@eugenediner.example\u003E",
+      "to": [
+        "Detective Alex Morgan \u003Cdetective@citypolice.gov\u003E"
+      ],
+      "subject": "What I saw when I found the back door damage (03:22ish)",
+      "body": "Detective,\n\nWriting this down while it\u2019s fresh. Around 3:20\u20133:25 a.m. I went toward the back hallway to start closing tasks (trash \u002B restock). The back door looked wrong right away\u2014like it wasn\u2019t sitting in the frame\u2014and when I got closer I saw the wood around the latch/plate was splintered.\n\nI did NOT open the back door. I stepped back and called out to Derek in the kitchen and then called it in like the officer told us. I remember the floor in the hallway had grit on it (we track in a lot from deliveries), and I noticed faint marks like someone walked through there recently.\n\nBefore that, I was up front by the coffee station and ringing a couple late checks. I didn\u2019t see anyone come in through the dining area, and I didn\u2019t hear an alarm.\n\n\u2014Mara",
+      "sentAt": "2026-05-10T09:22:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.derek_holt_shift_recap",
+      "from": "Derek Holt \u003Cd.holt@eugenediner.example\u003E",
+      "to": [
+        "Detective Alex Morgan \u003Cdetective@citypolice.gov\u003E"
+      ],
+      "subject": "Overnight kitchen recap / my break timing",
+      "body": "Officer/Detective,\n\nHere\u2019s my best timeline from last night. I was on the line most of the night. I stepped out front for a smoke break for a few minutes sometime a little after 3:00 (I don\u2019t know exact minute). Came right back in because tickets started coming in.\n\nI didn\u2019t go to the back door at all. I didn\u2019t hear anyone in the hallway behind the kitchen, and I didn\u2019t hear glass or anything like that. When Mara said the back door was busted, I went to look but stayed back once we realized it was a break-in.\n\nFor what it\u2019s worth, the back hallway is usually quiet unless someone\u2019s doing trash or a delivery person comes by.\n\n\u2014Derek",
+      "sentAt": "2026-05-10T09:34:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.chief_alvarez_briefing_forward",
+      "from": "Chief L. Alvarez \u003Cchief.alvarez@eugene-pd.example\u003E",
+      "to": [
+        "Detective Alex Morgan \u003Cdetective@citypolice.gov\u003E"
+      ],
+      "subject": "Diner Break-In \u2014 initial priorities and discretion",
+      "body": "Team,\n\nThis is a low-dollar overnight burglary but it impacts a public-facing business. Keep contact with staff minimal and professional; we don\u2019t want rumors turning this into an \u201Cinside job\u201D accusation before we have support.\n\nImmediate priorities:\n1) Lock down the timeline from 02:30\u201303:30 using the offense report \u002B POS \u002B clock report.\n2) Treat the back door damage as potentially staged vs. true forced entry\u2014document your reasoning.\n3) Identify who had legitimate access to register keys/no-sale functions and who was physically near the rear hallway.\n\nSend me a short summary by end of shift.\n\n\u2014Chief Alvarez",
+      "sentAt": "2026-05-10T09:06:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.lab_footwear_impression_rear_hallway",
+      "from": "Eugene Forensic Services Lab \u003Clab@efs.eugene-or.gov\u003E",
+      "to": [
+        "Detective Alex Morgan \u003Cdetective@citypolice.gov\u003E"
+      ],
+      "subject": "Lab Result: Footwear Impression Comparison \u2013 Rear Hallway (case_rookie_demo3)",
+      "body": "We completed the footwear impression comparison for the rear hallway floor impressions submitted as **asset.rear_hallway_footprints** (The Diner Break-In, Eugene; incident time **2026-05-10 03:18**). The impressions are faint/partial but include enough outsole class characteristics for comparison.\n\nOur examination found the visible tread pattern elements and general size characteristics to be **consistent with** the work shoes attributed to **Juniper Ross**. This supports that footwear consistent with Ross\u2019s shoes moved along the rear hallway travel path associated with the forced-entry route.\n\nNo clear individualizing characteristics (unique cuts, nicks, or distinctive wear features) were reliably observable from the submitted photograph(s). As a result, the association is based on class characteristics and approximate size consistency and does not uniquely identify a single shoe to the exclusion of all similar shoes.\n\nThe full report, including chain-of-custody notes and methodology limitations inherent to photo-only comparisons, is attached in the case file under the hidden PDF report entry.\n",
+      "sentAt": "2026-05-10T11:20:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "hidden"
+    }
+  ],
+  "suspects": [
+    {
+      "id": "suspect.mara_kline",
+      "name": "Mara Kline",
+      "age": 27,
+      "occupation": "Night-shift server",
+      "relationship": "Employee who discovered the damage during closing tasks",
+      "motive": "Mara was frustrated about being shorted on tips after recent drawer discrepancies and worried she\u2019d be blamed for missing cash. A staged \u201Cfound it like this\u201D discovery could have shifted suspicion away from staff.",
+      "alibi": "At the time of the break-in, she was on the dining floor ringing up late checks and restocking the coffee station under the front security camera. POS timestamps and footage place her in view until shortly before she found the back door damage.",
+      "alibiVerified": true,
+      "status": "suspect",
+      "background": "Mara is a reliable overnight server who knows the diner\u2019s closing routine and the traffic patterns around the rear hallway. Coworkers describe her as anxious about management scrutiny but consistent on shift and quick to report problems. She\u2019s familiar with where cash is kept but does not handle drops or register keys beyond basic transactions.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.derek_holt",
+      "name": "Derek Holt",
+      "age": 34,
+      "occupation": "Overnight line cook",
+      "relationship": "Coworker at the diner (overnight staff)",
+      "motive": "Derek has been complaining about reduced hours and was short on rent, making quick cash tempting. He also dislikes being blamed for back-of-house messes and resents management pressure during the night shift.",
+      "alibi": "At the time of the break-in, he was on the line and then took a short smoke break out front, captured on the dining room and front exterior cameras, and he clocked out normally later. Mara also recalls him returning to the grill immediately after the break, matching a small ticket rush on the POS log.",
+      "alibiVerified": true,
+      "status": "suspect",
+      "background": "Derek is a steady but blunt overnight cook who keeps to routines and rarely leaves the kitchen except for quick breaks. He knows the rear hallway layout from nightly trash runs, but coworkers describe him as more gruff than sneaky. He\u2019s been financially strained since hours were cut, yet his time on shift is well documented by camera angles and POS activity.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.juniper_ross",
+      "name": "Juniper Ross",
+      "age": 34,
+      "occupation": "Diner assistant manager",
+      "relationship": "Victim is the diner (employer); manages staff and cash handling",
+      "motive": "Juniper was under mounting financial pressure and knew the diner\u2019s cash-drop habits, making a quick register hit feel low-risk. Stealing from the register also let them disguise the theft as a forced-entry burglary rather than an internal short.",
+      "alibi": "Juniper claims they left after the late cash drop and were at home asleep by 2:45 a.m., saying their phone stayed on Wi\u2011Fi all night. The router log shows a device reconnecting, but it doesn\u2019t prove Juniper was physically home and the timestamp has a brief gap around the 3:00 a.m. window.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Juniper has worked their way up from server to assistant manager and is trusted with register keys and nightly cash procedures. They present as meticulous and policy-focused, but coworkers note they\u2019ve been unusually tense about hours and tips lately. Their knowledge of the rear hallway and back-door alarm routines gives them the opportunity to stage damage and time the break-in with minimal witnesses.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.owen_padgett",
+      "name": "Owen Padgett",
+      "age": 34,
+      "occupation": "Freelance rideshare driver",
+      "relationship": "Regular late-night customer at the diner",
+      "motive": "He\u2019s been short on cash after a string of car repairs and has complained loudly about the diner \u201Covercharging\u201D him. He also knows the back booths and side corridor well from lingering there on slow nights.",
+      "alibi": "He claims he was in his car outside the diner finishing a rideshare app run history and eating takeout during the window of the break-in, then drove to a nearby 24-hour gas station. The gas station timestamped receipt and pump camera place him there shortly after, but they don\u2019t cover the exact minutes of the burglary.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Owen is a familiar face on the overnight shift, often staying for long stretches with coffee refills and his phone charger plugged in near the back booths. Staff describe him as talkative and nosy, with a habit of wandering toward the side corridor when looking for the restroom. He has no known violent history, but he\u2019s been cited before for minor theft (shoplifting) years ago, which makes detectives take his complaints and late-night habits seriously.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.tessa_vaughn",
+      "name": "Tessa Vaughn",
+      "age": 29,
+      "occupation": "Overnight delivery driver",
+      "relationship": "After-hours delivery driver with rear-entrance access",
+      "motive": "She was familiar with the diner\u2019s back-door routine and could have believed the night cash would be easy to grab during a quiet window. A recent dip in delivery hours gave her financial pressure, though no direct dispute with staff is documented.",
+      "alibi": "At the time of the break-in, she was on a logged delivery run across town and then refueled at a 24-hour gas station. The delivery app timestamps and the station\u2019s receipt place her away from the diner during the incident window.",
+      "alibiVerified": true,
+      "status": "suspect",
+      "background": "Tessa runs late-night routes for multiple restaurants and uses the diner\u2019s rear entrance for after-hours drop-offs when the front is busy. She\u2019s known as punctual and keeps detailed app records because pay disputes are common in gig delivery. Staff describe her as businesslike and not prone to hanging around after completing a drop.",
+      "visibility": "initial"
+    }
+  ],
+  "timeline": [
+    {
+      "time": "2026-05-10T02:40:00-07:00",
+      "event": "Assistant manager Juniper Ross completes the late cash-drop routine and leaves the diner, per their statement; overnight staff remain on site.",
+      "source": "witness",
+      "verified": false,
+      "importance": "high"
+    },
+    {
+      "time": "2026-05-10T02:45:00-07:00",
+      "event": "Juniper Ross states they are home and asleep by this time; later review notes home Wi\u2011Fi/router activity is not conclusive and shows a brief gap near the incident window.",
+      "source": "sensor",
+      "verified": false,
+      "importance": "high"
+    },
+    {
+      "time": "2026-05-10T03:10:00-07:00",
+      "event": "Front-floor camera captures normal overnight operations and provides a time anchor for who is visible in the dining area during the lead-up to the break-in window.",
+      "source": "sensor",
+      "verified": false,
+      "importance": "medium"
+    },
+    {
+      "time": "2026-05-10T03:18:00-07:00",
+      "event": "Estimated break-in window: back door is forced and cash is taken from the register; no injuries are reported.",
+      "source": "investigation",
+      "verified": false,
+      "importance": "critical"
+    },
+    {
+      "time": "2026-05-10T03:22:00-07:00",
+      "event": "Night-shift server Mara Kline reports discovering the back-door damage while doing closing tasks; she alerts the cook and initiates the call for help per the offense report narrative.",
+      "source": "witness",
+      "verified": false,
+      "importance": "high"
+    },
+    {
+      "time": "2026-05-10T03:30:00-07:00",
+      "event": "Photos document the scene: back door frame damage consistent with a pry attempt and an emptied register drawer; rear hallway floor impressions are noted as potential trace evidence.",
+      "source": "forensic",
+      "verified": false,
+      "importance": "high"
+    },
+    {
+      "time": "2026-05-10T04:30:00-07:00",
+      "event": "POS transaction log window closes; the log is secured to check for voids, no-sales, and drawer opens around the incident time.",
+      "source": "investigation",
+      "verified": false,
+      "importance": "medium"
+    },
+    {
+      "time": "2026-05-10T09:05:00-07:00",
+      "event": "Case is opened by the chief; initial assets (offense report, photos, POS log, shift report, and Juniper interview audio) are made available for review.",
+      "source": "investigation",
+      "verified": false,
+      "importance": "critical"
+    }
+  ],
+  "temporalEvents": [
+    {
+      "id": "tevt.pos_flagged_drawer_open",
+      "triggerAtMinutes": 15,
+      "type": "memo"
+    },
+    {
+      "id": "tevt.witness_mara_time_anchor",
+      "triggerAtMinutes": 35,
+      "type": "witness"
+    },
+    {
+      "id": "tevt.alert_router_gap_followup",
+      "triggerAtMinutes": 70,
+      "type": "alert"
+    }
+  ],
+  "rules": [
+    {
+      "ruleId": "rule.rookie_open_lab_result_notification",
+      "trigger": {
+        "type": "email_opened",
+        "emailId": "email.lab_footwear_impression_rear_hallway"
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "level": "info",
+          "message": "Lab result opened. Review the footwear impression comparison and update your working theory."
+        }
+      ]
+    }
+  ],
+  "forensicsDefaults": {
+    "analysisTypes": [
+      {
+        "type": "LatentFingerprinting",
+        "durationMinutes": 90,
+        "availableFor": [
+          "photo"
+        ]
+      },
+      {
+        "type": "FootwearImpressionComparison",
+        "durationMinutes": 75,
+        "availableFor": [
+          "photo"
+        ]
+      },
+      {
+        "type": "DigitalLogTimeline",
+        "durationMinutes": 60,
+        "availableFor": [
+          "digital",
+          "pdf"
+        ]
+      }
+    ],
+    "noFindingsEmail": {
+      "template": "Detective,\n\nThe {{analysisType}} analysis on {{assetName}} did not reveal any actionable leads.\n\nForensics Lab",
+      "from": "Forensics Lab \u003Clab@citypolice.gov\u003E",
+      "subject": "Analysis Results \u2014 {{analysisType}} \u2014 No Findings"
+    }
+  },
+  "forensicOutcomes": [
+    {
+      "inputAssetId": "asset.rear_hallway_footprints",
+      "analysisType": "FootwearImpressionComparison",
+      "findings": true,
+      "matchedSuspectId": "suspect.juniper_ross",
+      "conclusionText": "Comparative analysis of the rear hallway floor impressions indicates consistency in outsole pattern class characteristics and size with the work shoes associated with Juniper Ross. The impressions support that footwear consistent with Ross\u2019s shoes traversed the rear hallway path during the reported break-in window.",
+      "resultAssetId": "asset.report_footwear_impression_comparison_rear_hallway",
+      "resultEmailId": "email.lab_footwear_impression_rear_hallway"
+    },
+    {
+      "inputAssetId": "asset.pos_transaction_log",
+      "analysisType": "DigitalLogTimeline",
+      "findings": false,
+      "conclusionText": "Review of the POS transaction log covering 01:30\u201304:30 on 2026-05-10 did not identify any definitive anomalous activity at or near 03:18 that could be reliably attributed to a specific individual. Observed entries were consistent with routine overnight operations within the available record."
+    },
+    {
+      "inputAssetId": "asset.back_door_damage",
+      "analysisType": "LatentFingerprinting",
+      "findings": false,
+      "conclusionText": "Latent fingerprint examination of the back-door frame/latch damage imagery did not reveal any usable ridge detail suitable for comparison or attribution. Based on the available photographs, no latent print identification can be made from the latch/strike area depicted."
+    },
+    {
+      "inputAssetId": "asset.register_drawer_empty",
+      "analysisType": "LatentFingerprinting",
+      "findings": false,
+      "conclusionText": "Latent print examination of the register-drawer scene photograph did not reveal any sufficiently clear ridge detail for development, enhancement, or comparison. No latent fingerprint attribution can be made from this image."
+    }
+  ],
+  "solution": {
+    "culpritId": "suspect.juniper_ross",
+    "requiredEvidenceIds": [
+      "asset.report_footwear_impression_comparison_rear_hallway",
+      "asset.rear_hallway_footprints",
+      "asset.staff_shift_and_clock_report"
+    ],
+    "requiredAnalysisIds": [
+      "asset.rear_hallway_footprints:FootwearImpressionComparison"
+    ],
+    "questions": [
+      {
+        "id": "q.identity",
+        "prompt": "Which suspect is linked to the rear hallway shoe impressions, supporting their presence during the break-in window?",
+        "options": [
+          {
+            "id": "opt.mara_kline",
+            "label": "Mara Kline"
+          },
+          {
+            "id": "opt.derek_holt",
+            "label": "Derek Holt"
+          },
+          {
+            "id": "opt.juniper_ross",
+            "label": "Juniper Ross"
+          },
+          {
+            "id": "opt.owen_padgett",
+            "label": "Owen Padgett"
+          }
+        ],
+        "correctOptionId": "opt.juniper_ross",
+        "weight": 1
+      },
+      {
+        "id": "q.opportunity",
+        "prompt": "Which suspect had the clearest opportunity to access cash procedures and stage the back-door damage with minimal witnesses?",
+        "options": [
+          {
+            "id": "opt.mara_kline",
+            "label": "Mara Kline, who knew closing routines and found the damage during tasks"
+          },
+          {
+            "id": "opt.derek_holt",
+            "label": "Derek Holt, who worked overnight and knew the rear hallway from trash runs"
+          },
+          {
+            "id": "opt.juniper_ross",
+            "label": "Juniper Ross, who had register keys and knowledge of cash-drop and door/alarm routines"
+          },
+          {
+            "id": "opt.owen_padgett",
+            "label": "Owen Padgett, a regular who lingered near back booths and side corridor"
+          }
+        ],
+        "correctOptionId": "opt.juniper_ross",
+        "weight": 1
+      },
+      {
+        "id": "q.method",
+        "prompt": "Which investigation method most directly links Juniper Ross to the break-in path inside the diner?",
+        "options": [
+          {
+            "id": "opt.footwear_impression_comparison",
+            "label": "Compare rear-hallway shoe impressions to Juniper Ross\u2019s work shoes"
+          },
+          {
+            "id": "opt.digital_log_timeline",
+            "label": "Build a minute-by-minute timeline from the POS transaction log"
+          },
+          {
+            "id": "opt.latent_fingerprinting",
+            "label": "Develop latent fingerprints from photos of the back door and register drawer"
+          },
+          {
+            "id": "opt.witness_statement_corroboration",
+            "label": "Corroborate staff statements using front-floor camera stills"
+          }
+        ],
+        "correctOptionId": "opt.footwear_impression_comparison",
+        "weight": 0.5
+      }
+    ],
+    "explanation": "Juniper Ross staged the \u201Cbreak-in\u201D and took the cash: the rear-hallway impressions leading from the damaged back door match Juniper\u2019s work shoes in the footwear comparison report, placing them on the interior travel path during the incident window despite their shaky at-home claim. Mara Kline and Derek Holt are cleared because verified camera/POS/shift records keep them in view/on-task at the front and line when the burglary occurred, and Tessa Vaughn is ruled out by verified delivery and fuel timestamps placing her across town. Owen Padgett lacks any forensic or log tie to the rear hallway path, and the unusable fingerprint results on the door/register don\u2019t contradict the footwear match that links Juniper to the scene.",
+    "minimumScore": 0.7,
+    "maxAttempts": 3,
+    "partialCreditRules": {
+      "culpritWeight": 0.4,
+      "evidenceWeight": 0.2,
+      "analysisWeight": 0.2,
+      "questionsWeight": 0.2
+    }
+  },
+  "gameMetadata": {
+    "schemaVersion": "2.0",
+    "createdAt": "2026-05-15T01:39:30.8405630Z",
+    "tags": [
+      "24h_diner",
+      "forced_entry",
+      "cash_theft",
+      "night_shift",
+      "small_time_burglary"
+    ],
+    "contentWarnings": [],
+    "localizations": [
+      "en-US"
+    ],
+    "generation": {
+      "pipelineVersion": "v2-microtasks",
+      "model": "gpt-5.2",
+      "seed": 17,
+      "bundleChecksum": ""
+    }
+  }
+}

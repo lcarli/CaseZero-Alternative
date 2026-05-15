@@ -1,0 +1,149 @@
+# Placeholder for Audio Interview: Assistant Manager Juniper Ross (audio)
+
+Recorded interview with Assistant Manager Juniper Ross regarding the overnight cash drop, their whereabouts during the 03:18 break-in window, and door/alarm routines. Includes notable pauses and qualifying language around the Wi‑Fi/at-home claim.
+
+SIDE-CAR TRANSCRIPT + DESCRIPTIVE NOTE (TTS deferred)
+
+Source: Audio interview recording (asset.manager_interview_audio)
+Case: case_rookie_demo3 — “The Diner Break-In” (Eugene, OR)
+Incident window: 2026-05-10 ~03:18 (local)
+Recorded: 2026-05-10 (morning, shortly after case opened)
+Participants: Interviewing Officer (IO); Juniper Ross (JR), Assistant Manager
+Audio quality: Clear indoor recording; minor HVAC hum; no dropouts.
+
+---
+DESCRIPTIVE NOTE
+- Purpose: Establish JR’s timeline after the late cash drop; confirm knowledge of key/alarm procedures; probe the at-home/Wi‑Fi alibi and any gaps around ~03:00–03:30.
+- Key themes:
+  - JR repeatedly asserts they were home “asleep by 2:45,” but frames certainty around their phone being on Wi‑Fi rather than direct, independent corroboration.
+  - JR demonstrates detailed knowledge of where cash is kept and standard closing/cash-drop routine.
+  - JR minimizes their familiarity with back-door alarm behavior, then later describes steps consistent with routine use (arming/disarming and the door’s tendency to “stick”).
+  - When asked about anyone else having access to register keys, JR is definitive; when asked about their own key custody, JR becomes more qualified (mentions “usually” and “I think”).
+
+---
+TRANSCRIPT (approximate timestamps)
+
+[00:00] IO: This is Officer statement-taking for case_rookie_demo3, The Diner Break-In. Time is 09:32 a.m. on May 10th, 2026. Interview with Juniper Ross. Can you state your name and role?
+[00:10] JR: Juniper Ross. I’m the assistant manager at the diner.
+
+[00:16] IO: I want to go over last night—early this morning—your shift and when you left. Start from the late cash drop.
+[00:24] JR: Sure. We do the late drop—um—when it’s slow enough. I counted the drawer, did the drop, and logged it. Then I left.
+
+[00:38] IO: What time did you leave the building?
+[00:41] JR: Around… 2:35? 2:40. Somewhere in there.
+
+[00:49] IO: How certain are you about that?
+[00:51] JR: I’m pretty sure. I remember checking the time because I wanted to get home.
+
+[00:58] IO: Walk me through your route home and what you did once you got there.
+[01:03] JR: Drove straight home. Parked, went inside, plugged my phone in. I put on a show for like—maybe ten minutes—and then I fell asleep.
+
+[01:18] IO: What time do you believe you were asleep?
+[01:21] JR: By 2:45. Definitely before three.
+
+[01:26] IO: The break-in is reported around 3:18. Were you awake at any point around 3:00 to 3:30?
+[01:33] JR: No. Not that I remember. I was asleep.
+
+[01:39] IO: Do you have anything that supports that—messages, calls, anything on your phone?
+[01:45] JR: My phone stayed on my home Wi‑Fi all night. I didn’t go anywhere.
+
+[01:53] IO: When you say it stayed on Wi‑Fi, is that something you checked later?
+[01:57] JR: Yeah. I checked my connection history. It was on my network.
+
+[02:05] IO: Could someone else have had your phone while you weren’t at home?
+[02:09] JR: No. It was with me.
+
+[02:12] IO: Was it always with you?
+[02:14] JR: Yes.
+
+[02:16] IO: Let’s talk about access. Who has register keys?
+[02:20] JR: Managers. Me and the general manager. Staff don’t have keys.
+
+[02:28] IO: Any spares kept on-site?
+[02:31] JR: There’s a spare in the lockbox—management only.
+
+[02:38] IO: Who knows that code?
+[02:40] JR: Just management.
+
+[02:44] IO: Explain the cash-drop habit. How much cash is typically left in the register after the drop?
+[02:52] JR: We leave the till amount for change. The rest goes into the safe drop. It depends on the night, but the goal is minimal cash on hand.
+
+[03:05] IO: If someone wanted to take cash from the register, what would be the quickest way?
+[03:10] JR: With the key. Or, I guess, by forcing it, but that would be obvious.
+
+[03:17] IO: How about a “no sale” open from the POS?
+[03:20] JR: Staff can open for change, but it logs. It’s tracked.
+
+[03:28] IO: Are you familiar with the back door and alarm routine?
+[03:32] JR: I mean, yes, in general. But I’m not—like—I don’t use it much.
+
+[03:41] IO: You don’t use the back door much.
+[03:43] JR: Not unless I’m taking trash or a delivery’s there. Usually I go out front.
+
+[03:52] IO: Does the back door have any quirks—sticking, needing to be pulled, anything like that?
+[03:58] JR: It sticks sometimes. You have to pull it shut until it latches.
+
+[04:05] IO: And the alarm—how is it armed at night?
+[04:10] JR: The back hallway sensor is on. If the door opens without disarm, it’ll… it’ll chirp and then trigger if it’s not corrected.
+
+[04:20] IO: So you do know the sequence.
+[04:22] JR: I mean, yeah, because I’ve had to deal with it when it malfunctions.
+
+[04:28] IO: After you left around 2:40, did you return for any reason—forgotten item, check on staff, anything?
+[04:35] JR: No.
+
+[04:37] IO: Any calls from staff?
+[04:40] JR: Not until later in the morning when they told me the door was damaged.
+
+[04:46] IO: Did you communicate with anyone during the night—texts, rides, social media?
+[04:51] JR: No, I was asleep.
+
+[04:55] IO: Where are your register keys kept when you’re off shift?
+[04:59] JR: On my keyring.
+
+[05:02] IO: Where was that keyring last night after you got home?
+[05:06] JR: On the counter. Or—uh—by the door. I usually put it there.
+
+[05:14] IO: Usually.
+[05:15] JR: Yeah, I mean, that’s where I put it.
+
+[05:19] IO: Do you live alone?
+[05:21] JR: Yes.
+
+[05:23] IO: Anyone else with access to your home?
+[05:26] JR: No.
+
+[05:28] IO: You said you checked your phone’s Wi‑Fi history. Is there any point overnight where the phone disconnected?
+[05:35] JR: Not that I saw. I didn’t look super deep. It was connected.
+
+[05:43] IO: Would you consent to us preserving that device data and/or your router logs to confirm the timeline?
+[05:50] JR: Um. I’d rather not hand over my phone. But if you need the router info, I can—maybe—get it.
+
+[06:01] IO: Noted. Last topic: the cash-drop log. Did you physically write anything or is it digital?
+[06:07] JR: It’s in the manager logbook. I wrote it.
+
+[06:12] IO: Any irregularities—drawer short, extra, missing tips, anything that night?
+[06:19] JR: No. Nothing unusual.
+
+[06:23] IO: You’re sure.
+[06:24] JR: Yes.
+
+[06:27] IO: If we find the drawer was opened with a key, who would that implicate?
+[06:32] JR: Management. Or someone who stole a key.
+
+[06:37] IO: Did you notice your keyring missing at any point recently?
+[06:41] JR: No.
+
+[06:44] IO: Anything else you want to add?
+[06:46] JR: Just that I didn’t do this. I left. I was home.
+
+[06:52] IO: Interview paused at 09:39 a.m.
+
+---
+INVESTIGATIVE FLAGS (from this recording)
+- Alibi support leans on “phone on Wi‑Fi” rather than an independent witness; JR admits they did not review logs “super deep.”
+- Qualified language around keyring location (“on the counter… or by the door… usually”) contrasts with certainty elsewhere.
+- Reluctance to provide phone data; conditional willingness to provide router info.
+- Demonstrates operational knowledge of back door latching and alarm behavior despite claiming not to use it much.
+
+End of sidecar transcript.
