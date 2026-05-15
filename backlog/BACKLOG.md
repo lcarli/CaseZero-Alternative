@@ -6,6 +6,70 @@
 
 ## 🔥 Em aberto
 
+### TASK 3 — Configurar Function App URL no Web App de Azure dev
+
+A página `/case-generation` está retornando **HTTP 503: "Case generator
+not configured"** em Azure dev. O `CaseGenerationController` exige o app
+setting `CaseGenerator__FunctionBaseUrl` apontando pra Function App, e o
+Web App `casezero-api-dev` não tem ele.
+
+**Passos (rodar do computador com `az login` válido para a subscription do dev):**
+
+1. Descobrir o nome e URL da Function App de dev:
+   ```bash
+   az functionapp list \
+     --query "[?contains(name, 'cgad') || contains(name, 'casegen') || contains(name, 'func')].{name:name, rg:resourceGroup, url:defaultHostName}" \
+     -o table
+   ```
+
+2. Descobrir o resource group do Web App:
+   ```bash
+   az webapp list \
+     --query "[?name=='casezero-api-dev'].{name:name, rg:resourceGroup}" \
+     -o table
+   ```
+
+3. Setar o app setting (substituir `<func-app>` e `<rg>` com o que vier acima):
+   ```bash
+   az webapp config appsettings set \
+     --name casezero-api-dev \
+     --resource-group <rg-do-webapp> \
+     --settings "CaseGenerator__FunctionBaseUrl=https://<func-app>.azurewebsites.net"
+   ```
+
+   O **`__` (duplo underscore)** é o separador que o .NET `IConfiguration`
+   usa pra mapear `CaseGenerator:FunctionBaseUrl` quando o valor vem de
+   variável de ambiente / app setting do App Service.
+
+4. O `az webapp config appsettings set` reinicia o Web App automaticamente.
+   Aguardar ~30 s e testar:
+   ```bash
+   curl -i -X POST https://casezero-api-dev.azurewebsites.net/api/casegeneration/generate \
+     -H "Authorization: Bearer <jwt-de-um-usuario-logado>" \
+     -H "Content-Type: application/json" \
+     -d '{"difficulty":"Rookie"}'
+   ```
+   Esperado: **202 Accepted** com `{ jobId, status, statusUri }`. Se vier
+   **502**, a Function App não está respondendo (ver TASK 4 abaixo se aplicar).
+   Se vier **503** de novo, o app setting não pegou — checar com
+   `az webapp config appsettings list --name casezero-api-dev --rg <rg>`.
+
+5. Validar pela UI: logar na SWA, ir em `/case-generation`, gerar um caso
+   Rookie, acompanhar o progresso, confirmar que o caso novo aparece no
+   dashboard depois.
+
+**Notas:**
+- CORS na Function App **não** é problema (proxy server-to-server via backend).
+- A Function App em dev usa Managed Identity pro Blob Storage; nenhuma key
+  é necessária no app setting do backend pra esse cenário (auth da Function
+  está como `AuthorizationLevel.Anonymous` nos endpoints v2).
+- Se preferir Function-level auth no futuro, adicionar
+  `CaseGenerator__FunctionKey=<key>` — o controller já injeta como header
+  `x-functions-key`.
+
+**Critério de aceitação:** geração ponta-a-ponta funcionando em Azure dev
+(SWA → Web App → Function App → Blob → Web App lê → SWA mostra o caso novo).
+
 ### TASK 2 — Página de geração de casos no site
 
 Botão no menu (visível para todos por enquanto) que abre uma nova página onde
