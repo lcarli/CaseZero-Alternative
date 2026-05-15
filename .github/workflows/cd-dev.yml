@@ -149,50 +149,10 @@ jobs:
           name: functions-build
           path: ./artifacts/functions
 
-      - name: 🔧 Setup .NET (for EF tooling)
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
       - name: 🔐 Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS_DEV }}
-
-      - name: 🔧 Configure Connection String
-        run: |
-          az webapp config connection-string set \
-            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-            --name ${{ env.AZURE_WEBAPP_NAME }} \
-            --connection-string-type SQLAzure \
-            --settings DefaultConnection="Server=tcp:casezero-sql-dev.database.windows.net,1433;Initial Catalog=casezero-db;Persist Security Info=False;User ID=casezero_admin;Password=${{ secrets.SQL_ADMIN_PASSWORD }};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
-
-      - name: 🗄️ Apply EF Core migrations
-        run: |
-          echo "Applying EF migrations to dev database..."
-          dotnet tool install -g dotnet-ef --version 8.0.* || dotnet tool update -g dotnet-ef --version 8.0.*
-          export PATH="$PATH:/home/runner/.dotnet/tools"
-          # idempotent SQL script — applies anything pending
-          dotnet ef migrations script --idempotent --output ./migrations.sql \
-            --project ./backend/CaseZeroApi/CaseZeroApi.csproj
-          if [ ! -s ./migrations.sql ]; then
-            echo "ℹ️ No migrations to apply"
-            exit 0
-          fi
-          # Run via sqlcmd on Azure SQL (uses the password from secret)
-          sudo mkdir -p /etc/apt/keyrings
-          # Store the ASCII-armored key directly (avoids gpg --dearmor + /dev/tty issues on the runner)
-          curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/keyrings/microsoft.asc >/dev/null
-          echo "deb [signed-by=/etc/apt/keyrings/microsoft.asc] https://packages.microsoft.com/ubuntu/$(lsb_release -rs)/prod $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/microsoft-prod.list
-          sudo apt-get update -y
-          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
-          export PATH="$PATH:/opt/mssql-tools18/bin"
-          sqlcmd -S "tcp:casezero-sql-dev.database.windows.net,1433" \
-                 -d "casezero-db" \
-                 -U "casezero_admin" \
-                 -P "${{ secrets.SQL_ADMIN_PASSWORD }}" \
-                 -i ./migrations.sql -C
-        continue-on-error: true  # do not block deploy when migrations are no-op
 
       - name: 🚀 Deploy Backend to Azure Web App
         uses: azure/webapps-deploy@v2
