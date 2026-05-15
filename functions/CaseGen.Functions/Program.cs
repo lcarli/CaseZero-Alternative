@@ -86,35 +86,9 @@ builder.Services
     {
         var configuration = serviceProvider.GetRequiredService<IConfiguration>();
         var logger = serviceProvider.GetRequiredService<ILogger<ContextManager>>();
-        
-        // Read connection string - handle both formats
-        var connectionString = configuration["CaseGeneratorStorage__ConnectionString"];
-        
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            // Fallback to AzureWebJobsStorage if not found
-            connectionString = configuration["AzureWebJobsStorage"];
-        }
-        
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                "CaseGeneratorStorage__ConnectionString is not configured. " +
-                "Please set it in local.settings.json or environment variables.");
-        }
-        
-        logger.LogInformation("Initializing ContextManager with connection string format: {Format}", 
-            connectionString.StartsWith("UseDevelopmentStorage") ? "Development Storage" : "Custom");
-        
-        // Convert "UseDevelopmentStorage=true" to full connection string for modern SDK
-        if (connectionString.Equals("UseDevelopmentStorage=true", StringComparison.OrdinalIgnoreCase))
-        {
-            connectionString = "AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;DefaultEndpointsProtocol=http;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;";
-            logger.LogInformation("Converted to Azurite connection string");
-        }
-        
-        var blobServiceClient = new BlobServiceClient(connectionString);
-        
+
+        var blobServiceClient = BlobServiceClientFactory.Create(configuration);
+
         // Use a dedicated container for context storage
         return new ContextManager(blobServiceClient, logger, containerName: "case-context");
     })

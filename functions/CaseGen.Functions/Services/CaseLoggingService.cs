@@ -23,12 +23,7 @@ public class CaseLoggingService : ICaseLoggingService
 
     public CaseLoggingService(IConfiguration configuration, ILogger<CaseLoggingService> logger)
     {
-        var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
-            ?? configuration["AzureWebJobsStorage"]
-            ?? Environment.GetEnvironmentVariable("AzureWebJobsStorage")
-            ?? throw new InvalidOperationException("Storage connection string not configured");
-
-        _blobServiceClient = new BlobServiceClient(connectionString);
+        _blobServiceClient = BlobServiceClientFactory.Create(configuration);
         _logger = logger;
         _logsContainer = "logs";
     }

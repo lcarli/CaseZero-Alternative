@@ -202,15 +202,16 @@ jobs:
         run: |
           if ! az functionapp show --name ${{ env.AZURE_FUNCTIONAPP_NAME }} --resource-group ${{ env.AZURE_FUNCTIONAPP_RG }} >/dev/null 2>&1; then
             echo "⚠️ Function App ${{ env.AZURE_FUNCTIONAPP_NAME }} not found. Skipping function deploy."
-            exit 0
+            echo "skip=true" >> $GITHUB_OUTPUT
           fi
-          cd ./artifacts/functions
-          zip -r ../functions.zip . >/dev/null
-          cd ..
-          az functionapp deployment source config-zip \
-            --resource-group ${{ env.AZURE_FUNCTIONAPP_RG }} \
-            --name ${{ env.AZURE_FUNCTIONAPP_NAME }} \
-            --src ./functions.zip
+        id: check-func
+
+      - name: 🧮 Deploy CaseGen.Functions (RBAC)
+        if: steps.check-func.outputs.skip != 'true'
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          package: ./artifacts/functions
 
       - name: 🌐 Deploy Frontend to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
