@@ -634,9 +634,14 @@ export interface AssetDTO {
   assetId?: string // Optional alias for compatibility
   caseId: string
   type: string
-  name: string
+  name?: string
+  title?: string // v2 alias
   filePath?: string
-  isVisible: boolean
+  uri?: string // v2 alias
+  description?: string
+  visibility?: string
+  category?: string
+  isVisible?: boolean
   metadata?: Record<string, any>
 }
 

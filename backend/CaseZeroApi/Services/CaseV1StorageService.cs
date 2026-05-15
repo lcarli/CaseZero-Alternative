@@ -151,6 +151,10 @@ public class CaseV1StorageService : ICaseV1StorageService
 
     public async Task<Stream?> GetAssetAsync(string caseId, string assetId, CancellationToken cancellationToken = default)
     {
+        // Filesystem-first fallback for v2 cases generated under cases/<id>/assets/
+        var localStream = TryReadLocalAsset(caseId, assetId, out _);
+        if (localStream is not null) return localStream;
+
         try
         {
             // First load case.json to get asset filePath
@@ -214,6 +218,11 @@ public class CaseV1StorageService : ICaseV1StorageService
 
     public async Task<string?> GetAssetContentTypeAsync(string caseId, string assetId, CancellationToken cancellationToken = default)
     {
+        // Filesystem-first fallback: derive content-type from local file extension
+        if (TryFindLocalAssetPath(caseId, assetId, out var localPath) && !string.IsNullOrEmpty(localPath))
+        {
+            return GuessContentTypeFromPath(localPath);
+        }
         try
         {
             var caseData = await GetCaseRawAsync(caseId, cancellationToken);
@@ -347,5 +356,80 @@ public class CaseV1StorageService : ICaseV1StorageService
             _logger.LogError(ex, "Failed to save email {CaseId}/{EmailId}", caseId, emailId);
             throw;
         }
+    }
+
+    // ----- v2 local-filesystem fallback (used when blob storage is empty in dev) -----
+
+    private FileStream? TryReadLocalAsset(string caseId, string assetId, out string? path)
+    {
+        if (TryFindLocalAssetPath(caseId, assetId, out path) && !string.IsNullOrEmpty(path))
+        {
+            try
+            {
+                return File.OpenRead(path);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Found local asset path but failed to open: {Path}", path);
+            }
+        }
+        path = null;
+        return null;
+    }
+
+    private bool TryFindLocalAssetPath(string caseId, string assetId, out string? path)
+    {
+        path = null;
+        var basePath = ResolveLocalCasesBasePath();
+        if (string.IsNullOrEmpty(basePath)) return false;
+
+        var assetsDir = Path.Combine(basePath, caseId, "assets");
+        if (!Directory.Exists(assetsDir)) return false;
+
+        // assetId is e.g. "asset.back_door_damage_photo" — files on disk follow
+        // <slug>.<ext> where slug is the id without the "asset." prefix.
+        var slug = assetId.StartsWith("asset.", StringComparison.OrdinalIgnoreCase)
+            ? assetId.Substring("asset.".Length)
+            : assetId;
+
+        var direct = Directory.EnumerateFiles(assetsDir, $"{slug}.*", SearchOption.TopDirectoryOnly).FirstOrDefault();
+        if (direct is not null)
+        {
+            path = direct;
+            return true;
+        }
+        return false;
+    }
+
+    private string? ResolveLocalCasesBasePath()
+    {
+        // Walk up from the binary, looking for the repo `cases/` folder.
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        for (int i = 0; i < 8 && dir is not null; i++)
+        {
+            var candidate = Path.Combine(dir.FullName, "cases");
+            if (Directory.Exists(candidate)) return candidate;
+            dir = dir.Parent;
+        }
+        return null;
+    }
+
+    private static string GuessContentTypeFromPath(string path)
+    {
+        var ext = Path.GetExtension(path).ToLowerInvariant();
+        return ext switch
+        {
+            ".pdf" => "application/pdf",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".mp3" => "audio/mpeg",
+            ".wav" => "audio/wav",
+            ".mp4" => "video/mp4",
+            ".txt" or ".md" => "text/plain; charset=utf-8",
+            ".json" => "application/json",
+            _ => "application/octet-stream"
+        };
     }
 }

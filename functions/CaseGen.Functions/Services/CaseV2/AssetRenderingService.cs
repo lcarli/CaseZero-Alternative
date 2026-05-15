@@ -123,7 +123,10 @@ public class AssetRenderingService : IAssetRenderingService
                      $"No graphic gore. Subject: {prompt}. Composition: documentary, neutral lighting, evidence-style.";
 
             var bytes = await _llm.GenerateImageAsync(prompt, ct);
-            var path = Path.Combine(dir, $"{a.Id.Replace("asset.", "")}.jpg");
+            // GPT-image returns PNG (the SDK doesn't expose the response content-type easily here).
+            // Inspect the magic bytes so we don't mislabel the file with the wrong extension.
+            var ext = SniffImageExtension(bytes);
+            var path = Path.Combine(dir, $"{a.Id.Replace("asset.", "")}.{ext}");
             await File.WriteAllBytesAsync(path, bytes, ct);
             lock (report) report.ImagesWritten++;
             _logger.LogDebug("Image rendered: {Path}", path);
@@ -143,5 +146,19 @@ public class AssetRenderingService : IAssetRenderingService
         var placeholder = Path.Combine(dir, $"{slug}.{ext}.txt");
         var content = $"# Placeholder for {a.Title} ({a.Type})\n\n{a.Description}\n\n{a.Body}";
         File.WriteAllText(placeholder, content);
+    }
+
+    private static string SniffImageExtension(byte[] bytes)
+    {
+        if (bytes.Length >= 8 &&
+            bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) return "png";
+        if (bytes.Length >= 3 &&
+            bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return "jpg";
+        if (bytes.Length >= 4 &&
+            bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38) return "gif";
+        if (bytes.Length >= 12 &&
+            bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 &&
+            bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50) return "webp";
+        return "png"; // safe default for gpt-image-*
     }
 }

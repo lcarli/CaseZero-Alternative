@@ -82,15 +82,22 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [] }) =
     setAssets(initialAssets)
   }, [initialAssets])
 
-  // Detect file type from filename or asset metadata
+  // Detect file type from asset.type (v2), filePath/uri (v1+v2) or name (legacy)
   const detectFileType = (asset: AssetDTO): 'text' | 'image' | 'pdf' | 'video' | 'audio' => {
-    // Try filePath first (e.g., "/cases/case_001/assets/briefing.pdf")
-    const fileToCheck = asset.filePath || asset.name
+    // v2: trust asset.type directly when it's specific enough
+    const t = (asset.type || '').toLowerCase()
+    if (t === 'photo' || t === 'image') return 'image'
+    if (t === 'pdf' || t === 'document') return 'pdf'
+    if (t === 'video') return 'video'
+    if (t === 'audio') return 'audio'
+
+    // Fallback: pull extension from filePath/uri or name
+    const fileToCheck = asset.filePath || asset.name || ''
     const ext = fileToCheck.split('.').pop()?.toLowerCase() || ''
-    
+
     // Also check metadata.format if extension not found
     const format = asset.metadata?.format?.toLowerCase() || ''
-    
+
     if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'].includes(ext) || format === 'jpg' || format === 'jpeg') return 'image'
     if (['pdf'].includes(ext) || format === 'pdf') return 'pdf'
     if (['mp4', 'avi', 'mov', 'webm'].includes(ext)) return 'video'
@@ -102,10 +109,10 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [] }) =
   const assetToFileItem = (asset: AssetDTO): FileItem => {
     // Get the asset URL for images/media
     const mediaUrl = currentCase ? casesV1Api.getAssetUrl(currentCase, asset.id) : undefined
-    
+
     return {
       id: asset.id,
-      name: asset.name,
+      name: asset.name || asset.title || asset.id,
       type: detectFileType(asset),
       icon: getFileIcon(asset.type),
       size: '0 KB',
@@ -118,19 +125,20 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [] }) =
 
   const handleFileDoubleClick = (asset: AssetDTO) => {
     const fileItem = assetToFileItem(asset)
-    
+    const displayName = asset.name || asset.title || asset.id
+
     console.log('🔍 Opening asset:', {
-      name: asset.name,
+      name: displayName,
       type: asset.type,
       assetId: asset.id,
       fileItem: fileItem,
       mediaUrl: fileItem.mediaUrl
     })
-    
+
     // Open document viewer in a new window
     openWindow(
       `document-${asset.id}`,
-      asset.name,
+      displayName,
       DocumentViewerWindow,
       { fileData: fileItem, caseId: currentCase || undefined }
     )
@@ -175,7 +183,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [] }) =
                 title="Double-click to open in new window"
               >
                 <FileIcon>{getFileIcon(asset.type)}</FileIcon>
-                <FileName>{asset.name}</FileName>
+                <FileName>{asset.name || asset.title || asset.id}</FileName>
                 <FileType>{asset.type}</FileType>
               </FileItem>
             ))
