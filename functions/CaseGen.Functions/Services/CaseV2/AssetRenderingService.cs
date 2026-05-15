@@ -60,6 +60,9 @@ public class AssetRenderingService : IAssetRenderingService
             {
                 case "pdf":
                 case "document":
+                case "digital":
+                    // Digital evidence (POS exports, phone dumps, sensor logs) renders as a PDF
+                    // report so the detective gets something readable in the FileViewer.
                     pdfTasks.Add(RenderPdfAsync(caseId, assetsDir, a, report, ct));
                     break;
                 case "photo":
@@ -67,12 +70,12 @@ public class AssetRenderingService : IAssetRenderingService
                     imageTasks.Add(RenderImageAsync(caseId, assetsDir, a, report, ct));
                     break;
                 case "audio":
-                case "video":
-                case "digital":
                     RenderSidecar(assetsDir, a);
                     report.Skipped++;
                     break;
                 default:
+                    _logger.LogWarning("Unknown asset type {Type} on {Id} — emitting sidecar", a.Type, a.Id);
+                    RenderSidecar(assetsDir, a);
                     report.Skipped++;
                     break;
             }
@@ -142,7 +145,11 @@ public class AssetRenderingService : IAssetRenderingService
     private static void RenderSidecar(string dir, EvidenceAsset a)
     {
         var slug = a.Id.Replace("asset.", "");
-        var ext = a.Type switch { "audio" => "mp3", "video" => "mp4", _ => "bin" };
+        var ext = a.Type switch
+        {
+            "audio" => "mp3",
+            _ => "txt"
+        };
         var placeholder = Path.Combine(dir, $"{slug}.{ext}.txt");
         var content = $"# Placeholder for {a.Title} ({a.Type})\n\n{a.Description}\n\n{a.Body}";
         File.WriteAllText(placeholder, content);

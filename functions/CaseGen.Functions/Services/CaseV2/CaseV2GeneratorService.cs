@@ -282,21 +282,21 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
     private static JsonNode BuildAssetNode(string caseId, EvidenceAsset a)
     {
+        // Map asset.type to the file extension the renderer produced under cases/<id>/assets/.
+        // Image extensions stay flexible (renderer sniffs and may produce png/jpg/webp).
         var ext = a.Type switch
         {
-            "photo" or "image" => "jpg",
-            "pdf" or "document" => "pdf",
+            "photo" or "image" => "png",
+            "pdf" or "document" or "digital" => "pdf",
             "audio" => "mp3",
-            "video" => "mp4",
-            "digital" => "bin",
             _ => "bin"
         };
         var category = a.Category ?? a.Type switch
         {
             "photo" or "image" => "Document",
             "pdf" or "document" => "Document",
-            "audio" or "video" => "Communication",
             "digital" => "Digital",
+            "audio" => "Communication",
             _ => "Document"
         };
         return new JsonObject

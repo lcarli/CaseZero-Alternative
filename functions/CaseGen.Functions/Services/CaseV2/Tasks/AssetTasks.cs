@@ -24,7 +24,7 @@ public class AssetPlanTask
           "items":{"type":"object","required":["id","type","title","role","visibility"],
             "properties":{
               "id":{"type":"string","pattern":"^asset\\.[a-z0-9_]+$"},
-              "type":{"type":"string","enum":["photo","pdf","audio","video","document","image","digital"]},
+              "type":{"type":"string","enum":["photo","pdf","document","audio","digital"]},
               "visibility":{"type":"string","enum":["initial","hidden"]}
             }}}
       }
@@ -34,8 +34,18 @@ public class AssetPlanTask
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
         var system = @"You are planning the **initial evidence assets** a detective collects on day one of an investigation.
-List 4-10 distinct assets, each with id (pattern `asset.<snake>`), type (one of photo|pdf|audio|video|document|image|digital),
-a short title, a ONE-LINE role explaining how it fits the case, and `visibility` = `initial` (all assets here are initial; result PDFs from forensics come later).
+List 4-10 distinct assets. Each has:
+- id (pattern `asset.<snake>`)
+- type — one of these EXACT values (do NOT use anything else, especially not `video` or `image`):
+    * `photo`    — a single still image of a scene / object / location
+    * `pdf`      — a PDF report or evidence document (will be rendered with QuestPDF)
+    * `document` — same renderer as `pdf` (alias for narrative purposes)
+    * `audio`    — an audio recording (transcript stored in sidecar, audio TTS deferred)
+    * `digital`  — a digital-forensics export (call logs, POS data, sensor log, file listing). Will be rendered as a PDF report.
+- a short title
+- a ONE-LINE role explaining how it fits the case
+- `visibility` = `initial` (all assets here are initial; result PDFs from forensics come later).
+
 Do NOT write descriptions or metadata — that comes in a later step. Pick assets that make sense given the case draft.";
         var user = $@"CASE DRAFT (read-only):
 {draft.ToSummaryJson()}
@@ -72,9 +82,9 @@ public class AssetCardTask
         var bodyGuidance = stub.Type switch
         {
             "pdf" or "document" => "Markdown long-form content for the document. 6-20 paragraphs. For interrogation transcripts use a Q/A pattern with the detective and the suspect. For forensic preliminaries or police memos use the appropriate genre conventions. Anchor dates and times to the case timeline (incidentDate / openedAt).",
-            "photo" or "image" => "A vivid image prompt that an image model can render. Describe lighting, composition, framing, mood, and any visible details that match the asset's role in the case. Avoid abstractions.",
-            "audio" or "video" => "A descriptive note + (optional) a short transcript/scene description. The runtime will store this as the asset's sidecar.",
-            "digital" => "A description of the contents the detective would see when triaging this digital artefact (call logs, file listings, app activity).",
+            "photo" => "A vivid image prompt that an image model can render. Describe lighting, composition, framing, mood, and any visible details that match the asset's role in the case. Avoid abstractions.",
+            "audio" => "A descriptive note + a short transcript. The runtime stores this as the asset's sidecar (audio playback is deferred until a TTS step exists).",
+            "digital" => "Markdown long-form content describing the digital-forensics export. Use tables, code blocks, or formatted listings (call logs / timestamps / file paths / metadata) so the PDF renderer produces a readable digital evidence report. Anchor every entry to the case's `incidentDate` / `openedAt`.",
             _ => "A short note describing what's in this asset."
         };
 
