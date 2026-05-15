@@ -69,6 +69,7 @@ builder.Services
     .AddScoped<MechanicalRulesBuilder>()
     .AddScoped<IConsistencyValidator, ConsistencyValidator>()
     .AddScoped<ICaseV2BlobPublisher, CaseV2BlobPublisher>()
+    .AddSingleton<IJobPhaseReporterFactory, JobPhaseReporterFactory>()
     // Digital evidence templates — each enriches a specific bodyDoc.layout before render
     .AddScoped<IEvidenceTemplate, CallLogTemplate>()
     .AddScoped<IEvidenceTemplate, PosExportTemplate>()

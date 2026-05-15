@@ -35,7 +35,11 @@ The script:
 
 Stop the host with `Ctrl+C`. Azurite keeps running — kill it with `kill $(cat AzuriteConfig/azurite.pid)` or `Stop-Process` on Windows.
 
-## 3. Generate a case (v2)
+## 3. Generate a case (v2 — async job)
+
+Since v0.9 the v2 endpoint is **asynchronous**: `POST /api/cases/v2/generate` returns `202 Accepted + jobId` immediately, and you poll `GET /api/cases/v2/jobs/{jobId}` until `status == "done"` (or `"failed"`). Generation takes 8–12 minutes — well past the 230s HTTP limit, which is why we run it as a Durable Functions orchestration.
+
+### Start the job
 
 ```bash
 curl -sS -X POST http://localhost:7071/api/cases/v2/generate \
@@ -53,27 +57,71 @@ curl -sS -X POST http://localhost:7071/api/cases/v2/generate \
   }' | jq
 ```
 
-Response (truncated):
+Response:
 
 ```json
 {
-  "caseId": "case_002",
-  "outputPath": "/Users/.../cases/case_002/case.json",
-  "stageLatencyMs": { "plot": 4321, "evidence": 6532, "forensics": 7011, "rules": 3120, "solution": 4002 },
-  "validationErrors": [],
-  "preview": {
-    "title": "The River Drop",
-    "location": "Seattle, Washington",
-    "difficulty": "Detective",
-    "suspectCount": 4,
-    "assetCount": 7,
-    "emailCount": 4,
-    "ruleCount": 5
-  }
+  "jobId": "casev2-20260515081234-a1b2c3",
+  "status": "queued",
+  "statusUri": "/api/cases/v2/jobs/casev2-20260515081234-a1b2c3"
 }
 ```
 
-The file is written to `cases/<caseId>/case.json` (idempotent — re-running with the same `caseId` overwrites).
+> **Single-instance**: if another v2 generation is already running, the endpoint returns **409 Conflict** with the running `jobId`. Wait for it, or query its status first.
+
+### Poll the job
+
+```bash
+curl -sS http://localhost:7071/api/cases/v2/jobs/casev2-20260515081234-a1b2c3 | jq
+```
+
+While running:
+
+```json
+{
+  "jobId": "casev2-20260515081234-a1b2c3",
+  "status": "running",
+  "currentPhase": "outcomesAndInitialEmails",
+  "runtimeStatus": "Running",
+  "createdAt": "2026-05-15T08:12:34Z",
+  "lastUpdatedAt": "2026-05-15T08:18:11Z",
+  "result": null,
+  "error": null
+}
+```
+
+When done:
+
+```json
+{
+  "jobId": "casev2-20260515081234-a1b2c3",
+  "status": "done",
+  "currentPhase": null,
+  "runtimeStatus": "Completed",
+  "result": {
+    "caseId": "case_002",
+    "outputPath": "/Users/.../cases/case_002/case.json",
+    "validationErrorsCount": 0,
+    "assetsRenderedPdfs": 3,
+    "assetsRenderedImages": 2,
+    "blobsPublished": 9,
+    "hasErrors": false,
+    "errorMessage": null,
+    "stageLatencyMs": { "plotOutline": 4321, "suspectCards": 6532, "...": 0 }
+  },
+  "error": null
+}
+```
+
+Status values: `queued | running | done | failed`. While `running`, the optional `currentPhase` field shows the current pipeline stage (best-effort, written to `jobs/{jobId}/status.json` in blob storage).
+
+### What's persisted
+
+- `cases/<caseId>/case.json` + `cases/<caseId>/assets/*` — written to local disk when `writeToDisk=true`.
+- `bundles/<caseId>/case.json` + `bundles/<caseId>/assets/*` — uploaded to blob storage so the website sees the new case (`CaseV2StorageService`).
+- `jobs/<jobId>/status.json` — per-job phase doc (read by the GET endpoint).
+
+The file is idempotent — re-running with the same `caseId` overwrites.
 
 ### Body fields (all optional)
 
