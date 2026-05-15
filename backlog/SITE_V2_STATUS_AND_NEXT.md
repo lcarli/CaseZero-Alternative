@@ -198,31 +198,54 @@ mudou nada. Ambos publicaram 10 blobs no Azurite.
 > `CaseGen.Functions.Tests`**. Quando esse projeto for criado (TASK B
 > ou similar), incluir os 5 erros do smoke da TASK C como fixture.
 
-### TASK F — `functions/CaseGen.Functions` precisa emitir v2 nativo
+### TASK F — Pipeline durável v1 aposentado ✅ **CONCLUÍDO**
 
-Hoje só o **novo** endpoint `POST /api/cases/v2/generate` gera v2. O pipeline durável antigo (`PlanStep` / `ExpandStep` / `DesignStep` / etc) ainda emite v1. Quando estiver estável, substituir a saída do pipeline durável para usar `CaseV2GeneratorService` ou aposentá-lo.
+Implementado na branch `feat/task-f-v2-pipeline` (PR pendente). Em vez de
+migrar o pipeline v1 (`PlanStep`/`ExpandStep`/`DesignStep`/`GenerateStep`/
+`NormalizeStep`) para v2, **aposentamos** ele inteiro — o
+`CaseV2GeneratorService` + `CaseV2GenerationOrchestrator` já cobrem 100%
+das responsabilidades dele (incluindo Durable, refine, blob publish,
+asset rendering).
 
-### TASK G — Hardening de infra dev (não-bloqueante)
+Removidos (~22.000 linhas, 65 arquivos):
 
-Trade-offs aceitos hoje em dev pra manter custo baixo / contornar quota:
-- **F1 (Free) no plano do backend** — 60 min CPU/dia, sem VNet Integration. Sem quota pra B1+ em Canada Central.
-- **SQL com `publicNetworkAccess=Enabled` + AllowAzureServices** — tráfego pela backbone Azure mas tecnicamente público.
-- **Storage com `publicNetworkAccess=Enabled` + defaultAction=Allow** — ⚠️ necessário pro deploy do Functions funcionar via Kudu Legion. Fechar quebra o deploy.
-- **Identity Functions antiga (`85ad3c95-...`) ainda tem role assignments orfãs** no `stcadevcabtlmvw4g` (limpar é cosmético).
+**Functions** — todos os 5 step orchestrators + activities (Plan, Expand,
+Design, Generate, Normalize), o `CaseGeneratorOrchestrator`, o
+`CaseGeneratorActivities`, o `CaseGenerationStepsFunction` (HTTP wrappers),
+`Activities/QA/*` (4 arquivos), `Activities/Normalize/*` (3 arquivos), o
+`ForensicProcessorFunction` (substituído pelo `ForensicsBackgroundService`
+do backend que já é v2-aware), `TemporaryRenderFunction`, e os 8
+`Test*Function.cs` HTTP debugger triggers.
 
-Quando virar produção:
-1. Solicitar quota App Service B1+ em CC (ou outra região onde toda a stack se mova junta).
-2. Subir plano pra B1/P1v3, criar VNet + 2 subnets (webapp delegada / PE).
-3. Criar Private Endpoint pro SQL + Private DNS Zone `privatelink.database.windows.net`.
-4. Criar Private Endpoint pro storage (`blob`, `queue`, `table` + DNS zones).
-5. Configurar GitHub runner self-hosted no VNet (ou usar Azure Container Apps Jobs como CI) pra o deploy alcançar os PEs.
-6. Fechar `publicNetworkAccess` em SQL e storage.
+**Services** — `CaseGenerationService`, todo `CaseGeneration/` (6 arquivos
+de PlanGeneration, Expand, Design, MediaGeneration, DocumentGeneration,
+Validation), `ContextSlicing/` (6 arquivos), `QA/` (PlayabilitySimulation),
+`CaseFormatConverterService`, `NormalizerService`, `PrecisionEditor`,
+`StorageService`, `RedTeamCacheService`, `SchemaValidationService`,
+`ImagesService`, `ContextManager`, `LLMService`, `CaseLoggingService`,
+`FileJsonSchemaProvider`. Métodos v1 do `PdfRenderingService` (que
+renderizavam diretamente para blob) também sumiram — só sobrou
+`GenerateTestPdfAsync` que o `AssetRenderingService` v2 usa.
 
-### TASK H — Limpar artefatos cosméticos
+**Models** — `CaseGenerationModels`, `ContextModels`,
+`PlanStepDurableModels`, `ForensicRequest`, `CaseSessionVisibleEmails`,
+todo `Data/` (ApplicationDbContext da function — backend é o dono do
+banco agora).
 
-- `revert-99-copilot/fix-98` no remote — branch órfã do passado.
-- 53 branches `copilot/*` já deletadas nesta sessão.
-- Eventualmente arquivar `feat/site-contract-v2` (já mergeada via #119/#120/#121/#122/#123).
+**Packages do `.csproj` removidos** — `SignalRService`, `Storage.Queues`,
+`EntityFrameworkCore`, `EntityFrameworkCore.SqlServer` (não tinham mais
+usuário). Build agora com **0 warnings**.
+
+**`Program.cs` DI** reduzido de ~120 linhas para ~75: só os services v2
+ativos + ILLMProvider + IPdfRenderingService + templates de evidência.
+
+**Validação**: `dotnet build` 0/0, `CaseGen.Functions.Tests` 7/7 ✅.
+
+### TASK H — Limpar artefatos cosméticos ✅ **CONCLUÍDO**
+
+- `revert-99-copilot/fix-98` no remote já não existe.
+- 53 branches `copilot/*` deletadas em sessões anteriores.
+- `feat/site-contract-v2` + todas as feature branches (`task-b`, `c`, `d`, `e`, `f`) deletadas após merge.
 
 ---
 
@@ -234,4 +257,4 @@ Quando virar produção:
 4. **Gerador local**: `./scripts/run-functions.ps1` (Windows) ou `.sh` (Mac/Linux) — Azurite + func host local.
 5. **Smoke pós-deploy**: `https://casezero-api-dev.azurewebsites.net/swagger` (200) e a SWA em `https://gentle-ground-03dca4110.3.azurestaticapps.net/`.
 
-> Próximo foco recomendado: **TASK F** (durable pipeline → v2 nativo) — vai aposentar o pipeline durável antigo (`PlanStep`/`ExpandStep`/etc) e fazer toda geração passar pelo `CaseV2GeneratorService` já consolidado.
+> 🏁 Backlog do v2 launch **fechado**. Todas as tasks (A–F, H) concluídas. TASK G (hardening de infra com private endpoints + VNet) descartada — só faria sentido quando provisionar ambiente PROD, e não está no escopo atual.
