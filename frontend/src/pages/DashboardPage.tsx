@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import styled from 'styled-components'
-import { Briefcase, Clock, MapPin, ArrowRight, Shield, Target, Activity, FileText, CheckCircle } from 'react-feather'
+import { Briefcase, Clock, MapPin, ArrowRight, Shield, Target, Activity, FileText, CheckCircle, Plus } from 'react-feather'
 import { useAuth } from '../hooks/useAuthContext'
 import { useLanguage } from '../hooks/useLanguageContext'
 import { casesV2Api } from '../services/api'
@@ -111,6 +111,25 @@ const LogoutButton = styled.button`
   &:hover {
     border-color: rgba(248, 113, 113, 0.8);
     background: rgba(248, 113, 113, 0.2);
+  }
+`
+
+const NewCaseButton = styled.button`
+  padding: 0.7rem 1.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 102, 241, 0.5);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(56, 189, 248, 0.18));
+  color: #c7d2fe;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  &:hover {
+    border-color: rgba(129, 140, 248, 0.9);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(56, 189, 248, 0.3));
   }
 `
 
@@ -366,6 +385,9 @@ const DashboardPage = () => {
         </IdentityBlock>
         <HeaderControls>
           <LanguageSelector appearance="landing" />
+          <NewCaseButton onClick={() => navigate('/case-generation')}>
+            <Plus size={16} />New Case
+          </NewCaseButton>
           <LogoutButton onClick={handleLogout}>{t('logout')}</LogoutButton>
         </HeaderControls>
       </Header>
