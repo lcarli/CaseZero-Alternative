@@ -36,18 +36,17 @@ public class CaseV2BlobPublisher : ICaseV2BlobPublisher
     public CaseV2BlobPublisher(IConfiguration configuration, ILogger<CaseV2BlobPublisher> logger)
     {
         _logger = logger;
-        var conn = configuration["CaseGeneratorStorage:ConnectionString"]
-            ?? configuration["AzureWebJobsStorage"]
-            ?? Environment.GetEnvironmentVariable("AzureWebJobsStorage");
         _container = configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
-        if (string.IsNullOrWhiteSpace(conn))
+        try
+        {
+            _client = BlobServiceClientFactory.Create(configuration);
+            IsConfigured = true;
+        }
+        catch (InvalidOperationException ex)
         {
             IsConfigured = false;
-            _logger.LogInformation("CaseV2BlobPublisher disabled — no storage connection string configured");
-            return;
+            _logger.LogInformation(ex, "CaseV2BlobPublisher disabled — no storage configuration (MI or connection string) found");
         }
-        _client = new BlobServiceClient(conn);
-        IsConfigured = true;
     }
 
     public async Task<int> PublishAsync(string caseId, string caseJsonLocalPath, string assetsLocalDir, CancellationToken ct = default)
