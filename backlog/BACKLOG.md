@@ -6,6 +6,95 @@
 
 ## 🔥 Em aberto
 
+### TASK 4 — Persistir configuração da Function App no Bicep + corrigir fallback de disco
+
+Durante o TASK 3 (validar geração ponta-a-ponta em Azure dev) aplicamos uma
+série de mudanças direto no Azure via `az` que **não** estão no IaC do repo.
+Se alguém recriar o ambiente do zero hoje (`azd up` / `az deployment`), nada
+funciona. Além disso, o código tem um fallback de caminho que é uma armadilha
+para Flex Consumption Linux.
+
+**Drift atual entre o que existe em Azure dev e o que está no Bicep:**
+
+`infrastructure/functions/main.bicep` (Function App `casegen-func-dev`):
+- Linhas 205/209/213 ainda declaram as chaves antigas erradas
+  `AzureOpenAI__Endpoint/ApiKey/DeploymentName` — o código NÃO lê essas chaves.
+- Faltando: `LLM__UseAzureFoundry=true`
+- Faltando: `AzureFoundry__Endpoint`, `AzureFoundry__ApiKey`,
+  `AzureFoundry__ModelName`, `AzureFoundry__ImageDeploymentName` (Key Vault refs)
+- Faltando: `CaseGenV2__CasesBasePath=/tmp` (sem isso, geração falha com
+  `Access to /home/site/wwwroot/cases is denied` em Flex Consumption Linux)
+- Faltando: role assignment `Key Vault Secrets User` do MI da Function App
+  sobre o Key Vault `kv-ca-dev-oeq4agkmf6k4k`
+
+`infrastructure/api/main.bicep` (Web App `casezero-api-dev`):
+- Faltando: `CaseGenerator__FunctionBaseUrl=https://<func-app>.azurewebsites.net`
+
+`infrastructure/README.md`:
+- Ainda documenta `AzureOpenAI__*` em vez de `AzureFoundry__*`.
+
+**Bug latente no código:**
+
+`functions/CaseGen.Functions/Services/CaseV2/CaseV2GeneratorService.cs:564`
+em `ResolveCasesBasePath()` o fallback final é
+`Path.Combine(AppContext.BaseDirectory, "cases")`, que em Flex Consumption
+Linux resolve para `/home/site/wwwroot/cases` (mount read-only do pacote de
+deploy) → `UnauthorizedAccessException`. Trocar fallback para
+`Path.Combine(Path.GetTempPath(), "casegen")` funciona em Linux Function App,
+Windows local e macOS local sem precisar de app setting em prod.
+
+**Tarefas:**
+
+1. `infrastructure/functions/main.bicep`:
+   - Remover entradas `AzureOpenAI__*`.
+   - Adicionar entradas `LLM__UseAzureFoundry`, `AzureFoundry__Endpoint`,
+     `AzureFoundry__ApiKey`, `AzureFoundry__ModelName`,
+     `AzureFoundry__ImageDeploymentName` (apontando para os 4 secrets
+     `azure-foundry-*` que já criamos no Key Vault).
+   - Adicionar `CaseGenV2__CasesBasePath=/tmp` (até o item 4 ser feito; depois
+     vira opcional).
+   - Adicionar role assignment `Key Vault Secrets User` do MI da FA no escopo
+     do KV `kv-ca-dev-oeq4agkmf6k4k` (módulo `keyvault-rbac.bicep` já existe
+     para a API, replicar para a Function).
+
+2. `infrastructure/api/main.bicep`:
+   - Adicionar app setting `CaseGenerator__FunctionBaseUrl` derivado do
+     nome/host da Function App do mesmo deploy (parametrizar ou ler da
+     output do módulo de functions).
+
+3. `infrastructure/README.md`:
+   - Atualizar a seção de app settings da Function App para listar
+     `AzureFoundry__*` em vez de `AzureOpenAI__*` e mencionar
+     `CaseGenV2__CasesBasePath` + `LLM__UseAzureFoundry`.
+
+4. Código — `CaseV2GeneratorService.ResolveCasesBasePath`:
+   - Trocar fallback final de `Path.Combine(AppContext.BaseDirectory, "cases")`
+     para `Path.Combine(Path.GetTempPath(), "casegen")`.
+   - Manter walk-up para repo-root só quando rodando local (preservar DX local).
+   - Depois disso, `CaseGenV2__CasesBasePath=/tmp` pode sair do Bicep.
+
+**Notas:**
+
+- Os 4 secrets `azure-foundry-endpoint`, `azure-foundry-api-key`,
+  `azure-foundry-model-name`, `azure-foundry-image-deployment-name` já estão
+  populados no Key Vault dev — Bicep só precisa referenciá-los.
+- Os secrets antigos `azure-openai-endpoint/api-key/deployment-name` referenciados
+  pelo Bicep antigo **não existem** no KV (sempre falharam — só ninguém percebeu
+  porque o código defaultava para Mock provider).
+- Public Network Access do `kv-ca-dev-oeq4agkmf6k4k` foi habilitado nesta
+  sessão. Pra prod isso vira `Disabled` + private endpoint, mas é fora do
+  escopo dessa task.
+
+**Critério de aceitação:**
+
+- Rodar `az deployment ... what-if` ou `azd provision` na branch e ver que
+  as 4 mudanças acima ficaram aplicadas sem drift.
+- Geração ponta-a-ponta continua funcionando após o deploy do Bicep (sem
+  precisar de `az ... appsettings set` manual).
+- Em outra sub/ambiente novo, `azd up` deixa tudo funcionando do zero
+  (assumindo que os 4 secrets do AzureFoundry sejam pré-populados no KV ou
+  criados pelo próprio Bicep).
+
 ### TASK 3 — Configurar Function App URL no Web App de Azure dev
 
 A página `/case-generation` está retornando **HTTP 503: "Case generator
