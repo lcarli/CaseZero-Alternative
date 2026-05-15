@@ -33,7 +33,27 @@ public class CasesController : ControllerBase
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboard(CancellationToken ct)
     {
-        var cases = await _storage.ListCasesAsync(ct);
+        var allCases = await _storage.ListCasesAsync(ct);
+
+        // Resolve current user's rank from the DB so we can filter cases the player
+        // isn't ranked for. Falls back to Detective if anything is off.
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var userRank = 1; // Detective default
+        if (!string.IsNullOrEmpty(userId))
+        {
+            var user = await _db.Users.AsNoTracking()
+                .Where(u => u.Id == userId)
+                .Select(u => new { u.Rank })
+                .FirstOrDefaultAsync(ct);
+            if (user is not null) userRank = (int)user.Rank;
+        }
+
+        // Filter: keep cases whose requiredRank ordinal <= player's rank.
+        var cases = allCases.Where(c => RankOrdinal(c.RequiredRank) <= userRank).ToList();
+        var locked = allCases.Count - cases.Count;
+        if (locked > 0)
+            _logger.LogInformation("Dashboard hid {N} case(s) above user rank {Rank}", locked, userRank);
+
         return Ok(new
         {
             stats = new
@@ -58,6 +78,22 @@ public class CasesController : ControllerBase
             recentActivities = Array.Empty<object>()
         });
     }
+
+    /// <summary>
+    /// Maps a v2 requiredRank string to the ordinal in <see cref="Models.DetectiveRank"/>.
+    /// Treats "Rookie" and "Rook" as equivalent (the seeded users use "Rook").
+    /// </summary>
+    private static int RankOrdinal(string? rankName) => rankName?.Trim().ToLowerInvariant() switch
+    {
+        "rookie" or "rook" => 0,
+        "detective" => 1,
+        "detective2" => 2,
+        "sergeant" => 3,
+        "lieutenant" => 4,
+        "captain" => 5,
+        "commander" => 6,
+        _ => 1 // unknown → assume Detective entry-level
+    };
 
     [HttpGet]
     public async Task<ActionResult<List<CaseV2Metadata2>>> ListCases(CancellationToken ct)

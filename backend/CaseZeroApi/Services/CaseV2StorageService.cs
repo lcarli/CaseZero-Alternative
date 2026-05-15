@@ -13,6 +13,7 @@ public class CaseV2StorageService : ICaseV2StorageService
     private readonly IMemoryCache _cache;
     private readonly IWebHostEnvironment _env;
     private readonly string _bundlesContainer;
+    private readonly bool _useBlobStorage;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -37,6 +38,12 @@ public class CaseV2StorageService : ICaseV2StorageService
         _cache = cache;
         _env = env;
         _bundlesContainer = configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
+
+        // Opt-out for local dev: when Azurite isn't running, every blob call takes ~20 s
+        // before the SDK gives up. The dev override appsettings.Local.json sets this to
+        // false so the dashboard just uses the filesystem. Production keeps it on.
+        _useBlobStorage = configuration.GetValue("CaseGenV2:UseBlobStorage", true);
+        _logger.LogInformation("CaseV2StorageService _useBlobStorage = {Value}", _useBlobStorage);
     }
 
     public async Task<List<CaseV2Metadata2>> ListCasesAsync(CancellationToken ct = default)
@@ -68,32 +75,35 @@ public class CaseV2StorageService : ICaseV2StorageService
             }
         }
 
-        // 2) Blob storage
-        try
+        // 2) Blob storage (skip in local-dev when Azurite isn't running)
+        if (_useBlobStorage)
         {
-            var container = _blobServiceClient.GetBlobContainerClient(_bundlesContainer);
-            await container.CreateIfNotExistsAsync(cancellationToken: ct);
-            await foreach (var item in container.GetBlobsByHierarchyAsync(delimiter: "/", cancellationToken: ct))
+            try
             {
-                if (!item.IsPrefix) continue;
-                var caseId = item.Prefix.TrimEnd('/');
-                if (seen.Contains(caseId)) continue;
-                try
+                var container = _blobServiceClient.GetBlobContainerClient(_bundlesContainer);
+                await container.CreateIfNotExistsAsync(cancellationToken: ct);
+                await foreach (var item in container.GetBlobsByHierarchyAsync(delimiter: "/", cancellationToken: ct))
                 {
-                    var c = await GetRawAsync(caseId, ct);
-                    if (c is null) continue;
-                    result.Add(ToMeta(c));
-                    seen.Add(c.CaseId);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed reading blob case {CaseId}", caseId);
+                    if (!item.IsPrefix) continue;
+                    var caseId = item.Prefix.TrimEnd('/');
+                    if (seen.Contains(caseId)) continue;
+                    try
+                    {
+                        var c = await GetRawAsync(caseId, ct);
+                        if (c is null) continue;
+                        result.Add(ToMeta(c));
+                        seen.Add(c.CaseId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed reading blob case {CaseId}", caseId);
+                    }
                 }
             }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to list blob cases");
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to list blob cases");
+            }
         }
 
         return result.OrderBy(c => c.CaseId).ToList();
@@ -125,7 +135,8 @@ public class CaseV2StorageService : ICaseV2StorageService
             }
         }
 
-        // 2) Blob storage
+        // 2) Blob storage (skip when disabled — saves 20 s timeouts in local dev)
+        if (!_useBlobStorage) return null;
         try
         {
             var container = _blobServiceClient.GetBlobContainerClient(_bundlesContainer);
