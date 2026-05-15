@@ -33,6 +33,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
     private readonly ILLMProvider _llm;
     private readonly IConfiguration _config;
     private readonly IAssetRenderingService _renderer;
+    private readonly ICaseV2BlobPublisher _blobPublisher;
     private readonly MechanicalRulesBuilder _mechanicalRules;
     private readonly IConsistencyValidator _consistency;
     private readonly ILogger<CaseV2GeneratorService> _logger;
@@ -42,6 +43,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         ILLMProvider llm,
         IConfiguration config,
         IAssetRenderingService renderer,
+        ICaseV2BlobPublisher blobPublisher,
         MechanicalRulesBuilder mechanicalRules,
         IConsistencyValidator consistency,
         ILogger<CaseV2GeneratorService> logger)
@@ -49,6 +51,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         _llm = llm;
         _config = config;
         _renderer = renderer;
+        _blobPublisher = blobPublisher;
         _mechanicalRules = mechanicalRules;
         _consistency = consistency;
         _logger = logger;
@@ -191,6 +194,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         // === Phase 11: persist + render assets
         var outputPath = string.Empty;
         AssetRenderingReport? renderingReport = null;
+        int blobsPublished = 0;
         if (errors.Count == 0 && request.WriteToDisk)
         {
             outputPath = WriteToDisk(draft.CaseId, json);
@@ -201,6 +205,18 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
                 var allAssets = draft.AssetFull.Concat(draft.ResultAssets).ToList();
                 renderingReport = await _renderer.RenderAllAsync(draft.CaseId, basePath, allAssets, ct);
             });
+
+            // === Phase 13b: publish to Blob Storage so the website (running on a different
+            // host in production) picks the case up via CaseV2StorageService. No-op locally
+            // when Azurite is off and no connection string is set.
+            if (_blobPublisher.IsConfigured)
+            {
+                await TimeStage("publishToBlob", stageMs, async () =>
+                {
+                    var assetsDir = Path.Combine(ResolveCasesBasePath(), draft.CaseId, "assets");
+                    blobsPublished = await _blobPublisher.PublishAsync(draft.CaseId, outputPath, assetsDir, ct);
+                });
+            }
         }
         else if (errors.Count > 0)
         {
@@ -218,6 +234,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             AssetsRenderedImages = renderingReport?.ImagesWritten ?? 0,
             AssetsSkipped = renderingReport?.Skipped ?? 0,
             AssetRenderingErrors = renderingReport?.Errors ?? new(),
+            BlobsPublished = blobsPublished,
             RedTeam = redTeam,
             Solver = solver,
             Consistency = consistencyReport

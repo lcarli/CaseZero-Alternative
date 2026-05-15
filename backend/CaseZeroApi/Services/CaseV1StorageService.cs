@@ -157,7 +157,25 @@ public class CaseV1StorageService : ICaseV1StorageService
 
         try
         {
-            // First load case.json to get asset filePath
+            // v2-aware blob lookup: case.json v2 emits assetId = "asset.<slug>" and the
+            // generator's CaseV2BlobPublisher uploads files to
+            //     {container}/{caseId}/assets/<slug>.<ext>
+            // List that prefix and stream the first matching blob. This is the same
+            // strategy the local filesystem fallback uses.
+            var slug = assetId.StartsWith("asset.", StringComparison.OrdinalIgnoreCase)
+                ? assetId.Substring("asset.".Length)
+                : assetId;
+            var containerClient = _blobServiceClient.GetBlobContainerClient(_casesContainer);
+            await foreach (var item in containerClient.GetBlobsAsync(
+                prefix: $"{caseId}/assets/{slug}.",
+                cancellationToken: cancellationToken))
+            {
+                var hit = containerClient.GetBlobClient(item.Name);
+                var responseV2 = await hit.DownloadStreamingAsync(cancellationToken: cancellationToken);
+                return responseV2.Value.Content;
+            }
+
+            // Legacy v1 path (case.json with filePath) — kept as fallback for older bundles.
             var caseData = await GetCaseRawAsync(caseId, cancellationToken);
             if (caseData == null)
             {
@@ -166,29 +184,22 @@ public class CaseV1StorageService : ICaseV1StorageService
             }
 
             var asset = caseData.Assets.FirstOrDefault(a => a.AssetId == assetId);
-            if (asset == null)
+            if (asset == null || string.IsNullOrEmpty(asset.FilePath))
             {
-                _logger.LogWarning("Asset not found: {CaseId}/{AssetId}", caseId, assetId);
+                _logger.LogWarning("Asset not found in legacy fallback either: {CaseId}/{AssetId}", caseId, assetId);
                 return null;
             }
 
-            // Extract blob path from filePath
-            // filePath format: "/documents/doc_interview_s001_001.pdf"
-            // Need: "CASE-20260102-1f17e3f1/documents/doc_interview_s001_001.pdf"
             var relativePath = asset.FilePath.TrimStart('/');
             var blobPath = $"{caseId}/{relativePath}";
-
-            var containerClient = _blobServiceClient.GetBlobContainerClient(_casesContainer);
             var blobClient = containerClient.GetBlobClient(blobPath);
 
-            // For images, try with .generated-image extension if original doesn't exist
             if (!await blobClient.ExistsAsync(cancellationToken))
             {
                 if (asset.Type == "image" && blobPath.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
                 {
                     var generatedPath = blobPath.Replace(".png", ".generated-image.png", StringComparison.OrdinalIgnoreCase);
                     var generatedClient = containerClient.GetBlobClient(generatedPath);
-                    
                     if (await generatedClient.ExistsAsync(cancellationToken))
                     {
                         blobClient = generatedClient;
