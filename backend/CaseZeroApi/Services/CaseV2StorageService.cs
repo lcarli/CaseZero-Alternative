@@ -14,6 +14,7 @@ public class CaseV2StorageService : ICaseV2StorageService
     private readonly IWebHostEnvironment _env;
     private readonly string _bundlesContainer;
     private readonly bool _useBlobStorage;
+    private readonly string? _localCasesPathOverride;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -38,6 +39,7 @@ public class CaseV2StorageService : ICaseV2StorageService
         _cache = cache;
         _env = env;
         _bundlesContainer = configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
+        _localCasesPathOverride = configuration["CaseGenV2:LocalCasesPath"];
 
         // Opt-out for local dev: when Azurite isn't running, every blob call takes ~20 s
         // before the SDK gives up. The dev override appsettings.Local.json sets this to
@@ -245,7 +247,14 @@ public class CaseV2StorageService : ICaseV2StorageService
 
     private string? ResolveLocalCasesRoot()
     {
-        // Walk up from content root looking for "cases" dir
+        // 1) Explicit override (used by tests + custom dev layouts)
+        if (!string.IsNullOrWhiteSpace(_localCasesPathOverride))
+        {
+            var overridePath = Path.GetFullPath(_localCasesPathOverride);
+            if (Directory.Exists(overridePath)) return overridePath;
+        }
+
+        // 2) Walk up from content root looking for "cases" dir
         var candidates = new List<string>
         {
             Path.Combine(_env.ContentRootPath, "cases"),

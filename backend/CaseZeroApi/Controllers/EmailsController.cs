@@ -88,7 +88,7 @@ namespace CaseZeroApi.Controllers
                 if (activeSession == null)
                 {
                     _logger.LogWarning("User {UserId} has no active session for case {CaseId}", userId, caseId);
-                    return BadRequest(new { message = "No active session found. Please start a session first." });
+                    return NotFound(new { message = "No active session found. Please start a session first." });
                 }
 
                 // 3. 🔒 FILTRO CRÍTICO: Buscar emails visíveis na sessão

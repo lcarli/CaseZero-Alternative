@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using CaseZeroApi.Data;
 using CaseZeroApi.Services;
 using CaseZeroApi.Models;
+using Moq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -18,18 +19,37 @@ namespace CaseZeroApi.IntegrationTests
     public class CustomWebApplicationFactory<TStartup> : WebApplicationFactory<TStartup> where TStartup : class
     {
         private readonly string _databaseName = $"TestDb_{Guid.NewGuid()}";
-        
+
+        /// <summary>
+        /// Walks up from the test bin folder to find the repo root (the directory containing
+        /// the `cases/` fixture folder with `case_001/case.json`). Used as ContentRoot so the
+        /// storage services' `ResolveLocalCasesRoot` finds real fixture data instead of
+        /// blob-falling-back to an unreachable Azurite.
+        /// </summary>
+        private static string ResolveRepoRoot()
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            for (int i = 0; i < 8 && dir is not null; i++)
+            {
+                var candidate = Path.Combine(dir.FullName, "cases", "case_001", "case.json");
+                if (File.Exists(candidate)) return dir.FullName;
+                dir = dir.Parent;
+            }
+            // Fall back to current dir — tests that don't need fixtures still pass.
+            return Directory.GetCurrentDirectory();
+        }
+
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
             builder.UseEnvironment("Testing");
-            
+
             builder.ConfigureServices(services =>
             {
                 // Remove ALL existing DbContext registrations (both options and context itself)
                 var descriptorsToRemove = services
                     .Where(d => d.ServiceType == typeof(ApplicationDbContext) ||
                                d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>) ||
-                               (d.ServiceType.IsGenericType && 
+                               (d.ServiceType.IsGenericType &&
                                 d.ServiceType.GetGenericTypeDefinition() == typeof(DbContextOptions<>)))
                     .ToList();
 
@@ -53,6 +73,25 @@ namespace CaseZeroApi.IntegrationTests
                 }
                 services.AddScoped<IJwtService, MockJwtService>();
 
+                // Replace the forensic queue with a no-op for tests so we don't try to talk to
+                // Azure Storage Queues. Forensic-flow integration tests assert the request was
+                // *recorded*; the actual enqueue side-effect is out of scope for the test host.
+                var forensicDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IForensicQueueService));
+                if (forensicDescriptor != null) services.Remove(forensicDescriptor);
+                var forensicMock = new Mock<IForensicQueueService>();
+                forensicMock.Setup(s => s.EnqueueForensicRequestAsync(
+                    It.IsAny<int>(), It.IsAny<string>(), It.IsAny<string>(),
+                    It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+                services.AddSingleton(forensicMock.Object);
+
+                // Drop the hosted ForensicsBackgroundService so its queue-init doesn't crash
+                // the test host with "Failed to initialize forensic queue: forensic-requests".
+                var hostedDescriptors = services
+                    .Where(d => d.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService))
+                    .Where(d => d.ImplementationType?.Name == "ForensicsBackgroundService")
+                    .ToList();
+                foreach (var d in hostedDescriptors) services.Remove(d);
+
                 // Configure JWT authentication for tests
                 services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
                 {
@@ -72,11 +111,18 @@ namespace CaseZeroApi.IntegrationTests
 
             builder.ConfigureAppConfiguration((context, config) =>
             {
-                // Override configuration for testing
+                // Override configuration for testing — explicitly disable blob storage so
+                // CaseV2StorageService / CaseV1StorageService go straight to the filesystem
+                // (cases/case_001/...) and never wait for Azurite/Azure.
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:DefaultConnection"] = "InMemory",
-                    ["ASPNETCORE_ENVIRONMENT"] = "Testing"
+                    ["ASPNETCORE_ENVIRONMENT"] = "Testing",
+                    ["CaseGenV2:UseBlobStorage"] = "false",
+                    // Force the storage service to read fixture cases from the repo's cases/
+                    // folder regardless of where the test host's content root happens to point.
+                    ["CaseGenV2:LocalCasesPath"] = Path.Combine(ResolveRepoRoot(), "cases"),
+                    ["CaseGeneratorStorage:ConnectionString"] = "UseDevelopmentStorage=true"
                 });
             });
         }
