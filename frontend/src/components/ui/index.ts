@@ -7,4 +7,4 @@ export {
   SkeletonList, 
   LoadingButton 
 } from './LoadingComponents'
-export { default as OfflineStatus, useOnlineStatus, registerServiceWorker } from './OfflineStatus'
+export { default as OfflineStatus, useOnlineStatus } from './OfflineStatus'
