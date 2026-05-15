@@ -1,0 +1,85 @@
+# Placeholder for Dispatch/911 Call Reporting the Break-In (audio)
+
+Audio transcript and descriptive note of the initial 911/dispatch report from the diner, including timing, immediate observations, and early statements about who was present and what was missing.
+
+SIDE-CAR TRANSCRIPT + DESCRIPTIVE NOTE (TTS deferred)
+
+Source: Lane County 911 (Eugene, OR) call audio
+Case: case_rookie_hardened — “The Diner Break-In”
+Incident window referenced: 2026-05-11 ~03:18 (-07:00)
+Call placed: 2026-05-11 03:27 (-07:00) (per CAD stamp embedded in audio header)
+Location: 24-hour diner, Eugene, Oregon (address redacted in this listing)
+Recording quality: Moderate; kitchen noise audible; occasional clipping on caller when moving away from handset.
+
+TRANSCRIPT (verbatim where intelligible; [inaudible] where obscured)
+
+[03:27:12] DISPATCH: 911, what is the address of your emergency?
+[03:27:18] CALLER (female, later identified as Tessa Bly): It’s the diner on [inaudible]—we just got broken into. The back door’s—it's messed up.
+[03:27:27] DISPATCH: Okay, stay on the line. Are you in a safe place right now?
+[03:27:31] CALLER: Yeah, we’re up front. The dining area.
+[03:27:36] DISPATCH: Is anyone inside with you?
+[03:27:38] CALLER: Two employees. And we’ve got two customers, I think. They’re sitting in the booth.
+[03:27:44] DISPATCH: Do you see anyone in the building who shouldn’t be there?
+[03:27:47] CALLER: No. I don’t see anyone.
+[03:27:49] DISPATCH: When did you notice something was wrong?
+[03:27:53] CALLER: Just now. Like—maybe five minutes? We heard the back door, like a bang earlier. I thought it was the trash door swinging.
+[03:28:05] DISPATCH: Who heard it?
+[03:28:07] CALLER: Me. And the cook, Joel.
+[03:28:10] DISPATCH: What did you find when you checked?
+[03:28:13] CALLER: The back door looks like it was pried, the frame’s splintered. And the register—cash is gone. Tip jar too.
+[03:28:22] DISPATCH: How much cash are we talking about, approximately?
+[03:28:26] CALLER: I don’t know exact. Maybe—couple hundred? The till was for overnight, and tips from tonight.
+[03:28:35] DISPATCH: Was the register open or closed when you found it?
+[03:28:38] CALLER: It was closed, but when I hit—when I checked it, it was short. And the tip jar is just—empty.
+[03:28:46] DISPATCH: Did you touch anything at the back door or register area?
+[03:28:50] CALLER: I— I looked, but I didn’t touch the door. I did open the register to check because I thought I messed up.
+[03:29:00] DISPATCH: Okay. Do not touch anything else. Officers are being sent.
+[03:29:05] DISPATCH: Any weapons seen? Any injuries?
+[03:29:08] CALLER: No weapons. No injuries.
+[03:29:12] DISPATCH: Is your manager there?
+[03:29:14] CALLER: No, Mara’s not here. She left earlier to urgent care—burn on her hand.
+[03:29:21] DISPATCH: Who else is working tonight?
+[03:29:24] CALLER: Me, Joel, and Caleb.
+[03:29:27] DISPATCH: Where is Caleb right now?
+[03:29:30] CALLER: He was out front smoking—he’s right here by the door now.
+[03:29:35] DISPATCH: Do you have any cameras that point at the back door?
+[03:29:38] CALLER: I think there’s one out back, yeah. I don’t have access to it—Mara usually does.
+[03:29:45] DISPATCH: Did anyone go out the back door at any point tonight?
+[03:29:49] CALLER: Not me. Joel takes trash sometimes. I—I don’t know about tonight.
+[03:29:56] (background male voice, likely Joel Sandoval): I took one bag out earlier. Like before three.
+[03:30:02] DISPATCH: Sir, please don’t go to the door or touch anything. Stay up front.
+[03:30:06] CALLER: Okay.
+[03:30:08] DISPATCH: Are the customers able to stay as witnesses?
+[03:30:11] CALLER: Yeah, they can. They’re regulars.
+[03:30:15] DISPATCH: Tell me again—when you think you heard the bang.
+[03:30:18] CALLER: It was around… three twenty? Maybe a little before. I was ringing someone up.
+[03:30:26] DISPATCH: Did the door alarm sound?
+[03:30:28] CALLER: We don’t have an alarm on that door.
+[03:30:33] DISPATCH: Units are en route. Keep the front door locked if you can do so safely, and do not go to the rear of the building.
+[03:30:41] CALLER: Okay.
+[03:30:44] DISPATCH: What’s your name?
+[03:30:46] CALLER: Tessa. Tessa Bly.
+[03:30:49] DISPATCH: Phone number you’re calling from?
+[03:30:51] CALLER: [redacted]
+[03:31:02] DISPATCH: Officers should be there shortly. Stay on the line.
+
+[03:33:14] (brief lull; ambient diner noise; caller speaking off-mic to coworkers)
+[03:33:22] DISPATCH: Tessa, do you see anyone outside in the lot or near the back?
+[03:33:26] CALLER: No, I don’t. Front lot looks empty.
+[03:33:30] DISPATCH: Any suspicious vehicles earlier tonight?
+[03:33:34] CALLER: There was a truck in the back lot earlier—like, a semi? But that’s normal, people park back there sometimes.
+[03:33:44] DISPATCH: Did you get a plate or company name?
+[03:33:46] CALLER: No.
+
+[03:35:58] DISPATCH: Officers are arriving now. Do you see them?
+[03:36:02] CALLER: Yeah, I see lights.
+[03:36:06] DISPATCH: Okay. I’m going to let you go. If anything changes, call back immediately.
+[03:36:10] CALLER: Okay. Thank you.
+
+DESCRIPTIVE NOTES / INVESTIGATIVE RELEVANCE
+- Caller self-identifies as Tessa Bly (graveyard-shift server) and reports back door pry/forced-entry appearance and missing cash from register plus empty tip jar.
+- Caller admits opening the register to check totals after noticing an apparent shortage; potential contamination/chain-of-custody issue at the register drawer.
+- Time anchoring: caller estimates hearing a “bang” around ~03:20, “maybe a little before,” while ringing someone up. This loosely brackets the incident window (03:18) and suggests activity near the register close to the break-in.
+- Mentions staffing: Tessa, Joel, and Caleb on duty; manager Mara Kline off-site at urgent care for a burn.
+- Background statement from Joel indicates he took trash out “earlier… before three,” placing at least one staff member using rear routes earlier in the shift.
+- Caller notes no alarm on back door and limited access to rear camera system (“Mara usually does”), relevant to camera retrieval and opportunity.

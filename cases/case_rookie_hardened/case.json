@@ -1,0 +1,580 @@
+{
+  "version": "2.0",
+  "caseId": "case_rookie_hardened",
+  "metadata": {
+    "title": "The Diner Break-In",
+    "description": "A small-time burglary at a 24-hour diner leaves a broken back door and the night\u2019s cash missing from the register and tip jar.",
+    "location": "Eugene, Oregon",
+    "incidentDate": "2026-05-11T03:18:00-07:00",
+    "openedAt": "2026-05-11T09:05:00-07:00",
+    "difficulty": "Rookie",
+    "requiredRank": "Rookie",
+    "category": "Burglary",
+    "briefing": "Someone forced the back door of a 24-hour diner before dawn and cleaned out the cash. The crew and a few late-night regulars all had reasons to be near the building\u2014and one of them knows more than they\u2019re saying.",
+    "tags": [
+      "diner",
+      "burglary",
+      "forced-entry",
+      "cash-theft",
+      "overnight-shift",
+      "small-town"
+    ],
+    "unlockMode": "all_initial",
+    "estimatedDurationMinutes": 90
+  },
+  "assets": [
+    {
+      "id": "asset.back_door_damage",
+      "type": "photo",
+      "title": "Back Door Forced-Entry Damage",
+      "description": "Crime-scene photo of the diner\u2019s rear service door showing the apparent forced-entry point and damage pattern. Used to assess whether the break-in was genuine or staged based on tool marks, splintering direction, and latch condition.",
+      "uri": "case://case_rookie_hardened/assets/back_door_damage.png",
+      "visibility": "initial",
+      "category": "Physical"
+    },
+    {
+      "id": "asset.rear_hallway_floor_marks",
+      "type": "photo",
+      "title": "Rear Hallway Floor \u0026 Threshold Marks",
+      "description": "Evidence photo of the rear hallway floor leading to the back door, focusing on scuff marks, grit, and any debris trail crossing the threshold. Used to assess direction of travel and whether movement appears consistent with a genuine forced entry.",
+      "uri": "case://case_rookie_hardened/assets/rear_hallway_floor_marks.png",
+      "visibility": "initial",
+      "category": "Physical"
+    },
+    {
+      "id": "asset.register_and_tipjar_scene",
+      "type": "photo",
+      "title": "Register Area \u0026 Tip Jar After Theft",
+      "description": "Crime-scene style photo of the diner\u2019s front counter showing the cash register and tip jar area moments after the reported theft. Captures what appears disturbed versus untouched to help infer whether the cash was quickly grabbed or selectively removed.",
+      "uri": "case://case_rookie_hardened/assets/register_and_tipjar_scene.png",
+      "visibility": "initial",
+      "category": "Physical"
+    },
+    {
+      "id": "asset.shift_cash_count_sheet",
+      "type": "document",
+      "title": "Nightly Cash Count \u0026 Close-Out Sheet",
+      "description": "Photocopy of the diner\u2019s nightly cash count and close-out worksheet for the overnight shift spanning the 03:18 break-in window. Records the expected register drop, tip jar amount, and the staff member(s) who performed and verified the count shortly before the theft was discovered.",
+      "uri": "case://case_rookie_hardened/assets/shift_cash_count_sheet.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.pos_transaction_export",
+      "type": "digital",
+      "title": "POS Transactions (02:30\u201304:00) Export",
+      "description": "Point-of-sale export covering register activity between 02:30 and 04:00 on 2026-05-11, including sales, no-sale drawer opens, and any voided/comped items. Used to align cashier activity with the 03:18 break-in window and identify anomalies around the register and tip jar.",
+      "uri": "case://case_rookie_hardened/assets/pos_transaction_export.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.back_lot_camera_stills",
+      "type": "pdf",
+      "title": "Back Lot/Rear Door Camera Still Frames",
+      "description": "PDF of time-stamped still frames pulled from the rear lot camera covering the rear door area during the 03:18 a.m. incident window. Used to anchor movement near the back door to the case timeline and compare against staff statements and other records.",
+      "uri": "case://case_rookie_hardened/assets/back_lot_camera_stills.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.urgent_care_visit_record",
+      "type": "pdf",
+      "title": "St. Vincent Urgent Care Visit Record (Mara Kline)",
+      "description": "Redacted urgent care visit documentation for Mara Kline showing check-in and discharge times overlapping the 03:18 break-in window. Used to corroborate her verified off-site alibi and narrow the suspect pool.",
+      "uri": "case://case_rookie_hardened/assets/urgent_care_visit_record.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.911_call_audio",
+      "type": "audio",
+      "title": "Dispatch/911 Call Reporting the Break-In",
+      "description": "Audio transcript and descriptive note of the initial 911/dispatch report from the diner, including timing, immediate observations, and early statements about who was present and what was missing.",
+      "uri": "case://case_rookie_hardened/assets/911_call_audio.mp3",
+      "visibility": "initial",
+      "category": "Communication"
+    },
+    {
+      "id": "asset.report_video_enhancement_back_lot_camera_stills",
+      "type": "pdf",
+      "title": "Video Enhancement Report: Back Lot/Rear Door Camera Still Frames (03:10\u201303:26)",
+      "description": "Enhanced review of time-stamped rear lot still frames around 03:18 on 2026-05-11. The enhanced imagery shows a figure consistent with Tessa Bly approaching the rear door during the incident window, though facial ID remains inconclusive.",
+      "uri": "case://case_rookie_hardened/assets/report_video_enhancement_back_lot_camera_stills.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    }
+  ],
+  "emails": [
+    {
+      "id": "email.briefing",
+      "from": "Chief R. Halloway",
+      "to": [
+        "Detective Alex Morgan \u003Cdetective@citypolice.gov\u003E"
+      ],
+      "subject": "Immediate Discreet Follow-Up: Diner Break-In (03:18) \u2014 Eugene, OR",
+      "body": "Detective Morgan,\n\nWe\u2019ve got an urgent burglary case that needs tight handling and minimal chatter. At approximately 03:18 on 2026-05-11, the 24-hour diner in Eugene reported a forced entry at the rear door and a theft of the night\u2019s cash from the register and tip jar. Treat the diner manager and overnight staff as the primary victim/witness pool, and keep the business\u2019s reputation and employee safety in mind while you work.\n\nRespond as soon as you can and start with the back door damage and the rear hallway/threshold marks to confirm the point of entry and whether the intrusion was opportunistic or staged. Preserve anything that could show direction of travel\u2014scuffs, debris, and tool marks\u2014before the kitchen traffic and cleaning routines destroy the trace.\n\nI want you to quickly lock down the timeline around 03:18 using the back lot/rear door camera stills, the POS export from 02:30\u201304:00, and the nightly cash count/close-out sheet. Cross-check any \u201Cno sale,\u201D voids, or unusual register access with who was physically on the floor versus in the back hallway during that window.\n\nBe deliberate with interviews. Get initial statements separately from the overnight crew and document contradictions without tipping your hand. Avoid naming any theory in front of staff; ask neutral, time-anchored questions and note who had routine access to the register, tip jar, and back-of-house routes.\n\nThis needs to be handled discreetly and fast\u2014no casual hallway talk, no unnecessary calls to the owner before we have clean facts, and no sharing details outside the investigative chain. Update me with your initial findings and any immediate leads by end of shift.",
+      "sentAt": "2026-05-11T09:05:00-07:00",
+      "priority": "urgent",
+      "attachments": [
+        "asset.back_door_damage",
+        "asset.rear_hallway_floor_marks"
+      ],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.chief_briefing_halloway_001",
+      "from": "Chief R. Halloway \u003Crhalloway@eugene-pd.gov\u003E",
+      "to": [
+        "Detective Alex Morgan \u003Cdetective@citypolice.gov\u003E"
+      ],
+      "subject": "Immediate Discreet Follow-Up: Diner Break-In (03:18) \u2014 Eugene, OR",
+      "body": "Detective,\n\nWe opened a burglary case out of a 24-hour diner (rear service door forced; register cash \u002B tip jar missing). Incident time is pegged at approx. 03:18. Only overnight staff on scene plus a couple late customers per initial call.\n\nPriority on intake:\n- Treat as a genuine forced entry until proven otherwise, but keep an eye on \u201Cinside job\u201D opportunity (access to register, knowledge of camera angles, and the back hallway).\n- Confirm who had register access at/near 03:18 and whether anyone can\u2019t account for minutes around that time.\n- Pull the rear lot camera stills and compare to staff uniforms/build; note any time offset on the system clock.\n\nInitial persons of interest are the overnight staff: manager Mara Kline (reportedly off-site at urgent care), server Tessa Bly (register/tip jar access), line cook Joel Sandoval (frequently in back-of-house), dishwasher Caleb Pruitt, and a regular truck driver (Dean Hartley).\n\nKeep contact with the owner low-profile. I want a clean timeline and a clear list of who was where between 03:05\u201303:30 before we lean on anyone.\n\n\u2014 Chief R. Halloway",
+      "sentAt": "2026-05-11T09:06:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.witness_customer_lane_001",
+      "from": "Nina Lane \u003Cnina.lane@outlook.com\u003E",
+      "to": [
+        "Detective Alex Morgan \u003Cdetective@citypolice.gov\u003E"
+      ],
+      "subject": "What I saw at the diner around 3:15am (break-in night)",
+      "body": "Officer,\n\nI was at the diner early Sunday morning (May 11) with my friend after a late movie. We were in a booth facing the counter. I don\u2019t know the staff names, but the server (female, dark hair pulled back, maybe late 20s) was the one ringing us up.\n\nAround 3:10\u20133:20 I heard a loud pop/bang from the back like a door hitting something. It wasn\u2019t super loud like a gunshot, more like a hard smack. The cook looked back toward the hallway. The server disappeared from the front for a minute or two (I remember because we were waiting on our check). When she came back she was moving fast and seemed tense.\n\nA couple minutes later there was commotion at the counter about the cash/tip jar. I didn\u2019t see anyone come in through the front door during that time.\n\nIf you need it, I can give you my phone number.\n\n\u2014 Nina Lane",
+      "sentAt": "2026-05-11T10:02:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.partner_owner_saito_001",
+      "from": "Kenji Saito \u003Ckenji.saito@juniperdiner.com\u003E",
+      "to": [
+        "Detective Alex Morgan \u003Cdetective@citypolice.gov\u003E"
+      ],
+      "subject": "Juniper Diner break-in \u2014 cash procedures \u0026 keys info",
+      "body": "Detective,\n\nI\u2019m the owner of Juniper Diner. Here\u2019s what I can tell you without speculating:\n\n- The rear service door has a deadbolt and a handle latch. Staff are supposed to keep it locked; trash runs go out that way.\n- Keys: Mara (manager) has a set. There are two spare sets in the office safe for emergencies. Servers/cooks should not have personal copies.\n- Cash: Overnight server typically runs the register. Tips are in a glass jar on the counter. At slow hours staff sometimes do a \u201Cpre-count\u201D before dawn, but official close-out is at shift end.\n- Cameras: Rear lot camera has been finicky since last month\u2019s power blink. I don\u2019t know if its clock is accurate.\n\nPlease let me know if you need access to the office safe log or the last time the back door was repaired.\n\nKenji Saito",
+      "sentAt": "2026-05-11T09:58:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.lab_video_enhancement_back_lot_camera_stills",
+      "from": "Eugene Regional Forensic Lab \u003Cvideo.unit@erfl.example\u003E",
+      "to": [
+        "Detective Alex Morgan \u003Cdetective@citypolice.gov\u003E"
+      ],
+      "subject": "ERFL Results: Video Enhancement \u2014 Back Lot/Rear Door Stills (03:18 window)",
+      "body": "Detective,\n\nWe completed VideoEnhancement on the submitted **Back Lot/Rear Door Camera Still Frames** export associated with the diner break-in at **03:18 on 2026-05-11**. The enhancement process focused on contrast/exposure normalization and ROI enlargement around the rear door approach path.\n\nIn the incident-window sequence, a single figure can be tracked moving from the lot toward the rear service door. After enhancement, the subject\u2019s outline (build/stature), hair silhouette (appearing pulled back), and visible clothing contrast patterns are **consistent with server Tessa Bly**.\n\nThe stills do **not** support a definitive facial identification due to distance, low light, and compression artifacts, and they do not conclusively capture the act of forced entry itself. Our conclusion is therefore phrased as *consistent with*, not a positive ID.\n\nThe full report has been attached to the case file as a hidden PDF. If DVR-native video is obtainable, we can reassess with improved time-sync confidence and potentially better identifying detail.\n",
+      "sentAt": "2026-05-11T11:22:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    }
+  ],
+  "suspects": [
+    {
+      "id": "suspect.mara_kline",
+      "name": "Mara Kline",
+      "age": 34,
+      "occupation": "Night-shift diner manager",
+      "relationship": "Victim business manager responsible for closing cash",
+      "motive": "Mara was under pressure to explain recurring small cash discrepancies and feared losing her job if another short night was pinned on her. A staged break-in could have looked like an easy way to cover a mistake, even though she didn\u2019t take the money.",
+      "alibi": "At the time of the break-in she was off-site at St. Vincent Urgent Care after a minor kitchen burn, checking in just after 2:55 a.m. and leaving around 3:40 a.m. Security footage and visit records place her there during the 3:18 a.m. incident window.",
+      "alibiVerified": true,
+      "status": "suspect",
+      "background": "Mara has managed graveyard shifts at the diner for three years and is known for being strict about locks, keys, and nightly counts.\nShe\u2019s been trying to keep staffing stable after recent turnover, which has put her on edge with the overnight crew.\nWhile she has access to cash procedures and entry points, she is also meticulous about documentation and routinely insists on written handoffs.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.joel_sandoval",
+      "name": "Joel Sandoval",
+      "age": 28,
+      "occupation": "Diner line cook",
+      "relationship": "Coworker on the graveyard shift",
+      "motive": "Joel was behind on rent and knew the cash habits for the overnight register and tip jar. He also felt slighted after a recent cut to his hours and blamed management for it.",
+      "alibi": "At the time of the break-in, he was on a cigarette break behind the diner and then returned to the line; a delivery driver and a time-stamped order ticket place him inside shortly after. He can\u2019t account for a brief window when he was alone in the rear hallway near the back door.",
+      "alibiVerified": true,
+      "status": "suspect",
+      "background": "Joel is a reliable but stressed line cook who floats between the grill and the back prep area during slow overnight stretches. Coworkers describe him as quiet, routine-driven, and more likely to avoid conflict than start it. He knows the diner\u2019s back-of-house layout well from taking out trash and grabbing stock from the rear storage.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.tessa_bly",
+      "name": "Tessa Bly",
+      "age": 27,
+      "occupation": "Graveyard-shift server",
+      "relationship": "Coworker on shift; handled the register and tip jar",
+      "motive": "Tessa was behind on rent and car payments and had been shorted on hours recently, making a quick cash grab tempting. She also felt resentful that management tightened tip-out rules, so taking the night\u2019s cash felt like \u201Cgetting even.\u201D",
+      "alibi": "She claims she was continuously on the floor with a couple of late-night customers from about 2:50 to 3:30 a.m., saying she never went near the back door. One receipt time-stamp supports she was at the register shortly after 3:20, but it doesn\u2019t account for the minutes when the break-in occurred.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Tessa is a capable, fast-talking server who knows the diner\u2019s overnight rhythms and the blind spots in the back hallway. She\u2019s friendly with regulars and often volunteers to run the register, giving her routine access to cash and close-out procedures. Recently she\u2019s been stressed about money and has asked coworkers for small loans, insisting it was only temporary.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.caleb_pruitt",
+      "name": "Caleb Pruitt",
+      "age": 24,
+      "occupation": "Overnight dishwasher",
+      "relationship": "Coworker at the 24-hour diner",
+      "motive": "Caleb has been short on money after his hours were recently cut, and he knows the back door and rear hallway routines well enough to think he could slip in unnoticed. He also felt singled out by management for minor mistakes, which left him resentful.",
+      "alibi": "Around the reported time of the break-in, he was still on shift in the dish pit and stepped out front to smoke near the entrance; his time punch and two customers recall seeing him there. A camera facing the front lot catches him outside within minutes of 03:18, making it unlikely he was at the back door then.",
+      "alibiVerified": true,
+      "status": "suspect",
+      "background": "Caleb is a quiet, routine-driven overnight worker who usually keeps to the dish area and avoids drama on shift. He\u2019s familiar with the rear hallway and the back door because he runs tubs and trash through that route. Coworkers describe him as stressed about bills lately but not confrontational, and he tends to stick close to his station during busy late-night waves.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.dean_hartley",
+      "name": "Dean Hartley",
+      "age": 46,
+      "occupation": "Long-haul truck driver",
+      "relationship": "Late-night regular customer at the diner",
+      "motive": "Dean was recently hit with unexpected truck repair bills and had been complaining about being short on cash. He also felt slighted after a staff member asked him to stop hanging around the back lot, which bruised his pride.",
+      "alibi": "At the time of the break-in, Dean was at the Flying J truck stop off I-5, buying coffee and fueling before heading north. The fuel purchase and his truck\u2019s ELD logs place him there during the incident window.",
+      "alibiVerified": true,
+      "status": "suspect",
+      "background": "Dean keeps odd hours and often stops at the diner after late runs, which is why staff recognize him and noticed him near the back lot. He tends to linger outside to make calls and smoke, making his presence look suspicious even when he\u2019s just killing time. He has minor past citations for trespassing in parking lots, but no burglary convictions.",
+      "visibility": "initial"
+    }
+  ],
+  "timeline": [
+    {
+      "time": "2026-05-11T02:30:00-07:00",
+      "event": "POS activity begins for the critical window (transactions later exported for 02:30\u201304:00).",
+      "source": "sensor",
+      "verified": false,
+      "importance": "medium"
+    },
+    {
+      "time": "2026-05-11T02:55:00-07:00",
+      "event": "Night-shift manager Mara Kline checks in at St. Vincent Urgent Care for a minor burn, placing her off-site before the break-in window.",
+      "source": "forensic",
+      "verified": false,
+      "importance": "high"
+    },
+    {
+      "time": "2026-05-11T03:18:00-07:00",
+      "event": "Back door is forced and cash is taken from the register and tip jar during the overnight shift.",
+      "source": "investigation",
+      "verified": false,
+      "importance": "critical"
+    },
+    {
+      "time": "2026-05-11T03:18:00-07:00",
+      "event": "Rear door/back lot camera captures still frames during the incident window, time-anchoring activity at the point of entry.",
+      "source": "sensor",
+      "verified": false,
+      "importance": "high"
+    },
+    {
+      "time": "2026-05-11T03:20:00-07:00",
+      "event": "A receipt timestamp places server Tessa Bly at the register shortly after the incident window, without accounting for the minutes around 03:18.",
+      "source": "sensor",
+      "verified": false,
+      "importance": "medium"
+    },
+    {
+      "time": "2026-05-11T03:40:00-07:00",
+      "event": "Mara Kline leaves urgent care; visit record and facility security footage corroborate she remained off-site through the incident time.",
+      "source": "forensic",
+      "verified": false,
+      "importance": "high"
+    },
+    {
+      "time": "2026-05-11T08:42:00-07:00",
+      "event": "Diner staff report the break-in to dispatch; 911/dispatch audio captures the initial narrative and timing details.",
+      "source": "witness",
+      "verified": false,
+      "importance": "high"
+    },
+    {
+      "time": "2026-05-11T09:05:00-07:00",
+      "event": "Case is opened by the chief; initial evidence set includes scene photos, POS export, camera stills, cash count sheet, urgent-care record, and 911 audio.",
+      "source": "investigation",
+      "verified": false,
+      "importance": "critical"
+    }
+  ],
+  "temporalEvents": [
+    {
+      "id": "tevt.shift_sheet_flag",
+      "triggerAtMinutes": 12,
+      "type": "memo"
+    },
+    {
+      "id": "tevt.camera_time_sync_note",
+      "triggerAtMinutes": 35,
+      "type": "memo"
+    },
+    {
+      "id": "tevt.witness_recall_register_time",
+      "triggerAtMinutes": 60,
+      "type": "witness"
+    }
+  ],
+  "rules": [
+    {
+      "ruleId": "rule.reveal_asset_back_lot_camera_stills_videoenhancement",
+      "description": "Reveal forensic outcome of asset.back_lot_camera_stills:VideoEnhancement",
+      "trigger": {
+        "type": "forensics_complete",
+        "inputAssetId": "asset.back_lot_camera_stills",
+        "analysisType": "VideoEnhancement"
+      },
+      "actions": [
+        {
+          "type": "reveal_email",
+          "emailId": "email.lab_video_enhancement_back_lot_camera_stills"
+        },
+        {
+          "type": "reveal_asset",
+          "assetId": "asset.report_video_enhancement_back_lot_camera_stills"
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.notify_on_lab_video_enhancement_opened",
+      "trigger": {
+        "type": "email_opened",
+        "emailId": "email.lab_video_enhancement_back_lot_camera_stills"
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "level": "info",
+          "message": "Video enhancement results reviewed. The clearer back-lot frames strengthen the case focus\u2014recheck suspect timelines and compare clothing/footwear details against Tessa Bly."
+        },
+        {
+          "type": "update_suspect_status",
+          "suspectId": "suspect.tessa_bly",
+          "status": "suspect"
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.verify_decoy_alibis_on_briefing_opened",
+      "trigger": {
+        "type": "email_opened",
+        "emailId": "email.briefing"
+      },
+      "actions": [
+        {
+          "type": "mark_alibi_verified",
+          "suspectId": "suspect.mara_kline"
+        },
+        {
+          "type": "mark_alibi_verified",
+          "suspectId": "suspect.joel_sandoval"
+        },
+        {
+          "type": "mark_alibi_verified",
+          "suspectId": "suspect.caleb_pruitt"
+        },
+        {
+          "type": "mark_alibi_verified",
+          "suspectId": "suspect.dean_hartley"
+        },
+        {
+          "type": "send_notification",
+          "level": "info",
+          "message": "Per initial checks, multiple staff alibis are already verified. Prioritize any suspect without a verified alibi."
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.nudge_after_camera_stills_viewed",
+      "trigger": {
+        "type": "asset_viewed",
+        "assetId": "asset.back_lot_camera_stills"
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "level": "warn",
+          "message": "Back-lot stills suggest the exit route. Consider requesting enhancement/clarification to confirm identity details before closing in."
+        }
+      ]
+    }
+  ],
+  "forensicsDefaults": {
+    "analysisTypes": [
+      {
+        "type": "ToolmarkAnalysis",
+        "durationMinutes": 55,
+        "availableFor": [
+          "photo"
+        ]
+      },
+      {
+        "type": "VideoEnhancement",
+        "durationMinutes": 70,
+        "availableFor": [
+          "pdf"
+        ]
+      },
+      {
+        "type": "POSLogForensics",
+        "durationMinutes": 45,
+        "availableFor": [
+          "digital"
+        ]
+      }
+    ],
+    "noFindingsEmail": {
+      "template": "Detective,\n\nThe {{analysisType}} analysis on {{assetName}} did not reveal any actionable leads.\n\nForensics Lab",
+      "from": "Forensics Lab \u003Clab@citypolice.gov\u003E",
+      "subject": "Analysis Results \u2014 {{analysisType}} \u2014 No Findings"
+    }
+  },
+  "forensicOutcomes": [
+    {
+      "inputAssetId": "asset.back_door_damage",
+      "analysisType": "ToolmarkAnalysis",
+      "findings": false,
+      "conclusionText": "Toolmark examination of the rear door damage shows patterns consistent with a hurried prying action and does not exhibit clear indicators of a deliberately staged break-in. The observed marks and fracture characteristics are not sufficiently distinctive to identify a specific tool or link the damage to any particular individual."
+    },
+    {
+      "inputAssetId": "asset.back_lot_camera_stills",
+      "analysisType": "VideoEnhancement",
+      "findings": true,
+      "matchedSuspectId": "suspect.tessa_bly",
+      "conclusionText": "Enhancement of the rear lot camera stills from the 03:18 incident window revealed a subject whose build, hairstyle silhouette, and clothing features are consistent with server Tessa Bly approaching the rear service door. While the images are not sufficient for definitive facial identification, the enhanced frames provide a coherent timeline-linked association between the subject and the point of entry.",
+      "resultAssetId": "asset.report_video_enhancement_back_lot_camera_stills",
+      "resultEmailId": "email.lab_video_enhancement_back_lot_camera_stills"
+    },
+    {
+      "inputAssetId": "asset.pos_transaction_export",
+      "analysisType": "POSLogForensics",
+      "findings": false,
+      "matchedSuspectId": "suspect.joel_sandoval",
+      "conclusionText": "Forensic review of the POS transaction export (02:30\u201304:00, 2026-05-11) identified a brief sequence of no-sale/drawer-open activity near the incident window, but the available log fields do not attribute the actions to a single, verifiable user. Based on this dataset alone, the POS activity cannot be used to reliably link the cash removal to any individual."
+    },
+    {
+      "inputAssetId": "asset.911_call_audio",
+      "analysisType": "POSLogForensics",
+      "findings": false,
+      "conclusionText": "The POS-log forensic review of the 911/dispatch call timeline indicates minor confusion and shifting details in the initial reporting, consistent with an evolving understanding of the scene. No reliable linkage could be established between the call content and any specific register access or individual responsible for the cash removal."
+    }
+  ],
+  "solution": {
+    "culpritId": "suspect.tessa_bly",
+    "requiredEvidenceIds": [
+      "asset.report_video_enhancement_back_lot_camera_stills",
+      "asset.back_door_damage",
+      "asset.pos_transaction_export"
+    ],
+    "requiredAnalysisIds": [
+      "asset.back_lot_camera_stills:VideoEnhancement"
+    ],
+    "questions": [
+      {
+        "id": "q.identification",
+        "prompt": "Who is most strongly indicated as the culprit by the enhanced rear lot camera stills?",
+        "options": [
+          {
+            "id": "opt.tessa_bly",
+            "label": "Tessa Bly, the graveyard-shift server"
+          },
+          {
+            "id": "opt.mara_kline",
+            "label": "Mara Kline, the night-shift manager"
+          },
+          {
+            "id": "opt.joel_sandoval",
+            "label": "Joel Sandoval, the line cook"
+          },
+          {
+            "id": "opt.caleb_pruitt",
+            "label": "Caleb Pruitt, the overnight dishwasher"
+          }
+        ],
+        "correctOptionId": "opt.tessa_bly",
+        "weight": 1
+      },
+      {
+        "id": "q.method_of_entry",
+        "prompt": "What method of entry was used during the diner break-in?",
+        "options": [
+          {
+            "id": "opt.pried_rear_service_door",
+            "label": "Pried open the rear service door with a tool"
+          },
+          {
+            "id": "opt.unauthorized_key_access",
+            "label": "Entered using an unauthorized key through the back door"
+          },
+          {
+            "id": "opt.forced_front_entrance",
+            "label": "Forced entry through the front customer entrance"
+          },
+          {
+            "id": "opt.unlocked_door_opportunity",
+            "label": "Entered through a door left unlocked during the shift"
+          }
+        ],
+        "correctOptionId": "opt.pried_rear_service_door",
+        "weight": 1
+      },
+      {
+        "id": "q.inside_access",
+        "prompt": "Which factor created the best opportunity to take cash without immediate detection?",
+        "options": [
+          {
+            "id": "opt.register_access",
+            "label": "Tessa\u2019s routine access to the register and tip jar during the graveyard shift"
+          },
+          {
+            "id": "opt.verified_offsite_alibi",
+            "label": "Mara being off-site at urgent care during the incident window"
+          },
+          {
+            "id": "opt.front_lot_smoke_break",
+            "label": "Caleb stepping outside near the front entrance to smoke around 03:18"
+          },
+          {
+            "id": "opt.uncertain_pos_attribution",
+            "label": "POS logs showing drawer opens but not attributing them to a specific user"
+          }
+        ],
+        "correctOptionId": "opt.register_access",
+        "weight": 0.5
+      }
+    ],
+    "explanation": "The enhanced rear-lot camera stills place a figure matching **Tessa Bly\u2019s** build/clothing moving to the rear service door at the 03:18 window, aligning with her access to the register/tip jar and her financial motive. Toolmark analysis of the back-door damage supports a real, hurried pry rather than a staged incident, and the POS export shows drawer activity near the window consistent with a quick cash pull (even if logs can\u2019t name the user). **Mara Kline** is cleared by verified urgent-care records during 03:18; **Caleb Pruitt** is cleared by front-lot sightings/camera timing; **Dean Hartley** is cleared by fuel/ELD logs off-site; **Joel Sandoval** is cleared because the POS forensics can\u2019t reliably tie him to the drawer opens and his alibi is otherwise corroborated.",
+    "minimumScore": 0.7,
+    "maxAttempts": 3,
+    "partialCreditRules": {
+      "culpritWeight": 0.4,
+      "evidenceWeight": 0.2,
+      "analysisWeight": 0.2,
+      "questionsWeight": 0.2
+    }
+  },
+  "gameMetadata": {
+    "schemaVersion": "2.0",
+    "createdAt": "2026-05-15T02:33:07.0751510Z",
+    "tags": [
+      "diner",
+      "burglary",
+      "forced-entry",
+      "cash-theft",
+      "overnight-shift",
+      "small-town"
+    ],
+    "contentWarnings": [],
+    "localizations": [
+      "en-US"
+    ],
+    "generation": {
+      "pipelineVersion": "v2-microtasks",
+      "model": "gpt-5.2",
+      "seed": 47,
+      "bundleChecksum": ""
+    }
+  }
+}

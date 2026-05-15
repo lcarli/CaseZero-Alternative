@@ -1,5 +1,0 @@
-# Placeholder for Kitchen/Back Door Chime Entry Log (digital)
-
-A timestamped export from the kitchen/back-door chime sensor showing door-open events during the break-in window. Used to corroborate staff movements and whether the back door was opened around 03:18.
-
-Digital artifact: a CSV export named "DoorChime_Log_2026-05-11.csv" pulled from the diner’s back-door chime controller (simple door-open sensor tied to an audible chime). The file lists sequential events with columns: EventID, Door ("Kitchen/Back"), EventType (Open), Timestamp (local PDT), and a short system note (e.g., "Chime fired"). The visible entries for 02:45–03:45 show multiple opens consistent with normal kitchen traffic, including a door-open at 03:14:52 and a re-entry at 03:23:41 (matching the cook’s claimed smoke break), with an additional door-open recorded close to the incident time (03:18:09) without any associated identifier beyond the sensor firing. Metadata at the top shows device clock sync status (NTP last sync 2026-05-11 01:00) and indicates the log records only door-open triggers (no close events, no person ID).

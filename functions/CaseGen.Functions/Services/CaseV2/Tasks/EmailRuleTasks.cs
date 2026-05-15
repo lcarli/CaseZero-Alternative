@@ -147,6 +147,11 @@ Emit JSON only. The `rules` array contains ONLY new narrative rules (do not echo
         var existingIds = draft.Rules.Select(r => r.RuleId).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var r in o.Rules)
         {
+            // Defensive: coerce `rule_xxx` (underscore) → `rule.xxx` (dot) if the LLM drifts.
+            if (r.RuleId.StartsWith("rule_", StringComparison.Ordinal))
+                r.RuleId = "rule." + r.RuleId.Substring(5);
+            if (r.RuleId.StartsWith("rule-", StringComparison.Ordinal))
+                r.RuleId = "rule." + r.RuleId.Substring(5);
             if (string.IsNullOrEmpty(r.RuleId) || !existingIds.Add(r.RuleId)) continue;
             draft.Rules.Add(r);
         }
