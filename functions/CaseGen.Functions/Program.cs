@@ -7,6 +7,7 @@ using Microsoft.Azure.Functions.Worker.Builder;
 using CaseGen.Functions.Services;
 using CaseGen.Functions.Services.CaseGeneration;
 using CaseGen.Functions.Services.CaseV2;
+using CaseGen.Functions.Services.CaseV2.Templates;
 using CaseGen.Functions.Data;
 using Azure.Storage.Blobs;
 using Microsoft.EntityFrameworkCore;
@@ -64,6 +65,20 @@ builder.Services
     // v2 case generator (micro-task pipeline + PDF/image rendering)
     .AddScoped<ICaseV2GeneratorService, CaseV2GeneratorService>()
     .AddScoped<IAssetRenderingService, AssetRenderingService>()
+    .AddScoped<IEvidenceDocumentRenderer, EvidenceDocumentRenderer>()
+    // Digital evidence templates — each enriches a specific bodyDoc.layout before render
+    .AddScoped<IEvidenceTemplate, CallLogTemplate>()
+    .AddScoped<IEvidenceTemplate, PosExportTemplate>()
+    .AddScoped<IEvidenceTemplate, PhoneDumpTemplate>()
+    .AddScoped<IEvidenceTemplate, SensorLogTemplate>()
+    .AddScoped<IEvidenceTemplate, BrowserHistoryTemplate>()
+    .AddScoped<IEvidenceTemplate, BankStatementTemplate>()
+    .AddScoped<IEvidenceTemplate, GpsTrackTemplate>()
+    .AddScoped<IEvidenceTemplate, FileListingTemplate>()
+    .AddScoped<IEvidenceTemplate, ChatExportTemplate>()
+    .AddScoped<IEvidenceTemplate, EmailExportTemplate>()
+    .AddScoped<IEvidenceTemplate, AccessLogTemplate>()
+    .AddScoped<IEvidenceTemplateRegistry, EvidenceTemplateRegistry>()
     // Configure Context Manager for granular context storage
     .AddSingleton<IContextManager>(serviceProvider =>
     {

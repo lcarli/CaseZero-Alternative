@@ -103,6 +103,11 @@ public class EvidenceAsset
     /// <summary>Long-form body used by <see cref="Services.CaseV2.AssetRenderingService"/>:
     /// markdown for pdf/document assets (rendered with QuestPDF) or an image prompt for photo/image assets.</summary>
     [JsonPropertyName("body")] public string? Body { get; set; }
+
+    /// <summary>Structured document model — preferred over <see cref="Body"/> for
+    /// pdf/document/digital assets so the renderer can produce real tables,
+    /// transcripts, key/value blocks, etc.</summary>
+    [JsonPropertyName("bodyDoc")] public EvidenceDocument? BodyDoc { get; set; }
 }
 
 public class EvidenceTimelineEntry

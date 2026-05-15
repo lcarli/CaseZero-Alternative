@@ -31,12 +31,21 @@ public class AssetRenderingService : IAssetRenderingService
 {
     private readonly IPdfRenderingService _pdf;
     private readonly ILLMProvider _llm;
+    private readonly IEvidenceDocumentRenderer _docRenderer;
+    private readonly Templates.IEvidenceTemplateRegistry _templates;
     private readonly ILogger<AssetRenderingService> _logger;
 
-    public AssetRenderingService(IPdfRenderingService pdf, ILLMProvider llm, ILogger<AssetRenderingService> logger)
+    public AssetRenderingService(
+        IPdfRenderingService pdf,
+        ILLMProvider llm,
+        IEvidenceDocumentRenderer docRenderer,
+        Templates.IEvidenceTemplateRegistry templates,
+        ILogger<AssetRenderingService> logger)
     {
         _pdf = pdf;
         _llm = llm;
+        _docRenderer = docRenderer;
+        _templates = templates;
         _logger = logger;
     }
 
@@ -97,8 +106,21 @@ public class AssetRenderingService : IAssetRenderingService
     {
         try
         {
-            var body = string.IsNullOrWhiteSpace(a.Body) ? (a.Description ?? a.Title) : a.Body!;
-            var bytes = await _pdf.GenerateTestPdfAsync(a.Title, body, a.Category ?? "general", ct);
+            byte[] bytes;
+            if (a.BodyDoc is not null && a.BodyDoc.Sections.Count > 0)
+            {
+                // Preferred path: structured evidence document → run through the
+                // template registry (enriches per layout) → real tables / transcripts / etc.
+                if (string.IsNullOrEmpty(a.BodyDoc.Title)) a.BodyDoc.Title = a.Title;
+                var enriched = _templates.Apply(a.BodyDoc);
+                bytes = _docRenderer.Render(enriched);
+            }
+            else
+            {
+                // Fallback: legacy markdown body via QuestPDF generic template.
+                var body = string.IsNullOrWhiteSpace(a.Body) ? (a.Description ?? a.Title) : a.Body!;
+                bytes = await _pdf.GenerateTestPdfAsync(a.Title, body, a.Category ?? "general", ct);
+            }
             var path = Path.Combine(dir, $"{a.Id.Replace("asset.", "")}.pdf");
             await File.WriteAllBytesAsync(path, bytes, ct);
             lock (report) report.PdfsWritten++;

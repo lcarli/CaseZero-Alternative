@@ -67,25 +67,53 @@ public class AssetCardTask
 
     private const string Schema = """
     {
-      "type":"object","required":["id","type","title","description","visibility","category","body"],
+      "type":"object","required":["id","type","title","description","visibility","category"],
       "properties":{
         "id":{"type":"string","pattern":"^asset\\.[a-z0-9_]+$"},
         "type":{"type":"string"},
         "visibility":{"type":"string","enum":["initial","hidden"]},
-        "body":{"type":"string","minLength":40}
+        "body":{"type":"string"},
+        "bodyDoc":{"type":["object","null"],
+          "properties":{
+            "layout":{"type":"string"},
+            "title":{"type":"string"},
+            "subtitle":{"type":["string","null"]},
+            "classification":{"type":"string"},
+            "header":{"type":"array","items":{"type":"object","required":["label","value"]}},
+            "sections":{"type":"array","minItems":1,
+              "items":{"type":"object","required":["kind"],
+                "properties":{"kind":{"type":"string","enum":["narrative","table","keyValue","transcript","code","callout"]}}}},
+            "signature":{"type":["object","null"]}
+          }}
       }
     }
     """;
 
     public async Task<EvidenceAsset> RunAsync(CaseDraft draft, AssetStub stub, CancellationToken ct)
     {
-        var bodyGuidance = stub.Type switch
+        var (bodyGuidance, mustHaveBodyDoc) = stub.Type switch
         {
-            "pdf" or "document" => "Markdown long-form content for the document. 6-20 paragraphs. For interrogation transcripts use a Q/A pattern with the detective and the suspect. For forensic preliminaries or police memos use the appropriate genre conventions. Anchor dates and times to the case timeline (incidentDate / openedAt).",
-            "photo" => "A vivid image prompt that an image model can render. Describe lighting, composition, framing, mood, and any visible details that match the asset's role in the case. Avoid abstractions.",
-            "audio" => "A descriptive note + a short transcript. The runtime stores this as the asset's sidecar (audio playback is deferred until a TTS step exists).",
-            "digital" => "Markdown long-form content describing the digital-forensics export. Use tables, code blocks, or formatted listings (call logs / timestamps / file paths / metadata) so the PDF renderer produces a readable digital evidence report. Anchor every entry to the case's `incidentDate` / `openedAt`.",
-            _ => "A short note describing what's in this asset."
+            "pdf" or "document" =>
+                ("Set `bodyDoc` to a structured EvidenceDocument (see schema in this prompt). Pick a `layout` that fits — `PoliceReport`, `InterviewTranscript`, `WitnessStatement`, `Memo`, `ForensicReport`, `EvidenceLog` or `GeneralReport`. Use `narrative` for prose, `transcript` for Q/A interrogations, `keyValue` for header-style facts (date, location, officer), `table` for any tabulated data, `callout` for highlighted notes. Anchor every date/time to the case timeline (incidentDate / openedAt).", true),
+            "photo" =>
+                ("Set `body` to a vivid image prompt that an image model can render (lighting, composition, framing, mood, visible details). Leave `bodyDoc` null.", false),
+            "audio" =>
+                ("Set `body` to a transcript + descriptive note (stored as sidecar, TTS deferred). Leave `bodyDoc` null.", false),
+            "digital" =>
+                ("Set `bodyDoc` to a structured EvidenceDocument. CHOOSE one of these recognised digital layouts so a specialised template can enrich the output:\n" +
+                 "  · `CallLog`         — telecom CDRs. Table columns: Timestamp, Direction, Other Party, Duration, Notes.\n" +
+                 "  · `PosExport`       — point-of-sale exports. Table columns: Timestamp, Cashier, SKU/Item, Qty, Total.\n" +
+                 "  · `PhoneDump`       — forensic phone extraction. Multiple sections: keyValue for device info (IMEI/SIM/Model), table for installed apps, transcript or table for messages.\n" +
+                 "  · `SensorLog`       — IoT / door chime / alarm. Table columns: Timestamp, Sensor, Event, Value.\n" +
+                 "  · `BrowserHistory`  — table columns: Timestamp, URL, Title, Duration.\n" +
+                 "  · `BankStatement`   — table columns: Date, Description, Debit, Credit, Balance.\n" +
+                 "  · `GpsTrack`        — table columns: Timestamp, Latitude, Longitude, Accuracy (m), Notes.\n" +
+                 "  · `FileListing`     — table columns: Path, Size (bytes), Modified, SHA-256.\n" +
+                 "  · `ChatExport`      — messaging app. Table or transcript with columns/fields: Timestamp, Sender, Message.\n" +
+                 "  · `EmailExport`     — table columns: Timestamp, From, To, Subject, Snippet.\n" +
+                 "  · `AccessLog`       — table columns: Timestamp, Source IP, Method, Path, Status.\n" +
+                 "Use suspect names/identities ONLY when they exist in the draft. Anchor timestamps to the case timeline.", true),
+            _ => ("Short note describing the asset.", false)
         };
 
         var system = $@"You are writing the **detail card** for ONE evidence asset.
@@ -94,10 +122,25 @@ Echo the supplied id and type exactly.
 Produce:
 - `description`: 1-3 sentence summary visible in the case-file listing.
 - `category`: short label (Document / Digital / Physical / Biological / Communication).
-- `visibility`: `initial` (this stage only emits initial-visibility assets).
-- `body`: {bodyGuidance}
+- `visibility`: `initial`.
+- {(mustHaveBodyDoc ? "`bodyDoc`: REQUIRED for this asset type — a structured EvidenceDocument (see below). Leave `body` as the empty string." : "`body`: required — see guidance below.")}
 
-Keep continuity with the supplied case draft (suspects, motives, alibis, location, incidentDate, openedAt).";
+Body guidance: {bodyGuidance}
+
+EvidenceDocument schema (when used):
+  layout (PascalCase tag)
+  title, subtitle, classification (defaults to ""CONFIDENTIAL · INTERNAL USE ONLY"")
+  header[]: {{ label, value }}  ← case ref, exhibit ref, custodian, station, generated by/at
+  sections[]: each is one of
+    {{ kind:""narrative"", heading?, text }}       ← markdown paragraphs; bullets ""- ...""
+    {{ kind:""table"", heading?, table:{{ columns:[..], rows:[[..],..], footnote? }} }}
+    {{ kind:""keyValue"", heading?, items:[{{label,value}}] }}
+    {{ kind:""transcript"", heading?, transcript:[{{ timestamp?, speaker?, text }}] }}
+    {{ kind:""code"", heading?, code:{{ language?, content }} }}        ← raw log dumps
+    {{ kind:""callout"", heading?, text }}        ← highlighted notes
+  signature?: {{ name, title?, badge?, signedAt? }}
+
+Keep continuity with the supplied case draft (suspects, motives, alibis, location, incidentDate, openedAt). Use suspect names ONLY when they exist in the draft.";
 
         var user = $@"CASE DRAFT (read-only):
 {draft.ToSummaryJson()}
@@ -114,6 +157,13 @@ Emit JSON only.";
         a.Type = stub.Type;
         a.Title = string.IsNullOrEmpty(a.Title) ? stub.Title : a.Title;
         a.Visibility = "initial";
+
+        // Sanity check: PDF/document/digital MUST have bodyDoc with at least one section.
+        if (mustHaveBodyDoc && (a.BodyDoc is null || a.BodyDoc.Sections.Count == 0))
+        {
+            _logger.LogWarning("AssetCard:{Id} expected a bodyDoc but the LLM omitted it — falling back to body markdown", stub.Id);
+        }
+
         return a;
     }
 }
