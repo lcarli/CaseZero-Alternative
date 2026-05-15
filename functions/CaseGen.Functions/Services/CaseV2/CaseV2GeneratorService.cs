@@ -13,6 +13,12 @@ namespace CaseGen.Functions.Services.CaseV2;
 public interface ICaseV2GeneratorService
 {
     Task<GenerateCaseV2Response> GenerateAsync(GenerateCaseV2Request request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Same as <see cref="GenerateAsync(GenerateCaseV2Request, CancellationToken)"/> but reports the current phase
+    /// to <paramref name="reporter"/> at every stage boundary so async job pollers can show progress.
+    /// </summary>
+    Task<GenerateCaseV2Response> GenerateAsync(GenerateCaseV2Request request, IJobPhaseReporter reporter, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -61,7 +67,10 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         _logger.LogInformation("CaseV2 generator loaded schema from {Path}", schemaPath);
     }
 
-    public async Task<GenerateCaseV2Response> GenerateAsync(GenerateCaseV2Request request, CancellationToken ct = default)
+    public Task<GenerateCaseV2Response> GenerateAsync(GenerateCaseV2Request request, CancellationToken ct = default)
+        => GenerateAsync(request, NullJobPhaseReporter.Instance, ct);
+
+    public async Task<GenerateCaseV2Response> GenerateAsync(GenerateCaseV2Request request, IJobPhaseReporter reporter, CancellationToken ct = default)
     {
         var draft = new CaseDraft
         {
@@ -74,11 +83,19 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         _logger.LogInformation("Generating v2 case {CaseId} (difficulty={Difficulty}, theme={Theme})",
             draft.CaseId, request.Difficulty, request.Theme);
 
+        // Local helper: report phase to the job reporter, then time the stage body.
+        // The reporter swallows its own exceptions so it never breaks the pipeline.
+        async Task Stage(string name, Func<Task> body)
+        {
+            await reporter.ReportPhaseAsync(name, ct);
+            await TimeStage(name, stageMs, body);
+        }
+
         // === Phase 1: plot outline (sequential gate)
-        await TimeStage("plotOutline", stageMs, () => new PlotOutlineTask(_llm, _logger).RunAsync(draft, ct));
+        await Stage("plotOutline", () => new PlotOutlineTask(_llm, _logger).RunAsync(draft, ct));
 
         // === Phase 2: suspect cards in parallel
-        await TimeStage("suspectCards", stageMs, async () =>
+        await Stage("suspectCards", async () =>
         {
             var task = new SuspectCardTask(_llm, _logger);
             var results = await Task.WhenAll(draft.SuspectStubs.Select(stub => task.RunAsync(draft, stub, ct)));
@@ -86,10 +103,10 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         });
 
         // === Phase 3: asset plan (gate)
-        await TimeStage("assetPlan", stageMs, () => new AssetPlanTask(_llm, _logger).RunAsync(draft, ct));
+        await Stage("assetPlan", () => new AssetPlanTask(_llm, _logger).RunAsync(draft, ct));
 
         // === Phase 4: asset cards + timeline + briefing in parallel
-        await TimeStage("assetsAndTimelineAndBriefing", stageMs, async () =>
+        await Stage("assetsAndTimelineAndBriefing", async () =>
         {
             var assetTask = new AssetCardTask(_llm, _logger);
             var assetsTask = Task.WhenAll(draft.AssetStubs.Select(stub => assetTask.RunAsync(draft, stub, ct)));
@@ -104,10 +121,10 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         });
 
         // === Phase 5: forensics plan (gate)
-        await TimeStage("forensicsPlan", stageMs, () => new ForensicsPlanTask(_llm, _logger).RunAsync(draft, ct));
+        await Stage("forensicsPlan", () => new ForensicsPlanTask(_llm, _logger).RunAsync(draft, ct));
 
         // === Phase 6: outcome details + initial emails in parallel
-        await TimeStage("outcomesAndInitialEmails", stageMs, async () =>
+        await Stage("outcomesAndInitialEmails", async () =>
         {
             var outcomeTask = new ForensicOutcomeTask(_llm, _logger);
             var detailTasks = draft.ForensicStubs.Select(s => outcomeTask.RunAsync(draft, s, ct));
@@ -125,7 +142,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         });
 
         // === Phase 7: deterministic mechanical rules (cuts the most common LLM mistake)
-        await TimeStage("mechanicalRules", stageMs, () =>
+        await Stage("mechanicalRules", () =>
         {
             _mechanicalRules.Build(draft);
             // Mark Rookie cases: result assets/emails are revealed automatically by all_initial,
@@ -139,7 +156,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         });
 
         // === Phase 8: SolutionSkeleton (sequential, sees mechanical rules) + RulesTask LLM (narrative)
-        await TimeStage("rulesAndSolutionSkeleton", stageMs, async () =>
+        await Stage("rulesAndSolutionSkeleton", async () =>
         {
             // SolutionSkeleton needs the pre-built reveal rules already in the draft so it knows
             // which hidden assets/emails are reachable. Run it first, then narrative rules in parallel
@@ -149,7 +166,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         });
 
         // === Phase 9: questions (parallel) + explanation
-        await TimeStage("questionsAndExplanation", stageMs, async () =>
+        await Stage("questionsAndExplanation", async () =>
         {
             var qTask = new QuestionTask(_llm, _logger);
             var qTasks = draft.QuestionTopics.Select(t => qTask.RunAsync(draft, t, ct));
@@ -162,7 +179,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
         // === Phase 10: deterministic consistency pass — catches anything the LLM still drifted
         ConsistencyReport? consistencyReport = null;
-        await TimeStage("consistency", stageMs, () =>
+        await Stage("consistency", () =>
         {
             consistencyReport = _consistency.Validate(draft);
             if (consistencyReport.AutoFixes.Count > 0)
@@ -183,7 +200,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         // Always run these — even on schema-error cases the reports help diagnose what went wrong.
         Tasks.RedTeamTask.Report? redTeam = null;
         Tasks.SolverTask.SolverResult? solver = null;
-        await TimeStage("redTeamAndSolver", stageMs, async () =>
+        await Stage("redTeamAndSolver", async () =>
         {
             var rt = new Tasks.RedTeamTask(_llm, _logger).RunAsync(draft, json, ct);
             var sv = new Tasks.SolverTask(_llm, _logger).RunAsync(draft, ct);
@@ -199,7 +216,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         {
             outputPath = WriteToDisk(draft.CaseId, json);
             // Materialise PDFs / images / sidecars next to case.json
-            await TimeStage("renderAssets", stageMs, async () =>
+            await Stage("renderAssets", async () =>
             {
                 var basePath = ResolveCasesBasePath();
                 var allAssets = draft.AssetFull.Concat(draft.ResultAssets).ToList();
@@ -211,7 +228,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             // when Azurite is off and no connection string is set.
             if (_blobPublisher.IsConfigured)
             {
-                await TimeStage("publishToBlob", stageMs, async () =>
+                await Stage("publishToBlob", async () =>
                 {
                     var assetsDir = Path.Combine(ResolveCasesBasePath(), draft.CaseId, "assets");
                     blobsPublished = await _blobPublisher.PublishAsync(draft.CaseId, outputPath, assetsDir, ct);
