@@ -29,6 +29,7 @@ public class GenerateCaseV2Response
     public int AssetsRenderedImages { get; set; }
     public int AssetsSkipped { get; set; }
     public List<string> AssetRenderingErrors { get; set; } = new();
+    public Services.CaseV2.ConsistencyReport? Consistency { get; set; }
     public Services.CaseV2.Tasks.RedTeamTask.Report? RedTeam { get; set; }
     public Services.CaseV2.Tasks.SolverTask.SolverResult? Solver { get; set; }
 }

@@ -33,14 +33,24 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
     private readonly ILLMProvider _llm;
     private readonly IConfiguration _config;
     private readonly IAssetRenderingService _renderer;
+    private readonly MechanicalRulesBuilder _mechanicalRules;
+    private readonly IConsistencyValidator _consistency;
     private readonly ILogger<CaseV2GeneratorService> _logger;
     private readonly JSchema _v2Schema;
 
-    public CaseV2GeneratorService(ILLMProvider llm, IConfiguration config, IAssetRenderingService renderer, ILogger<CaseV2GeneratorService> logger)
+    public CaseV2GeneratorService(
+        ILLMProvider llm,
+        IConfiguration config,
+        IAssetRenderingService renderer,
+        MechanicalRulesBuilder mechanicalRules,
+        IConsistencyValidator consistency,
+        ILogger<CaseV2GeneratorService> logger)
     {
         _llm = llm;
         _config = config;
         _renderer = renderer;
+        _mechanicalRules = mechanicalRules;
+        _consistency = consistency;
         _logger = logger;
 
         var schemaPath = ResolveSchemaPath();
@@ -111,15 +121,31 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             }
         });
 
-        // === Phase 7: rules + solution skeleton in parallel
-        await TimeStage("rulesAndSolutionSkeleton", stageMs, async () =>
+        // === Phase 7: deterministic mechanical rules (cuts the most common LLM mistake)
+        await TimeStage("mechanicalRules", stageMs, () =>
         {
-            var rulesTask = new RulesTask(_llm, _logger).RunAsync(draft, ct);
-            var skeletonTask = new SolutionSkeletonTask(_llm, _logger).RunAsync(draft, ct);
-            await Task.WhenAll(rulesTask, skeletonTask);
+            _mechanicalRules.Build(draft);
+            // Mark Rookie cases: result assets/emails are revealed automatically by all_initial,
+            // but we also mirror them as 'initial' so SolutionSkeleton & Solver see them as visible.
+            if (string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var a in draft.ResultAssets) a.Visibility = "initial";
+                foreach (var e in draft.ResultEmails) e.Visibility = "initial";
+            }
+            return Task.CompletedTask;
         });
 
-        // === Phase 8: questions (parallel) + explanation
+        // === Phase 8: SolutionSkeleton (sequential, sees mechanical rules) + RulesTask LLM (narrative)
+        await TimeStage("rulesAndSolutionSkeleton", stageMs, async () =>
+        {
+            // SolutionSkeleton needs the pre-built reveal rules already in the draft so it knows
+            // which hidden assets/emails are reachable. Run it first, then narrative rules in parallel
+            // with Questions in the next phase.
+            await new SolutionSkeletonTask(_llm, _logger).RunAsync(draft, ct);
+            await new RulesTask(_llm, _logger).RunAsync(draft, ct);
+        });
+
+        // === Phase 9: questions (parallel) + explanation
         await TimeStage("questionsAndExplanation", stageMs, async () =>
         {
             var qTask = new QuestionTask(_llm, _logger);
@@ -131,24 +157,36 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             draft.Questions = questions.ToList();
         });
 
-        // === Phase 9: assemble + validate (deterministic structural check)
+        // === Phase 10: deterministic consistency pass — catches anything the LLM still drifted
+        ConsistencyReport? consistencyReport = null;
+        await TimeStage("consistency", stageMs, () =>
+        {
+            consistencyReport = _consistency.Validate(draft);
+            if (consistencyReport.AutoFixes.Count > 0)
+                _logger.LogInformation("Consistency auto-fixed: {Fixes}", string.Join(" · ", consistencyReport.AutoFixes));
+            if (consistencyReport.Errors.Count > 0)
+                _logger.LogWarning("Consistency errors: {Errors}", string.Join(" · ", consistencyReport.Errors));
+            return Task.CompletedTask;
+        });
+
+        // === Phase 11: assemble + JSON-schema validate (structural)
         var assembled = Assemble(draft);
         var json = assembled.ToJsonString(JsonOpts);
         var errors = Validate(json);
+        if (consistencyReport is not null)
+            errors.AddRange(consistencyReport.Errors);
 
-        // === Phase 10: red-team + solver (semantic validation) — run in parallel
+        // === Phase 12: red-team + solver (semantic validation) — run in parallel
+        // Always run these — even on schema-error cases the reports help diagnose what went wrong.
         Tasks.RedTeamTask.Report? redTeam = null;
         Tasks.SolverTask.SolverResult? solver = null;
-        if (errors.Count == 0)
+        await TimeStage("redTeamAndSolver", stageMs, async () =>
         {
-            await TimeStage("redTeamAndSolver", stageMs, async () =>
-            {
-                var rt = new Tasks.RedTeamTask(_llm, _logger).RunAsync(draft, json, ct);
-                var sv = new Tasks.SolverTask(_llm, _logger).RunAsync(draft, ct);
-                redTeam = await rt;
-                solver = await sv;
-            });
-        }
+            var rt = new Tasks.RedTeamTask(_llm, _logger).RunAsync(draft, json, ct);
+            var sv = new Tasks.SolverTask(_llm, _logger).RunAsync(draft, ct);
+            redTeam = await rt;
+            solver = await sv;
+        });
 
         // === Phase 11: persist + render assets
         var outputPath = string.Empty;
@@ -181,7 +219,8 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             AssetsSkipped = renderingReport?.Skipped ?? 0,
             AssetRenderingErrors = renderingReport?.Errors ?? new(),
             RedTeam = redTeam,
-            Solver = solver
+            Solver = solver,
+            Consistency = consistencyReport
         };
     }
 

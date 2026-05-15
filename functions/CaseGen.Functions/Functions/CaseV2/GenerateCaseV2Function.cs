@@ -73,6 +73,12 @@ public class GenerateCaseV2Function
                     skipped = result.AssetsSkipped,
                     errors = result.AssetRenderingErrors
                 },
+                consistency = result.Consistency is null ? null : new
+                {
+                    autoFixes = result.Consistency.AutoFixes,
+                    warnings = result.Consistency.Warnings,
+                    errors = result.Consistency.Errors
+                },
                 redTeam = result.RedTeam,
                 solver = result.Solver,
                 preview = TryPreview(result.CaseJson)

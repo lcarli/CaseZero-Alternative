@@ -80,17 +80,29 @@ public class RulesTask
              "properties":{"type":{"type":"string","enum":["forensics_complete","attachment_download","asset_viewed","email_opened","time_elapsed","suspect_viewed","multiple_conditions"]}}},
            "actions":{"type":"array","minItems":1,"maxItems":6,
              "items":{"type":"object","required":["type"],
-               "properties":{"type":{"type":"string","enum":["reveal_email","reveal_asset","reveal_suspect","add_email_attachment","send_notification","update_suspect_status","mark_alibi_verified"]}}}}}}}}}
+               "properties":{
+                 "type":{"type":"string","enum":["reveal_email","reveal_asset","reveal_suspect","add_email_attachment","send_notification","update_suspect_status","mark_alibi_verified"]},
+                 "status":{"type":["string","null"],"enum":["suspect","cleared","confirmed_culprit",null]},
+                 "level":{"type":["string","null"],"enum":["info","warn","critical",null]}
+               }}}}}}}}
     """;
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
-        var revealCandidates = draft.ForensicFull
-            .Where(f => f.Findings && (f.ResultEmailId is not null || f.ResultAssetId is not null))
-            .Select(f => new { f.InputAssetId, f.AnalysisType, f.ResultEmailId, f.ResultAssetId });
+        // Mechanical reveal rules (forensics_complete → reveal_email/asset) are pre-built
+        // in code by MechanicalRulesBuilder before this task runs. Here we ask the LLM
+        // ONLY for narrative rules — notifications, alibi nudges, multi-condition beats —
+        // so it can never drop or duplicate the critical reveal chain.
 
         var unlockMode = string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase)
             ? "all_initial" : "gated";
+
+        var existingRulesSummary = draft.Rules.Select(r => new
+        {
+            r.RuleId,
+            trigger = r.Trigger.Type,
+            actions = r.Actions.Select(a => a.Type).ToList()
+        });
 
         var ctxJson = System.Text.Json.JsonSerializer.Serialize(new
         {
@@ -100,38 +112,43 @@ public class RulesTask
             resultAssets = draft.ResultAssets.Select(a => a.Id),
             emails = draft.FollowUpEmails.Select(e => e.Id),
             resultEmails = draft.ResultEmails.Select(e => e.Id),
-            forensicReveals = revealCandidates,
-            briefingEmailId = "email.briefing"
+            suspects = draft.SuspectFull.Select(s => new { s.Id, s.Name, isCulprit = s.Id == draft.CulpritId, s.AlibiVerified }),
+            briefingEmailId = "email.briefing",
+            preBuiltRules = existingRulesSummary
         });
 
-        var system = @"You are writing the `rules` array for the case runtime.
+        var system = @"You are writing ONLY the narrative `rules` for the case runtime.
+Mechanical reveal rules (forensics_complete → reveal_email / reveal_asset) ALREADY EXIST in the case
+(see `preBuiltRules` in the context). DO NOT re-emit them — emit ONLY new rules that add narrative beats.
 
 ALLOWED trigger.type values (use EXACTLY these strings, no others):
   forensics_complete, attachment_download, asset_viewed, email_opened, time_elapsed, suspect_viewed, multiple_conditions
 
-ALLOWED action.type values (use EXACTLY these strings, no others):
+ALLOWED action.type values:
   reveal_email, reveal_asset, reveal_suspect, add_email_attachment, send_notification, update_suspect_status, mark_alibi_verified
 
-DO NOT invent new action types (e.g. `set_visibility` does NOT exist — use `reveal_email`/`reveal_asset`/`reveal_suspect` instead).
+Sensible narrative rules to consider (emit 0-4 total — quality over quantity):
+- `email_opened` of a key lab-result email → `send_notification` (level info) flagging the matched suspect.
+- `email_opened` of the briefing → `mark_alibi_verified` for a decoy whose alibi was independently verified up-front.
+- `asset_viewed` of a turning-point asset → `send_notification` (level info or warn) nudging the next step.
+- `multiple_conditions` AND/OR composing two earlier triggers when the case naturally needs a delayed reveal.
 
-Each rule fires at most once per session. Emit AT LEAST one rule per `forensicReveals` entry (trigger `forensics_complete`
-matching that inputAssetId+analysisType, actions reveal_email + reveal_asset for the result).
-
-When `unlockMode == ""all_initial""` (Rookie cases), emit only 0-2 rules at most — mostly `send_notification` flavour for narrative
-beats, because revealing is already automatic.
-
-When `unlockMode == ""gated""`, emit a rule per forensicReveal plus optionally one rule that fires `send_notification` (level=info)
-when the player opens a key result email pointing at the culprit, and one rule that `mark_alibi_verified` for a verified-decoy
-suspect when the briefing email is opened.
-
+You may emit ZERO rules if the case doesn't need any extra narrative beats. NEVER duplicate a preBuiltRule.
 All referenced IDs MUST exist in the supplied context.";
 
         var user = $@"CONTEXT:
 {ctxJson}
 
-Emit JSON only.";
+Emit JSON only. The `rules` array contains ONLY new narrative rules (do not echo preBuiltRules).";
 
         var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "Rules", system, user, Schema, ct);
-        draft.Rules = o.Rules;
+
+        // Append new rules to the pre-built ones, skipping duplicates.
+        var existingIds = draft.Rules.Select(r => r.RuleId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var r in o.Rules)
+        {
+            if (string.IsNullOrEmpty(r.RuleId) || !existingIds.Add(r.RuleId)) continue;
+            draft.Rules.Add(r);
+        }
     }
 }

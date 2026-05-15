@@ -66,6 +66,8 @@ builder.Services
     .AddScoped<ICaseV2GeneratorService, CaseV2GeneratorService>()
     .AddScoped<IAssetRenderingService, AssetRenderingService>()
     .AddScoped<IEvidenceDocumentRenderer, EvidenceDocumentRenderer>()
+    .AddScoped<MechanicalRulesBuilder>()
+    .AddScoped<IConsistencyValidator, ConsistencyValidator>()
     // Digital evidence templates — each enriches a specific bodyDoc.layout before render
     .AddScoped<IEvidenceTemplate, CallLogTemplate>()
     .AddScoped<IEvidenceTemplate, PosExportTemplate>()
