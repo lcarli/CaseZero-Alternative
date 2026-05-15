@@ -83,12 +83,13 @@
 
 `cd-dev.yml` está com esses testes em `continue-on-error: true`. Eles referenciam o legacy `IRulesEngineService.EvaluateForensicRuleAsync`/`ApplyRevealEmailActionAsync`/etc — esses métodos ainda existem mas a forma do `case.json` v1 esperada no input não bate mais com o v2 que está em `cases/`. Substituir os fixtures + reescrever os 3-4 testes que dependem dessa superfície (estão em `AuditLogTests.cs`, `SecurityIntegrationTests.cs`).
 
-### TASK C — Job assíncrono para `POST /api/cases/v2/generate`
+### TASK C — Job assíncrono para `POST /api/cases/v2/generate` ✅ **CONCLUÍDO**
 
-A geração leva 8-12 minutos (LLM image + texto). HTTP timeout vira problema. Refatorar pra:
-- `POST /api/cases/v2/generate` retornar `202 Accepted + jobId` imediatamente.
-- Background worker (Functions queue) processa.
-- `GET /api/cases/v2/jobs/{jobId}` devolve status (queued | running:phase | done | failed) + payload final.
+Implementado na branch `feat/task-c-async-generate` (PR pendente):
+- `POST /api/cases/v2/generate` retorna `202 Accepted + jobId` (Durable Functions orchestration `CaseV2GenerationOrchestrator`).
+- `GET /api/cases/v2/jobs/{jobId}` devolve status (queued | running com `currentPhase` | done | failed) + payload final, compondo runtime status do Durable com per-phase blob status do `JobPhaseReporter`.
+- Singleton best-effort: rejeita 409 se outra geração estiver Pending/Running (query por `InstanceIdPrefix` + nome do orquestrador).
+- Smoke local: gerou `case_smoke_v2` em ~4 min, 0 erros de validação, 11 blobs publicados em `bundles/` (Azurite).
 
 ### TASK D — `CaseV1*` cleanup definitivo
 
@@ -134,4 +135,4 @@ Quando virar produção:
 4. **Gerador local**: `./scripts/run-functions.ps1` (Windows) ou `.sh` (Mac/Linux) — Azurite + func host local.
 5. **Smoke pós-deploy**: `https://casezero-api-dev.azurewebsites.net/swagger` (200) e a SWA em `https://gentle-ground-03dca4110.3.azurestaticapps.net/`.
 
-> Próximo foco recomendado: **TASK C** (job async) — destrava poder gerar casos da SWA em produção sem timeout HTTP.
+> Próximo foco recomendado: **TASK E** (refine loop) — primeira tentativa do smoke da TASK C falhou validação porque o LLM emitiu IDs `asset_xxx` em vez de `asset.xxx`; o refine loop converteria isso de "abortar pipeline" em "regenerar só a parte problemática".
