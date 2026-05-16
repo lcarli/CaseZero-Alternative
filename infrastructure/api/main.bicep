@@ -47,6 +47,15 @@ param appInsightsInstrumentationKey string = ''
 @description('CORS allowed origins')
 param corsAllowedOrigins array = ['*']
 
+@description('Function App base URL the API proxies case-generation requests to (e.g. https://casegen-func-dev.azurewebsites.net). Wired from the functions layer output by the orchestrator.')
+param caseGeneratorFunctionBaseUrl string = ''
+
+@description('Storage Account name the API reads case bundles from via managed identity. Wired from the functions layer output by the orchestrator.')
+param caseGeneratorStorageAccountName string = ''
+
+@description('Storage Account Resource ID for the case bundles storage (used to scope the RBAC assignment cross-RG).')
+param caseGeneratorStorageAccountId string = ''
+
 var tags = {
   Environment: environment
   Project: 'CaseZero'
@@ -160,6 +169,22 @@ module apiAppService 'br/public:avm/res/web/site:0.14.0' = {
           name: 'IpRateLimiting__GeneralRules__0__Limit'
           value: environment == 'prod' ? '100' : '200'
         }
+        {
+          name: 'CaseGenerator__FunctionBaseUrl'
+          value: caseGeneratorFunctionBaseUrl
+        }
+        {
+          name: 'CaseGeneratorStorage__AccountName'
+          value: caseGeneratorStorageAccountName
+        }
+        {
+          name: 'CaseGeneratorStorage__BundlesContainer'
+          value: 'bundles'
+        }
+        {
+          name: 'CaseGeneratorStorage__CasesContainer'
+          value: 'cases'
+        }
       ]
       // Connection Strings
       connectionStrings: [
@@ -184,6 +209,24 @@ module keyVaultRoleAssignment 'keyvault-rbac.bicep' = {
     keyVaultId: keyVaultId
     principalId: apiAppService.outputs.systemAssignedMIPrincipalId!
     principalType: 'ServicePrincipal'
+  }
+}
+
+// ==============================================================================
+// RBAC - Grant API App Service access to Case Generator Storage
+// ==============================================================================
+// API reads case bundles (Storage Blob Data Reader) and enqueues forensic
+// requests (Storage Queue Data Message Sender — send-only, queue pre-created
+// by Bicep). Deployed cross-RG into the storage account's resource group.
+module storageRoleAssignment 'storage-rbac.bicep' = if (!empty(caseGeneratorStorageAccountId)) {
+  name: 'api-storage-rbac-deployment'
+  scope: resourceGroup(split(caseGeneratorStorageAccountId, '/')[2], split(caseGeneratorStorageAccountId, '/')[4])
+  params: {
+    storageAccountName: caseGeneratorStorageAccountName
+    principalId: apiAppService.outputs.systemAssignedMIPrincipalId!
+    principalType: 'ServicePrincipal'
+    assignBlobReader: true
+    assignQueueMessageSender: true
   }
 }
 

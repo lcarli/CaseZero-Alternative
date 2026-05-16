@@ -112,6 +112,9 @@ module sharedInfrastructure 'shared/main.bicep' = {
 // ==============================================================================
 // Layer 2: API Backend Infrastructure
 // ==============================================================================
+// NOTE: this layer depends on the functions layer outputs (storage account +
+// function URL) so the API can talk to the Case Generator using managed
+// identity. The implicit dependency forces api to deploy after functions.
 module apiInfrastructure 'api/main.bicep' = {
   name: 'api-infrastructure-deployment'
   scope: apiResourceGroup
@@ -131,6 +134,9 @@ module apiInfrastructure 'api/main.bicep' = {
     appInsightsConnectionString: enableMonitoring ? sharedInfrastructure.outputs.connectionString : ''
     appInsightsInstrumentationKey: enableMonitoring ? sharedInfrastructure.outputs.instrumentationKey : ''
     corsAllowedOrigins: ['*'] // Update with specific origins in production
+    caseGeneratorFunctionBaseUrl: functionsInfrastructure.outputs.functionAppUrl
+    caseGeneratorStorageAccountName: functionsInfrastructure.outputs.storageAccountName
+    caseGeneratorStorageAccountId: functionsInfrastructure.outputs.storageAccountId
   }
 }
 
@@ -156,6 +162,7 @@ module functionsInfrastructure 'functions/main.bicep' = {
       'logs'
     ]
     keyVaultUri: sharedInfrastructure.outputs.keyVaultUri
+    keyVaultId: sharedInfrastructure.outputs.keyVaultId
     appInsightsConnectionString: enableMonitoring ? sharedInfrastructure.outputs.connectionString : ''
     appInsightsInstrumentationKey: enableMonitoring ? sharedInfrastructure.outputs.instrumentationKey : ''
   }

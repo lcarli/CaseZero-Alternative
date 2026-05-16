@@ -122,7 +122,11 @@ namespace CaseZeroApi.IntegrationTests
                     // Force the storage service to read fixture cases from the repo's cases/
                     // folder regardless of where the test host's content root happens to point.
                     ["CaseGenV2:LocalCasesPath"] = Path.Combine(ResolveRepoRoot(), "cases"),
-                    ["CaseGeneratorStorage:ConnectionString"] = "UseDevelopmentStorage=true"
+                    ["CaseGeneratorStorage:ConnectionString"] = "UseDevelopmentStorage=true",
+                    // Explicitly blank the MI account name so tests always take the
+                    // connection-string path (Azurite-style) even if a developer has
+                    // CaseGeneratorStorage__AccountName set in their environment.
+                    ["CaseGeneratorStorage:AccountName"] = ""
                 });
             });
         }
