@@ -451,6 +451,7 @@ export interface Translations {
   submitCaseBreakdownAnalysis: string;
   submitCaseBreakdownQuestions: string;
   submitCaseExplanationHeader: string;
+  submitCaseSuspectsEmpty: string;
   submitCaseProgressTitle: string;
   submitCaseProgressSuspect: string;
   submitCaseProgressEvidence: string;

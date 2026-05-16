@@ -447,6 +447,7 @@ export const ptBR: Translations = {
   submitCaseBreakdownAnalysis: 'Análise',
   submitCaseBreakdownQuestions: 'Perguntas',
   submitCaseExplanationHeader: 'Explicação do Caso',
+  submitCaseSuspectsEmpty: 'Nenhum suspeito identificado ainda. Investigue mais para revelá-los.',
   submitCaseProgressTitle: 'Checklist de Submissão',
   submitCaseProgressSuspect: 'Suspeito',
   submitCaseProgressEvidence: 'Evidências ({n})',

@@ -447,6 +447,7 @@ export const frFR: Translations = {
   submitCaseBreakdownAnalysis: 'Analyse',
   submitCaseBreakdownQuestions: 'Questions',
   submitCaseExplanationHeader: 'Explication du dossier',
+  submitCaseSuspectsEmpty: "Aucun suspect identifié pour le moment. Enquêtez davantage pour les révéler.",
   submitCaseProgressTitle: 'Liste de contrôle',
   submitCaseProgressSuspect: 'Suspect',
   submitCaseProgressEvidence: 'Preuves ({n})',

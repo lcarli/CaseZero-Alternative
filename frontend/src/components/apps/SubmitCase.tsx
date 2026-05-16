@@ -405,15 +405,20 @@ const SubmitCase: React.FC = () => {
           <Select
             value={suspectId}
             onChange={e => setSuspectId(e.target.value)}
-            disabled={isExhausted}
+            disabled={isExhausted || suspects.length === 0}
           >
             <option value="">—</option>
             {suspects.map(s => (
               <option key={s.id} value={s.id}>
-                {s.name}
+                {s.name?.trim() || s.alias?.trim() || s.id}
               </option>
             ))}
           </Select>
+          {suspects.length === 0 && (
+            <EmptyAnalyses>
+              {t('submitCaseSuspectsEmpty')}
+            </EmptyAnalyses>
+          )}
         </Section>
 
         <Section>

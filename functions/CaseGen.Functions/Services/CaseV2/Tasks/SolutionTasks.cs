@@ -111,7 +111,15 @@ Topic: ""{topic.Topic}"". Echo id `{topic.Id}` and `weight` {topic.Weight}.
 (four characters: o, p, t, dot) followed by lowercase letters/digits/underscores. NEVER use `opt_` or just `opt-`.
 All options must be plausible (no obvious distractors). One is the correct answer (`correctOptionId`), and it
 MUST be one of the `option.id` values you emit.
-Keep the prompt under 25 words.";
+Keep the prompt under 25 words.
+
+CRITICAL — NO NAME LEAKAGE:
+- This question is about WHAT happened (the topic above), NEVER about WHO did it.
+- DO NOT name any suspect, victim, or witness in the prompt or in any option label. Suspect
+  identification is captured as a separate field; revealing names here would spoil the case.
+- Refer to people generically (in the same language as the prompt): ""the perpetrator"",
+  ""the victim"", ""an accomplice"", ""the contact"", ""the witness"". Pick whichever generic role
+  fits the topic — never an actual name from the draft.";
         var user = $@"CASE DRAFT (read-only):
 {draft.ToSummaryJson()}
 
@@ -141,7 +149,82 @@ Emit JSON only.";
             _logger.LogWarning("Question {Id} correctOptionId {Correct} not in options — defaulting to first", q.Id, q.CorrectOptionId);
             q.CorrectOptionId = q.Options[0].Id;
         }
+
+        // Defensive: if the LLM ignored the no-name-leakage rule, scrub the surface forms.
+        // We replace whole-word occurrences of each suspect's full name, given name, family name,
+        // and alias with a neutral placeholder so the player never sees a spoiler.
+        ScrubSuspectNames(q, draft);
+
         return q;
+    }
+
+    /// <summary>
+    /// Best-effort scrub of suspect surface forms in a question's prompt and option labels.
+    /// Logs a warning when a leak is detected so we can tighten the upstream prompt over time.
+    /// </summary>
+    private void ScrubSuspectNames(SolutionQuestion q, CaseDraft draft)
+    {
+        var tokens = BuildSuspectSurfaceForms(draft);
+        if (tokens.Count == 0) return;
+
+        var leakedIn = new List<string>();
+
+        var newPrompt = ReplaceSurfaceForms(q.Prompt, tokens, out var promptHits);
+        if (promptHits > 0) { q.Prompt = newPrompt; leakedIn.Add("prompt"); }
+
+        for (int i = 0; i < q.Options.Count; i++)
+        {
+            var label = q.Options[i].Label;
+            var replaced = ReplaceSurfaceForms(label, tokens, out var optHits);
+            if (optHits > 0)
+            {
+                q.Options[i].Label = replaced;
+                leakedIn.Add($"option[{i}]");
+            }
+        }
+
+        if (leakedIn.Count > 0)
+            _logger.LogWarning("Question {Id} leaked suspect name(s) in {Where} — scrubbed with placeholder", q.Id, string.Join(",", leakedIn));
+    }
+
+    private static List<string> BuildSuspectSurfaceForms(CaseDraft draft)
+    {
+        var forms = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var s in draft.SuspectFull)
+        {
+            void Add(string? v)
+            {
+                if (string.IsNullOrWhiteSpace(v)) return;
+                var t = v.Trim();
+                if (t.Length < 3) return; // skip initials that would over-match
+                forms.Add(t);
+            }
+            Add(s.Name);
+            if (!string.IsNullOrWhiteSpace(s.Name))
+            {
+                var parts = s.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                foreach (var p in parts) Add(p);
+            }
+        }
+        // Longest first so multi-word matches win over individual tokens.
+        return forms.OrderByDescending(f => f.Length).ToList();
+    }
+
+    private static string ReplaceSurfaceForms(string text, List<string> tokens, out int hits)
+    {
+        hits = 0;
+        if (string.IsNullOrEmpty(text)) return text;
+        var result = text;
+        foreach (var token in tokens)
+        {
+            // Whole-word, case-insensitive replacement. Escape regex specials in the token.
+            var pattern = "\\b" + System.Text.RegularExpressions.Regex.Escape(token) + "\\b";
+            var matches = System.Text.RegularExpressions.Regex.Matches(result, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (matches.Count == 0) continue;
+            hits += matches.Count;
+            result = System.Text.RegularExpressions.Regex.Replace(result, pattern, "[redacted]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        }
+        return result;
     }
 }
 
