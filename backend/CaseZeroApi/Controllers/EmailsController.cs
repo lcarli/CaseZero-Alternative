@@ -317,7 +317,7 @@ namespace CaseZeroApi.Controllers
                 {
                     emailId = email.Id,
                     from = email.From,
-                    to = email.To,
+                    to = string.Join("; ", email.To ?? new List<string>()),
                     subject = email.Subject,
                     sentAt = email.SentAt,
                     priority = email.Priority,

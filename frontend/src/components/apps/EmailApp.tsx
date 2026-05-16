@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import styled from 'styled-components'
-import type { EmailListDTO, EmailDTO } from '../../services/api'
+import type { EmailDTO } from '../../services/api'
 import { emailsApi } from '../../services/api'
+import type { Email } from '../../types/caseV2'
 
 const EmailAppContainer = styled.div`
   height: 100%;
@@ -182,7 +183,7 @@ const LoadingMessage = styled.div`
 `
 
 interface EmailAppProps {
-  emails?: EmailListDTO[]
+  emails?: Email[]
   caseId?: string
   onRefetchAssets?: () => void
 }
@@ -190,19 +191,51 @@ interface EmailAppProps {
 const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId, onRefetchAssets }) => {
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null)
   const [openedEmail, setOpenedEmail] = useState<EmailDTO | null>(null)
+  const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [downloadingAttachment, setDownloadingAttachment] = useState<string | null>(null)
 
-  const handleEmailClick = async (emailId: string) => {
+  // Reset transient UI state when switching cases and hydrate read state
+  // from the server so reopening the window preserves prior reads.
+  useEffect(() => {
+    setSelectedEmailId(null)
+    setOpenedEmail(null)
+    setReadIds(new Set())
+
     if (!caseId) return
 
+    let cancelled = false
+    emailsApi.getEmails(caseId)
+      .then(list => {
+        if (cancelled) return
+        const read = new Set<string>()
+        for (const e of list) {
+          if (e.isRead && e.emailId) read.add(e.emailId)
+        }
+        setReadIds(read)
+      })
+      .catch(err => console.warn('Failed to hydrate email read state:', err))
+
+    return () => { cancelled = true }
+  }, [caseId])
+
+  const handleEmailClick = async (emailId: string) => {
+    if (!caseId || !emailId) return
+
     setSelectedEmailId(emailId)
+    setOpenedEmail(null)
     setLoading(true)
 
     try {
       // Task 49: POST /open then GET full email
       const fullEmail = await emailsApi.openEmail(caseId, emailId)
       setOpenedEmail(fullEmail)
+      setReadIds(prev => {
+        if (prev.has(emailId)) return prev
+        const next = new Set(prev)
+        next.add(emailId)
+        return next
+      })
     } catch (error) {
       console.error('Failed to open email:', error)
     } finally {
@@ -260,23 +293,27 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId, onRefetchAsset
                 No emails available
               </div>
             ) : (
-              emails.map(email => (
-                <EmailItem
-                  key={email.emailId}
-                  $isRead={email.isRead}
-                  $isSelected={selectedEmailId === email.emailId}
-                  onClick={() => handleEmailClick(email.emailId)}
-                >
-                  <EmailHeader>
-                    <EmailFrom $isRead={email.isRead}>{email.from}</EmailFrom>
-                    <EmailTime>{formatTimestamp(email.sentAt)}</EmailTime>
-                  </EmailHeader>
-                  <EmailSubject $isRead={email.isRead}>
-                    {email.hasAttachments && '📎 '}
-                    {email.subject}
-                  </EmailSubject>
-                </EmailItem>
-              ))
+              emails.map(email => {
+                const isRead = readIds.has(email.id)
+                const hasAttachments = !!email.attachments && email.attachments.length > 0
+                return (
+                  <EmailItem
+                    key={email.id}
+                    $isRead={isRead}
+                    $isSelected={selectedEmailId === email.id}
+                    onClick={() => handleEmailClick(email.id)}
+                  >
+                    <EmailHeader>
+                      <EmailFrom $isRead={isRead}>{email.from}</EmailFrom>
+                      <EmailTime>{formatTimestamp(email.sentAt)}</EmailTime>
+                    </EmailHeader>
+                    <EmailSubject $isRead={isRead}>
+                      {hasAttachments && '📎 '}
+                      {email.subject}
+                    </EmailSubject>
+                  </EmailItem>
+                )
+              })
             )}
           </EmailList>
         </LeftPanel>
@@ -293,10 +330,12 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId, onRefetchAsset
                   <MetadataLabel>From:</MetadataLabel>
                   <MetadataValue>{openedEmail.from}</MetadataValue>
                 </MetadataRow>
-                <MetadataRow>
-                  <MetadataLabel>To:</MetadataLabel>
-                  <MetadataValue>{openedEmail.to}</MetadataValue>
-                </MetadataRow>
+                  <MetadataRow>
+                    <MetadataLabel>To:</MetadataLabel>
+                    <MetadataValue>
+                      {Array.isArray(openedEmail.to) ? openedEmail.to.join('; ') : openedEmail.to}
+                    </MetadataValue>
+                  </MetadataRow>
                 <MetadataRow>
                   <MetadataLabel>Date:</MetadataLabel>
                   <MetadataValue>{new Date(openedEmail.sentAt).toLocaleString()}</MetadataValue>

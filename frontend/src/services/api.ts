@@ -662,7 +662,7 @@ export const assetsApi = {
 export interface EmailDTO {
   emailId: string
   from: string
-  to: string
+  to: string | string[]
   subject: string
   content: string
   sentAt: string
