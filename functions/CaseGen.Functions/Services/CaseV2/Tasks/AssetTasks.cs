@@ -94,7 +94,17 @@ public class AssetCardTask
         var (bodyGuidance, mustHaveBodyDoc) = stub.Type switch
         {
             "pdf" or "document" =>
-                ("Set `bodyDoc` to a structured EvidenceDocument (see schema in this prompt). Pick a `layout` that fits — `PoliceReport`, `InterviewTranscript`, `WitnessStatement`, `Memo`, `ForensicReport`, `EvidenceLog` or `GeneralReport`. Use `narrative` for prose, `transcript` for Q/A interrogations, `keyValue` for header-style facts (date, location, officer), `table` for any tabulated data, `callout` for highlighted notes. Anchor every date/time to the case timeline (incidentDate / openedAt).", true),
+                ("Set `bodyDoc` to a structured EvidenceDocument (see schema in this prompt). PICK a `layout` from the family below based on what the asset represents (be precise — the renderer styles each family differently):\n" +
+                 "  · `PoliceReport`        — initial / supplemental police reports, first-responder narratives (brasão letterhead, §1/§2 numbered sections).\n" +
+                 "  · `WitnessStatement`    — sworn statements taken from a witness (STATEMENT OF block, oath, double signature).\n" +
+                 "  · `InterviewTranscript` — interviews / interrogations. Use a `transcript` section.\n" +
+                 "  · `ForensicReport`      — lab examination reports (CCTV correlation, video enhancement, fingerprint analysis, ballistics, DNA, toxicology). Use sections Items Submitted / Methodology / Findings / Conclusions / Limitations.\n" +
+                 "  · `MedicalReport`       — preliminary ME reports, autopsy summaries, urgent-care visit records. Sections History / External Examination / Findings / Cause / Disposition.\n" +
+                 "  · `EvidenceLog`         — evidence log / chain of custody. ALWAYS include a `table` with columns Item, Description, Collected By, Time, Location, Container, Seal.\n" +
+                 "  · `Memo`                — internal memorandums, records preservation holds, tasking memos, admin summaries, compliance briefs. Header[] MUST include TO, FROM, DATE, RE.\n" +
+                 "  · `CustodyForm`         — key-control sign-out, cash count, drop-safe audit, case briefing. Header[] has the form fields. Include a signatures section.\n" +
+                 "  · `GeneralReport`       — only if NONE of the above apply.\n" +
+                 "Use `narrative` for prose, `transcript` for Q/A, `keyValue` for header-style facts (date, location, officer), `table` for tabulated data, `callout` for highlighted notes. Anchor every date/time to the case timeline (incidentDate / openedAt).", true),
             "photo" =>
                 ("Set `body` to a vivid image prompt that an image model can render (lighting, composition, framing, mood, visible details). Leave `bodyDoc` null.", false),
             "audio" =>

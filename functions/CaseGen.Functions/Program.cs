@@ -6,6 +6,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Azure.Functions.Worker.Builder;
 using CaseGen.Functions.Services;
 using CaseGen.Functions.Services.CaseV2;
+using CaseGen.Functions.Services.CaseV2.Rendering;
+using CaseGen.Functions.Services.CaseV2.Rendering.Layouts;
 using CaseGen.Functions.Services.CaseV2.Templates;
 
 
@@ -26,6 +28,20 @@ builder.Services
     .AddScoped<ICaseV2GeneratorService, CaseV2GeneratorService>()
     .AddScoped<IAssetRenderingService, AssetRenderingService>()
     .AddScoped<IEvidenceDocumentRenderer, EvidenceDocumentRenderer>()
+    // Document layouts — one per evidence-document chrome family. Each
+    // layout owns its header/footer/section-heading style; shared section
+    // payload rendering (narrative/table/keyValue/transcript/code/callout)
+    // lives in DocumentBlocks so adding a new family means adding ONE file.
+    .AddScoped<IDocumentLayout, GeneralReportLayout>()
+    .AddScoped<IDocumentLayout, PoliceReportLayout>()
+    .AddScoped<IDocumentLayout, WitnessStatementLayout>()
+    .AddScoped<IDocumentLayout, InterviewTranscriptLayout>()
+    .AddScoped<IDocumentLayout, ForensicReportLayout>()
+    .AddScoped<IDocumentLayout, MedicalReportLayout>()
+    .AddScoped<IDocumentLayout, EvidenceLogLayout>()
+    .AddScoped<IDocumentLayout, MemoLayout>()
+    .AddScoped<IDocumentLayout, CustodyFormLayout>()
+    .AddScoped<IDocumentLayoutRegistry, DocumentLayoutRegistry>()
     .AddScoped<MechanicalRulesBuilder>()
     .AddScoped<IConsistencyValidator, ConsistencyValidator>()
     .AddScoped<ICaseV2BlobPublisher, CaseV2BlobPublisher>()

@@ -38,5 +38,7 @@
       <Link>assets\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <EmbeddedResource Include="Resources\Fonts\*.ttf" />
+    <EmbeddedResource Include="Resources\Images\*.png" />
   </ItemGroup>
 </Project>
