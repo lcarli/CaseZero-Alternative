@@ -1,5 +1,7 @@
 using System.Reflection;
+using QuestPDF;
 using QuestPDF.Drawing;
+using QuestPDF.Infrastructure;
 
 namespace CaseGen.Functions.Services.CaseV2.Rendering;
 
@@ -29,6 +31,13 @@ public static class DocumentResources
         lock (_lock)
         {
             if (_initialized) return;
+
+            // QuestPDF refuses to render until a license is declared. Setting
+            // it here means every code path that ends up rendering an
+            // EvidenceDocument is covered, including unit tests that instantiate
+            // EvidenceDocumentRenderer directly (which would otherwise miss the
+            // PdfRenderingService constructor that historically set this).
+            Settings.License = LicenseType.Community;
 
             var asm = Assembly.GetExecutingAssembly();
             foreach (var name in asm.GetManifestResourceNames())
