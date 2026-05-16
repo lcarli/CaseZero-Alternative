@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import styled from 'styled-components'
 import type { EmailDTO } from '../../services/api'
 import { emailsApi } from '../../services/api'
 import type { Email } from '../../types/caseV2'
+import { useCase, useAssets } from '../../contexts/CaseContext'
 
 const EmailAppContainer = styled.div`
   height: 100%;
@@ -185,15 +186,26 @@ const LoadingMessage = styled.div`
 interface EmailAppProps {
   emails?: Email[]
   caseId?: string
-  onRefetchAssets?: () => void
 }
 
-const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId, onRefetchAssets }) => {
+const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId }) => {
+  const { refreshCase } = useCase()
+  const visibleAssets = useAssets()
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null)
   const [openedEmail, setOpenedEmail] = useState<EmailDTO | null>(null)
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [downloadingAttachment, setDownloadingAttachment] = useState<string | null>(null)
+
+  // Index visible assets so we can mark attachments that are already
+  // available in the FileViewer and show their real display name.
+  const assetIndex = useMemo(() => {
+    const map = new Map<string, { name: string }>()
+    for (const a of visibleAssets) {
+      map.set(a.id, { name: a.title || a.id })
+    }
+    return map
+  }, [visibleAssets])
 
   // Reset transient UI state when switching cases and hydrate read state
   // from the server so reopening the window preserves prior reads.
@@ -250,12 +262,17 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId, onRefetchAsset
 
     try {
       // Task 50: POST /emails/{emailId}/attachments/{assetId}/download
+      // Backend records the download, unlocks the asset for this session
+      // (CaseSessionVisibleAssets), and streams the blob — we only care about
+      // the unlock side-effect here so the asset shows up in FileViewer.
       await emailsApi.downloadAttachment(caseId, openedEmail.emailId, assetId)
-      
-      // Refetch assets to update FileViewer
-      if (onRefetchAssets) {
-        onRefetchAssets()
-      }
+
+      // Refetch the sanitized case so the freshly unlocked attachment asset
+      // (which may have been 'hidden' in case.json) shows up in visibleAssets
+      // and therefore in the FileViewer. applyReveal can't be used here
+      // because hidden assets aren't present in state.case.assets until the
+      // sanitizer sees them in CaseSessionVisibleAssets.
+      await refreshCase()
 
       console.log(`✅ Attachment ${assetId} downloaded successfully`)
     } catch (error) {
@@ -350,17 +367,35 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId, onRefetchAsset
                     📎 Attachments ({openedEmail.attachments.length})
                   </h5>
                   <AttachmentsList>
-                    {openedEmail.attachments.map((assetId, index) => (
-                      <AttachmentItem key={assetId}>
-                        <AttachmentName>Attachment_{index + 1} (ID: {assetId})</AttachmentName>
-                        <DownloadButton
-                          onClick={() => handleDownloadAttachment(assetId)}
-                          disabled={downloadingAttachment === assetId}
-                        >
-                          {downloadingAttachment === assetId ? 'Downloading...' : 'Download'}
-                        </DownloadButton>
-                      </AttachmentItem>
-                    ))}
+                    {openedEmail.attachments.map((assetId, index) => {
+                      const known = assetIndex.get(assetId)
+                      const isDownloaded = !!known
+                      const displayName = known?.name || `Attachment_${index + 1}`
+                      return (
+                        <AttachmentItem key={assetId}>
+                          <AttachmentName>
+                            {isDownloaded && '✓ '}
+                            {displayName}
+                            {!isDownloaded && (
+                              <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: 11, marginLeft: 6 }}>
+                                (ID: {assetId})
+                              </span>
+                            )}
+                          </AttachmentName>
+                          <DownloadButton
+                            onClick={() => handleDownloadAttachment(assetId)}
+                            disabled={downloadingAttachment === assetId || isDownloaded}
+                            title={isDownloaded ? 'Already available in Files' : 'Download to Files'}
+                          >
+                            {downloadingAttachment === assetId
+                              ? 'Downloading...'
+                              : isDownloaded
+                                ? 'In Files'
+                                : 'Download'}
+                          </DownloadButton>
+                        </AttachmentItem>
+                      )
+                    })}
                   </AttachmentsList>
                 </AttachmentsSection>
               )}
