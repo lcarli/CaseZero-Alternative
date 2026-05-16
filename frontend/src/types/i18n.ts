@@ -437,6 +437,8 @@ export interface Translations {
   submitCaseSuspectLabel: string;
   submitCaseEvidenceLabel: string;
   submitCaseAnalysisLabel: string;
+  submitCaseAnalysisLoading: string;
+  submitCaseAnalysisEmpty: string;
   submitCaseQuestionsHeader: string;
   submitCaseSubmitButton: string;
   submitCaseAttemptsRemaining: string;
@@ -449,6 +451,14 @@ export interface Translations {
   submitCaseBreakdownAnalysis: string;
   submitCaseBreakdownQuestions: string;
   submitCaseExplanationHeader: string;
+  submitCaseProgressTitle: string;
+  submitCaseProgressSuspect: string;
+  submitCaseProgressEvidence: string;
+  submitCaseProgressAnalysis: string;
+  submitCaseProgressQuestions: string;
+  submitCaseProgressReady: string;
+  submitCaseProgressMissingSuspect: string;
+  submitCaseProgressMissingQuestions: string;
 
   // Dashboard V2
   dashboardRequiredRank: string;

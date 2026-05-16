@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import styled from 'styled-components'
 import { useCase, useAssets, useSuspects, useSubmission } from '../../contexts/CaseContext'
 import { useLanguage } from '../../hooks/useLanguageContext'
+import { forensicRequestApi, type ForensicRequestDTO } from '../../services/api'
 import type { SubmitCaseRequest } from '../../types/caseV2'
 
 const Container = styled.div`
@@ -70,16 +71,62 @@ const Select = styled.select`
   }
 `
 
-const TextArea = styled.textarea`
-  padding: 0.6rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+const ProgressGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.4rem;
+`
+
+const ProgressChip = styled.div<{ $state: 'ok' | 'partial' | 'missing' }>`
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
   border-radius: 4px;
-  color: white;
-  font-size: 13px;
-  min-height: 80px;
-  resize: vertical;
-  font-family: inherit;
+  font-size: 12px;
+  background: ${p =>
+    p.$state === 'ok'
+      ? 'rgba(46, 213, 115, 0.10)'
+      : p.$state === 'partial'
+        ? 'rgba(255, 193, 7, 0.10)'
+        : 'rgba(255, 71, 87, 0.08)'};
+  border: 1px solid ${p =>
+    p.$state === 'ok'
+      ? 'rgba(46, 213, 115, 0.4)'
+      : p.$state === 'partial'
+        ? 'rgba(255, 193, 7, 0.4)'
+        : 'rgba(255, 71, 87, 0.4)'};
+  color: ${p =>
+    p.$state === 'ok'
+      ? '#2ed573'
+      : p.$state === 'partial'
+        ? '#ffc107'
+        : '#ff6b81'};
+`
+
+const ProgressHint = styled.div<{ $state: 'ok' | 'partial' | 'missing' }>`
+  font-size: 12px;
+  color: ${p => (p.$state === 'ok' ? 'rgba(46, 213, 115, 0.9)' : 'rgba(255, 193, 7, 0.9)')};
+`
+
+const CategoryBadge = styled.span`
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  background: rgba(74, 158, 255, 0.18);
+  color: #6ab8ff;
+  margin-left: 0.5rem;
+`
+
+const EmptyAnalyses = styled.div`
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
 `
 
 const CheckboxGrid = styled.div`
@@ -203,6 +250,7 @@ const SubmitCase: React.FC = () => {
   const suspects = useSuspects()
   const submission = useSubmission()
 
+  const caseId = state.case?.caseId
   const questions = useMemo(() => state.case?.solution.questions ?? [], [state.case])
   const attemptsRemaining = submission.maxAttempts - submission.attemptsUsed
   const lastResult = submission.lastResult
@@ -210,12 +258,55 @@ const SubmitCase: React.FC = () => {
 
   const [suspectId, setSuspectId] = useState<string>('')
   const [evidenceIds, setEvidenceIds] = useState<string[]>([])
-  const [analysisText, setAnalysisText] = useState<string>('')
+  const [selectedAnalysisIds, setSelectedAnalysisIds] = useState<string[]>([])
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
+  const [completedAnalyses, setCompletedAnalyses] = useState<ForensicRequestDTO[] | null>(null)
+  const [loadingAnalyses, setLoadingAnalyses] = useState(false)
+
+  // Sort assets: forensic results / analysis reports first, then originals.
+  // The category names emitted by the backend vary by case template (and by language),
+  // so detect "forensic" with a loose case-insensitive match instead of a fixed list.
+  const sortedAssets = useMemo(() => {
+    const isForensic = (cat?: string) => !!cat && /forensic|peric|forense|médico|legal/i.test(cat)
+    return [...assets].sort((a, b) => {
+      const ar = isForensic(a.category) ? 0 : 1
+      const br = isForensic(b.category) ? 0 : 1
+      if (ar !== br) return ar - br
+      return a.title.localeCompare(b.title)
+    })
+  }, [assets])
+
+  useEffect(() => {
+    if (!caseId) return
+    let cancelled = false
+    setLoadingAnalyses(true)
+    forensicRequestApi
+      .getForensicRequests(caseId)
+      .then(list => {
+        if (cancelled) return
+        setCompletedAnalyses(list.filter(r => r.status === 'completed'))
+      })
+      .catch(err => {
+        if (cancelled) return
+        console.error('Failed to load forensic requests:', err)
+        setCompletedAnalyses([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAnalyses(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [caseId])
+
   const toggleEvidence = (id: string) => {
     setEvidenceIds(prev => (prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]))
+  }
+
+  const toggleAnalysis = (id: string) => {
+    setSelectedAnalysisIds(prev => (prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]))
   }
 
   const handleAnswerChange = (questionId: string, optionId: string) => {
@@ -229,10 +320,7 @@ const SubmitCase: React.FC = () => {
     const payload: SubmitCaseRequest = {
       suspectId,
       evidenceIds,
-      analysisIds: analysisText
-        .split(/[\n,]/)
-        .map(s => s.trim())
-        .filter(Boolean),
+      analysisIds: selectedAnalysisIds,
       answers: questions.map(q => ({
         questionId: q.id,
         optionId: answers[q.id] || '',
@@ -253,12 +341,63 @@ const SubmitCase: React.FC = () => {
     ? t('submitCaseAttemptsExhausted')
     : t('submitCaseAttemptsRemaining').replace('{n}', String(attemptsRemaining))
 
+  // Progress state (advisory only — submit stays enabled as long as suspect is set,
+  // because the backend permits partial submissions and just gives 0 on missing buckets).
+  const answeredCount = questions.filter(q => !!answers[q.id]).length
+  const suspectState: 'ok' | 'missing' = suspectId ? 'ok' : 'missing'
+  const evidenceState: 'ok' | 'partial' = evidenceIds.length > 0 ? 'ok' : 'partial'
+  const analysisState: 'ok' | 'partial' = selectedAnalysisIds.length > 0 ? 'ok' : 'partial'
+  const questionsState: 'ok' | 'partial' | 'missing' =
+    questions.length === 0
+      ? 'ok'
+      : answeredCount === questions.length
+        ? 'ok'
+        : answeredCount === 0
+          ? 'missing'
+          : 'partial'
+
+  const allReady =
+    suspectState === 'ok' &&
+    evidenceState === 'ok' &&
+    analysisState === 'ok' &&
+    questionsState === 'ok'
+
   return (
     <Container>
       <Header>
         <HeaderTitle>⚖️ {t('submitCaseTitle')}</HeaderTitle>
         <HeaderSubtitle>{attemptsLabel}</HeaderSubtitle>
       </Header>
+
+      <Section>
+        <SectionTitle>{t('submitCaseProgressTitle')}</SectionTitle>
+        <ProgressGrid>
+          <ProgressChip $state={suspectState}>
+            {suspectState === 'ok' ? '✓' : '○'} {t('submitCaseProgressSuspect')}
+          </ProgressChip>
+          <ProgressChip $state={evidenceState}>
+            {evidenceState === 'ok' ? '✓' : '○'}{' '}
+            {t('submitCaseProgressEvidence').replace('{n}', String(evidenceIds.length))}
+          </ProgressChip>
+          <ProgressChip $state={analysisState}>
+            {analysisState === 'ok' ? '✓' : '○'}{' '}
+            {t('submitCaseProgressAnalysis').replace('{n}', String(selectedAnalysisIds.length))}
+          </ProgressChip>
+          <ProgressChip $state={questionsState}>
+            {questionsState === 'ok' ? '✓' : '○'}{' '}
+            {t('submitCaseProgressQuestions')
+              .replace('{a}', String(answeredCount))
+              .replace('{b}', String(questions.length))}
+          </ProgressChip>
+        </ProgressGrid>
+        {allReady ? (
+          <ProgressHint $state="ok">✓ {t('submitCaseProgressReady')}</ProgressHint>
+        ) : suspectState === 'missing' ? (
+          <ProgressHint $state="missing">{t('submitCaseProgressMissingSuspect')}</ProgressHint>
+        ) : questionsState !== 'ok' && questions.length > 0 ? (
+          <ProgressHint $state="partial">{t('submitCaseProgressMissingQuestions')}</ProgressHint>
+        ) : null}
+      </Section>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <Section>
@@ -280,7 +419,7 @@ const SubmitCase: React.FC = () => {
         <Section>
           <SectionTitle>{t('submitCaseEvidenceLabel')}</SectionTitle>
           <CheckboxGrid>
-            {assets.map(asset => (
+            {sortedAssets.map(asset => (
               <CheckboxItem key={asset.id}>
                 <input
                   type="checkbox"
@@ -288,7 +427,10 @@ const SubmitCase: React.FC = () => {
                   onChange={() => toggleEvidence(asset.id)}
                   disabled={isExhausted}
                 />
-                <span>{asset.title}</span>
+                <span>
+                  {asset.title}
+                  {asset.category && <CategoryBadge>{asset.category}</CategoryBadge>}
+                </span>
               </CheckboxItem>
             ))}
           </CheckboxGrid>
@@ -296,12 +438,31 @@ const SubmitCase: React.FC = () => {
 
         <Section>
           <SectionTitle>{t('submitCaseAnalysisLabel')}</SectionTitle>
-          <TextArea
-            placeholder="asset.id:AnalysisType (one per line or comma-separated)"
-            value={analysisText}
-            onChange={e => setAnalysisText(e.target.value)}
-            disabled={isExhausted}
-          />
+          {loadingAnalyses ? (
+            <EmptyAnalyses>{t('submitCaseAnalysisLoading')}</EmptyAnalyses>
+          ) : completedAnalyses && completedAnalyses.length > 0 ? (
+            <CheckboxGrid>
+              {completedAnalyses.map(req => {
+                const analysisId = `${req.inputAssetId}:${req.analysisType}`
+                const label = req.inputAssetName
+                  ? `${req.inputAssetName} — ${req.analysisType}`
+                  : analysisId
+                return (
+                  <CheckboxItem key={analysisId}>
+                    <input
+                      type="checkbox"
+                      checked={selectedAnalysisIds.includes(analysisId)}
+                      onChange={() => toggleAnalysis(analysisId)}
+                      disabled={isExhausted}
+                    />
+                    <span>{label}</span>
+                  </CheckboxItem>
+                )
+              })}
+            </CheckboxGrid>
+          ) : (
+            <EmptyAnalyses>{t('submitCaseAnalysisEmpty')}</EmptyAnalyses>
+          )}
         </Section>
 
         {questions.length > 0 && (
