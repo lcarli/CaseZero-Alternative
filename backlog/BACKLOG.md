@@ -41,32 +41,79 @@ que o renderer de imagens não está produzindo output em produção.
 3. Frontend deveria também tratar 404 de asset com graceful fallback
    (mostrar "asset indisponível" em vez de só logar erro silencioso).
 
----
+#### Mitigação 2026-05-16 — secret apontado para `gpt-image-1.5`
 
-### TASK 8 — Frontend envia `undefined` como emailId ao abrir email
+Secret `azure-foundry-image-deployment-name` no KV `kv-ca-dev-oeq4agkmf6k4k`
+trocado de `gpt-image-2` para `gpt-image-1.5` (quota=9, vs 2 do anterior).
+Validação:
 
-Descoberto na TASK 4. Bug puro de frontend.
+- Probe local (SDK 2.2.0-beta.4, mesmo `ImageClient` do
+  `AzureFoundryLLMProvider`): **OK em 36s, PNG válido 2MB**.
+- Geração end-to-end em prod após restart da FA (job
+  `casev2-20260516100534-1f3832`, case `case_20260516_100535`):
+  `AssetsRenderedImages: 3 / AssetsRenderedPdfs: 7 / BlobsPublished: 12 /
+  HasErrors: false`. Bundle no blob com 3 PNGs reais (`archive_room_scene.png`,
+  `ledger_shelf_gap.png`, `archive_lock_cylinder_closeup.png` — ~2MB cada).
 
-**Sintoma no DOM:**
+Isso resolve o sintoma imediato de "imagens não aparecem". As tarefas
+estruturais (1) throttle de concurrency, (2) fail-fast no publisher, (3)
+graceful 404 no frontend permanecem em aberto — sem PTU folgado isso volta a
+quebrar quando a quota baixar ou o caso pedir mais que 9 imagens simultâneas.
 
-```
-GET /api/cases/case_20260515_193838/emails/undefined/open => 400
-```
+#### Investigação 2026-05-16 — diagnóstico raiz
 
-O `case.json` tem emails com `id=email.briefing`, `id=email.devin_initial_statement`
-etc. O frontend está lendo um campo errado do objeto de email (talvez
-`email.id` quando o DTO usa `emailId` ou vice-versa após algum refactor)
-e mandando a string literal `undefined` na URL.
+Reproduzi localmente (Windows ARM64) com Functions host + Azurite, bypassando
+QuestPDF via `tools/image-probe/` (raw HTTP/SDK contra `gpt-image-2`).
+Findings:
 
-**Tarefa:**
+1. **Deployment health**: chat (`gpt-5.2`) responde em 2.3s; **endpoint do
+   image deployment funciona**, mas a geração de imagem com `quality=auto`
+   (default da API) demora **> 90s e frequentemente > 3 min** por request.
+   Com `quality=low` o mesmo prompt retorna **PNG válido em 48s**
+   (1.8MB, magic bytes corretos).
 
-1. Localizar em `frontend/src/components/Desktop.tsx` (ou similar) o
-   chamador de `emailsApi.openEmail(...)`.
-2. Verificar que o objeto recebido do `GET /api/cases/{caseId}/emails`
-   tem o campo esperado.
-3. Corrigir a leitura do id no frontend OU expor o campo correto no DTO
-   do backend para alinhar.
-4. Smoke test: abrir cada email do caso `case_20260515_193838` no SWA dev.
+2. **Saturação de PTU**: quota `OpenAI.GlobalStandard.gpt-image-2 = 2/2 Count`
+   na subscription (account `lramo-mf2ik22e-swedencentral`, RG `ai-agents`).
+   `gpt-image-1.5` tem 9 disponíveis sem uso; `gpt-image-1`, 3.
+   PTU=2 → no máximo ~2 requests simultâneas; o resto enfileira ou rate-limita.
+
+3. **Cliente fire-all-at-once**: `AssetRenderingService.RenderAllAsync`
+   (`functions/CaseGen.Functions/Services/CaseV2/AssetRenderingService.cs:79,97`)
+   adiciona todas as imagens em `imageTasks` e dispara `Task.WhenAll`.
+   Caso de 9 assets → ~5 imagens em paralelo (3 PDFs já feitos) → satura
+   PTU + estoura janela útil → maioria falha silenciosamente.
+
+4. **Erros engolidos**: `RenderImageAsync` (linha 159-164) cataloga falhas em
+   `report.Errors` e segue. O publisher publica o `case.json` mesmo com
+   `ImagesWritten == 0`, gerando o cenário observado em prod
+   (`case_20260515_193838`: 6 PDFs + 0 PNGs + 1 sidecar mp3).
+
+5. **SDK 2.2.0-beta.4**: `ImageGenerationOptions.Quality` aceita
+   `GeneratedImageQuality.Standard | High` (no `Low` exposto). Para usar
+   `quality=low` precisaríamos `BinaryContent` raw ou subir SDK. Hoje o
+   código nem seta `Quality` → default `auto` (lento).
+
+6. **NetworkTimeout no SDK** já está em 10 min
+   (`AzureFoundryLLMProvider.cs:40`). `functionTimeout=01:00:00` no
+   `host.json`. Não há gargalo de timeout do lado do cliente; o problema é
+   o tempo + saturação real.
+
+**Fix proposto (próximo PR):**
+
+- `AzureFoundryLLMProvider.GenerateImageAsync`: setar
+  `Quality = GeneratedImageQuality.Standard` (ou usar raw HTTP com
+  `quality=low` para deployments `gpt-image-*` enquanto SDK não expõe).
+  Adicionar retry-with-backoff e tratamento de `ClientResultException` 429
+  lendo `Retry-After`.
+- `AssetRenderingService`: trocar `Task.WhenAll(imageTasks)` por loop com
+  `SemaphoreSlim` (concurrency configurável, default = 2 = quota PTU).
+- `CaseV2GeneratorService` + publisher: fail-fast se
+  `report.ImagesWritten + report.Skipped < expectedImageAssets`. Marcar job
+  como `failed` com lista de assets faltantes em vez de publicar parcial.
+- Frontend `FileViewer`/`Desktop`: graceful 404 ("asset indisponível
+  temporariamente"), permitir re-tentar download depois.
+- (Opcional, infra) Aumentar quota PTU do `gpt-image-2` para 8+ ou
+  migrar deployment para `gpt-image-1.5` (quota 9 disponível, sem fila).
 
 ---
 
