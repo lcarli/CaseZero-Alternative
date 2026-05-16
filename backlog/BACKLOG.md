@@ -6,6 +6,110 @@
 
 ## 🔥 Em aberto
 
+### TASK 6 — CORS não inclui origin do SWA (SignalR + qualquer request com `credentials: include` quebra)
+
+Descoberto após a TASK 4 (dashboard de cases agora funciona, então a sessão
+do jogo chega no ponto de abrir o hub do SignalR). Bug pré-existente
+exposto, não introduzido.
+
+**Sintoma no DOM (em `https://gentle-ground-03dca4110.3.azurestaticapps.net`):**
+
+```
+Access to fetch at 'https://casezero-api-dev.azurewebsites.net/hubs/forensics/negotiate?negotiateVersion=1'
+from origin 'https://gentle-ground-03dca4110.3.azurestaticapps.net' has been blocked by CORS policy:
+Response to preflight request doesn't pass access control check:
+The value of the 'Access-Control-Allow-Origin' header in the response must not be the wildcard '*'
+when the request's credentials mode is 'include'.
+```
+
+**Causa:** `backend/CaseZeroApi/Program.cs:121` registra apenas
+`policy.WithOrigins("http://localhost:5173")`. Em produção alguém
+configurou CORS no portal do App Service com `*`, que é incompatível
+com `credentials: include` (regra fundamental do CORS). SignalR usa
+`credentials: include` sempre.
+
+**Tarefa:**
+
+1. Em `Program.cs`, ler a lista de origens permitidas de configuração
+   (ex.: `Cors:AllowedOrigins` como array no `appsettings.json` + override
+   por env var) em vez de hard-coded localhost.
+2. Acrescentar a origin do SWA dev (`https://gentle-ground-03dca4110.3.azurestaticapps.net`)
+   e a origin de produção quando existir.
+3. Adicionar a setting no Bicep (`infrastructure/api/main.bicep`) — algo
+   como `Cors__AllowedOrigins__0`, `Cors__AllowedOrigins__1`, etc.
+4. Limpar o CORS de nível App Service no portal (ou via
+   `az resource update --resource-type Microsoft.Web/sites/config
+   --name web --set properties.cors.allowedOrigins='[]'`) para que o
+   middleware da app seja a única autoridade.
+5. Validar SignalR (`/hubs/forensics/negotiate`) + qualquer outro fetch
+   com cookies/auth do frontend.
+
+---
+
+### TASK 7 — Geração de caso declara assets que não foram renderizados (PNG/MP3 faltando no blob)
+
+Descoberto na TASK 4. Caso `case_20260515_193838` tem 9 assets declarados
+no `case.json` (em `bundles/case_20260515_193838/case.json`), mas o blob
+storage só tem 6 PDFs + 1 placeholder `.mp3.txt`. Faltam todos os PNGs
+e o MP3 real.
+
+**Sintoma no DOM:**
+
+```
+GET /api/cases/case_20260515_193838/assets/asset.archive_room_lock_photo/download
+=> 404 Asset file not found
+```
+
+(O endpoint retorna 404 corretamente — o `case.json` declara
+`uri=case://case_20260515_193838/assets/archive_room_lock_photo.png`
+mas o arquivo não está em `bundles/case_20260515_193838/assets/`.)
+
+**Causa provável:** o pipeline de geração de CaseGen.Functions completa
+com `validation_errors > 0` e ainda assim publica o `case.json`
+incompleto no `bundles/`. O painel de geração já mostrava
+`PDFs rendered 0 / Images rendered 0` em uma das execuções — confirma
+que o renderer de imagens não está produzindo output em produção.
+
+**Tarefa:**
+
+1. Investigar por que o ImageRendererService não está produzindo PNGs
+   em produção (Azure Foundry image deployment? falta de modelo?
+   credenciais? quota?). Comparar com o que está nos logs da FA.
+2. Fail-fast: se o número de assets renderizados for menor que o
+   declarado, a etapa de publicação no `bundles/` deveria abortar
+   ou marcar o caso como `incomplete` em vez de publicar parcialmente.
+3. Frontend deveria também tratar 404 de asset com graceful fallback
+   (mostrar "asset indisponível" em vez de só logar erro silencioso).
+
+---
+
+### TASK 8 — Frontend envia `undefined` como emailId ao abrir email
+
+Descoberto na TASK 4. Bug puro de frontend.
+
+**Sintoma no DOM:**
+
+```
+GET /api/cases/case_20260515_193838/emails/undefined/open => 400
+```
+
+O `case.json` tem emails com `id=email.briefing`, `id=email.devin_initial_statement`
+etc. O frontend está lendo um campo errado do objeto de email (talvez
+`email.id` quando o DTO usa `emailId` ou vice-versa após algum refactor)
+e mandando a string literal `undefined` na URL.
+
+**Tarefa:**
+
+1. Localizar em `frontend/src/components/Desktop.tsx` (ou similar) o
+   chamador de `emailsApi.openEmail(...)`.
+2. Verificar que o objeto recebido do `GET /api/cases/{caseId}/emails`
+   tem o campo esperado.
+3. Corrigir a leitura do id no frontend OU expor o campo correto no DTO
+   do backend para alinhar.
+4. Smoke test: abrir cada email do caso `case_20260515_193838` no SWA dev.
+
+---
+
 ### TASK 5 — Migrar `AzureWebJobsStorage` da Function App para Managed Identity completo
 
 Descoberto durante a TASK 4 (rubber-duck review). O Bicep da Function App em
