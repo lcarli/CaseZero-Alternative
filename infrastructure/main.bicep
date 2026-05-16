@@ -133,7 +133,14 @@ module apiInfrastructure 'api/main.bicep' = {
     keyVaultId: sharedInfrastructure.outputs.keyVaultId
     appInsightsConnectionString: enableMonitoring ? sharedInfrastructure.outputs.connectionString : ''
     appInsightsInstrumentationKey: enableMonitoring ? sharedInfrastructure.outputs.instrumentationKey : ''
-    corsAllowedOrigins: ['*'] // Update with specific origins in production
+    // corsAllowedOrigins intentionally not set here — the api/main.bicep default
+    // covers localhost dev. The deployed frontend origin (Static Web App auto
+    // hostname) is not known at this point in the deployment (api deploys
+    // before frontend to avoid a circular dependency on backendApiUrl), so it
+    // must be added post-provision via:
+    //   az webapp config appsettings set -n <api> -g <rg> \
+    //       --settings Cors__AllowedOrigins__2=https://<swa-hostname>
+    // Prod: pass corsAllowedOrigins explicitly with the custom domain.
     caseGeneratorFunctionBaseUrl: functionsInfrastructure.outputs.functionAppUrl
     caseGeneratorStorageAccountName: functionsInfrastructure.outputs.storageAccountName
     caseGeneratorStorageAccountId: functionsInfrastructure.outputs.storageAccountId

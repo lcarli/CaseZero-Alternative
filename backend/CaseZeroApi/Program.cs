@@ -114,11 +114,26 @@ builder.Services.AddAuthentication(options =>
 });
 
 // Configure CORS
+//
+// Allowed origins are sourced from configuration (Cors:AllowedOrigins) so the
+// list can grow per-environment without touching code. Defaults cover local
+// dev (Vite on http and https). Production / dev Azure pass the SWA origin
+// via app settings (Cors__AllowedOrigins__0=https://...).
+//
+// IMPORTANT: this middleware MUST be the only CORS authority for the app.
+// Do NOT also configure CORS at the App Service level (siteConfig.cors) —
+// App Service-level CORS doesn't support `credentials: include`, which
+// SignalR requires for /hubs/forensics negotiation.
+var corsAllowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>()
+    ?? new[] { "http://localhost:5173", "https://localhost:5173" };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:5173") // Vite dev server
+        policy.WithOrigins(corsAllowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
