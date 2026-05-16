@@ -250,6 +250,18 @@ const SubmitCase: React.FC = () => {
   const suspects = useSuspects()
   const submission = useSubmission()
 
+  // TEMP DEBUG: prints on every render so we can see what the runtime state looks like
+  // for users who reported an empty suspect dropdown. Remove once root cause is confirmed.
+  if (typeof window !== 'undefined') {
+    console.log('[SubmitCase debug] render', {
+      caseId: state.case?.caseId,
+      suspectsLength: suspects.length,
+      suspectsSample: suspects.slice(0, 2).map(s => ({ id: s.id, name: s.name })),
+      stateCaseSuspectsLength: state.case?.suspects?.length,
+      assetsLength: assets.length,
+    })
+  }
+
   const caseId = state.case?.caseId
   const questions = useMemo(() => state.case?.solution.questions ?? [], [state.case])
   const attemptsRemaining = submission.maxAttempts - submission.attemptsUsed
