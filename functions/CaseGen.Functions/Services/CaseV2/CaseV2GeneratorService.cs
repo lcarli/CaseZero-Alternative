@@ -123,6 +123,13 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             await timelineTask;
             await briefingTask;
             draft.AssetFull = assets.ToList();
+
+            // Propagate the request language onto every structured EvidenceDocument
+            // so the renderer's chrome (classification band, page numbering,
+            // letterhead labels, signature captions) localises correctly.
+            var language = string.IsNullOrWhiteSpace(draft.Request.Language) ? "en-US" : draft.Request.Language!;
+            foreach (var a in draft.AssetFull)
+                if (a.BodyDoc is not null) a.BodyDoc.Language = language;
         });
 
         // === Phase 5: forensics plan (gate)
@@ -141,7 +148,12 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             foreach (var (full, asset, email) in details)
             {
                 draft.ForensicFull.Add(full);
-                if (asset is not null) draft.ResultAssets.Add(asset);
+                if (asset is not null)
+                {
+                    if (asset.BodyDoc is not null)
+                        asset.BodyDoc.Language = string.IsNullOrWhiteSpace(draft.Request.Language) ? "en-US" : draft.Request.Language!;
+                    draft.ResultAssets.Add(asset);
+                }
                 if (email is not null) draft.ResultEmails.Add(email);
             }
         });

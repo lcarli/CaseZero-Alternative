@@ -84,7 +84,7 @@ public class ForensicOutcomeTask
       "type":"object","required":["conclusionText","resultAsset","resultEmail"],
       "properties":{
         "conclusionText":{"type":"string"},
-        "resultAsset":{"type":["object","null"],"properties":{"id":{"type":"string","pattern":"^asset\\.report_[a-z0-9_]+$"},"type":{"type":"string","enum":["pdf","document"]},"title":{"type":"string"},"description":{"type":"string"},"body":{"type":"string"},"visibility":{"type":"string","enum":["hidden"]}}},
+        "resultAsset":{"type":["object","null"],"properties":{"id":{"type":"string","pattern":"^asset\\.report_[a-z0-9_]+$"},"type":{"type":"string","enum":["pdf","document"]},"title":{"type":"string"},"description":{"type":"string"},"body":{"type":"string"},"bodyDoc":{"type":["object","null"]},"visibility":{"type":"string","enum":["hidden"]}}},
         "resultEmail":{"type":["object","null"],"properties":{"id":{"type":"string","pattern":"^email\\.lab_[a-z0-9_]+$"},"from":{"type":"string"},"subject":{"type":"string"},"body":{"type":"string"},"sentAt":{"type":"string"},"visibility":{"type":"string","enum":["hidden"]}}}
       }
     }
@@ -99,7 +99,7 @@ Produce:
 - `resultAsset` (ONLY if `findings == true`): a hidden PDF report (`asset.report_<slug>`). MUST include:
     * `title` — official short report name
     * `description` — 1-2 sentence summary visible in case-file listing
-    * `body` — markdown long-form (8-20 paragraphs) that a PDF renderer will use. Include sections: Chain of Custody, Methodology, Findings, Conclusion. Dates and times MUST align with the case's `incidentDate`/`openedAt`.
+    * `bodyDoc` — STRUCTURED EvidenceDocument with `layout: ""ForensicReport""` (preferred) or `MedicalReport` if it is an autopsy / ME finding. Use sections in this order: Items Submitted (keyValue), Methodology (narrative), Findings (narrative + table if applicable), Conclusions (narrative), Limitations (narrative or callout). Include a `signature` block (Examiner). Anchor all dates/times to `incidentDate`/`openedAt`. Leave `body` as empty string.
 - `resultEmail` (ONLY if `findings == true`): a hidden email from the lab (`email.lab_<slug>`). Body is 3-5 paragraph markdown summarising the report.
 If `findings == false`, set `resultAsset` and `resultEmail` to null.";
         var user = $@"CASE DRAFT (read-only):
