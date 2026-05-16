@@ -87,6 +87,12 @@ vi.mock('../contexts/CaseContext', () => ({
   useSubmission: () => mockSubmissionState,
 }))
 
+vi.mock('../services/api', () => ({
+  forensicRequestApi: {
+    getForensicRequests: vi.fn(async () => [] as unknown[]),
+  },
+}))
+
 vi.mock('../contexts/LanguageContext', () => ({
   useLanguage: () => ({ t: (key: string) => key }),
   LanguageProvider: ({ children }: { children: React.ReactNode }) => children,

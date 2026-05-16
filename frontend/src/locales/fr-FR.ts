@@ -433,6 +433,8 @@ export const frFR: Translations = {
   submitCaseSuspectLabel: 'Suspect principal',
   submitCaseEvidenceLabel: 'Preuves',
   submitCaseAnalysisLabel: 'Analyses médico-légales',
+  submitCaseAnalysisLoading: 'Chargement des analyses terminées…',
+  submitCaseAnalysisEmpty: 'Aucune analyse médico-légale terminée pour le moment. Ouvrez le Laboratoire pour en demander une.',
   submitCaseQuestionsHeader: "Questions d'enquête",
   submitCaseSubmitButton: 'Soumettre le dossier',
   submitCaseAttemptsRemaining: '{n} tentatives restantes',
@@ -445,6 +447,14 @@ export const frFR: Translations = {
   submitCaseBreakdownAnalysis: 'Analyse',
   submitCaseBreakdownQuestions: 'Questions',
   submitCaseExplanationHeader: 'Explication du dossier',
+  submitCaseProgressTitle: 'Liste de contrôle',
+  submitCaseProgressSuspect: 'Suspect',
+  submitCaseProgressEvidence: 'Preuves ({n})',
+  submitCaseProgressAnalysis: 'Analyses ({n})',
+  submitCaseProgressQuestions: 'Questions ({a}/{b})',
+  submitCaseProgressReady: 'Prêt à soumettre',
+  submitCaseProgressMissingSuspect: 'Sélectionnez un suspect principal',
+  submitCaseProgressMissingQuestions: 'Certaines questions restent sans réponse — vous pouvez soumettre, mais ces points seront perdus',
 
   // Dashboard V2
   dashboardRequiredRank: 'Rang requis',

@@ -433,6 +433,8 @@ export const esES: Translations = {
   submitCaseSuspectLabel: 'Sospechoso Principal',
   submitCaseEvidenceLabel: 'Evidencias',
   submitCaseAnalysisLabel: 'Análisis Forenses',
+  submitCaseAnalysisLoading: 'Cargando análisis completados…',
+  submitCaseAnalysisEmpty: 'Aún no hay análisis forenses completados. Abre el Laboratorio Forense para solicitar uno.',
   submitCaseQuestionsHeader: 'Preguntas de Investigación',
   submitCaseSubmitButton: 'Enviar Caso',
   submitCaseAttemptsRemaining: '{n} intentos restantes',
@@ -445,6 +447,14 @@ export const esES: Translations = {
   submitCaseBreakdownAnalysis: 'Análisis',
   submitCaseBreakdownQuestions: 'Preguntas',
   submitCaseExplanationHeader: 'Explicación del Caso',
+  submitCaseProgressTitle: 'Lista de Envío',
+  submitCaseProgressSuspect: 'Sospechoso',
+  submitCaseProgressEvidence: 'Evidencias ({n})',
+  submitCaseProgressAnalysis: 'Análisis ({n})',
+  submitCaseProgressQuestions: 'Preguntas ({a}/{b})',
+  submitCaseProgressReady: 'Listo para enviar',
+  submitCaseProgressMissingSuspect: 'Selecciona un sospechoso principal',
+  submitCaseProgressMissingQuestions: 'Algunas preguntas siguen sin respuesta — aún puedes enviar, pero perderás esos puntos',
 
   // Dashboard V2
   dashboardRequiredRank: 'Rango Requerido',

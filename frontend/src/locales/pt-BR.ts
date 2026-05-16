@@ -433,6 +433,8 @@ export const ptBR: Translations = {
   submitCaseSuspectLabel: 'Suspeito Principal',
   submitCaseEvidenceLabel: 'Evidências',
   submitCaseAnalysisLabel: 'Análises Forenses',
+  submitCaseAnalysisLoading: 'Carregando análises concluídas…',
+  submitCaseAnalysisEmpty: 'Nenhuma análise forense concluída ainda. Abra o Laboratório Forense para solicitar uma.',
   submitCaseQuestionsHeader: 'Perguntas da Investigação',
   submitCaseSubmitButton: 'Submeter Caso',
   submitCaseAttemptsRemaining: '{n} tentativas restantes',
@@ -445,6 +447,14 @@ export const ptBR: Translations = {
   submitCaseBreakdownAnalysis: 'Análise',
   submitCaseBreakdownQuestions: 'Perguntas',
   submitCaseExplanationHeader: 'Explicação do Caso',
+  submitCaseProgressTitle: 'Checklist de Submissão',
+  submitCaseProgressSuspect: 'Suspeito',
+  submitCaseProgressEvidence: 'Evidências ({n})',
+  submitCaseProgressAnalysis: 'Análises ({n})',
+  submitCaseProgressQuestions: 'Perguntas ({a}/{b})',
+  submitCaseProgressReady: 'Pronto para submeter',
+  submitCaseProgressMissingSuspect: 'Selecione um suspeito principal',
+  submitCaseProgressMissingQuestions: 'Algumas perguntas não foram respondidas — você ainda pode submeter, mas perderá esses pontos',
 
   // Dashboard V2
   dashboardRequiredRank: 'Rank Necessário',
