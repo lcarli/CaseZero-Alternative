@@ -29,6 +29,14 @@ para Flex Consumption Linux.
 
 `infrastructure/api/main.bicep` (Web App `casezero-api-dev`):
 - Faltando: `CaseGenerator__FunctionBaseUrl=https://<func-app>.azurewebsites.net`
+- Faltando: `CaseGeneratorStorage__ConnectionString` apontando para a storage
+  account `stcadevcabtlmvw4g`. Sem isso, `CaseV2StorageService` cai pra
+  `UseDevelopmentStorage=true` (Azurite) e a `/api/cases` lista vazio
+  silenciosamente — geração funciona, blobs ficam em `bundles/<caseId>/`,
+  mas o dashboard nunca vê o caso novo.
+- Faltando: `CaseGeneratorStorage__BundlesContainer=bundles` e
+  `CaseGeneratorStorage__CasesContainer=cases` (defaults do código já são
+  `bundles`/`cases` mas vale declarar explicitamente para consistência com a FA).
 
 `infrastructure/README.md`:
 - Ainda documenta `AzureOpenAI__*` em vez de `AzureFoundry__*`.
@@ -61,17 +69,41 @@ Windows local e macOS local sem precisar de app setting em prod.
    - Adicionar app setting `CaseGenerator__FunctionBaseUrl` derivado do
      nome/host da Function App do mesmo deploy (parametrizar ou ler da
      output do módulo de functions).
+   - Adicionar `CaseGeneratorStorage__ConnectionString`,
+     `CaseGeneratorStorage__BundlesContainer=bundles` e
+     `CaseGeneratorStorage__CasesContainer=cases`. Em dev pode ser connection
+     string da storage account `stcadevcabtlmvw4g` (que já foi aplicada via
+     `az` nesta sessão como workaround). Em prod **prefira o item 5 abaixo**
+     (migrar para Managed Identity).
 
 3. `infrastructure/README.md`:
    - Atualizar a seção de app settings da Function App para listar
      `AzureFoundry__*` em vez de `AzureOpenAI__*` e mencionar
      `CaseGenV2__CasesBasePath` + `LLM__UseAzureFoundry`.
+   - Adicionar seção de app settings do Web App com `CaseGenerator__FunctionBaseUrl`
+     e `CaseGeneratorStorage__*`.
 
 4. Código — `CaseV2GeneratorService.ResolveCasesBasePath`:
    - Trocar fallback final de `Path.Combine(AppContext.BaseDirectory, "cases")`
      para `Path.Combine(Path.GetTempPath(), "casegen")`.
    - Manter walk-up para repo-root só quando rodando local (preservar DX local).
    - Depois disso, `CaseGenV2__CasesBasePath=/tmp` pode sair do Bicep.
+
+5. Código — `CaseV2StorageService` migrar para Managed Identity (igual à FA):
+   - Hoje só lê `CaseGeneratorStorage:ConnectionString` (connection string com
+     account key). A FA já usa `AzureWebJobsStorage__accountName` +
+     `DefaultAzureCredential`.
+   - Adicionar suporte a `CaseGeneratorStorage:AccountName` no construtor:
+     se setado, usar `new BlobServiceClient(new Uri($"https://{accountName}.blob.core.windows.net"), new DefaultAzureCredential())`.
+     Senão, manter fallback atual pra connection string (preserva DX local com Azurite).
+   - Aplicar o mesmo padrão em `AssetsController`, `EmailsController` e
+     `ForensicQueueService` (todos buscam `CaseGeneratorStorage:ConnectionString`
+     direto hoje).
+   - Habilitar System-Assigned MI no Web App via Bicep e dar role
+     `Storage Blob Data Reader` (ou `Contributor` se houver write) no escopo
+     da storage account.
+   - Depois disso, `CaseGeneratorStorage__ConnectionString` pode sair do Bicep
+     do Web App; só fica `CaseGeneratorStorage__AccountName`.
 
 **Notas:**
 
@@ -88,9 +120,11 @@ Windows local e macOS local sem precisar de app setting em prod.
 **Critério de aceitação:**
 
 - Rodar `az deployment ... what-if` ou `azd provision` na branch e ver que
-  as 4 mudanças acima ficaram aplicadas sem drift.
+  as 5 mudanças acima ficaram aplicadas sem drift.
 - Geração ponta-a-ponta continua funcionando após o deploy do Bicep (sem
   precisar de `az ... appsettings set` manual).
+- Dashboard do Web App lista o caso recém-gerado **sem** depender de
+  connection string com account key (se item 5 foi feito).
 - Em outra sub/ambiente novo, `azd up` deixa tudo funcionando do zero
   (assumindo que os 4 secrets do AzureFoundry sejam pré-populados no KV ou
   criados pelo próprio Bicep).
