@@ -44,8 +44,11 @@ param appInsightsConnectionString string = ''
 @description('Application Insights Instrumentation Key from shared infrastructure')
 param appInsightsInstrumentationKey string = ''
 
-@description('CORS allowed origins')
-param corsAllowedOrigins array = ['*']
+@description('CORS allowed origins surfaced into app settings as Cors__AllowedOrigins__N. Defaults to local dev only; the orchestrator should pass the SWA origin for deployed environments. App Service-level CORS is intentionally left empty so the .NET middleware is the single source of truth (App Service CORS does not support credentials, which SignalR requires).')
+param corsAllowedOrigins array = [
+  'http://localhost:5173'
+  'https://localhost:5173'
+]
 
 @description('Function App base URL the API proxies case-generation requests to (e.g. https://casegen-func-dev.azurewebsites.net). Wired from the functions layer output by the orchestrator.')
 param caseGeneratorFunctionBaseUrl string = ''
@@ -112,11 +115,15 @@ module apiAppService 'br/public:avm/res/web/site:0.14.0' = {
       scmMinTlsVersion: '1.2'
       http20Enabled: true
       healthCheckPath: '/health'
+      // CORS is owned by the .NET middleware (Cors:AllowedOrigins from app
+      // settings). App Service-level CORS is intentionally empty: it does not
+      // support `credentials: include`, which SignalR requires, and any value
+      // here overrides whatever the middleware emits.
       cors: {
-        allowedOrigins: corsAllowedOrigins
+        allowedOrigins: []
         supportCredentials: false
       }
-      appSettings: [
+      appSettings: concat([
         {
           name: 'ASPNETCORE_ENVIRONMENT'
           value: environment == 'prod' ? 'Production' : (environment == 'staging' ? 'Staging' : 'Development')
@@ -185,7 +192,10 @@ module apiAppService 'br/public:avm/res/web/site:0.14.0' = {
           name: 'CaseGeneratorStorage__CasesContainer'
           value: 'cases'
         }
-      ]
+      ], map(range(0, length(corsAllowedOrigins)), i => {
+        name: 'Cors__AllowedOrigins__${i}'
+        value: corsAllowedOrigins[i]
+      }))
       // Connection Strings
       connectionStrings: [
         {

@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.37.4.10188",
-      "templateHash": "16012289473249287040"
+      "version": "0.41.2.15936",
+      "templateHash": "10079933765412903654"
     }
   },
   "parameters": {
@@ -83,10 +83,32 @@
     "corsAllowedOrigins": {
       "type": "array",
       "defaultValue": [
-        "*"
+        "http://localhost:5173",
+        "https://localhost:5173"
       ],
       "metadata": {
-        "description": "CORS allowed origins"
+        "description": "CORS allowed origins surfaced into app settings as Cors__AllowedOrigins__N. Defaults to local dev only; the orchestrator should pass the SWA origin for deployed environments. App Service-level CORS is intentionally left empty so the .NET middleware is the single source of truth (App Service CORS does not support credentials, which SignalR requires)."
+      }
+    },
+    "caseGeneratorFunctionBaseUrl": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Function App base URL the API proxies case-generation requests to (e.g. https://casegen-func-dev.azurewebsites.net). Wired from the functions layer output by the orchestrator."
+      }
+    },
+    "caseGeneratorStorageAccountName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Storage Account name the API reads case bundles from via managed identity. Wired from the functions layer output by the orchestrator."
+      }
+    },
+    "caseGeneratorStorageAccountId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Storage Account Resource ID for the case bundles storage (used to scope the RBAC assignment cross-RG)."
       }
     }
   },
@@ -107,7 +129,7 @@
   "resources": [
     {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "api-app-service-plan-deployment",
       "properties": {
         "expressionEvaluationOptions": {
@@ -672,7 +694,7 @@
     },
     {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "api-app-service-deployment",
       "properties": {
         "expressionEvaluationOptions": {
@@ -693,7 +715,7 @@
             "value": "app,linux"
           },
           "serverFarmResourceId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-plan-deployment'), '2022-09-01').outputs.resourceId.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-plan-deployment'), '2025-04-01').outputs.resourceId.value]"
           },
           "httpsOnly": {
             "value": true
@@ -716,63 +738,10 @@
               "http20Enabled": true,
               "healthCheckPath": "/health",
               "cors": {
-                "allowedOrigins": "[parameters('corsAllowedOrigins')]",
+                "allowedOrigins": [],
                 "supportCredentials": false
               },
-              "appSettings": [
-                {
-                  "name": "ASPNETCORE_ENVIRONMENT",
-                  "value": "[if(equals(parameters('environment'), 'prod'), 'Production', if(equals(parameters('environment'), 'staging'), 'Staging', 'Development'))]"
-                },
-                {
-                  "name": "WEBSITE_RUN_FROM_PACKAGE",
-                  "value": "1"
-                },
-                {
-                  "name": "JwtSettings__SecretKey",
-                  "value": "[format('@Microsoft.KeyVault(SecretUri={0}secrets/jwt-signing-key/)', parameters('keyVaultUri'))]"
-                },
-                {
-                  "name": "JwtSettings__Issuer",
-                  "value": "CaseZeroApi"
-                },
-                {
-                  "name": "JwtSettings__Audience",
-                  "value": "CaseZeroClient"
-                },
-                {
-                  "name": "JwtSettings__ExpirationInMinutes",
-                  "value": "[if(equals(parameters('environment'), 'prod'), '60', '1440')]"
-                },
-                {
-                  "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
-                  "value": "[parameters('appInsightsInstrumentationKey')]"
-                },
-                {
-                  "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
-                  "value": "[parameters('appInsightsConnectionString')]"
-                },
-                {
-                  "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
-                  "value": "~3"
-                },
-                {
-                  "name": "IpRateLimiting__EnableEndpointRateLimiting",
-                  "value": "true"
-                },
-                {
-                  "name": "IpRateLimiting__GeneralRules__0__Endpoint",
-                  "value": "*"
-                },
-                {
-                  "name": "IpRateLimiting__GeneralRules__0__Period",
-                  "value": "1m"
-                },
-                {
-                  "name": "IpRateLimiting__GeneralRules__0__Limit",
-                  "value": "[if(equals(parameters('environment'), 'prod'), '100', '200')]"
-                }
-              ],
+              "appSettings": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', if(equals(parameters('environment'), 'prod'), 'Production', if(equals(parameters('environment'), 'staging'), 'Staging', 'Development'))), createObject('name', 'WEBSITE_RUN_FROM_PACKAGE', 'value', '1'), createObject('name', 'JwtSettings__SecretKey', 'value', format('@Microsoft.KeyVault(SecretUri={0}secrets/jwt-signing-key/)', parameters('keyVaultUri'))), createObject('name', 'JwtSettings__Issuer', 'value', 'CaseZeroApi'), createObject('name', 'JwtSettings__Audience', 'value', 'CaseZeroClient'), createObject('name', 'JwtSettings__ExpirationInMinutes', 'value', if(equals(parameters('environment'), 'prod'), '60', '1440')), createObject('name', 'APPINSIGHTS_INSTRUMENTATIONKEY', 'value', parameters('appInsightsInstrumentationKey')), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', parameters('appInsightsConnectionString')), createObject('name', 'ApplicationInsightsAgent_EXTENSION_VERSION', 'value', '~3'), createObject('name', 'IpRateLimiting__EnableEndpointRateLimiting', 'value', 'true'), createObject('name', 'IpRateLimiting__GeneralRules__0__Endpoint', 'value', '*'), createObject('name', 'IpRateLimiting__GeneralRules__0__Period', 'value', '1m'), createObject('name', 'IpRateLimiting__GeneralRules__0__Limit', 'value', if(equals(parameters('environment'), 'prod'), '100', '200')), createObject('name', 'CaseGenerator__FunctionBaseUrl', 'value', parameters('caseGeneratorFunctionBaseUrl')), createObject('name', 'CaseGeneratorStorage__AccountName', 'value', parameters('caseGeneratorStorageAccountName')), createObject('name', 'CaseGeneratorStorage__BundlesContainer', 'value', 'bundles'), createObject('name', 'CaseGeneratorStorage__CasesContainer', 'value', 'cases')), map(range(0, length(parameters('corsAllowedOrigins'))), lambda('i', createObject('name', format('Cors__AllowedOrigins__{0}', lambdaVariables('i')), 'value', parameters('corsAllowedOrigins')[lambdaVariables('i')]))))]",
               "connectionStrings": [
                 {
                   "name": "DefaultConnection",
@@ -6211,7 +6180,7 @@
     },
     {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "api-keyvault-rbac-deployment",
       "subscriptionId": "[split(parameters('keyVaultId'), '/')[2]]",
       "resourceGroup": "[split(parameters('keyVaultId'), '/')[4]]",
@@ -6225,7 +6194,7 @@
             "value": "[parameters('keyVaultId')]"
           },
           "principalId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2022-09-01').outputs.systemAssignedMIPrincipalId.value]"
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2025-04-01').outputs.systemAssignedMIPrincipalId.value]"
           },
           "principalType": {
             "value": "ServicePrincipal"
@@ -6237,8 +6206,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.37.4.10188",
-              "templateHash": "14309745749085647672"
+              "version": "0.41.2.15936",
+              "templateHash": "18320919358290852164"
             }
           },
           "parameters": {
@@ -6269,7 +6238,7 @@
             {
               "type": "Microsoft.Authorization/roleAssignments",
               "apiVersion": "2022-04-01",
-              "scope": "[format('Microsoft.KeyVault/vaults/{0}', variables('keyVaultName'))]",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
               "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), parameters('principalId'), 'Key Vault Secrets User')]",
               "properties": {
                 "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
@@ -6289,32 +6258,184 @@
       "dependsOn": [
         "[resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment')]"
       ]
+    },
+    {
+      "condition": "[not(empty(parameters('caseGeneratorStorageAccountId')))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "api-storage-rbac-deployment",
+      "subscriptionId": "[split(parameters('caseGeneratorStorageAccountId'), '/')[2]]",
+      "resourceGroup": "[split(parameters('caseGeneratorStorageAccountId'), '/')[4]]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "storageAccountName": {
+            "value": "[parameters('caseGeneratorStorageAccountName')]"
+          },
+          "principalId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2025-04-01').outputs.systemAssignedMIPrincipalId.value]"
+          },
+          "principalType": {
+            "value": "ServicePrincipal"
+          },
+          "assignBlobReader": {
+            "value": true
+          },
+          "assignQueueMessageSender": {
+            "value": true
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "4857170831897342172"
+            }
+          },
+          "parameters": {
+            "storageAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage Account name (in the resource group this module is deployed to)"
+              }
+            },
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "Principal ID to grant access"
+              }
+            },
+            "principalType": {
+              "type": "string",
+              "defaultValue": "ServicePrincipal",
+              "metadata": {
+                "description": "Principal Type (ServicePrincipal for managed identities)"
+              }
+            },
+            "assignBlobReader": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Assign Storage Blob Data Reader role"
+              }
+            },
+            "assignBlobContributor": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Assign Storage Blob Data Contributor role (broader than Reader)"
+              }
+            },
+            "assignQueueMessageSender": {
+              "type": "bool",
+              "defaultValue": true,
+              "metadata": {
+                "description": "Assign Storage Queue Data Message Sender role (send-only)"
+              }
+            },
+            "assignQueueContributor": {
+              "type": "bool",
+              "defaultValue": false,
+              "metadata": {
+                "description": "Assign Storage Queue Data Contributor role (queue management + messages)"
+              }
+            }
+          },
+          "variables": {
+            "roleIds": {
+              "blobDataReader": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+              "blobDataContributor": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+              "queueDataMessageSender": "c6a89b2d-59bc-44d0-9896-0f6e12d7b80a",
+              "queueDataContributor": "974c5e8b-45b9-4653-ba55-5f855dd0fb88"
+            }
+          },
+          "resources": [
+            {
+              "condition": "[parameters('assignBlobReader')]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), variables('roleIds').blobDataReader)]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleIds').blobDataReader)]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "[parameters('principalType')]"
+              }
+            },
+            {
+              "condition": "[parameters('assignBlobContributor')]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), variables('roleIds').blobDataContributor)]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleIds').blobDataContributor)]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "[parameters('principalType')]"
+              }
+            },
+            {
+              "condition": "[parameters('assignQueueMessageSender')]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), variables('roleIds').queueDataMessageSender)]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleIds').queueDataMessageSender)]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "[parameters('principalType')]"
+              }
+            },
+            {
+              "condition": "[parameters('assignQueueContributor')]",
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), variables('roleIds').queueDataContributor)]",
+              "properties": {
+                "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleIds').queueDataContributor)]",
+                "principalId": "[parameters('principalId')]",
+                "principalType": "[parameters('principalType')]"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment')]"
+      ]
     }
   ],
   "outputs": {
     "appServicePlanId": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-plan-deployment'), '2022-09-01').outputs.resourceId.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-plan-deployment'), '2025-04-01').outputs.resourceId.value]"
     },
     "appServicePlanName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-plan-deployment'), '2022-09-01').outputs.name.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-plan-deployment'), '2025-04-01').outputs.name.value]"
     },
     "apiAppServiceName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2022-09-01').outputs.name.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2025-04-01').outputs.name.value]"
     },
     "apiAppServiceId": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2022-09-01').outputs.resourceId.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2025-04-01').outputs.resourceId.value]"
     },
     "apiAppServiceUrl": {
       "type": "string",
-      "value": "[format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2022-09-01').outputs.defaultHostname.value)]"
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2025-04-01').outputs.defaultHostname.value)]"
     },
     "apiAppServicePrincipalId": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2022-09-01').outputs.systemAssignedMIPrincipalId.value]"
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2025-04-01').outputs.systemAssignedMIPrincipalId.value]"
     }
   }
 }

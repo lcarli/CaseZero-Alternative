@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "5276162053544840087"
+      "templateHash": "5409758438042462884"
     }
   },
   "parameters": {
@@ -13892,11 +13892,6 @@
           },
           "appInsightsConnectionString": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.connectionString.value), createObject('value', ''))]",
           "appInsightsInstrumentationKey": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.instrumentationKey.value), createObject('value', ''))]",
-          "corsAllowedOrigins": {
-            "value": [
-              "*"
-            ]
-          },
           "caseGeneratorFunctionBaseUrl": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2025-04-01').outputs.functionAppUrl.value]"
           },
@@ -13914,7 +13909,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "1784837178115346124"
+              "templateHash": "10079933765412903654"
             }
           },
           "parameters": {
@@ -13992,10 +13987,11 @@
             "corsAllowedOrigins": {
               "type": "array",
               "defaultValue": [
-                "*"
+                "http://localhost:5173",
+                "https://localhost:5173"
               ],
               "metadata": {
-                "description": "CORS allowed origins"
+                "description": "CORS allowed origins surfaced into app settings as Cors__AllowedOrigins__N. Defaults to local dev only; the orchestrator should pass the SWA origin for deployed environments. App Service-level CORS is intentionally left empty so the .NET middleware is the single source of truth (App Service CORS does not support credentials, which SignalR requires)."
               }
             },
             "caseGeneratorFunctionBaseUrl": {
@@ -14646,79 +14642,10 @@
                       "http20Enabled": true,
                       "healthCheckPath": "/health",
                       "cors": {
-                        "allowedOrigins": "[parameters('corsAllowedOrigins')]",
+                        "allowedOrigins": [],
                         "supportCredentials": false
                       },
-                      "appSettings": [
-                        {
-                          "name": "ASPNETCORE_ENVIRONMENT",
-                          "value": "[if(equals(parameters('environment'), 'prod'), 'Production', if(equals(parameters('environment'), 'staging'), 'Staging', 'Development'))]"
-                        },
-                        {
-                          "name": "WEBSITE_RUN_FROM_PACKAGE",
-                          "value": "1"
-                        },
-                        {
-                          "name": "JwtSettings__SecretKey",
-                          "value": "[format('@Microsoft.KeyVault(SecretUri={0}secrets/jwt-signing-key/)', parameters('keyVaultUri'))]"
-                        },
-                        {
-                          "name": "JwtSettings__Issuer",
-                          "value": "CaseZeroApi"
-                        },
-                        {
-                          "name": "JwtSettings__Audience",
-                          "value": "CaseZeroClient"
-                        },
-                        {
-                          "name": "JwtSettings__ExpirationInMinutes",
-                          "value": "[if(equals(parameters('environment'), 'prod'), '60', '1440')]"
-                        },
-                        {
-                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
-                          "value": "[parameters('appInsightsInstrumentationKey')]"
-                        },
-                        {
-                          "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
-                          "value": "[parameters('appInsightsConnectionString')]"
-                        },
-                        {
-                          "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
-                          "value": "~3"
-                        },
-                        {
-                          "name": "IpRateLimiting__EnableEndpointRateLimiting",
-                          "value": "true"
-                        },
-                        {
-                          "name": "IpRateLimiting__GeneralRules__0__Endpoint",
-                          "value": "*"
-                        },
-                        {
-                          "name": "IpRateLimiting__GeneralRules__0__Period",
-                          "value": "1m"
-                        },
-                        {
-                          "name": "IpRateLimiting__GeneralRules__0__Limit",
-                          "value": "[if(equals(parameters('environment'), 'prod'), '100', '200')]"
-                        },
-                        {
-                          "name": "CaseGenerator__FunctionBaseUrl",
-                          "value": "[parameters('caseGeneratorFunctionBaseUrl')]"
-                        },
-                        {
-                          "name": "CaseGeneratorStorage__AccountName",
-                          "value": "[parameters('caseGeneratorStorageAccountName')]"
-                        },
-                        {
-                          "name": "CaseGeneratorStorage__BundlesContainer",
-                          "value": "bundles"
-                        },
-                        {
-                          "name": "CaseGeneratorStorage__CasesContainer",
-                          "value": "cases"
-                        }
-                      ],
+                      "appSettings": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', if(equals(parameters('environment'), 'prod'), 'Production', if(equals(parameters('environment'), 'staging'), 'Staging', 'Development'))), createObject('name', 'WEBSITE_RUN_FROM_PACKAGE', 'value', '1'), createObject('name', 'JwtSettings__SecretKey', 'value', format('@Microsoft.KeyVault(SecretUri={0}secrets/jwt-signing-key/)', parameters('keyVaultUri'))), createObject('name', 'JwtSettings__Issuer', 'value', 'CaseZeroApi'), createObject('name', 'JwtSettings__Audience', 'value', 'CaseZeroClient'), createObject('name', 'JwtSettings__ExpirationInMinutes', 'value', if(equals(parameters('environment'), 'prod'), '60', '1440')), createObject('name', 'APPINSIGHTS_INSTRUMENTATIONKEY', 'value', parameters('appInsightsInstrumentationKey')), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', parameters('appInsightsConnectionString')), createObject('name', 'ApplicationInsightsAgent_EXTENSION_VERSION', 'value', '~3'), createObject('name', 'IpRateLimiting__EnableEndpointRateLimiting', 'value', 'true'), createObject('name', 'IpRateLimiting__GeneralRules__0__Endpoint', 'value', '*'), createObject('name', 'IpRateLimiting__GeneralRules__0__Period', 'value', '1m'), createObject('name', 'IpRateLimiting__GeneralRules__0__Limit', 'value', if(equals(parameters('environment'), 'prod'), '100', '200')), createObject('name', 'CaseGenerator__FunctionBaseUrl', 'value', parameters('caseGeneratorFunctionBaseUrl')), createObject('name', 'CaseGeneratorStorage__AccountName', 'value', parameters('caseGeneratorStorageAccountName')), createObject('name', 'CaseGeneratorStorage__BundlesContainer', 'value', 'bundles'), createObject('name', 'CaseGeneratorStorage__CasesContainer', 'value', 'cases')), map(range(0, length(parameters('corsAllowedOrigins'))), lambda('i', createObject('name', format('Cors__AllowedOrigins__{0}', lambdaVariables('i')), 'value', parameters('corsAllowedOrigins')[lambdaVariables('i')]))))]",
                       "connectionStrings": [
                         {
                           "name": "DefaultConnection",
