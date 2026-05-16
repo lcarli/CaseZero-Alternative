@@ -447,6 +447,7 @@ export const esES: Translations = {
   submitCaseBreakdownAnalysis: 'Análisis',
   submitCaseBreakdownQuestions: 'Preguntas',
   submitCaseExplanationHeader: 'Explicación del Caso',
+  submitCaseSuspectsEmpty: 'Aún no hay sospechosos identificados. Investiga más para revelarlos.',
   submitCaseProgressTitle: 'Lista de Envío',
   submitCaseProgressSuspect: 'Sospechoso',
   submitCaseProgressEvidence: 'Evidencias ({n})',
