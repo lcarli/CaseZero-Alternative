@@ -1,4 +1,6 @@
 using System.Text;
+using Azure.Core;
+using Azure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -200,6 +202,10 @@ builder.Services.AddScoped<DataSeedingService>();
 
 // Case storage (v2)
 builder.Services.AddMemoryCache();
+// Shared TokenCredential for managed identity. DefaultAzureCredential caches
+// tokens internally — register as singleton so the token cache is reused across
+// every scoped request that hits Azure Storage.
+builder.Services.AddSingleton<TokenCredential>(_ => new DefaultAzureCredential());
 builder.Services.AddScoped<ICaseV2SanitizerService, CaseV2SanitizerService>();
 builder.Services.AddScoped<ICaseV2StorageService, CaseV2StorageService>();
 builder.Services.AddScoped<ISolutionService, SolutionService>();

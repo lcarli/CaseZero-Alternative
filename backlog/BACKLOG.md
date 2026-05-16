@@ -6,7 +6,75 @@
 
 ## 🔥 Em aberto
 
+### TASK 5 — Migrar `AzureWebJobsStorage` da Function App para Managed Identity completo
+
+Descoberto durante a TASK 4 (rubber-duck review). O Bicep da Function App em
+`infrastructure/functions/main.bicep` ainda usa `listKeys()` + connection
+string em `AzureWebJobsStorage` e `WEBSITE_CONTENTAZUREFILECONNECTIONSTRING`.
+Hoje funciona em dev porque setamos `AzureWebJobsStorage__accountName` direto
+via `az` (drift), mas se alguém re-provisionar com o Bicep atual numa
+subscription com a policy `Azure_Security_Baseline` (que bloqueia
+`allowSharedKeyAccess`), a Function App não sobe — o `listKeys()` durante o
+deploy do storage falha ou as connection strings ficam inertes.
+
+**Bloqueio técnico:** o plano `Y1 (Consumption)` exige
+`WEBSITE_CONTENTAZUREFILECONNECTIONSTRING` para o content share, e essa
+chave **só** funciona com connection string (não tem MI no Y1). Migrar para
+MI completa exige mudar o plano para **Flex Consumption** (`FC1`) ou
+**Elastic Premium** (`EP1`).
+
+**Tarefas:**
+
+1. Mudar `infrastructure/functions/main.bicep` para `FC1` (Flex Consumption)
+   em dev ou aceitar `EP1` (mais caro).
+2. Substituir `AzureWebJobsStorage` (connection string) por
+   `AzureWebJobsStorage__accountName=<storage>` + `AzureWebJobsStorage__credential=managedidentity`.
+3. Remover `WEBSITE_CONTENTAZUREFILECONNECTIONSTRING` + `WEBSITE_CONTENTSHARE`
+   (Flex Consumption não usa content share — usa deployment package via
+   `WEBSITE_RUN_FROM_PACKAGE` ou o novo `linuxFxVersion` com source de pacote).
+4. Garantir que o MI da FA tem `Storage Blob Data Owner` (ou
+   `Contributor`) no storage account para conseguir gerenciar lease/leases
+   do host.
+5. Validar com `azd up` + smoke da geração ponta-a-ponta numa subscription
+   com a policy ativa.
+
+**Critério de aceitação:** Recriar do zero (`azd up`) numa subscription com
+`Azure_Security_Baseline` ativo, e a Function App subir, processar uma
+geração v2 e publicar o caso no blob — sem nenhum `az ... appsettings set`
+manual e sem nenhuma chave compartilhada habilitada.
+
 ### TASK 4 — Persistir configuração da Function App no Bicep + corrigir fallback de disco
+
+**Status:** Implementação concluída em `feat/task-4-bicep-mi-fallback` (PR
+em aberto). Após o merge + deploy do código via CI, ainda faltam os passos
+**manuais** em Azure dev (até o Bicep ser re-aplicado por `azd provision`):
+
+```bash
+# 1. Atribuir RBAC do API MI no storage account (cross-RG)
+API_MI=$(az webapp identity show -n casezero-api-dev -g casezero-api-dev-rg --query principalId -o tsv)
+STORAGE_ID=$(az storage account show -n stcadevcabtlmvw4g -g casezero-func-dev-rg --query id -o tsv)
+az role assignment create --assignee-object-id $API_MI --assignee-principal-type ServicePrincipal \
+  --role "Storage Blob Data Reader" --scope $STORAGE_ID
+az role assignment create --assignee-object-id $API_MI --assignee-principal-type ServicePrincipal \
+  --role "Storage Queue Data Message Sender" --scope $STORAGE_ID
+
+# 2. Pré-criar a queue forensic-requests (o Bicep faz no provision; em dev cria manualmente)
+az storage queue create --name forensic-requests --account-name stcadevcabtlmvw4g --auth-mode login
+
+# 3. Trocar a connection string pelo AccountName no Web App
+az webapp config appsettings set -n casezero-api-dev -g casezero-api-dev-rg \
+  --settings CaseGeneratorStorage__AccountName=stcadevcabtlmvw4g
+az webapp config appsettings delete -n casezero-api-dev -g casezero-api-dev-rg \
+  --setting-names CaseGeneratorStorage__ConnectionString
+
+# 4. Remover o override de CasesBasePath na FA (o código agora usa /tmp/casegen como fallback)
+az functionapp config appsettings delete -n casegen-func-dev -g casezero-func-dev-rg \
+  --setting-names CaseGenV2__CasesBasePath
+```
+
+Aguardar 5–10 min após RBAC para propagação e testar dashboard.
+
+---
 
 Durante o TASK 3 (validar geração ponta-a-ponta em Azure dev) aplicamos uma
 série de mudanças direto no Azure via `az` que **não** estão no IaC do repo.

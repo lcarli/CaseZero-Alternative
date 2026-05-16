@@ -560,8 +560,11 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             dir = dir.Parent;
         }
 
-        // Fallback: create alongside the binary.
-        var fallback = Path.Combine(AppContext.BaseDirectory, "cases");
+        // Fallback when nothing else exists. Use the OS temp dir so we never try
+        // to write under the deployment-package mount (e.g. /home/site/wwwroot
+        // on Linux Function Apps, which is read-only). Works on Windows, macOS
+        // and Linux without per-environment app settings.
+        var fallback = Path.Combine(Path.GetTempPath(), "casegen");
         Directory.CreateDirectory(fallback);
         return fallback;
     }
