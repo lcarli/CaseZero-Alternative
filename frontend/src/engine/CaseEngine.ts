@@ -75,14 +75,14 @@ export class CaseEngine {
   async loadCase(caseId: string): Promise<void> {
     try {
       const caseData = await this.apiClient.getCase(caseId)
-      const visibleAssets = caseData.assets.filter(a => a.visibility === 'initial')
-      const visibleEmails = caseData.emails.filter(e => e.visibility === 'initial')
-      const visibleSuspects = caseData.suspects.filter(s => s.visibility === 'initial')
+      // Trust the sanitized response from the backend: it already includes
+      // entities that are 'initial' OR session-unlocked (CaseSessionVisible*).
+      // Re-filtering by static visibility here would discard session unlocks.
       this.setState({
         case: caseData,
-        visibleAssets,
-        visibleEmails,
-        visibleSuspects,
+        visibleAssets: caseData.assets,
+        visibleEmails: caseData.emails,
+        visibleSuspects: caseData.suspects,
         submission: {
           attemptsUsed: 0,
           maxAttempts: caseData.solution.maxAttempts
@@ -91,6 +91,23 @@ export class CaseEngine {
     } catch (err) {
       console.error('CaseEngine.loadCase failed:', err)
       throw err
+    }
+  }
+
+  // Refetch the sanitized case to pick up session-visibility changes
+  // (e.g., after a user downloads an email attachment, which unlocks an
+  // asset server-side). Preserves submission/notifications state.
+  async refreshCase(caseId: string): Promise<void> {
+    try {
+      const caseData = await this.apiClient.getCase(caseId)
+      this.setState({
+        case: caseData,
+        visibleAssets: caseData.assets,
+        visibleEmails: caseData.emails,
+        visibleSuspects: caseData.suspects,
+      })
+    } catch (err) {
+      console.error('CaseEngine.refreshCase failed:', err)
     }
   }
 
