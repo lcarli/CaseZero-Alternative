@@ -97,9 +97,15 @@ public class CaseV2SanitizerService : ICaseV2SanitizerService
 
         if (syntheticEmails is not null) emails.AddRange(syntheticEmails);
 
-        // Suspects: initial + revealed; apply status & alibi overrides
+        // Suspects: initial + revealed; apply status & alibi overrides.
+        // We treat null/empty visibility as "initial" (older case payloads sometimes lack the
+        // field). EnsureSessionAndInitialVisibilityAsync on the controller side also seeds
+        // these ids into revealedSuspectIds at first access, which is the canonical fix —
+        // this OR-branch on null visibility is the belt-and-braces backstop.
         var suspects = caseData.Suspects
-            .Where(s => s.Visibility == "initial" || revealedSuspectIds.Contains(s.Id))
+            .Where(s => string.IsNullOrWhiteSpace(s.Visibility)
+                        || string.Equals(s.Visibility, "initial", StringComparison.OrdinalIgnoreCase)
+                        || revealedSuspectIds.Contains(s.Id))
             .Select(s => ApplyOverrides(s, statusOverrides, alibiOverrides))
             .ToList();
 

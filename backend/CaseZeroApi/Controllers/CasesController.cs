@@ -114,7 +114,22 @@ public class CasesController : ControllerBase
         await EnsureSessionAndInitialVisibilityAsync(caseId, userId, ct);
 
         var data = await _storage.GetForUserAsync(caseId, userId, ct);
-        return data is null ? NotFound(new { error = $"Case not found: {caseId}" }) : Ok(data);
+        if (data is null) return NotFound(new { error = $"Case not found: {caseId}" });
+
+        // Diagnostic: if the sanitized response surfaces no suspects, the player can't solve
+        // the case. Surface enough context to debug both LLM-generation bugs (raw count = 0)
+        // and visibility-filter bugs (raw count > 0 but sanitized = 0).
+        if (data.Suspects.Count == 0)
+        {
+            var raw = await _storage.GetRawAsync(caseId, ct);
+            _logger.LogWarning(
+                "GetCase {CaseId} returned 0 suspects to user {UserId}. Raw suspect count={Raw}, raw visibilities=[{Vis}]",
+                caseId, userId,
+                raw?.Suspects.Count ?? 0,
+                raw is null ? "" : string.Join(",", raw.Suspects.Select(s => $"{s.Id}:{s.Visibility}")));
+        }
+
+        return Ok(data);
     }
 
     private async Task EnsureSessionAndInitialVisibilityAsync(string caseId, string userId, CancellationToken ct)
@@ -180,6 +195,44 @@ public class CasesController : ControllerBase
                 EmailId = email.Id,
                 UnlockedAt = DateTime.UtcNow
             });
+        }
+
+        // 4) Seed revealed suspects. The sanitizer filters suspects by
+        //    `visibility == "initial" || revealedSuspectIds.Contains(id)` — so writing the
+        //    initially-visible (or all, when unlockMode == all_initial) suspect ids onto the
+        //    CaseSession guarantees they reach the client even if the case JSON arrived with
+        //    a missing/wrong visibility on individual suspects (older generations, partial
+        //    sanitization upstream, etc.).
+        var session = await _db.CaseSessions
+            .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
+            .OrderByDescending(cs => cs.SessionStart)
+            .FirstOrDefaultAsync(ct);
+        if (session is null)
+        {
+            // We just added one above; reload it within the same DbContext so we mutate the
+            // entity that EF Core tracks (avoids a second .Add for the same key).
+            await _db.SaveChangesAsync(ct);
+            session = await _db.CaseSessions
+                .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
+                .OrderByDescending(cs => cs.SessionStart)
+                .FirstAsync(ct);
+        }
+        var revealedSuspectIds = string.IsNullOrWhiteSpace(session.RevealedSuspectIds)
+            ? new List<string>()
+            : System.Text.Json.JsonSerializer.Deserialize<List<string>>(session.RevealedSuspectIds) ?? new();
+        var revealedSet = new HashSet<string>(revealedSuspectIds, StringComparer.Ordinal);
+        var initialSuspectsAdded = 0;
+        foreach (var suspect in raw.Suspects)
+        {
+            var shouldReveal = unlockAll ||
+                               string.IsNullOrWhiteSpace(suspect.Visibility) ||
+                               string.Equals(suspect.Visibility, "initial", StringComparison.OrdinalIgnoreCase);
+            if (!shouldReveal) continue;
+            if (revealedSet.Add(suspect.Id)) initialSuspectsAdded++;
+        }
+        if (initialSuspectsAdded > 0)
+        {
+            session.RevealedSuspectIds = System.Text.Json.JsonSerializer.Serialize(revealedSet.ToList());
         }
 
         await _db.SaveChangesAsync(ct);
