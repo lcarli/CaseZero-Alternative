@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using CaseGen.Functions.Models.CaseV2;
 using Microsoft.Extensions.Logging;
@@ -74,6 +75,135 @@ public class RedTeamTask
             }
         });
 
+        return await ExecuteAsync(ctxJson, "draft", ct);
+    }
+
+    /// <summary>
+    /// Re-runs the red-team audit against an already-assembled case.json string
+    /// (typically produced by RefineCaseTask). Used after refine to verify that
+    /// the refined JSON actually addressed the original findings.
+    /// </summary>
+    public async Task<Report> RunOnAssembledAsync(string assembledJson, CancellationToken ct)
+    {
+        var ctxJson = BuildCompactContextFromJson(assembledJson);
+        return await ExecuteAsync(ctxJson, "refined-json", ct);
+    }
+
+    private static string BuildCompactContextFromJson(string assembledJson)
+    {
+        try
+        {
+            var node = JsonNode.Parse(assembledJson);
+            if (node is null) return assembledJson;
+
+            var metadata = node["metadata"];
+            var suspectsArr = node["suspects"] as JsonArray;
+            var assetsArr = node["assets"] as JsonArray;
+            var emailsArr = node["emails"] as JsonArray;
+            var timeline = node["timeline"];
+            var temporal = node["temporalEvents"];
+            var rulesArr = node["rules"] as JsonArray;
+            var outcomesArr = node["forensicOutcomes"] as JsonArray;
+            var solution = node["solution"];
+
+            string? culpritId = solution?["culpritId"]?.GetValue<string>();
+            JsonNode? culprit = null;
+            var decoys = new JsonArray();
+            if (suspectsArr is not null)
+            {
+                foreach (var s in suspectsArr)
+                {
+                    if (s is null) continue;
+                    var compactSuspect = new JsonObject
+                    {
+                        ["id"] = s["id"]?.GetValue<string>(),
+                        ["name"] = s["name"]?.GetValue<string>(),
+                        ["motive"] = s["motive"]?.GetValue<string>(),
+                        ["alibi"] = s["alibi"]?.GetValue<string>(),
+                        ["alibiVerified"] = s["alibiVerified"]?.GetValue<bool>() ?? false
+                    };
+                    if (culpritId != null && s["id"]?.GetValue<string>() == culpritId)
+                        culprit = compactSuspect;
+                    else
+                        decoys.Add(compactSuspect);
+                }
+            }
+
+            var compactAssets = new JsonArray();
+            if (assetsArr is not null)
+            {
+                foreach (var a in assetsArr)
+                {
+                    if (a is null) continue;
+                    compactAssets.Add(new JsonObject
+                    {
+                        ["id"] = a["id"]?.GetValue<string>(),
+                        ["type"] = a["type"]?.GetValue<string>(),
+                        ["title"] = a["title"]?.GetValue<string>(),
+                        ["description"] = a["description"]?.GetValue<string>(),
+                        ["visibility"] = a["visibility"]?.GetValue<string>()
+                    });
+                }
+            }
+
+            var compactRules = new JsonArray();
+            if (rulesArr is not null)
+            {
+                foreach (var r in rulesArr)
+                {
+                    if (r is null) continue;
+                    var actions = r["actions"] as JsonArray;
+                    compactRules.Add(new JsonObject
+                    {
+                        ["ruleId"] = r["ruleId"]?.GetValue<string>(),
+                        ["trigger"] = r["trigger"]?["type"]?.GetValue<string>(),
+                        ["actionCount"] = actions?.Count ?? 0
+                    });
+                }
+            }
+
+            var compactForensics = new JsonArray();
+            if (outcomesArr is not null)
+            {
+                foreach (var f in outcomesArr)
+                {
+                    if (f is null) continue;
+                    compactForensics.Add(new JsonObject
+                    {
+                        ["inputAssetId"] = f["inputAssetId"]?.GetValue<string>(),
+                        ["analysisType"] = f["analysisType"]?.GetValue<string>(),
+                        ["findings"] = f["findings"]?.GetValue<bool>() ?? false,
+                        ["matchedSuspectId"] = f["matchedSuspectId"]?.GetValue<string>(),
+                        ["conclusionText"] = f["conclusionText"]?.GetValue<string>()
+                    });
+                }
+            }
+
+            var compact = new JsonObject
+            {
+                ["metadata"] = metadata?.DeepClone(),
+                ["culprit"] = culprit,
+                ["decoys"] = decoys,
+                ["assets"] = compactAssets,
+                ["timeline"] = timeline?.DeepClone(),
+                ["temporalEvents"] = temporal?.DeepClone(),
+                ["forensics"] = compactForensics,
+                ["rules"] = compactRules,
+                ["solution"] = solution?.DeepClone(),
+                ["emailCount"] = emailsArr?.Count ?? 0
+            };
+
+            return compact.ToJsonString();
+        }
+        catch
+        {
+            // If anything goes sideways, fall back to passing the raw JSON.
+            return assembledJson;
+        }
+    }
+
+    private async Task<Report> ExecuteAsync(string ctxJson, string source, CancellationToken ct)
+    {
         var system = @"You are the **red-team reviewer** for an interactive detective case. Audit the supplied case package for semantic flaws that would make the case unsolvable, unfair, or implausible. Be ruthless and concise.
 
 Look specifically for:
@@ -103,12 +233,12 @@ Emit JSON only.";
             var raw = await _llm.GenerateStructuredResponseAsync(system, user, Schema, ct);
             var report = JsonSerializer.Deserialize<Report>(raw.Content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                          ?? new Report();
-            _logger.LogInformation("RedTeam verdict={Verdict} findings={Count}", report.Verdict, report.Findings.Count);
+            _logger.LogInformation("RedTeam verdict={Verdict} findings={Count} source={Source}", report.Verdict, report.Findings.Count, source);
             return report;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "RedTeam failed — returning empty report");
+            _logger.LogWarning(ex, "RedTeam failed (source={Source}) — returning empty report", source);
             return new Report { Verdict = "needs_review", Notes = "RedTeam stage failed: " + ex.Message };
         }
     }

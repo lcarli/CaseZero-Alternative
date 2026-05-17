@@ -248,6 +248,8 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
         // === Phase 12b: refine via LLM if schema errors persist OR red-team rejected.
         var refineAttempted = false;
+        var redTeamRerun = false;
+        Tasks.RedTeamTask.Report? redTeamInitial = null;
         var refineErrorsBefore = errors.Count;
         var highFindings = redTeam?.Findings.Where(f =>
             string.Equals(f.Severity, "high", StringComparison.OrdinalIgnoreCase)).ToList()
@@ -267,7 +269,8 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
                 {
                     var refined = result.RefinedJson!;
                     var revalidated = Validate(refined);
-                    if (revalidated.Count < errors.Count)
+                    if (revalidated.Count < errors.Count
+                        || (errors.Count == 0 && !string.Equals(refined, json, StringComparison.Ordinal)))
                     {
                         _logger.LogInformation("Refine improved errors {Before}→{After} — accepting refined JSON",
                             errors.Count, revalidated.Count);
@@ -285,6 +288,22 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
                     _logger.LogWarning("RefineCaseTask returned no document: {Error}", result.Error);
                 }
             });
+
+            // === Phase 12c: re-run RedTeam on the refined JSON so the published verdict
+            // reflects whether refine actually addressed the findings. Skip when refine
+            // did not improve anything (initial verdict is still accurate).
+            if (refineAttempted && errors.Count == 0)
+            {
+                await Stage("redTeamRerun", async () =>
+                {
+                    redTeamInitial = redTeam;
+                    var rerun = await new Tasks.RedTeamTask(_llm, _logger).RunOnAssembledAsync(json, ct);
+                    redTeam = rerun;
+                    redTeamRerun = true;
+                    _logger.LogInformation("RedTeam rerun after refine: {Initial} → {Final}",
+                        redTeamInitial?.Verdict, rerun.Verdict);
+                });
+            }
         }
 
         // === Phase 13: persist + render assets
@@ -335,7 +354,9 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             RefineAttempted = refineAttempted,
             RefineErrorsBefore = refineErrorsBefore,
             RefineErrorsAfter = errors.Count,
+            RedTeamRerun = redTeamRerun,
             RedTeam = redTeam,
+            RedTeamInitial = redTeamInitial,
             Solver = solver,
             Consistency = consistencyReport
         };

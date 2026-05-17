@@ -422,7 +422,17 @@ const CaseGenerationPage = () => {
                 <Stat><StatLbl>Blobs published</StatLbl><StatVal>{status.result.BlobsPublished}</StatVal></Stat>
                 <Stat><StatLbl>Auto-fixes applied</StatLbl><StatVal>{status.result.AutoFixesApplied?.length ?? 0}</StatVal></Stat>
                 <Stat><StatLbl>Refine attempted</StatLbl><StatVal>{status.result.RefineAttempted ? 'yes' : 'no'}</StatVal></Stat>
-                <Stat><StatLbl>Red-team verdict</StatLbl><StatVal style={{ fontSize: '0.95rem' }}>{status.result.RedTeamVerdict ?? '—'}</StatVal></Stat>
+                <Stat>
+                  <StatLbl>Red-team verdict</StatLbl>
+                  <StatVal style={{ fontSize: '0.95rem' }}>
+                    {status.result.RedTeamVerdict ?? '—'}
+                    {status.result.RedTeamRerun && status.result.RedTeamVerdictInitial && (
+                      <span style={{ color: 'rgba(148, 197, 255, 0.7)', fontSize: '0.8rem', marginLeft: '0.4rem' }}>
+                        (was {status.result.RedTeamVerdictInitial})
+                      </span>
+                    )}
+                  </StatVal>
+                </Stat>
               </SummaryGrid>
               <Button style={{ marginTop: '1rem' }} onClick={() => navigate('/dashboard')}>
                 <CheckCircle2 size={16} />Back to dashboard

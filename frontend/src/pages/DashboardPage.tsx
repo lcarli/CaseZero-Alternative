@@ -161,6 +161,46 @@ const CaseGrid = styled.div`
   gap: 1rem;
 `
 
+const FilterBar = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem 1.2rem;
+  align-items: center;
+  margin: 0.85rem 0 1.1rem;
+  padding: 0.65rem 0.85rem;
+  background: rgba(8, 12, 28, 0.55);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  border-radius: 0.6rem;
+`
+
+const FilterLabel = styled.label`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: rgba(226, 232, 240, 0.85);
+
+  select {
+    background: rgba(2, 6, 23, 0.85);
+    color: #e2e8f0;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 0.4rem;
+    padding: 0.3rem 0.55rem;
+    font-size: 0.85rem;
+  }
+
+  input[type='checkbox'] {
+    accent-color: #38bdf8;
+    transform: translateY(1px);
+  }
+`
+
+const FilterCount = styled.span`
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: rgba(148, 197, 255, 0.7);
+`
+
 const CaseCard = styled.button`
   text-align: left;
   background: rgba(7, 11, 26, 0.7);
@@ -433,6 +473,8 @@ const DashboardPage = () => {
   const [promotion, setPromotion] = useState<PromotionProgress | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [filterDifficulty, setFilterDifficulty] = useState<string>('all')
+  const [hideResolved, setHideResolved] = useState<boolean>(false)
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -458,6 +500,20 @@ const DashboardPage = () => {
 
   // Total case count derived from list — used as a fallback for backend stats.
   const totals = useMemo(() => ({ total: cases.length }), [cases])
+
+  const availableDifficulties = useMemo(() => {
+    const set = new Set<string>()
+    for (const c of cases) if (c.difficulty) set.add(c.difficulty)
+    return Array.from(set)
+  }, [cases])
+
+  const filteredCases = useMemo(() => {
+    return cases.filter(c => {
+      if (filterDifficulty !== 'all' && c.difficulty !== filterDifficulty) return false
+      if (hideResolved && c.isResolved) return false
+      return true
+    })
+  }, [cases, filterDifficulty, hideResolved])
 
   const handleLogout = () => {
     logout()
@@ -538,15 +594,46 @@ const DashboardPage = () => {
           {t('availableCases')}
         </PanelHeader>
 
+        {!isLoading && !error && cases.length > 0 && (
+          <FilterBar>
+            <FilterLabel>
+              {t('filterByDifficulty')}:
+              <select
+                value={filterDifficulty}
+                onChange={e => setFilterDifficulty(e.target.value)}
+              >
+                <option value="all">{t('allDifficulties')}</option>
+                {availableDifficulties.map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+            </FilterLabel>
+            <FilterLabel>
+              <input
+                type="checkbox"
+                checked={hideResolved}
+                onChange={e => setHideResolved(e.target.checked)}
+              />
+              {t('hideResolvedCases')}
+            </FilterLabel>
+            <FilterCount>
+              {filteredCases.length} / {cases.length}
+            </FilterCount>
+          </FilterBar>
+        )}
+
         {isLoading && <EmptyMessage>{t('loading')}</EmptyMessage>}
         {!isLoading && error && <ErrorMessage>{error}</ErrorMessage>}
         {!isLoading && !error && cases.length === 0 && (
           <EmptyMessage>{t('dashboardEmpty')}</EmptyMessage>
         )}
+        {!isLoading && !error && cases.length > 0 && filteredCases.length === 0 && (
+          <EmptyMessage>{t('noCasesMatchFilters')}</EmptyMessage>
+        )}
 
-        {!isLoading && !error && cases.length > 0 && (
+        {!isLoading && !error && filteredCases.length > 0 && (
           <CaseGrid>
-            {cases.map(c => (
+            {filteredCases.map(c => (
               <CaseCard key={c.caseId} onClick={() => handleCaseClick(c.caseId)}>
                 <CardTitle>
                   <span>{c.title}</span>
@@ -563,10 +650,6 @@ const DashboardPage = () => {
                   <MetaItem>
                     <Shield size={12} />
                     {t('dashboardDifficulty')}: {c.difficulty}
-                  </MetaItem>
-                  <MetaItem>
-                    <Shield size={12} />
-                    {t('dashboardRequiredRank')}: {c.requiredRank}
                   </MetaItem>
                   {typeof c.estimatedDurationMinutes === 'number' && (
                     <MetaItem>

@@ -125,6 +125,10 @@ export interface Translations {
   activityResolvedUngraded: string;
   activityAttempted: string;
   activityAttemptedUngraded: string;
+  filterByDifficulty: string;
+  allDifficulties: string;
+  hideResolvedCases: string;
+  noCasesMatchFilters: string;
   // Dashboard widgets
   casesByDifficulty: string;
   promotionProgress: string;
