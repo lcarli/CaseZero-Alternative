@@ -253,12 +253,56 @@ const BreakdownGrid = styled.div`
   font-size: 12px;
 `
 
-const BreakdownItem = styled.div<{ $ok: boolean }>`
-  padding: 0.5rem;
+const BreakdownItem = styled.div<{ $ratio: number }>`
+  padding: 0.5rem 0.6rem;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid ${p => (p.$ok ? 'rgba(46, 213, 115, 0.4)' : 'rgba(255, 71, 87, 0.4)')};
-  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid ${p =>
+    p.$ratio >= 0.999
+      ? 'rgba(46, 213, 115, 0.5)'
+      : p.$ratio >= 0.5
+        ? 'rgba(255, 193, 7, 0.5)'
+        : 'rgba(255, 71, 87, 0.5)'};
+  color: rgba(255, 255, 255, 0.92);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`
+
+const BreakdownLabel = styled.span`
+  font-weight: 600;
+  font-size: 12px;
+`
+
+const BreakdownValue = styled.span<{ $ratio: number }>`
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: ${p =>
+    p.$ratio >= 0.999
+      ? '#5cd687'
+      : p.$ratio >= 0.5
+        ? '#ffc845'
+        : '#ff6b7a'};
+`
+
+const BreakdownBar = styled.div`
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+`
+
+const BreakdownBarFill = styled.div<{ $ratio: number }>`
+  width: ${p => Math.max(0, Math.min(1, p.$ratio)) * 100}%;
+  height: 100%;
+  background: ${p =>
+    p.$ratio >= 0.999
+      ? '#2ed573'
+      : p.$ratio >= 0.5
+        ? '#ffc845'
+        : '#ff4757'};
+  transition: width 0.3s ease;
 `
 
 const ExplanationPanel = styled.div`
@@ -548,25 +592,35 @@ const SubmitCase: React.FC = () => {
             {t('submitCaseScore')}: {lastResult.score}
           </ScoreLine>
           <BreakdownGrid>
-            <BreakdownItem $ok={lastResult.breakdown.culprit}>
-              {t('submitCaseBreakdownCulprit')}: {lastResult.breakdown.culprit ? '✓' : '✗'}
-            </BreakdownItem>
-            <BreakdownItem $ok={lastResult.breakdown.evidence}>
-              {t('submitCaseBreakdownEvidence')}: {lastResult.breakdown.evidence ? '✓' : '✗'}
-            </BreakdownItem>
-            <BreakdownItem $ok={lastResult.breakdown.analysis}>
-              {t('submitCaseBreakdownAnalysis')}: {lastResult.breakdown.analysis ? '✓' : '✗'}
-            </BreakdownItem>
-            <BreakdownItem $ok={lastResult.breakdown.questions}>
-              {t('submitCaseBreakdownQuestions')}: {lastResult.breakdown.questions ? '✓' : '✗'}
-            </BreakdownItem>
+            {([
+              { labelKey: 'submitCaseBreakdownCulprit', value: lastResult.breakdown.culpritScore, max: lastResult.maxScores.culprit },
+              { labelKey: 'submitCaseBreakdownEvidence', value: lastResult.breakdown.evidenceScore, max: lastResult.maxScores.evidence },
+              { labelKey: 'submitCaseBreakdownAnalysis', value: lastResult.breakdown.analysisScore, max: lastResult.maxScores.analysis },
+              { labelKey: 'submitCaseBreakdownQuestions', value: lastResult.breakdown.questionsScore, max: lastResult.maxScores.questions },
+            ] as const).map(({ labelKey, value, max }) => {
+              const ratio = max > 0 ? value / max : 0
+              const pct = Math.round(ratio * 100)
+              return (
+                <BreakdownItem key={labelKey} $ratio={ratio}>
+                  <BreakdownLabel>{t(labelKey)}</BreakdownLabel>
+                  <BreakdownValue $ratio={ratio}>{pct}% ({value.toFixed(2)} / {max.toFixed(2)})</BreakdownValue>
+                  <BreakdownBar>
+                    <BreakdownBarFill $ratio={ratio} />
+                  </BreakdownBar>
+                </BreakdownItem>
+              )
+            })}
           </BreakdownGrid>
           <ScoreLine>
             {t('submitCaseAttemptsRemaining').replace('{n}', String(lastResult.attemptsRemaining))}
           </ScoreLine>
-          {lastResult.feedbackText && (
-            <ScoreLine style={{ marginTop: '0.25rem' }}>{lastResult.feedbackText}</ScoreLine>
-          )}
+          <ScoreLine style={{ marginTop: '0.25rem' }}>
+            {lastResult.feedbackCode === 'correct'
+              ? t('submitCaseFeedbackCorrect')
+              : lastResult.feedbackCode === 'incorrect_no_attempts'
+                ? t('submitCaseFeedbackIncorrectFinal')
+                : t('submitCaseFeedbackIncorrectRetry').replace('{n}', String(lastResult.attemptsRemaining))}
+          </ScoreLine>
         </ResultPanel>
       )}
 

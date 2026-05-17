@@ -17,8 +17,9 @@ public record SubmitCaseResult(
     bool Correct,
     double Score,
     ScoreBreakdown Breakdown,
+    ScoreWeights MaxScores,
     int AttemptsRemaining,
-    string FeedbackText,
+    string FeedbackCode,
     string? ExplanationMarkdown);
 
 public record ScoreBreakdown(
@@ -26,6 +27,12 @@ public record ScoreBreakdown(
     double EvidenceScore,
     double AnalysisScore,
     double QuestionsScore);
+
+public record ScoreWeights(
+    double Culprit,
+    double Evidence,
+    double Analysis,
+    double Questions);
 
 public class MaxAttemptsExceededException : Exception
 {

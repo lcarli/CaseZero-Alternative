@@ -114,11 +114,11 @@ public class SolutionService : ISolutionService
 
         var showExplanation = correct || attemptsRemaining == 0;
 
-        var feedback = correct
-            ? "Case solved. Strong reasoning."
+        var feedbackCode = correct
+            ? "correct"
             : attemptsRemaining == 0
-                ? "Case unresolved. Out of attempts."
-                : $"Not quite. You have {attemptsRemaining} attempt(s) remaining.";
+                ? "incorrect_no_attempts"
+                : "incorrect_attempts_remaining";
 
         return new SubmitCaseResult(
             correct,
@@ -128,8 +128,13 @@ public class SolutionService : ISolutionService
                 Math.Round(evidenceScore, 4),
                 Math.Round(analysisScore, 4),
                 Math.Round(questionsScore, 4)),
+            new ScoreWeights(
+                Math.Round(rules.CulpritWeight, 4),
+                Math.Round(rules.EvidenceWeight, 4),
+                Math.Round(rules.AnalysisWeight, 4),
+                Math.Round(rules.QuestionsWeight, 4)),
             attemptsRemaining,
-            feedback,
+            feedbackCode,
             showExplanation ? sol.Explanation : null);
     }
 

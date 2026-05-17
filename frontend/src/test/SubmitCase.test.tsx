@@ -58,9 +58,10 @@ const mockSubmitCase = vi.fn(async (payload: SubmitCaseRequest): Promise<SubmitC
   return {
     correct: false,
     score: 0,
-    breakdown: { culprit: false, evidence: false, analysis: false, questions: false },
+    breakdown: { culpritScore: 0, evidenceScore: 0, analysisScore: 0, questionsScore: 0 },
+    maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
     attemptsRemaining: 2,
-    feedbackText: 'wrong',
+    feedbackCode: 'incorrect_attempts_remaining',
     explanationMarkdown: undefined,
   }
 })
@@ -142,8 +143,9 @@ describe('SubmitCase', () => {
   it('calls submitCase with the chosen payload on submit', async () => {
     mockSubmitCase.mockResolvedValueOnce({
       correct: true, score: 1.0,
-      breakdown: { culprit: true, evidence: true, analysis: true, questions: true },
-      attemptsRemaining: 2, feedbackText: 'Case solved.', explanationMarkdown: undefined,
+      breakdown: { culpritScore: 0.4, evidenceScore: 0.2, analysisScore: 0.2, questionsScore: 0.2 },
+      maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
+      attemptsRemaining: 2, feedbackCode: 'correct', explanationMarkdown: undefined,
     })
 
     render(<SubmitCase />)
@@ -162,8 +164,9 @@ describe('SubmitCase', () => {
   it('renders score after response', async () => {
     mockSubmitCase.mockResolvedValueOnce({
       correct: true, score: 0.9,
-      breakdown: { culprit: true, evidence: true, analysis: false, questions: true },
-      attemptsRemaining: 2, feedbackText: 'Case solved!', explanationMarkdown: undefined,
+      breakdown: { culpritScore: 0.4, evidenceScore: 0.2, analysisScore: 0.1, questionsScore: 0.2 },
+      maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
+      attemptsRemaining: 2, feedbackCode: 'correct', explanationMarkdown: undefined,
     })
 
     const { rerender } = render(<SubmitCase />)
@@ -192,8 +195,9 @@ describe('SubmitCase', () => {
     const explanation = 'Marcus committed the crime because of blackmail.'
     mockSubmitCase.mockResolvedValueOnce({
       correct: false, score: 0.3,
-      breakdown: { culprit: false, evidence: false, analysis: false, questions: false },
-      attemptsRemaining: 0, feedbackText: 'Out of attempts.',
+      breakdown: { culpritScore: 0, evidenceScore: 0, analysisScore: 0, questionsScore: 0 },
+      maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
+      attemptsRemaining: 0, feedbackCode: 'incorrect_no_attempts',
       explanationMarkdown: explanation,
     })
 
