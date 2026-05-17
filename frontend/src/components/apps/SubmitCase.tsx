@@ -57,23 +57,45 @@ const SectionTitle = styled.h4`
   padding-bottom: 0.4rem;
 `
 
-const Select = styled.select`
-  padding: 0.6rem;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  color: white;
-  font-size: 13px;
-  /* Tells the OS-rendered native dropdown popup to use the dark palette.
-     Without this, Chromium on Windows ignores the option { background } rule
-     below and renders the popup with OS defaults — which keeps the inherited
-     'color: white' but uses a light background, producing white-on-white
-     unreadable text. */
-  color-scheme: dark;
+// Card-based suspect picker. We deliberately avoid native <select> here:
+// Chromium on Windows renders the option popup through the OS shell and
+// frequently strips author CSS, producing unreadable text even with
+// color-scheme: dark. A grid of styled radio cards gives us full styling
+// control across platforms and matches the look of the question options.
+const SuspectGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.5rem;
+`
 
-  option {
-    background: #1a1a2e;
-    color: white;
+const SuspectCard = styled.label<{ $selected: boolean; $disabled: boolean }>`
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 6px;
+  border: 1px solid ${props => (props.$selected ? 'rgba(74, 158, 255, 0.8)' : 'rgba(255, 255, 255, 0.12)')};
+  background: ${props => (props.$selected ? 'rgba(74, 158, 255, 0.12)' : 'rgba(0, 0, 0, 0.25)')};
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  cursor: ${props => (props.$disabled ? 'not-allowed' : 'pointer')};
+  opacity: ${props => (props.$disabled ? 0.5 : 1)};
+  transition: background 120ms ease, border-color 120ms ease;
+
+  &:hover {
+    background: ${props =>
+      props.$disabled
+        ? props.$selected
+          ? 'rgba(74, 158, 255, 0.12)'
+          : 'rgba(0, 0, 0, 0.25)'
+        : props.$selected
+          ? 'rgba(74, 158, 255, 0.18)'
+          : 'rgba(255, 255, 255, 0.05)'};
+  }
+
+  input {
+    margin: 0;
+    accent-color: #4a9eff;
   }
 `
 
@@ -408,22 +430,32 @@ const SubmitCase: React.FC = () => {
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <Section>
           <SectionTitle>{t('submitCaseSuspectLabel')}</SectionTitle>
-          <Select
-            value={suspectId}
-            onChange={e => setSuspectId(e.target.value)}
-            disabled={isExhausted || suspects.length === 0}
-          >
-            <option value="">—</option>
-            {suspects.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.name?.trim() || s.alias?.trim() || s.id}
-              </option>
-            ))}
-          </Select>
-          {suspects.length === 0 && (
-            <EmptyAnalyses>
-              {t('submitCaseSuspectsEmpty')}
-            </EmptyAnalyses>
+          {suspects.length === 0 ? (
+            <EmptyAnalyses>{t('submitCaseSuspectsEmpty')}</EmptyAnalyses>
+          ) : (
+            <SuspectGrid role="radiogroup" aria-label={t('submitCaseSuspectLabel')}>
+              {suspects.map(s => {
+                const label = s.name?.trim() || s.alias?.trim() || s.id
+                const selected = suspectId === s.id
+                return (
+                  <SuspectCard
+                    key={s.id}
+                    $selected={selected}
+                    $disabled={isExhausted}
+                  >
+                    <input
+                      type="radio"
+                      name="submit-case-suspect"
+                      value={s.id}
+                      checked={selected}
+                      onChange={() => setSuspectId(s.id)}
+                      disabled={isExhausted}
+                    />
+                    <span>{label}</span>
+                  </SuspectCard>
+                )
+              })}
+            </SuspectGrid>
           )}
         </Section>
 
