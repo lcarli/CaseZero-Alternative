@@ -19,6 +19,7 @@ public record SubmitCaseResult(
     ScoreBreakdown Breakdown,
     ScoreWeights MaxScores,
     int AttemptsRemaining,
+    bool Graded,
     string FeedbackCode,
     string? ExplanationMarkdown);
 
@@ -34,6 +35,8 @@ public record ScoreWeights(
     double Analysis,
     double Questions);
 
+// Retained for backwards compatibility with callers/tests; the service no
+// longer throws this — out-of-attempt submissions are accepted but ungraded.
 public class MaxAttemptsExceededException : Exception
 {
     public int MaxAttempts { get; }

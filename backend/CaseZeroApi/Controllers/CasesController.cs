@@ -263,10 +263,6 @@ public class CasesController : ControllerBase
             var result = await _solutionService.SubmitAsync(caseId, userId, request, ct);
             return Ok(result);
         }
-        catch (MaxAttemptsExceededException ex)
-        {
-            return Conflict(new { error = ex.Message, maxAttempts = ex.MaxAttempts });
-        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });

@@ -25,6 +25,11 @@ namespace CaseZeroApi.Models
         public string? RequestPayloadJson { get; set; }
         public int AttemptNumber { get; set; } = 1;
 
+        // True when this submission counts toward the player's promotion / ranking.
+        // After MaxAttempts have been used in graded mode, further submissions are
+        // recorded with Graded = false and do not contribute to user stats.
+        public bool Graded { get; set; } = true;
+
         // Navigation properties
         public virtual Case Case { get; set; } = null!;
         public virtual User SubmittedByUser { get; set; } = null!;

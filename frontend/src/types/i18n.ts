@@ -451,8 +451,11 @@ export interface Translations {
   submitCaseBreakdownAnalysis: string;
   submitCaseBreakdownQuestions: string;
   submitCaseFeedbackCorrect: string;
+  submitCaseFeedbackCorrectUngraded: string;
   submitCaseFeedbackIncorrectRetry: string;
-  submitCaseFeedbackIncorrectFinal: string;
+  submitCaseFeedbackIncorrectLastGraded: string;
+  submitCaseFeedbackIncorrectUngraded: string;
+  submitCaseUngradedBanner: string;
   submitCaseExplanationHeader: string;
   submitCaseSuspectsEmpty: string;
   submitCaseProgressTitle: string;
