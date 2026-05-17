@@ -74,8 +74,10 @@ public record CaseV2JobResult(
     bool RefineAttempted,
     int RefineErrorsBefore,
     int RefineErrorsAfter,
+    int RefineIterations,
     string? RedTeamVerdict,
     string? RedTeamVerdictInitial,
+    List<string> RedTeamVerdictTrajectory,
     bool RedTeamRerun);
 
 /// <summary>
@@ -143,8 +145,10 @@ public class CaseV2GenerateActivity
                 RefineAttempted: response.RefineAttempted,
                 RefineErrorsBefore: response.RefineErrorsBefore,
                 RefineErrorsAfter: response.RefineErrorsAfter,
+                RefineIterations: response.RefineIterations,
                 RedTeamVerdict: response.RedTeam?.Verdict,
                 RedTeamVerdictInitial: response.RedTeamInitial?.Verdict,
+                RedTeamVerdictTrajectory: response.RedTeamVerdictTrajectory,
                 RedTeamRerun: response.RedTeamRerun);
         }
         catch (Exception ex)

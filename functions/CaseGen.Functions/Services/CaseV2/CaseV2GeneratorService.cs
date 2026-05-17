@@ -209,9 +209,18 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         // === Phase 11: assemble + JSON-schema validate (structural)
         var assembled = Assemble(draft);
         var json = assembled.ToJsonString(JsonOpts);
-        var errors = Validate(json);
-        if (consistencyReport is not null)
-            errors.AddRange(consistencyReport.Errors);
+
+        // Local helper: schema + consistency errors combined. Refine accepts the
+        // refined JSON based on this combined count, so consistency findings don't
+        // silently get erased when refine fixes schema issues.
+        List<string> ValidateAll(string j)
+        {
+            var all = Validate(j);
+            if (consistencyReport is not null) all.AddRange(consistencyReport.Errors);
+            return all;
+        }
+
+        var errors = ValidateAll(json);
 
         // === Phase 11b: deterministic auto-fix for common LLM ID-format slips
         //     (e.g. `asset_xxx` → `asset.xxx`). Runs only when there are errors.
@@ -224,8 +233,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
                 if (autoFixes.Count > 0)
                 {
                     json = assembled.ToJsonString(JsonOpts);
-                    var rev = Validate(json);
-                    if (consistencyReport is not null) rev.AddRange(consistencyReport.Errors);
+                    var rev = ValidateAll(json);
                     _logger.LogInformation("AutoFixer cleared {Before}→{After} validation errors",
                         errors.Count, rev.Count);
                     errors = rev;
@@ -236,75 +244,166 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
         // === Phase 12: red-team + solver (semantic validation) — run in parallel
         // Always run these — even on schema-error cases the reports help diagnose what went wrong.
+        // Both the initial red-team pass and any reruns use the assembled JSON path so the
+        // input to the LLM is identical across iterations.
         Tasks.RedTeamTask.Report? redTeam = null;
         Tasks.SolverTask.SolverResult? solver = null;
         await Stage("redTeamAndSolver", async () =>
         {
-            var rt = new Tasks.RedTeamTask(_llm, _logger).RunAsync(draft, json, ct);
+            var rt = new Tasks.RedTeamTask(_llm, _logger).RunOnAssembledAsync(json, ct);
             var sv = new Tasks.SolverTask(_llm, _logger).RunAsync(draft, ct);
             redTeam = await rt;
             solver = await sv;
         });
 
-        // === Phase 12b: refine via LLM if schema errors persist OR red-team rejected.
-        var refineAttempted = false;
-        var redTeamRerun = false;
-        Tasks.RedTeamTask.Report? redTeamInitial = null;
+        // === Phase 12b: iterative refine + red-team loop.
+        // Goal: drive the case toward an `ok` verdict without schema errors.
+        // Up to N refine attempts; each accepted refine triggers a fresh red-team audit.
+        // Stops early on success, plateau, or regression (with revert).
+        var maxRefineIterations = int.TryParse(_config["CaseGenV2:RefineMaxIterations"], out var cfgN) && cfgN > 0
+            ? cfgN : 3;
+        var refineIterations = 0;
         var refineErrorsBefore = errors.Count;
-        var highFindings = redTeam?.Findings.Where(f =>
-            string.Equals(f.Severity, "high", StringComparison.OrdinalIgnoreCase)).ToList()
-            ?? new List<Tasks.RedTeamTask.Finding>();
-        var shouldRefine = errors.Count > 0
-            || (string.Equals(redTeam?.Verdict, "reject", StringComparison.OrdinalIgnoreCase) && highFindings.Count > 0);
+        Tasks.RedTeamTask.Report? redTeamInitial = null;
+        var verdictTrajectory = new List<string>();
+        if (!string.IsNullOrEmpty(redTeam?.Verdict))
+            verdictTrajectory.Add(redTeam!.Verdict);
 
-        if (shouldRefine)
+        static int VerdictRank(string? v) => (v?.ToLowerInvariant()) switch
         {
+            "ok" => 0,
+            "needs_review" => 1,
+            _ => 2 // reject or unknown
+        };
+
+        // Severity-weighted score: high counts much more than medium, medium much
+        // more than low. Used for plateau / regression comparisons so swapping
+        // 3 medium findings for 1 high finding registers as a regression.
+        static int FindingsScore(IEnumerable<Tasks.RedTeamTask.Finding>? findings)
+        {
+            if (findings is null) return 0;
+            var score = 0;
+            foreach (var f in findings)
+            {
+                score += (f.Severity?.ToLowerInvariant()) switch
+                {
+                    "high" => 100,
+                    "medium" => 10,
+                    _ => 1
+                };
+            }
+            return score;
+        }
+
+        while (refineIterations < maxRefineIterations)
+        {
+            // Refine if schema errors remain OR if red-team verdict is not `ok` AND has at least one non-low finding.
+            var actionableFindings = redTeam?.Findings.Where(f =>
+                !string.Equals(f.Severity, "low", StringComparison.OrdinalIgnoreCase)).ToList()
+                ?? new List<Tasks.RedTeamTask.Finding>();
+            var verdictLower = redTeam?.Verdict?.ToLowerInvariant();
+            var shouldRefine = errors.Count > 0
+                || ((verdictLower == "reject" || verdictLower == "needs_review") && actionableFindings.Count > 0);
+
+            if (!shouldRefine) break;
+
+            refineIterations++;
+            if (redTeamInitial is null) redTeamInitial = redTeam;
+
+            // Snapshot for potential revert on regression / plateau (semantic-only).
+            var prevJson = json;
+            var prevErrors = errors;
+            var prevRedTeam = redTeam;
+            var prevFindingScore = FindingsScore(redTeam?.Findings);
+            var prevRank = VerdictRank(redTeam?.Verdict);
+            var prevHadSchemaErrors = errors.Count > 0;
+            var refinedAccepted = false;
+
             await Stage("refineCase", async () =>
             {
-                refineAttempted = true;
                 var result = await new Tasks.RefineCaseTask(_llm, _logger)
-                    .RunAsync(json, errors, highFindings, _v2SchemaJson, ct);
+                    .RunAsync(json, errors, actionableFindings, _v2SchemaJson, ct);
 
                 if (result.Succeeded)
                 {
                     var refined = result.RefinedJson!;
-                    var revalidated = Validate(refined);
+                    var revalidated = ValidateAll(refined);
                     if (revalidated.Count < errors.Count
                         || (errors.Count == 0 && !string.Equals(refined, json, StringComparison.Ordinal)))
                     {
-                        _logger.LogInformation("Refine improved errors {Before}→{After} — accepting refined JSON",
-                            errors.Count, revalidated.Count);
+                        _logger.LogInformation("Refine iteration {N} accepted (validation errors {Before}→{After})",
+                            refineIterations, errors.Count, revalidated.Count);
                         json = refined;
                         errors = revalidated;
+                        refinedAccepted = true;
                     }
                     else
                     {
-                        _logger.LogWarning("Refine did NOT reduce error count ({Before}→{After}) — keeping pre-refine JSON",
-                            errors.Count, revalidated.Count);
+                        _logger.LogWarning("Refine iteration {N} did NOT improve — stopping loop", refineIterations);
                     }
                 }
                 else
                 {
-                    _logger.LogWarning("RefineCaseTask returned no document: {Error}", result.Error);
+                    _logger.LogWarning("RefineCaseTask iteration {N} returned no document: {Error}",
+                        refineIterations, result.Error);
                 }
             });
 
-            // === Phase 12c: re-run RedTeam on the refined JSON so the published verdict
-            // reflects whether refine actually addressed the findings. Skip when refine
-            // did not improve anything (initial verdict is still accurate).
-            if (refineAttempted && errors.Count == 0)
+            if (!refinedAccepted) break;
+
+            // Re-run RedTeam only once the schema is clean; otherwise spend the next iteration
+            // on fixing the remaining schema errors first.
+            if (errors.Count > 0) continue;
+
+            await Stage("redTeamRerun", async () =>
             {
-                await Stage("redTeamRerun", async () =>
+                redTeam = await new Tasks.RedTeamTask(_llm, _logger).RunOnAssembledAsync(json, ct);
+                verdictTrajectory.Add(redTeam.Verdict);
+                _logger.LogInformation("RedTeam rerun {N}: verdict={Verdict} findings={Count}",
+                    refineIterations, redTeam.Verdict, redTeam.Findings.Count);
+            });
+
+            var newRank = VerdictRank(redTeam?.Verdict);
+            var newFindingScore = FindingsScore(redTeam?.Findings);
+
+            // Regression → revert and stop.
+            if (newRank > prevRank || (newRank == prevRank && newFindingScore > prevFindingScore))
+            {
+                _logger.LogWarning("Refine iteration {N} regressed (verdict {PrevV}→{NewV}, score {PrevS}→{NewS}) — reverting",
+                    refineIterations, prevRedTeam?.Verdict, redTeam?.Verdict, prevFindingScore, newFindingScore);
+                json = prevJson;
+                errors = prevErrors;
+                redTeam = prevRedTeam;
+                if (verdictTrajectory.Count > 0)
+                    verdictTrajectory[verdictTrajectory.Count - 1] += " (reverted)";
+                break;
+            }
+
+            // Success.
+            if (newRank == 0) break;
+
+            // Plateau — verdict didn't improve and severity-weighted score didn't decrease.
+            if (newRank >= prevRank && newFindingScore >= prevFindingScore)
+            {
+                _logger.LogInformation("Refine iteration {N} plateaued — stopping loop", refineIterations);
+                // For semantic-only iterations (no pre-existing schema errors), revert to
+                // the snapshot since the LLM edits brought no measurable benefit.
+                if (!prevHadSchemaErrors)
                 {
-                    redTeamInitial = redTeam;
-                    var rerun = await new Tasks.RedTeamTask(_llm, _logger).RunOnAssembledAsync(json, ct);
-                    redTeam = rerun;
-                    redTeamRerun = true;
-                    _logger.LogInformation("RedTeam rerun after refine: {Initial} → {Final}",
-                        redTeamInitial?.Verdict, rerun.Verdict);
-                });
+                    json = prevJson;
+                    errors = prevErrors;
+                    redTeam = prevRedTeam;
+                    if (verdictTrajectory.Count > 0)
+                        verdictTrajectory[verdictTrajectory.Count - 1] += " (no gain)";
+                }
+                break;
             }
         }
+
+        var refineAttempted = refineIterations > 0;
+        var redTeamRerun = (redTeamInitial is not null
+                && !string.Equals(redTeamInitial.Verdict, redTeam?.Verdict, StringComparison.OrdinalIgnoreCase))
+            || verdictTrajectory.Count > 1;
 
         // === Phase 13: persist + render assets
         var outputPath = string.Empty;
@@ -354,9 +453,11 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             RefineAttempted = refineAttempted,
             RefineErrorsBefore = refineErrorsBefore,
             RefineErrorsAfter = errors.Count,
+            RefineIterations = refineIterations,
             RedTeamRerun = redTeamRerun,
             RedTeam = redTeam,
             RedTeamInitial = redTeamInitial,
+            RedTeamVerdictTrajectory = verdictTrajectory,
             Solver = solver,
             Consistency = consistencyReport
         };
@@ -633,6 +734,12 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
     {
         var sw = Stopwatch.StartNew();
         try { await body(); }
-        finally { sink[name] = sw.Elapsed.TotalMilliseconds; }
+        finally
+        {
+            // Accumulate latency so stages that fire multiple times during the
+            // refine loop (refineCase, redTeamRerun) report total time spent.
+            sink.TryGetValue(name, out var prev);
+            sink[name] = prev + sw.Elapsed.TotalMilliseconds;
+        }
     }
 }

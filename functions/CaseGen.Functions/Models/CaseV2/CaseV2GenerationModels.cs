@@ -34,10 +34,12 @@ public class GenerateCaseV2Response
     public bool RefineAttempted { get; set; }
     public int RefineErrorsBefore { get; set; }
     public int RefineErrorsAfter { get; set; }
+    public int RefineIterations { get; set; }
     public bool RedTeamRerun { get; set; }
     public Services.CaseV2.ConsistencyReport? Consistency { get; set; }
     public Services.CaseV2.Tasks.RedTeamTask.Report? RedTeam { get; set; }
     public Services.CaseV2.Tasks.RedTeamTask.Report? RedTeamInitial { get; set; }
+    public List<string> RedTeamVerdictTrajectory { get; set; } = new();
     public Services.CaseV2.Tasks.SolverTask.SolverResult? Solver { get; set; }
 }
 

@@ -35,7 +35,7 @@ public class RefineCaseTask
     public async Task<Result> RunAsync(
         string currentJson,
         IReadOnlyList<string> validationErrors,
-        IReadOnlyList<RedTeamTask.Finding> highFindings,
+        IReadOnlyList<RedTeamTask.Finding> findings,
         string schemaJson,
         CancellationToken ct)
     {
@@ -43,9 +43,20 @@ public class RefineCaseTask
             ? "(no schema errors)"
             : string.Join("\n", validationErrors.Select(e => "- " + e));
 
-        var findingBlock = highFindings.Count == 0
+        var highFindings = findings.Where(f =>
+            string.Equals(f.Severity, "high", StringComparison.OrdinalIgnoreCase)).ToList();
+        var mediumFindings = findings.Where(f =>
+            string.Equals(f.Severity, "medium", StringComparison.OrdinalIgnoreCase)).ToList();
+
+        var highBlock = highFindings.Count == 0
             ? "(no high-severity red-team findings)"
             : string.Join("\n", highFindings.Select(f =>
+                $"- area={f.Area} severity={f.Severity} issue={f.Issue}" +
+                (string.IsNullOrEmpty(f.Suggestion) ? "" : $" suggestion={f.Suggestion}")));
+
+        var mediumBlock = mediumFindings.Count == 0
+            ? "(no medium-severity red-team findings)"
+            : string.Join("\n", mediumFindings.Select(f =>
                 $"- area={f.Area} severity={f.Severity} issue={f.Issue}" +
                 (string.IsNullOrEmpty(f.Suggestion) ? "" : $" suggestion={f.Suggestion}")));
 
@@ -53,8 +64,9 @@ public class RefineCaseTask
 
 1. Satisfies every JSON-Schema constraint listed in the supplied schema (especially id-pattern constraints like `^asset\.[a-z0-9_]+$`, `^tevt\.[a-z0-9_]+$`, etc.).
 2. Addresses every high-severity red-team finding listed.
-3. Preserves the rest of the case as faithfully as possible — DO NOT rewrite plot, suspects, timeline, motive, evidence, or solution unless explicitly required to fix a flagged issue. Keep IDs stable when fixing referential issues; if an ID must change, also update every reference to it.
-4. Emit ONLY the corrected JSON document — no commentary, no markdown fences. The top-level must be an object matching the v2 case schema.
+3. Also addresses medium-severity findings whenever doing so does not require restructuring the case (e.g. sharpening a motive, tightening an alibi, clarifying a forensic conclusion).
+4. Preserves the rest of the case as faithfully as possible — DO NOT rewrite plot, suspects, timeline, motive, evidence, or solution unless explicitly required to fix a flagged issue. Keep IDs stable when fixing referential issues; if an ID must change, also update every reference to it.
+5. Emit ONLY the corrected JSON document — no commentary, no markdown fences. The top-level must be an object matching the v2 case schema.
 
 Be surgical. If the only complaint is malformed IDs, just fix the IDs (and their references). If a finding says ""smoking gun too weak"", you may add a sentence to the relevant ConclusionText or sharpen a forensic outcome, but don't restructure the case.";
 
@@ -65,7 +77,10 @@ Be surgical. If the only complaint is malformed IDs, just fix the IDs (and their
 {errorBlock}
 
 === HIGH-SEVERITY RED-TEAM FINDINGS ===
-{findingBlock}
+{highBlock}
+
+=== MEDIUM-SEVERITY RED-TEAM FINDINGS ===
+{mediumBlock}
 
 Emit the corrected case.json as a single JSON object.";
 
