@@ -120,6 +120,49 @@ export interface Translations {
   noRecentActivity: string;
   noDataAvailable: string;
   viewDossier: string;
+  resolvedBadge: string;
+  activityResolved: string;
+  activityResolvedUngraded: string;
+  activityAttempted: string;
+  activityAttemptedUngraded: string;
+  // Dashboard widgets
+  casesByDifficulty: string;
+  promotionProgress: string;
+  currentRank: string;
+  nextRank: string;
+  casesToNextRank: string;
+  maxRankReached: string;
+  viewProfile: string;
+  // Profile page
+  profileTitle: string;
+  profileBackToDashboard: string;
+  profileAgentSection: string;
+  profileLastPromotion: string;
+  profileNeverPromoted: string;
+  profileCaseHistory: string;
+  profileColCase: string;
+  profileColDifficulty: string;
+  profileColAttempts: string;
+  profileColBestScore: string;
+  profileColOutcome: string;
+  profileColLastAttempt: string;
+  profileOutcomeResolved: string;
+  profileOutcomeResolvedUngraded: string;
+  profileOutcomeNotResolved: string;
+  profileScoreByDifficulty: string;
+  profileScoreColPlayed: string;
+  profileScoreColResolved: string;
+  profileScoreColAvg: string;
+  profileSubmissionsTimeline: string;
+  profileRankHistory: string;
+  profileRankInitial: string;
+  profileCategoryBreakdown: string;
+  profileCategoryCulprit: string;
+  profileCategoryEvidence: string;
+  profileCategoryAnalysis: string;
+  profileCategoryQuestions: string;
+  profileCategoryNoData: string;
+  profileCategorySampleSize: string;
   
   // Footer
   currentLanguage: string;

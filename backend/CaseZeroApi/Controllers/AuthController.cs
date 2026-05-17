@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using CaseZeroApi.Models;
 using CaseZeroApi.DTOs;
 using CaseZeroApi.Services;
+using CaseZeroApi.Data;
 using System.Security.Cryptography;
 using System.Text;
 using System.Globalization;
@@ -20,19 +21,22 @@ namespace CaseZeroApi.Controllers
         // OBSOLETE: Email service removed (was from old email system)
         // private readonly IEmailService _emailService;
         private readonly ILogger<AuthController> _logger;
+        private readonly ApplicationDbContext _db;
 
         public AuthController(
             UserManager<User> userManager,
             SignInManager<User> signInManager,
             IJwtService jwtService,
             // IEmailService emailService,
-            ILogger<AuthController> logger)
+            ILogger<AuthController> logger,
+            ApplicationDbContext db)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _jwtService = jwtService;
             // _emailService = emailService;
             _logger = logger;
+            _db = db;
         }
 
         [HttpPost("register")]
@@ -87,6 +91,17 @@ namespace CaseZeroApi.Controllers
                 // Auto-verify for now since email service is obsolete
                 user.EmailVerified = true;
                 await _userManager.UpdateAsync(user);
+
+                // Seed the initial rank-history row so the profile timeline has a starting point.
+                _db.UserRankHistories.Add(new UserRankHistory
+                {
+                    UserId = user.Id,
+                    PreviousRank = null,
+                    NewRank = user.Rank,
+                    ChangedAt = DateTime.UtcNow,
+                    Reason = "Account created"
+                });
+                await _db.SaveChangesAsync();
                 
                 return Ok(new { 
                     Message = "Registro realizado com sucesso! Conta ativada automaticamente.",

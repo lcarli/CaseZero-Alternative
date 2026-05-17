@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using CaseZeroApi.Controllers;
+using CaseZeroApi.Data;
 using CaseZeroApi.Models;
 using CaseZeroApi.DTOs;
 using CaseZeroApi.Services;
@@ -37,12 +39,18 @@ namespace CaseZeroApi.Tests.Controllers
             // _mockEmailService = new Mock<IEmailService>(); // OBSOLETE
             _mockLogger = new Mock<ILogger<AuthController>>();
 
+            var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase($"AuthControllerTests-{Guid.NewGuid()}")
+                .Options;
+            var db = new ApplicationDbContext(dbOptions);
+
             _controller = new AuthController(
                 _mockUserManager.Object,
                 _mockSignInManager.Object,
                 _mockJwtService.Object,
                 // _mockEmailService.Object, // OBSOLETE
-                _mockLogger.Object);
+                _mockLogger.Object,
+                db);
         }
 
         [Fact]

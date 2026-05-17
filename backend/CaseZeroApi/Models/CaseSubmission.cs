@@ -30,6 +30,15 @@ namespace CaseZeroApi.Models
         // recorded with Graded = false and do not contribute to user stats.
         public bool Graded { get; set; } = true;
 
+        // Per-category score components (0..weight). Persisted so the profile page
+        // can show how a player typically performs in each scoring category without
+        // re-running the solution engine. All four columns are nullable so existing
+        // pre-migration rows can be ignored by the aggregator.
+        public double? CulpritScore { get; set; }
+        public double? EvidenceScore { get; set; }
+        public double? AnalysisScore { get; set; }
+        public double? QuestionsScore { get; set; }
+
         // Navigation properties
         public virtual Case Case { get; set; } = null!;
         public virtual User SubmittedByUser { get; set; } = null!;

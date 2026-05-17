@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import styled from 'styled-components'
-import { Briefcase, Clock, MapPin, ArrowRight, Shield, Target, Activity, FileText, CheckCircle, Plus } from 'react-feather'
+import { Briefcase, Clock, MapPin, ArrowRight, Shield, Target, Activity, FileText, CheckCircle, Plus, User as UserIcon, Award } from 'react-feather'
 import { useAuth } from '../hooks/useAuthContext'
 import { useLanguage } from '../hooks/useLanguageContext'
 import { casesV2Api } from '../services/api'
-import type { CaseDashboardItem } from '../types/caseV2'
+import type { CaseDashboardItem, DashboardActivity, CasesByDifficultyBucket, PromotionProgress } from '../types/caseV2'
 import LanguageSelector from '../components/LanguageSelector'
 import departmentBadge from '../assets/LogoMetroPolice_transparent.png'
 
@@ -230,6 +230,20 @@ const Tag = styled.span`
   border: 1px solid rgba(56, 189, 248, 0.25);
 `
 
+const ResolvedBadge = styled.span`
+  font-size: 0.7rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.18);
+  color: #bbf7d0;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+`
+
 const EmptyMessage = styled.div`
   padding: 2rem;
   text-align: center;
@@ -317,13 +331,106 @@ const ActivityMeta = styled.span`
   color: rgba(148, 163, 184, 0.8);
 `
 
+// ── Difficulty bucket chip (resolved / total) ─────────────────────────────
+const DifficultyList = styled.ul`
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+`
+
+const DifficultyRow = styled.li`
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  background: rgba(8, 12, 28, 0.5);
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  border-radius: 0.55rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+`
+
+const DifficultyLabel = styled.span`
+  color: rgba(226, 232, 240, 0.92);
+  min-width: 90px;
+  text-transform: capitalize;
+`
+
+const DifficultyBar = styled.div`
+  flex: 1;
+  height: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+`
+
+const DifficultyFill = styled.div<{ pct: number }>`
+  width: ${p => Math.max(0, Math.min(100, p.pct))}%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.7), rgba(34, 197, 94, 0.7));
+`
+
+const DifficultyCount = styled.span`
+  font-variant-numeric: tabular-nums;
+  color: rgba(191, 219, 254, 0.95);
+  min-width: 56px;
+  text-align: right;
+`
+
+// ── Promotion progress block ──────────────────────────────────────────────
+const PromotionWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: rgba(226, 232, 240, 0.9);
+`
+
+const PromotionLine = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+`
+
+const PromotionRank = styled.strong`
+  font-size: 1rem;
+  color: #e0f2fe;
+  letter-spacing: 0.04em;
+`
+
+const PromotionBar = styled.div`
+  height: 10px;
+  background: rgba(15, 23, 42, 0.85);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+`
+
+const PromotionFill = styled.div<{ pct: number }>`
+  width: ${p => Math.max(0, Math.min(100, p.pct))}%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.85), rgba(56, 189, 248, 0.85));
+`
+
+const PromotionMeta = styled.span`
+  font-size: 0.78rem;
+  color: rgba(148, 163, 184, 0.9);
+`
+
 const DashboardPage = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const { t } = useLanguage()
   const [cases, setCases] = useState<CaseDashboardItem[]>([])
   const [stats, setStats] = useState<{ casesResolved: number; casesActive: number; successRate: number; averageRating: number } | null>(null)
-  const [activities, setActivities] = useState<Array<{ description: string; date: string; type?: string; caseId?: string }>>([])
+  const [activities, setActivities] = useState<DashboardActivity[]>([])
+  const [casesByDifficulty, setCasesByDifficulty] = useState<CasesByDifficultyBucket[]>([])
+  const [promotion, setPromotion] = useState<PromotionProgress | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -336,6 +443,8 @@ const DashboardPage = () => {
         setCases(data?.cases ?? [])
         setStats(data?.stats ?? null)
         setActivities(data?.recentActivities ?? [])
+        setCasesByDifficulty(data?.casesByDifficulty ?? [])
+        setPromotion(data?.promotion ?? null)
       } catch (err) {
         console.error('Failed to load dashboard:', err)
         setError(t('error'))
@@ -347,16 +456,8 @@ const DashboardPage = () => {
     loadDashboard()
   }, [t])
 
-  // Counts derived from the cases list — works even if backend stats are stubbed.
-  const totals = useMemo(() => {
-    const total = cases.length
-    const byRank = cases.reduce<Record<string, number>>((acc, c) => {
-      const r = c.requiredRank || 'Unknown'
-      acc[r] = (acc[r] ?? 0) + 1
-      return acc
-    }, {})
-    return { total, byRank }
-  }, [cases])
+  // Total case count derived from list — used as a fallback for backend stats.
+  const totals = useMemo(() => ({ total: cases.length }), [cases])
 
   const handleLogout = () => {
     logout()
@@ -365,6 +466,23 @@ const DashboardPage = () => {
 
   const handleCaseClick = (caseId: string) => {
     navigate(`/desktop/${caseId}`)
+  }
+
+  // Render the activity row text, choosing a localized template based on `type`
+  // or falling back to a legacy `description` if the backend still ships one.
+  const renderActivity = (a: DashboardActivity): string => {
+    if (a.description) return a.description
+    const title = a.caseTitle ?? a.caseId ?? ''
+    const template = (() => {
+      switch (a.type) {
+        case 'resolved':            return t('activityResolved')
+        case 'resolved_ungraded':   return t('activityResolvedUngraded')
+        case 'attempted':           return t('activityAttempted')
+        case 'attempted_ungraded':  return t('activityAttemptedUngraded')
+        default:                    return ''
+      }
+    })()
+    return template.replace('{title}', title)
   }
 
   return (
@@ -385,6 +503,9 @@ const DashboardPage = () => {
         </IdentityBlock>
         <HeaderControls>
           <LanguageSelector appearance="landing" />
+          <NewCaseButton onClick={() => navigate('/profile')}>
+            <UserIcon size={16} />{t('viewProfile')}
+          </NewCaseButton>
           <NewCaseButton onClick={() => navigate('/case-generation')}>
             <Plus size={16} />New Case
           </NewCaseButton>
@@ -407,7 +528,7 @@ const DashboardPage = () => {
         </StatCard>
         <StatCard>
           <StatLabel>{t('averageRating')}</StatLabel>
-          <StatValue><Activity size={20} />{stats?.averageRating ?? 0}</StatValue>
+          <StatValue><Activity size={20} />{stats?.averageRating ?? 0}%</StatValue>
         </StatCard>
       </StatsGrid>
 
@@ -429,7 +550,9 @@ const DashboardPage = () => {
               <CaseCard key={c.caseId} onClick={() => handleCaseClick(c.caseId)}>
                 <CardTitle>
                   <span>{c.title}</span>
-                  <ArrowRight size={16} />
+                  {c.isResolved
+                    ? <ResolvedBadge><CheckCircle size={12} />{t('resolvedBadge')}</ResolvedBadge>
+                    : <ArrowRight size={16} />}
                 </CardTitle>
                 <CardDescription>{c.description}</CardDescription>
                 <MetaRow>
@@ -477,7 +600,7 @@ const DashboardPage = () => {
             <ActivityList>
               {activities.slice(0, 8).map((a, i) => (
                 <ActivityItem key={`${a.date}-${i}`}>
-                  <span>{a.description}</span>
+                  <span>{renderActivity(a)}</span>
                   <ActivityMeta>
                     {new Date(a.date).toLocaleString()}
                     {a.caseId ? ` · ${a.caseId}` : ''}
@@ -488,26 +611,63 @@ const DashboardPage = () => {
           )}
         </Panel>
 
-        <Panel>
-          <PanelHeader>
-            <FileText size={16} />
-            {t('casesByRank')}
-          </PanelHeader>
-          {Object.keys(totals.byRank).length === 0 ? (
-            <EmptyMessage>{t('dashboardEmpty')}</EmptyMessage>
-          ) : (
-            <ActivityList>
-              {Object.entries(totals.byRank).map(([rank, count]) => (
-                <ActivityItem key={rank}>
-                  <span style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <strong>{rank}</strong>
-                    <span>{count}</span>
-                  </span>
-                </ActivityItem>
-              ))}
-            </ActivityList>
-          )}
-        </Panel>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <Panel>
+            <PanelHeader>
+              <Award size={16} />
+              {t('promotionProgress')}
+            </PanelHeader>
+            {promotion ? (
+              <PromotionWrap>
+                <PromotionLine>
+                  <span>{t('currentRank')}</span>
+                  <PromotionRank>{promotion.currentRank}</PromotionRank>
+                </PromotionLine>
+                <PromotionBar>
+                  <PromotionFill pct={promotion.progressPct} />
+                </PromotionBar>
+                {promotion.nextRank ? (
+                  <PromotionLine>
+                    <PromotionMeta>
+                      → {promotion.nextRank} · {promotion.casesResolved}
+                      {promotion.casesRequiredForNext != null ? `/${promotion.casesRequiredForNext}` : ''}
+                    </PromotionMeta>
+                    <PromotionMeta>
+                      {t('casesToNextRank').replace('{count}', String(promotion.casesRemaining ?? 0))}
+                    </PromotionMeta>
+                  </PromotionLine>
+                ) : (
+                  <PromotionMeta>{t('maxRankReached')}</PromotionMeta>
+                )}
+              </PromotionWrap>
+            ) : (
+              <EmptyMessage>{t('loading')}</EmptyMessage>
+            )}
+          </Panel>
+
+          <Panel>
+            <PanelHeader>
+              <FileText size={16} />
+              {t('casesByDifficulty')}
+            </PanelHeader>
+            {casesByDifficulty.length === 0 ? (
+              <EmptyMessage>{t('dashboardEmpty')}</EmptyMessage>
+            ) : (
+              <DifficultyList>
+                {casesByDifficulty.map(b => {
+                  const pct = b.total > 0 ? (b.resolved / b.total) * 100 : 0
+                  return (
+                    <DifficultyRow key={b.difficulty}>
+                      <DifficultyLabel>{b.difficulty}</DifficultyLabel>
+                      <DifficultyBar><DifficultyFill pct={pct} /></DifficultyBar>
+                      <DifficultyCount>{b.resolved}/{b.total}</DifficultyCount>
+                    </DifficultyRow>
+                  )
+                })}
+              </DifficultyList>
+            )}
+          </Panel>
+        </div>
       </SecondaryLayout>
     </PageContainer>
   )

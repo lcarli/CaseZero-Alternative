@@ -753,13 +753,16 @@ export const forensicsApi = {
 }
 
 // ── V2 Cases API ─────────────────────────────────────────────────────────────
-import type { CaseV2Sanitized, SubmitCaseRequest, SubmitCaseResult, CaseDashboardItem } from '../types/caseV2'
+import type { CaseV2Sanitized, SubmitCaseRequest, SubmitCaseResult, CaseDashboardItem, DashboardActivity, CasesByDifficultyBucket, PromotionProgress } from '../types/caseV2'
+import type { ProfileStats } from '../types/profile'
 
 export const casesV2Api = {
   getDashboard: async (): Promise<{
     cases: CaseDashboardItem[]
     stats?: { casesResolved: number; casesActive: number; successRate: number; averageRating: number }
-    recentActivities?: Array<{ description: string; date: string; type?: string; caseId?: string }>
+    casesByDifficulty?: CasesByDifficultyBucket[]
+    promotion?: PromotionProgress
+    recentActivities?: DashboardActivity[]
   }> =>
     apiFetch('/cases/dashboard'),
 
@@ -797,6 +800,10 @@ export const casesV2Api = {
       method: 'POST',
       body: JSON.stringify({ gameTimeMinutes })
     }),
+}
+
+export const profileApi = {
+  getStats: async (): Promise<ProfileStats> => apiFetch('/profile/stats'),
 }
 
 export { ApiError }
