@@ -753,13 +753,13 @@ export const forensicsApi = {
 }
 
 // ── V2 Cases API ─────────────────────────────────────────────────────────────
-import type { CaseV2Sanitized, SubmitCaseRequest, SubmitCaseResult, CaseDashboardItem } from '../types/caseV2'
+import type { CaseV2Sanitized, SubmitCaseRequest, SubmitCaseResult, CaseDashboardItem, DashboardActivity } from '../types/caseV2'
 
 export const casesV2Api = {
   getDashboard: async (): Promise<{
     cases: CaseDashboardItem[]
     stats?: { casesResolved: number; casesActive: number; successRate: number; averageRating: number }
-    recentActivities?: Array<{ description: string; date: string; type?: string; caseId?: string }>
+    recentActivities?: DashboardActivity[]
   }> =>
     apiFetch('/cases/dashboard'),
 

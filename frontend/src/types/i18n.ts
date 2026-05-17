@@ -120,6 +120,11 @@ export interface Translations {
   noRecentActivity: string;
   noDataAvailable: string;
   viewDossier: string;
+  resolvedBadge: string;
+  activityResolved: string;
+  activityResolvedUngraded: string;
+  activityAttempted: string;
+  activityAttemptedUngraded: string;
   
   // Footer
   currentLanguage: string;

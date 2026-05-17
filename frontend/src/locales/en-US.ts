@@ -97,6 +97,11 @@ export const enUS: Translations = {
   noRecentActivity: 'No recent activity logged.',
   noDataAvailable: 'No operational data available.',
   viewDossier: 'View Dossier',
+  resolvedBadge: 'Resolved',
+  activityResolved: 'Resolved case {title}',
+  activityResolvedUngraded: 'Solved {title} (practice mode, not counted)',
+  activityAttempted: 'Submitted an answer for {title}',
+  activityAttemptedUngraded: 'Practice attempt on {title}',
   
   // Desktop
   evidence: 'Evidence',

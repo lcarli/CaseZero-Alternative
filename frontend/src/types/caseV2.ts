@@ -135,6 +135,24 @@ export interface CaseDashboardItem {
   category?: string
   tags?: string[]
   estimatedDurationMinutes?: number
+  isResolved?: boolean
+}
+
+export type DashboardActivityType =
+  | 'resolved'
+  | 'resolved_ungraded'
+  | 'attempted'
+  | 'attempted_ungraded'
+
+export interface DashboardActivity {
+  // Legacy free-form description; newer payloads use `type` + caseTitle.
+  description?: string
+  date: string
+  type?: DashboardActivityType
+  caseId?: string
+  caseTitle?: string
+  score?: number
+  graded?: boolean
 }
 
 // Submit request/result

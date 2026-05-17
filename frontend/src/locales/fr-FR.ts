@@ -97,6 +97,11 @@ export const frFR: Translations = {
   noRecentActivity: 'Aucune activité récente enregistrée.',
   noDataAvailable: 'Aucune donnée opérationnelle disponible.',
   viewDossier: 'Voir le dossier',
+  resolvedBadge: 'Résolu',
+  activityResolved: 'Affaire {title} résolue',
+  activityResolvedUngraded: 'A résolu {title} (mode entraînement, non comptabilisé)',
+  activityAttempted: 'A soumis une réponse pour {title}',
+  activityAttemptedUngraded: 'Tentative en mode entraînement sur {title}',
   
   // Desktop
   evidence: 'Preuves',

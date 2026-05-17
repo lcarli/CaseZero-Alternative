@@ -95,8 +95,13 @@ export const ptBR: Translations = {
   evidenceProgress: 'Progresso de evidências',
   commandBulletins: 'Boletins de comando',
   noRecentActivity: 'Nenhuma atividade recente registrada.',
-  noDataAvailable: 'Nenhum dado operacional disponível.',
-  viewDossier: 'Ver dossiê',
+  noDataAvailable: 'Sem dados operacionais disponíveis.',
+  viewDossier: 'Ver Dossiê',
+  resolvedBadge: 'Resolvido',
+  activityResolved: 'Caso {title} resolvido',
+  activityResolvedUngraded: 'Resolveu {title} (modo prática, não conta)',
+  activityAttempted: 'Enviou uma resposta para {title}',
+  activityAttemptedUngraded: 'Tentativa em modo prática em {title}',
   
   // Desktop
   evidence: 'Evidências',

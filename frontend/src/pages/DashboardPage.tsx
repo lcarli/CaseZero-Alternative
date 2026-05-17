@@ -5,7 +5,7 @@ import { Briefcase, Clock, MapPin, ArrowRight, Shield, Target, Activity, FileTex
 import { useAuth } from '../hooks/useAuthContext'
 import { useLanguage } from '../hooks/useLanguageContext'
 import { casesV2Api } from '../services/api'
-import type { CaseDashboardItem } from '../types/caseV2'
+import type { CaseDashboardItem, DashboardActivity } from '../types/caseV2'
 import LanguageSelector from '../components/LanguageSelector'
 import departmentBadge from '../assets/LogoMetroPolice_transparent.png'
 
@@ -230,6 +230,20 @@ const Tag = styled.span`
   border: 1px solid rgba(56, 189, 248, 0.25);
 `
 
+const ResolvedBadge = styled.span`
+  font-size: 0.7rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.18);
+  color: #bbf7d0;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+`
+
 const EmptyMessage = styled.div`
   padding: 2rem;
   text-align: center;
@@ -323,7 +337,7 @@ const DashboardPage = () => {
   const { t } = useLanguage()
   const [cases, setCases] = useState<CaseDashboardItem[]>([])
   const [stats, setStats] = useState<{ casesResolved: number; casesActive: number; successRate: number; averageRating: number } | null>(null)
-  const [activities, setActivities] = useState<Array<{ description: string; date: string; type?: string; caseId?: string }>>([])
+  const [activities, setActivities] = useState<DashboardActivity[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -367,6 +381,23 @@ const DashboardPage = () => {
     navigate(`/desktop/${caseId}`)
   }
 
+  // Render the activity row text, choosing a localized template based on `type`
+  // or falling back to a legacy `description` if the backend still ships one.
+  const renderActivity = (a: DashboardActivity): string => {
+    if (a.description) return a.description
+    const title = a.caseTitle ?? a.caseId ?? ''
+    const template = (() => {
+      switch (a.type) {
+        case 'resolved':            return t('activityResolved')
+        case 'resolved_ungraded':   return t('activityResolvedUngraded')
+        case 'attempted':           return t('activityAttempted')
+        case 'attempted_ungraded':  return t('activityAttemptedUngraded')
+        default:                    return ''
+      }
+    })()
+    return template.replace('{title}', title)
+  }
+
   return (
     <PageContainer>
       <BackgroundGrid />
@@ -407,7 +438,7 @@ const DashboardPage = () => {
         </StatCard>
         <StatCard>
           <StatLabel>{t('averageRating')}</StatLabel>
-          <StatValue><Activity size={20} />{stats?.averageRating ?? 0}</StatValue>
+          <StatValue><Activity size={20} />{stats?.averageRating ?? 0}%</StatValue>
         </StatCard>
       </StatsGrid>
 
@@ -429,7 +460,9 @@ const DashboardPage = () => {
               <CaseCard key={c.caseId} onClick={() => handleCaseClick(c.caseId)}>
                 <CardTitle>
                   <span>{c.title}</span>
-                  <ArrowRight size={16} />
+                  {c.isResolved
+                    ? <ResolvedBadge><CheckCircle size={12} />{t('resolvedBadge')}</ResolvedBadge>
+                    : <ArrowRight size={16} />}
                 </CardTitle>
                 <CardDescription>{c.description}</CardDescription>
                 <MetaRow>
@@ -477,7 +510,7 @@ const DashboardPage = () => {
             <ActivityList>
               {activities.slice(0, 8).map((a, i) => (
                 <ActivityItem key={`${a.date}-${i}`}>
-                  <span>{a.description}</span>
+                  <span>{renderActivity(a)}</span>
                   <ActivityMeta>
                     {new Date(a.date).toLocaleString()}
                     {a.caseId ? ` · ${a.caseId}` : ''}

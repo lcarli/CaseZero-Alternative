@@ -95,8 +95,13 @@ export const esES: Translations = {
   evidenceProgress: 'Progreso de evidencias',
   commandBulletins: 'Boletines de mando',
   noRecentActivity: 'No hay actividad reciente registrada.',
-  noDataAvailable: 'No hay datos operativos disponibles.',
-  viewDossier: 'Ver dossier',
+  noDataAvailable: 'Sin datos operativos disponibles.',
+  viewDossier: 'Ver expediente',
+  resolvedBadge: 'Resuelto',
+  activityResolved: 'Caso {title} resuelto',
+  activityResolvedUngraded: 'Resolvió {title} (modo práctica, no cuenta)',
+  activityAttempted: 'Envió una respuesta para {title}',
+  activityAttemptedUngraded: 'Intento en modo práctica en {title}',
   
   // Desktop
   evidence: 'Evidencias',
