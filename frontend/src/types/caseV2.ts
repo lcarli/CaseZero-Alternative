@@ -155,6 +155,22 @@ export interface DashboardActivity {
   graded?: boolean
 }
 
+export interface CasesByDifficultyBucket {
+  difficulty: string
+  total: number
+  resolved: number
+}
+
+export interface PromotionProgress {
+  currentRank: string
+  nextRank?: string | null
+  casesResolved: number
+  casesRequiredForCurrent: number
+  casesRequiredForNext?: number | null
+  casesRemaining?: number | null
+  progressPct: number
+}
+
 // Submit request/result
 export interface SubmitCaseRequest {
   suspectId: string

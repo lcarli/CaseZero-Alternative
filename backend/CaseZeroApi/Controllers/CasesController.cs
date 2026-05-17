@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using CaseZeroApi.Data;
+using CaseZeroApi.Models;
 using CaseZeroApi.Models.CaseV2;
 using CaseZeroApi.Services;
 
@@ -104,6 +105,38 @@ public class CasesController : ControllerBase
             ? 0.0
             : Math.Round(bestScoreByCase.Average(), 1);
 
+        // ── Cases by difficulty (X resolved / Y total) ──────────────────────
+        // Bucketed against the case's difficulty string. Difficulties not in
+        // the canonical ladder fall under "Unknown".
+        var casesByDifficulty = cases
+            .GroupBy(c => string.IsNullOrWhiteSpace(c.Difficulty) ? "Unknown" : c.Difficulty,
+                StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => DifficultyOrdinal(g.Key))
+            .Select(g => new
+            {
+                difficulty = g.Key,
+                total = g.Count(),
+                resolved = g.Count(c => resolvedCaseIds.Contains(c.CaseId))
+            })
+            .ToList();
+
+        // ── Promotion progress ─────────────────────────────────────────────
+        // Uses graded resolves only (consistent with promotion policy).
+        var rankEnum = string.IsNullOrEmpty(userId)
+            ? DetectiveRank.Rook
+            : (DetectiveRank)userRank;
+        var promotionProgress = PromotionRules.Compute(rankEnum, casesResolved);
+        var promotion = new
+        {
+            currentRank = promotionProgress.CurrentRank.ToString(),
+            nextRank = promotionProgress.NextRank?.ToString(),
+            casesResolved = promotionProgress.CasesResolved,
+            casesRequiredForCurrent = promotionProgress.CasesRequiredForCurrent,
+            casesRequiredForNext = promotionProgress.CasesRequiredForNext,
+            casesRemaining = promotionProgress.CasesRemaining,
+            progressPct = promotionProgress.ProgressPct
+        };
+
         // ── Recent activities (last 10) ────────────────────────────────────
         // The frontend renders these from a localized template keyed by `type`,
         // so we don't translate on the backend — we just ship structured rows.
@@ -133,6 +166,8 @@ public class CasesController : ControllerBase
                 successRate,
                 averageRating
             },
+            casesByDifficulty,
+            promotion,
             cases = cases.Select(c => new
             {
                 caseId = c.CaseId,
@@ -149,6 +184,18 @@ public class CasesController : ControllerBase
             recentActivities
         });
     }
+
+    private static int DifficultyOrdinal(string? difficulty) => difficulty?.Trim().ToLowerInvariant() switch
+    {
+        "rookie" or "rook" => 0,
+        "detective" => 1,
+        "detective2" => 2,
+        "sergeant" => 3,
+        "lieutenant" => 4,
+        "captain" => 5,
+        "commander" => 6,
+        _ => 99
+    };
 
     private sealed class CaseSubmissionSummary
     {
