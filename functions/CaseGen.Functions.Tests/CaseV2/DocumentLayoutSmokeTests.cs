@@ -23,6 +23,7 @@ public class DocumentLayoutSmokeTests
     private static readonly string[] AllLayouts =
     {
         "GeneralReport","PoliceReport","WitnessStatement","InterviewTranscript",
+        "AudioTranscript",
         "ForensicReport","MedicalReport","EvidenceLog","Memo","CustodyForm"
     };
 
@@ -36,6 +37,7 @@ public class DocumentLayoutSmokeTests
             new PoliceReportLayout(),
             new WitnessStatementLayout(),
             new InterviewTranscriptLayout(),
+            new AudioTranscriptLayout(),
             new ForensicReportLayout(),
             new MedicalReportLayout(),
             new EvidenceLogLayout(),
@@ -81,6 +83,7 @@ public class DocumentLayoutSmokeTests
     [InlineData("PoliceReport")]
     [InlineData("WitnessStatement")]
     [InlineData("InterviewTranscript")]
+    [InlineData("AudioTranscript")]
     [InlineData("ForensicReport")]
     [InlineData("MedicalReport")]
     [InlineData("EvidenceLog")]

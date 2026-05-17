@@ -24,7 +24,7 @@ public class AssetPlanTask
           "items":{"type":"object","required":["id","type","title","role","visibility"],
             "properties":{
               "id":{"type":"string","pattern":"^asset\\.[a-z0-9_]+$"},
-              "type":{"type":"string","enum":["photo","pdf","document","audio","digital"]},
+              "type":{"type":"string","enum":["photo","pdf","document","digital"]},
               "visibility":{"type":"string","enum":["initial","hidden"]}
             }}}
       }
@@ -36,16 +36,16 @@ public class AssetPlanTask
         var system = @"You are planning the **initial evidence assets** a detective collects on day one of an investigation.
 List 4-10 distinct assets. Each has:
 - id (pattern `asset.<snake>`)
-- type — one of these EXACT values (do NOT use anything else, especially not `video` or `image`):
+- type — one of these EXACT values (do NOT use anything else, especially not `video`, `image`, or `audio`):
     * `photo`    — a single still image of a scene / object / location
     * `pdf`      — a PDF report or evidence document (will be rendered with QuestPDF)
-    * `document` — same renderer as `pdf` (alias for narrative purposes)
-    * `audio`    — an audio recording (transcript stored in sidecar, audio TTS deferred)
+    * `document` — same renderer as `pdf` (alias for narrative purposes). USE THIS for transcribed audio (dispatch tapes, 911 calls, voicemails, surveillance audio) — set layout = `AudioTranscript` in the later step.
     * `digital`  — a digital-forensics export (call logs, POS data, sensor log, file listing). Will be rendered as a PDF report.
 - a short title
 - a ONE-LINE role explaining how it fits the case
 - `visibility` = `initial` (all assets here are initial; result PDFs from forensics come later).
 
+Do NOT plan raw audio or video media — there is no audio/video player. Anything an investigator would normally listen to (911 call, dispatch tape, voicemail, intercom audio) is delivered as a TRANSCRIBED document (`document` type, AudioTranscript layout).
 Do NOT write descriptions or metadata — that comes in a later step. Pick assets that make sense given the case draft.";
         var user = $@"CASE DRAFT (read-only):
 {draft.ToSummaryJson()}
@@ -97,18 +97,17 @@ public class AssetCardTask
                 ("Set `bodyDoc` to a structured EvidenceDocument (see schema in this prompt). PICK a `layout` from the family below based on what the asset represents (be precise — the renderer styles each family differently):\n" +
                  "  · `PoliceReport`        — initial / supplemental police reports, first-responder narratives (brasão letterhead, §1/§2 numbered sections).\n" +
                  "  · `WitnessStatement`    — sworn statements taken from a witness (STATEMENT OF block, oath, double signature).\n" +
-                 "  · `InterviewTranscript` — interviews / interrogations. Use a `transcript` section.\n" +
+                 "  · `InterviewTranscript` — interviews / interrogations conducted face-to-face by the police. Use a `transcript` section.\n" +
+                 "  · `AudioTranscript`     — transcribed audio recordings (911 / dispatch tapes, voicemails, intercom audio, surveillance recordings). Header should include `Recording Ref`, `Duration`, `Recording Device`, `Transcribed by`. Body is a `transcript` section with {timestamp, speaker, text}.\n" +
                  "  · `ForensicReport`      — lab examination reports (CCTV correlation, video enhancement, fingerprint analysis, ballistics, DNA, toxicology). Use sections Items Submitted / Methodology / Findings / Conclusions / Limitations.\n" +
                  "  · `MedicalReport`       — preliminary ME reports, autopsy summaries, urgent-care visit records. Sections History / External Examination / Findings / Cause / Disposition.\n" +
                  "  · `EvidenceLog`         — evidence log / chain of custody. ALWAYS include a `table` with columns Item, Description, Collected By, Time, Location, Container, Seal.\n" +
                  "  · `Memo`                — internal memorandums, records preservation holds, tasking memos, admin summaries, compliance briefs. Header[] MUST include TO, FROM, DATE, RE.\n" +
                  "  · `CustodyForm`         — key-control sign-out, cash count, drop-safe audit, case briefing. Header[] has the form fields. Include a signatures section.\n" +
                  "  · `GeneralReport`       — only if NONE of the above apply.\n" +
-                 "Use `narrative` for prose, `transcript` for Q/A, `keyValue` for header-style facts (date, location, officer), `table` for tabulated data, `callout` for highlighted notes. Anchor every date/time to the case timeline (incidentDate / openedAt).", true),
+                 "Use `narrative` for prose, `transcript` for Q/A or transcribed audio, `keyValue` for header-style facts (date, location, officer), `table` for tabulated data, `callout` for highlighted notes. Anchor every date/time to the case timeline (incidentDate / openedAt).", true),
             "photo" =>
                 ("Set `body` to a vivid image prompt that an image model can render (lighting, composition, framing, mood, visible details). Leave `bodyDoc` null.", false),
-            "audio" =>
-                ("Set `body` to a transcript + descriptive note (stored as sidecar, TTS deferred). Leave `bodyDoc` null.", false),
             "digital" =>
                 ("Set `bodyDoc` to a structured EvidenceDocument. CHOOSE one of these recognised digital layouts so a specialised template can enrich the output:\n" +
                  "  · `CallLog`         — telecom CDRs. Table columns: Timestamp, Direction, Other Party, Duration, Notes.\n" +

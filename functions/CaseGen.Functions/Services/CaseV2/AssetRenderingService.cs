@@ -24,8 +24,9 @@ public class AssetRenderingReport
 /// Renders v2 assets to actual files next to the case JSON.
 /// - pdf/document  → QuestPDF via <see cref="IPdfRenderingService.GenerateTestPdfAsync"/>
 /// - photo/image   → image generation via <see cref="ILLMProvider.GenerateImageAsync"/>
-/// - audio/video   → placeholder .txt sidecar with the body/description
-/// - digital       → placeholder .txt sidecar with the body
+/// - digital       → PDF (digital-forensics export rendered via the doc renderer)
+/// Audio is intentionally NOT supported anymore — transcribed audio is
+/// produced as a `document` with layout = AudioTranscript.
 /// </summary>
 public class AssetRenderingService : IAssetRenderingService
 {
@@ -79,6 +80,10 @@ public class AssetRenderingService : IAssetRenderingService
                     imageTasks.Add(RenderImageAsync(caseId, assetsDir, a, report, ct));
                     break;
                 case "audio":
+                    // Audio is no longer planned; if the LLM ignores the prompt
+                    // and emits one anyway, fall back to a sidecar so the run
+                    // doesn't fail — but flag it.
+                    _logger.LogWarning("Legacy audio asset {Id} fell through — emitting sidecar; expected AudioTranscript document instead", a.Id);
                     RenderSidecar(assetsDir, a);
                     report.Skipped++;
                     break;

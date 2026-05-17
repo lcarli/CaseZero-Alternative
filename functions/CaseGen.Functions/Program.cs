@@ -36,6 +36,7 @@ builder.Services
     .AddScoped<IDocumentLayout, PoliceReportLayout>()
     .AddScoped<IDocumentLayout, WitnessStatementLayout>()
     .AddScoped<IDocumentLayout, InterviewTranscriptLayout>()
+    .AddScoped<IDocumentLayout, AudioTranscriptLayout>()
     .AddScoped<IDocumentLayout, ForensicReportLayout>()
     .AddScoped<IDocumentLayout, MedicalReportLayout>()
     .AddScoped<IDocumentLayout, EvidenceLogLayout>()
@@ -59,6 +60,7 @@ builder.Services
     .AddScoped<IEvidenceTemplate, ChatExportTemplate>()
     .AddScoped<IEvidenceTemplate, EmailExportTemplate>()
     .AddScoped<IEvidenceTemplate, AccessLogTemplate>()
+    .AddScoped<IEvidenceTemplate, AudioTranscriptTemplate>()
     .AddScoped<IEvidenceTemplateRegistry, EvidenceTemplateRegistry>()
     // LLM Provider — Azure OpenAI for production, Mock for local/dev without keys
     .AddScoped<ILLMProvider>(serviceProvider =>
