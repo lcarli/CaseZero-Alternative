@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
 import type { SubmitCaseRequest, SubmitCaseResult } from '../types/caseV2'
@@ -114,12 +114,15 @@ describe('SubmitCase', () => {
     mockSubmissionState = { attemptsUsed: 0, maxAttempts: 3, lastResult: undefined }
   })
 
-  it('renders visible suspects as select options', () => {
+  it('renders visible suspects as selectable cards', () => {
     render(<SubmitCase />)
-    const select = screen.getByRole('combobox')
-    expect(select).toBeInTheDocument()
+    // Suspects are now rendered as radio buttons within a radiogroup
+    const group = screen.getByRole('radiogroup', { name: /suspect/i })
+    expect(group).toBeInTheDocument()
     expect(screen.getByText('Marcus Reeve')).toBeInTheDocument()
     expect(screen.getByText('Alice Turner')).toBeInTheDocument()
+    // Scope to the suspect group to avoid counting question-option radios too
+    expect(within(group).getAllByRole('radio')).toHaveLength(mockSuspects.length)
   })
 
   it('renders visible assets as evidence checkboxes', () => {
@@ -145,7 +148,7 @@ describe('SubmitCase', () => {
 
     render(<SubmitCase />)
 
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'suspect.marcus' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Marcus Reeve' }))
     fireEvent.click(screen.getAllByRole('checkbox')[0])
     fireEvent.click(screen.getByRole('button'))
 
@@ -164,7 +167,7 @@ describe('SubmitCase', () => {
     })
 
     const { rerender } = render(<SubmitCase />)
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'suspect.marcus' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Marcus Reeve' }))
     fireEvent.click(screen.getByRole('button'))
 
     // Wait for submitCase to resolve and re-render with updated state
@@ -198,7 +201,7 @@ describe('SubmitCase', () => {
     mockSubmissionState = { attemptsUsed: 2, maxAttempts: 3, lastResult: undefined }
 
     const { rerender } = render(<SubmitCase />)
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'suspect.marcus' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Marcus Reeve' }))
     fireEvent.click(screen.getByRole('button'))
 
     await waitFor(() => expect(mockSubmitCase).toHaveBeenCalledOnce())
