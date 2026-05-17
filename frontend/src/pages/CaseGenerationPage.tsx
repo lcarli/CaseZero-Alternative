@@ -18,6 +18,7 @@ const PHASES: { id: string; label: string }[] = [
   { id: 'autoFixSchema',                label: 'Auto-fix schema (deterministic, conditional)' },
   { id: 'redTeamAndSolver',             label: 'Red-team + solver' },
   { id: 'refineCase',                   label: 'Refine (LLM, conditional)' },
+  { id: 'redTeamRerun',                 label: 'Red-team rerun (conditional)' },
   { id: 'renderAssets',                 label: 'Render PDFs + images' },
   { id: 'publishToBlob',                label: 'Publish to blob storage' }
 ]
@@ -421,12 +422,29 @@ const CaseGenerationPage = () => {
                 <Stat><StatLbl>Images rendered</StatLbl><StatVal>{status.result.AssetsRenderedImages}</StatVal></Stat>
                 <Stat><StatLbl>Blobs published</StatLbl><StatVal>{status.result.BlobsPublished}</StatVal></Stat>
                 <Stat><StatLbl>Auto-fixes applied</StatLbl><StatVal>{status.result.AutoFixesApplied?.length ?? 0}</StatVal></Stat>
-                <Stat><StatLbl>Refine attempted</StatLbl><StatVal>{status.result.RefineAttempted ? 'yes' : 'no'}</StatVal></Stat>
+                <Stat>
+                  <StatLbl>Refine attempted</StatLbl>
+                  <StatVal>
+                    {status.result.RefineAttempted ? 'yes' : 'no'}
+                    {(status.result.RefineIterations ?? 0) > 0 && (
+                      <span style={{ color: 'rgba(148, 197, 255, 0.7)', fontSize: '0.8rem', marginLeft: '0.4rem' }}>
+                        ({status.result.RefineIterations} iter)
+                      </span>
+                    )}
+                  </StatVal>
+                </Stat>
                 <Stat>
                   <StatLbl>Red-team verdict</StatLbl>
                   <StatVal style={{ fontSize: '0.95rem' }}>
                     {status.result.RedTeamVerdict ?? '—'}
-                    {status.result.RedTeamRerun && status.result.RedTeamVerdictInitial && (
+                    {(status.result.RedTeamVerdictTrajectory?.length ?? 0) > 1 && (
+                      <span style={{ color: 'rgba(148, 197, 255, 0.7)', fontSize: '0.8rem', marginLeft: '0.4rem' }}>
+                        ({status.result.RedTeamVerdictTrajectory!.join(' → ')})
+                      </span>
+                    )}
+                    {(status.result.RedTeamVerdictTrajectory?.length ?? 0) <= 1
+                      && status.result.RedTeamRerun
+                      && status.result.RedTeamVerdictInitial && (
                       <span style={{ color: 'rgba(148, 197, 255, 0.7)', fontSize: '0.8rem', marginLeft: '0.4rem' }}>
                         (was {status.result.RedTeamVerdictInitial})
                       </span>

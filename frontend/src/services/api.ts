@@ -388,8 +388,10 @@ export interface GenerateCaseStatus {
     RefineAttempted?: boolean
     RefineErrorsBefore?: number
     RefineErrorsAfter?: number
+    RefineIterations?: number
     RedTeamVerdict?: string | null
     RedTeamVerdictInitial?: string | null
+    RedTeamVerdictTrajectory?: string[] | null
     RedTeamRerun?: boolean
   } | null
 }
