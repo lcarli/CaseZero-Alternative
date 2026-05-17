@@ -93,6 +93,8 @@ public class CasesController : ControllerBase
 
         // averageRating: average score of graded CORRECT submissions, on a 0–100 scale,
         // taking only the best score per case (so multiple bad attempts don't drag it down).
+        // CaseSubmission.Score is already stored as 0..100 (SolutionService writes total*100),
+        // so no further scaling is required.
         var bestScoreByCase = mySubs
             .Where(s => s.IsCorrectSuspect && s.Graded)
             .GroupBy(s => s.CaseId, StringComparer.OrdinalIgnoreCase)
@@ -100,7 +102,7 @@ public class CasesController : ControllerBase
             .ToList();
         var averageRating = bestScoreByCase.Count == 0
             ? 0.0
-            : Math.Round(bestScoreByCase.Average() * 100.0, 1);
+            : Math.Round(bestScoreByCase.Average(), 1);
 
         // ── Recent activities (last 10) ────────────────────────────────────
         // The frontend renders these from a localized template keyed by `type`,
@@ -117,7 +119,7 @@ public class CasesController : ControllerBase
                 caseId = s.CaseId,
                 caseTitle = caseTitleById.TryGetValue(s.CaseId, out var t) ? t : s.CaseId,
                 date = s.SubmittedAt,
-                score = Math.Round(s.Score * 100.0, 1),
+                score = Math.Round(s.Score, 1),
                 graded = s.Graded
             };
         }).ToList();
