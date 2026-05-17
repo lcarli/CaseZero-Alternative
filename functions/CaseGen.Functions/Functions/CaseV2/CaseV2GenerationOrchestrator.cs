@@ -74,7 +74,9 @@ public record CaseV2JobResult(
     bool RefineAttempted,
     int RefineErrorsBefore,
     int RefineErrorsAfter,
-    string? RedTeamVerdict);
+    string? RedTeamVerdict,
+    string? RedTeamVerdictInitial,
+    bool RedTeamRerun);
 
 /// <summary>
 /// The single long-running activity. Runs the v2 generator end-to-end and reports the current phase
@@ -141,7 +143,9 @@ public class CaseV2GenerateActivity
                 RefineAttempted: response.RefineAttempted,
                 RefineErrorsBefore: response.RefineErrorsBefore,
                 RefineErrorsAfter: response.RefineErrorsAfter,
-                RedTeamVerdict: response.RedTeam?.Verdict);
+                RedTeamVerdict: response.RedTeam?.Verdict,
+                RedTeamVerdictInitial: response.RedTeamInitial?.Verdict,
+                RedTeamRerun: response.RedTeamRerun);
         }
         catch (Exception ex)
         {
