@@ -8,6 +8,7 @@ import Logs from './apps/Logs'
 import ForensicModule from './apps/ForensicModule'
 import Pinboard from './apps/Pinboard'
 import Clock from './Clock'
+import { useCase } from '../contexts/CaseContext'
 
 const DockContainer = styled.div`
   position: fixed;
@@ -141,6 +142,13 @@ interface DockProps {
 }
 
 const Dock: React.FC<DockProps> = ({ onOpenWindow, onCaseDisconnect }) => {
+  // Rookie cases ship with all documents pre-revealed and no forensic workflow,
+  // so we hide the Forensic Module entirely for that difficulty.
+  const { state } = useCase()
+  const difficulty = state.case?.metadata?.difficulty
+  const requiredRank = state.case?.metadata?.requiredRank
+  const isRookieCase = difficulty === 'Rookie' || requiredRank === 'Rookie'
+
   const dockItems = [
     {
       id: 'file-viewer',
@@ -154,12 +162,14 @@ const Dock: React.FC<DockProps> = ({ onOpenWindow, onCaseDisconnect }) => {
       icon: '📧',
       component: EmailApp
     },
-    {
-      id: 'forensic',
-      title: 'Forensic Module',
-      icon: '🔬',
-      component: ForensicModule
-    },
+    ...(isRookieCase
+      ? []
+      : [{
+          id: 'forensic',
+          title: 'Forensic Module',
+          icon: '🔬',
+          component: ForensicModule
+        }]),
     {
       id: 'logs',
       title: 'Logs',

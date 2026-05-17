@@ -42,7 +42,7 @@ const mockCase = {
   metadata: {
     title: 'The Missing Heir', description: 'A case.', location: 'Riverside',
     incidentDate: '2024-01-01', openedAt: '2024-01-01',
-    difficulty: 'Detective' as const, requiredRank: 'Rookie' as const,
+    difficulty: 'Detective' as const, requiredRank: 'Detective' as const,
   },
   assets: mockAssets,
   emails: [],
@@ -61,6 +61,7 @@ const mockSubmitCase = vi.fn(async (payload: SubmitCaseRequest): Promise<SubmitC
     breakdown: { culpritScore: 0, evidenceScore: 0, analysisScore: 0, questionsScore: 0 },
     maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
     attemptsRemaining: 2,
+    graded: true,
     feedbackCode: 'incorrect_attempts_remaining',
     explanationMarkdown: undefined,
   }
@@ -145,7 +146,7 @@ describe('SubmitCase', () => {
       correct: true, score: 1.0,
       breakdown: { culpritScore: 0.4, evidenceScore: 0.2, analysisScore: 0.2, questionsScore: 0.2 },
       maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
-      attemptsRemaining: 2, feedbackCode: 'correct', explanationMarkdown: undefined,
+      attemptsRemaining: 2, graded: true, feedbackCode: 'correct', explanationMarkdown: undefined,
     })
 
     render(<SubmitCase />)
@@ -166,7 +167,7 @@ describe('SubmitCase', () => {
       correct: true, score: 0.9,
       breakdown: { culpritScore: 0.4, evidenceScore: 0.2, analysisScore: 0.1, questionsScore: 0.2 },
       maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
-      attemptsRemaining: 2, feedbackCode: 'correct', explanationMarkdown: undefined,
+      attemptsRemaining: 2, graded: true, feedbackCode: 'correct', explanationMarkdown: undefined,
     })
 
     const { rerender } = render(<SubmitCase />)
@@ -185,19 +186,22 @@ describe('SubmitCase', () => {
     expect(screen.getByRole('button')).toBeDisabled()
   })
 
-  it('button is disabled when attemptsRemaining is 0', () => {
+  it('button stays enabled when attemptsRemaining is 0 (ungraded mode)', () => {
     mockSubmissionState = { attemptsUsed: 3, maxAttempts: 3, lastResult: undefined }
     render(<SubmitCase />)
+    // Player can keep submitting ungraded; only the missing-suspect rule disables the button.
     expect(screen.getByRole('button')).toBeDisabled()
+    fireEvent.click(screen.getByRole('radio', { name: 'Marcus Reeve' }))
+    expect(screen.getByRole('button')).not.toBeDisabled()
   })
 
-  it('renders explanationMarkdown when attemptsRemaining reaches 0', async () => {
+  it('renders explanationMarkdown when the case is solved on an ungraded attempt', async () => {
     const explanation = 'Marcus committed the crime because of blackmail.'
     mockSubmitCase.mockResolvedValueOnce({
-      correct: false, score: 0.3,
-      breakdown: { culpritScore: 0, evidenceScore: 0, analysisScore: 0, questionsScore: 0 },
+      correct: true, score: 0.95,
+      breakdown: { culpritScore: 0.4, evidenceScore: 0.2, analysisScore: 0.2, questionsScore: 0.15 },
       maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
-      attemptsRemaining: 0, feedbackCode: 'incorrect_no_attempts',
+      attemptsRemaining: 0, graded: false, feedbackCode: 'correct_ungraded',
       explanationMarkdown: explanation,
     })
 

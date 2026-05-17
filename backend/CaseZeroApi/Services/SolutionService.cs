@@ -31,11 +31,21 @@ public class SolutionService : ISolutionService
         var sol = caseData.Solution;
         var rules = sol.PartialCreditRules ?? new CaseV2PartialCreditRules();
 
-        var previousAttempts = await _context.CaseSubmissions
+        // A previously-shipped throw on previousAttempts >= MaxAttempts was removed:
+        // the case is no longer "locked" once N graded attempts have been used. The
+        // player can keep submitting to try and reveal the culprit, but those extra
+        // submissions are saved with Graded = false and do not affect promotion.
+        var gradedAttemptsUsed = await _context.CaseSubmissions
+            .CountAsync(s => s.CaseId == caseId && s.SubmittedByUserId == userId && s.Graded, ct);
+        var totalPreviousAttempts = await _context.CaseSubmissions
             .CountAsync(s => s.CaseId == caseId && s.SubmittedByUserId == userId, ct);
 
-        if (previousAttempts >= sol.MaxAttempts)
-            throw new MaxAttemptsExceededException(sol.MaxAttempts);
+        // This submission is graded only if the player hasn't already used all
+        // graded attempts before this one.
+        var graded = gradedAttemptsUsed < sol.MaxAttempts;
+
+        var isRookieCase = IsRookieDifficulty(caseData.Metadata?.Difficulty)
+                        || IsRookieDifficulty(caseData.Metadata?.RequiredRank);
 
         // Culprit
         var culpritCorrect = string.Equals(request.SuspectId, sol.CulpritId, StringComparison.Ordinal);
@@ -54,8 +64,13 @@ public class SolutionService : ISolutionService
         }
 
         // Analysis
+        // For Rookie cases, the Forensics Lab is intentionally unavailable —
+        // documents and analyses are pre-revealed, so the player can't (and
+        // shouldn't have to) submit analysisIds. Always award full credit for
+        // that category, regardless of whether the case author leaked
+        // requiredAnalysisIds into a Rookie case by mistake.
         double analysisScore;
-        if (sol.RequiredAnalysisIds.Count == 0)
+        if (isRookieCase || sol.RequiredAnalysisIds.Count == 0)
         {
             analysisScore = rules.AnalysisWeight;
         }
@@ -85,8 +100,10 @@ public class SolutionService : ISolutionService
         var total = culpritScore + evidenceScore + analysisScore + questionsScore;
         var correct = total >= sol.MinimumScore;
 
-        var attemptNumber = previousAttempts + 1;
-        var attemptsRemaining = Math.Max(0, sol.MaxAttempts - attemptNumber);
+        var attemptNumber = totalPreviousAttempts + 1;
+        // attemptsRemaining counts only graded attempts left, post-submission.
+        var gradedAttemptsAfter = gradedAttemptsUsed + (graded ? 1 : 0);
+        var attemptsRemaining = Math.Max(0, sol.MaxAttempts - gradedAttemptsAfter);
 
         // Ensure Case row exists for FK constraint
         await EnsureCaseRowAsync(caseId, caseData, ct);
@@ -107,18 +124,24 @@ public class SolutionService : ISolutionService
             Score = total * 100.0,
             EvaluatedAt = DateTime.UtcNow,
             RequestPayloadJson = JsonSerializer.Serialize(request),
-            AttemptNumber = attemptNumber
+            AttemptNumber = attemptNumber,
+            Graded = graded
         };
         _context.CaseSubmissions.Add(submission);
         await _context.SaveChangesAsync(ct);
 
-        var showExplanation = correct || attemptsRemaining == 0;
+        // The player chose "unlimited_ungraded": the explanation is only revealed
+        // when the case is actually solved. Running out of graded attempts no
+        // longer auto-spoils the answer — the player can keep trying ungraded.
+        var showExplanation = correct;
 
-        var feedbackCode = correct
-            ? "correct"
-            : attemptsRemaining == 0
-                ? "incorrect_no_attempts"
-                : "incorrect_attempts_remaining";
+        var feedbackCode = (correct, graded) switch
+        {
+            (true, true)   => "correct",
+            (true, false)  => "correct_ungraded",
+            (false, true)  => attemptsRemaining == 0 ? "incorrect_last_graded" : "incorrect_attempts_remaining",
+            (false, false) => "incorrect_ungraded",
+        };
 
         return new SubmitCaseResult(
             correct,
@@ -134,9 +157,14 @@ public class SolutionService : ISolutionService
                 Math.Round(rules.AnalysisWeight, 4),
                 Math.Round(rules.QuestionsWeight, 4)),
             attemptsRemaining,
+            graded,
             feedbackCode,
             showExplanation ? sol.Explanation : null);
     }
+
+    private static bool IsRookieDifficulty(string? value)
+        => !string.IsNullOrEmpty(value)
+            && string.Equals(value, "Rookie", StringComparison.OrdinalIgnoreCase);
 
     private async Task EnsureCaseRowAsync(string caseId, CaseV2 caseData, CancellationToken ct)
     {

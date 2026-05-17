@@ -161,8 +161,10 @@ export interface SubmitCaseScoreWeights {
 
 export type SubmitCaseFeedbackCode =
   | 'correct'
+  | 'correct_ungraded'
   | 'incorrect_attempts_remaining'
-  | 'incorrect_no_attempts'
+  | 'incorrect_last_graded'
+  | 'incorrect_ungraded'
 
 export interface SubmitCaseResult {
   correct: boolean
@@ -170,6 +172,7 @@ export interface SubmitCaseResult {
   breakdown: SubmitCaseBreakdown
   maxScores: SubmitCaseScoreWeights
   attemptsRemaining: number
+  graded: boolean
   feedbackCode: SubmitCaseFeedbackCode
   explanationMarkdown?: string
 }

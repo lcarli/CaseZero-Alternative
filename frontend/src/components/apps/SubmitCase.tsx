@@ -315,6 +315,16 @@ const ExplanationPanel = styled.div`
   white-space: pre-wrap;
 `
 
+const UngradedBanner = styled.div`
+  padding: 0.6rem 0.8rem;
+  background: rgba(255, 193, 7, 0.08);
+  border: 1px solid rgba(255, 193, 7, 0.4);
+  border-radius: 6px;
+  color: #ffd566;
+  font-size: 12px;
+  font-style: italic;
+`
+
 const SubmitCase: React.FC = () => {
   const { t } = useLanguage()
   const { state, submitCase } = useCase()
@@ -327,6 +337,11 @@ const SubmitCase: React.FC = () => {
   const attemptsRemaining = submission.maxAttempts - submission.attemptsUsed
   const lastResult = submission.lastResult
   const isExhausted = attemptsRemaining <= 0
+  const isRookieCase = useMemo(() => {
+    const diff = state.case?.metadata?.difficulty
+    const rank = state.case?.metadata?.requiredRank
+    return diff === 'Rookie' || rank === 'Rookie'
+  }, [state.case])
 
   const [suspectId, setSuspectId] = useState<string>('')
   const [evidenceIds, setEvidenceIds] = useState<string[]>([])
@@ -387,7 +402,7 @@ const SubmitCase: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (isExhausted || submitting) return
+    if (submitting) return
 
     const payload: SubmitCaseRequest = {
       suspectId,
@@ -431,7 +446,7 @@ const SubmitCase: React.FC = () => {
   const allReady =
     suspectState === 'ok' &&
     evidenceState === 'ok' &&
-    analysisState === 'ok' &&
+    (isRookieCase || analysisState === 'ok') &&
     questionsState === 'ok'
 
   return (
@@ -451,10 +466,12 @@ const SubmitCase: React.FC = () => {
             {evidenceState === 'ok' ? '✓' : '○'}{' '}
             {t('submitCaseProgressEvidence').replace('{n}', String(evidenceIds.length))}
           </ProgressChip>
-          <ProgressChip $state={analysisState}>
-            {analysisState === 'ok' ? '✓' : '○'}{' '}
-            {t('submitCaseProgressAnalysis').replace('{n}', String(selectedAnalysisIds.length))}
-          </ProgressChip>
+          {!isRookieCase && (
+            <ProgressChip $state={analysisState}>
+              {analysisState === 'ok' ? '✓' : '○'}{' '}
+              {t('submitCaseProgressAnalysis').replace('{n}', String(selectedAnalysisIds.length))}
+            </ProgressChip>
+          )}
           <ProgressChip $state={questionsState}>
             {questionsState === 'ok' ? '✓' : '○'}{' '}
             {t('submitCaseProgressQuestions')
@@ -472,6 +489,9 @@ const SubmitCase: React.FC = () => {
       </Section>
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {isExhausted && (
+          <UngradedBanner>⚠️ {t('submitCaseUngradedBanner')}</UngradedBanner>
+        )}
         <Section>
           <SectionTitle>{t('submitCaseSuspectLabel')}</SectionTitle>
           {suspects.length === 0 ? (
@@ -485,7 +505,7 @@ const SubmitCase: React.FC = () => {
                   <SuspectCard
                     key={s.id}
                     $selected={selected}
-                    $disabled={isExhausted}
+                    $disabled={false}
                   >
                     <input
                       type="radio"
@@ -493,7 +513,6 @@ const SubmitCase: React.FC = () => {
                       value={s.id}
                       checked={selected}
                       onChange={() => setSuspectId(s.id)}
-                      disabled={isExhausted}
                     />
                     <span>{label}</span>
                   </SuspectCard>
@@ -512,7 +531,6 @@ const SubmitCase: React.FC = () => {
                   type="checkbox"
                   checked={evidenceIds.includes(asset.id)}
                   onChange={() => toggleEvidence(asset.id)}
-                  disabled={isExhausted}
                 />
                 <span>
                   {asset.title}
@@ -523,34 +541,35 @@ const SubmitCase: React.FC = () => {
           </CheckboxGrid>
         </Section>
 
-        <Section>
-          <SectionTitle>{t('submitCaseAnalysisLabel')}</SectionTitle>
-          {loadingAnalyses ? (
-            <EmptyAnalyses>{t('submitCaseAnalysisLoading')}</EmptyAnalyses>
-          ) : completedAnalyses && completedAnalyses.length > 0 ? (
-            <CheckboxGrid>
-              {completedAnalyses.map(req => {
-                const analysisId = `${req.inputAssetId}:${req.analysisType}`
-                const label = req.inputAssetName
-                  ? `${req.inputAssetName} — ${req.analysisType}`
-                  : analysisId
-                return (
-                  <CheckboxItem key={analysisId}>
-                    <input
-                      type="checkbox"
-                      checked={selectedAnalysisIds.includes(analysisId)}
-                      onChange={() => toggleAnalysis(analysisId)}
-                      disabled={isExhausted}
-                    />
-                    <span>{label}</span>
-                  </CheckboxItem>
-                )
-              })}
-            </CheckboxGrid>
-          ) : (
-            <EmptyAnalyses>{t('submitCaseAnalysisEmpty')}</EmptyAnalyses>
-          )}
-        </Section>
+        {!isRookieCase && (
+          <Section>
+            <SectionTitle>{t('submitCaseAnalysisLabel')}</SectionTitle>
+            {loadingAnalyses ? (
+              <EmptyAnalyses>{t('submitCaseAnalysisLoading')}</EmptyAnalyses>
+            ) : completedAnalyses && completedAnalyses.length > 0 ? (
+              <CheckboxGrid>
+                {completedAnalyses.map(req => {
+                  const analysisId = `${req.inputAssetId}:${req.analysisType}`
+                  const label = req.inputAssetName
+                    ? `${req.inputAssetName} — ${req.analysisType}`
+                    : analysisId
+                  return (
+                    <CheckboxItem key={analysisId}>
+                      <input
+                        type="checkbox"
+                        checked={selectedAnalysisIds.includes(analysisId)}
+                        onChange={() => toggleAnalysis(analysisId)}
+                      />
+                      <span>{label}</span>
+                    </CheckboxItem>
+                  )
+                })}
+              </CheckboxGrid>
+            ) : (
+              <EmptyAnalyses>{t('submitCaseAnalysisEmpty')}</EmptyAnalyses>
+            )}
+          </Section>
+        )}
 
         {questions.length > 0 && (
           <Section>
@@ -566,7 +585,6 @@ const SubmitCase: React.FC = () => {
                       value={opt.id}
                       checked={answers[q.id] === opt.id}
                       onChange={() => handleAnswerChange(q.id, opt.id)}
-                      disabled={isExhausted}
                     />
                     <span>{opt.label}</span>
                   </RadioRow>
@@ -576,7 +594,7 @@ const SubmitCase: React.FC = () => {
           </Section>
         )}
 
-        <SubmitButton type="submit" disabled={isExhausted || submitting || !suspectId}>
+        <SubmitButton type="submit" disabled={submitting || !suspectId}>
           {t('submitCaseSubmitButton')}
         </SubmitButton>
       </form>
@@ -593,11 +611,11 @@ const SubmitCase: React.FC = () => {
           </ScoreLine>
           <BreakdownGrid>
             {([
-              { labelKey: 'submitCaseBreakdownCulprit', value: lastResult.breakdown.culpritScore, max: lastResult.maxScores.culprit },
-              { labelKey: 'submitCaseBreakdownEvidence', value: lastResult.breakdown.evidenceScore, max: lastResult.maxScores.evidence },
-              { labelKey: 'submitCaseBreakdownAnalysis', value: lastResult.breakdown.analysisScore, max: lastResult.maxScores.analysis },
-              { labelKey: 'submitCaseBreakdownQuestions', value: lastResult.breakdown.questionsScore, max: lastResult.maxScores.questions },
-            ] as const).map(({ labelKey, value, max }) => {
+              { labelKey: 'submitCaseBreakdownCulprit', value: lastResult.breakdown.culpritScore, max: lastResult.maxScores.culprit, show: true },
+              { labelKey: 'submitCaseBreakdownEvidence', value: lastResult.breakdown.evidenceScore, max: lastResult.maxScores.evidence, show: true },
+              { labelKey: 'submitCaseBreakdownAnalysis', value: lastResult.breakdown.analysisScore, max: lastResult.maxScores.analysis, show: !isRookieCase },
+              { labelKey: 'submitCaseBreakdownQuestions', value: lastResult.breakdown.questionsScore, max: lastResult.maxScores.questions, show: true },
+            ] as const).filter(row => row.show).map(({ labelKey, value, max }) => {
               const ratio = max > 0 ? value / max : 0
               const pct = Math.round(ratio * 100)
               return (
@@ -615,16 +633,26 @@ const SubmitCase: React.FC = () => {
             {t('submitCaseAttemptsRemaining').replace('{n}', String(lastResult.attemptsRemaining))}
           </ScoreLine>
           <ScoreLine style={{ marginTop: '0.25rem' }}>
-            {lastResult.feedbackCode === 'correct'
-              ? t('submitCaseFeedbackCorrect')
-              : lastResult.feedbackCode === 'incorrect_no_attempts'
-                ? t('submitCaseFeedbackIncorrectFinal')
-                : t('submitCaseFeedbackIncorrectRetry').replace('{n}', String(lastResult.attemptsRemaining))}
+            {(() => {
+              switch (lastResult.feedbackCode) {
+                case 'correct':
+                  return t('submitCaseFeedbackCorrect')
+                case 'correct_ungraded':
+                  return t('submitCaseFeedbackCorrectUngraded')
+                case 'incorrect_last_graded':
+                  return t('submitCaseFeedbackIncorrectLastGraded')
+                case 'incorrect_ungraded':
+                  return t('submitCaseFeedbackIncorrectUngraded')
+                case 'incorrect_attempts_remaining':
+                default:
+                  return t('submitCaseFeedbackIncorrectRetry').replace('{n}', String(lastResult.attemptsRemaining))
+              }
+            })()}
           </ScoreLine>
         </ResultPanel>
       )}
 
-      {isExhausted && lastResult?.explanationMarkdown && (
+      {lastResult?.explanationMarkdown && (
         <ExplanationPanel>
           <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: '#4a9eff' }}>
             {t('submitCaseExplanationHeader')}
