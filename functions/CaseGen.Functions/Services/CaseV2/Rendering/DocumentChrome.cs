@@ -49,6 +49,11 @@ public enum ChromeKey
     RecordingRef,                    // "Recording Ref"
     Duration,                        // "Duration"
 
+    // Audio Transcript (recording transcribed from an audio file/dispatch tape)
+    AudioRecordingTranscript,        // AUDIO RECORDING TRANSCRIPT
+    RecordingDevice,                 // "Recording Device"
+    TranscribedBy,                   // "Transcribed by"
+
     // Forensic Report
     ForensicLetterhead,              // FORENSIC LABORATORY · CASE EXAMINATION REPORT
     EvidenceIntegrityVerified,       // EVIDENCE INTEGRITY VERIFIED
@@ -172,6 +177,9 @@ public static class DocumentChrome
             [ChromeKey.ConductedBy] = "Conducted by",
             [ChromeKey.RecordingRef] = "Recording Ref",
             [ChromeKey.Duration] = "Duration",
+            [ChromeKey.AudioRecordingTranscript] = "AUDIO RECORDING TRANSCRIPT",
+            [ChromeKey.RecordingDevice] = "Recording Device",
+            [ChromeKey.TranscribedBy] = "Transcribed by",
             [ChromeKey.ForensicLetterhead] = "FORENSIC LABORATORY · CASE EXAMINATION REPORT",
             [ChromeKey.EvidenceIntegrityVerified] = "EVIDENCE INTEGRITY VERIFIED",
             [ChromeKey.EvidenceIntegrityCompromised] = "EVIDENCE INTEGRITY COMPROMISED",
@@ -251,6 +259,9 @@ public static class DocumentChrome
             [ChromeKey.ConductedBy] = "Conduzida por",
             [ChromeKey.RecordingRef] = "Ref. da Gravação",
             [ChromeKey.Duration] = "Duração",
+            [ChromeKey.AudioRecordingTranscript] = "TRANSCRIÇÃO DE GRAVAÇÃO DE ÁUDIO",
+            [ChromeKey.RecordingDevice] = "Dispositivo de Gravação",
+            [ChromeKey.TranscribedBy] = "Transcrito por",
             [ChromeKey.ForensicLetterhead] = "LABORATÓRIO PERICIAL · LAUDO DE EXAME",
             [ChromeKey.EvidenceIntegrityVerified] = "INTEGRIDADE DA EVIDÊNCIA VERIFICADA",
             [ChromeKey.EvidenceIntegrityCompromised] = "INTEGRIDADE DA EVIDÊNCIA COMPROMETIDA",
@@ -330,6 +341,9 @@ public static class DocumentChrome
             [ChromeKey.ConductedBy] = "Realizada por",
             [ChromeKey.RecordingRef] = "Ref. de grabación",
             [ChromeKey.Duration] = "Duración",
+            [ChromeKey.AudioRecordingTranscript] = "TRANSCRIPCIÓN DE GRABACIÓN DE AUDIO",
+            [ChromeKey.RecordingDevice] = "Dispositivo de grabación",
+            [ChromeKey.TranscribedBy] = "Transcrito por",
             [ChromeKey.ForensicLetterhead] = "LABORATORIO FORENSE · INFORME DE EXAMEN",
             [ChromeKey.EvidenceIntegrityVerified] = "INTEGRIDAD DE LA EVIDENCIA VERIFICADA",
             [ChromeKey.EvidenceIntegrityCompromised] = "INTEGRIDAD DE LA EVIDENCIA COMPROMETIDA",
@@ -409,6 +423,9 @@ public static class DocumentChrome
             [ChromeKey.ConductedBy] = "Menée par",
             [ChromeKey.RecordingRef] = "Réf. d'enregistrement",
             [ChromeKey.Duration] = "Durée",
+            [ChromeKey.AudioRecordingTranscript] = "TRANSCRIPTION D'ENREGISTREMENT AUDIO",
+            [ChromeKey.RecordingDevice] = "Appareil d'enregistrement",
+            [ChromeKey.TranscribedBy] = "Transcrit par",
             [ChromeKey.ForensicLetterhead] = "LABORATOIRE DE POLICE SCIENTIFIQUE · RAPPORT D'EXAMEN",
             [ChromeKey.EvidenceIntegrityVerified] = "INTÉGRITÉ DES SCELLÉS VÉRIFIÉE",
             [ChromeKey.EvidenceIntegrityCompromised] = "INTÉGRITÉ DES SCELLÉS COMPROMISE",
