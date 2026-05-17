@@ -146,17 +146,30 @@ export interface SubmitCaseRequest {
 }
 
 export interface SubmitCaseBreakdown {
-  culprit: boolean
-  evidence: boolean
-  analysis: boolean
-  questions: boolean
+  culpritScore: number
+  evidenceScore: number
+  analysisScore: number
+  questionsScore: number
 }
+
+export interface SubmitCaseScoreWeights {
+  culprit: number
+  evidence: number
+  analysis: number
+  questions: number
+}
+
+export type SubmitCaseFeedbackCode =
+  | 'correct'
+  | 'incorrect_attempts_remaining'
+  | 'incorrect_no_attempts'
 
 export interface SubmitCaseResult {
   correct: boolean
   score: number
   breakdown: SubmitCaseBreakdown
+  maxScores: SubmitCaseScoreWeights
   attemptsRemaining: number
-  feedbackText: string
+  feedbackCode: SubmitCaseFeedbackCode
   explanationMarkdown?: string
 }

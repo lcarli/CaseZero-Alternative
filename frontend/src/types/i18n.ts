@@ -450,6 +450,9 @@ export interface Translations {
   submitCaseBreakdownEvidence: string;
   submitCaseBreakdownAnalysis: string;
   submitCaseBreakdownQuestions: string;
+  submitCaseFeedbackCorrect: string;
+  submitCaseFeedbackIncorrectRetry: string;
+  submitCaseFeedbackIncorrectFinal: string;
   submitCaseExplanationHeader: string;
   submitCaseSuspectsEmpty: string;
   submitCaseProgressTitle: string;
