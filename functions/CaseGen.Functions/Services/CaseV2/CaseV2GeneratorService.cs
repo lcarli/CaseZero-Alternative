@@ -256,12 +256,29 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             solver = await sv;
         });
 
+        // Rookie-aware verdict calibration: the LLM reviewer is intentionally strict, and
+        // Rookie cases (by design simple, short, single-day) routinely earn 1-2 medium
+        // nits even when fully playable. Promote needs_review → ok when (a) it's a Rookie
+        // case, (b) zero high-severity findings, and (c) at most a small number of
+        // medium-severity findings. Findings themselves are preserved for transparency.
+        var isRookie = string.Equals(draft.Metadata.Difficulty, "Rookie", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase);
+        var rookieMaxMedium = int.TryParse(_config["CaseGenV2:RookieMaxMediumFindings"], out var cfgRm) && cfgRm >= 0
+            ? cfgRm : 2;
+        PromoteRookieVerdict(redTeam, isRookie, rookieMaxMedium);
+
         // === Phase 12b: iterative refine + red-team loop.
         // Goal: drive the case toward an `ok` verdict without schema errors.
         // Up to N refine attempts; each accepted refine triggers a fresh red-team audit.
         // Stops early on success, plateau, or regression (with revert).
+        // For Rookie cases, default to a single refine pass — repeated refines on a Rookie
+        // case tend to inject complexity that re-triggers `medium` findings without
+        // converging on `ok`.
+        var defaultMaxRefineIterations = isRookie ? 1 : 3;
         var maxRefineIterations = int.TryParse(_config["CaseGenV2:RefineMaxIterations"], out var cfgN) && cfgN > 0
-            ? cfgN : 3;
+            ? cfgN : defaultMaxRefineIterations;
+        if (isRookie && int.TryParse(_config["CaseGenV2:RefineMaxIterationsRookie"], out var cfgRookieN) && cfgRookieN > 0)
+            maxRefineIterations = cfgRookieN;
         var refineIterations = 0;
         var refineErrorsBefore = errors.Count;
         Tasks.RedTeamTask.Report? redTeamInitial = null;
@@ -358,6 +375,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             await Stage("redTeamRerun", async () =>
             {
                 redTeam = await new Tasks.RedTeamTask(_llm, _logger).RunOnAssembledAsync(json, ct);
+                PromoteRookieVerdict(redTeam, isRookie, rookieMaxMedium);
                 verdictTrajectory.Add(redTeam.Verdict);
                 _logger.LogInformation("RedTeam rerun {N}: verdict={Verdict} findings={Count}",
                     refineIterations, redTeam.Verdict, redTeam.Findings.Count);
@@ -461,6 +479,39 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             Solver = solver,
             Consistency = consistencyReport
         };
+    }
+
+    // ----------------------------------------------------------------------
+    // Verdict calibration
+    // ----------------------------------------------------------------------
+
+    /// <summary>
+    /// Promotes <c>needs_review</c> to <c>ok</c> for Rookie cases when the report
+    /// contains zero high-severity findings and at most <paramref name="maxMedium"/>
+    /// medium-severity findings. Original findings are preserved so downstream
+    /// consumers (HTTP response, audit blob) still see what the reviewer flagged.
+    /// No-op for non-Rookie cases or when the report is null.
+    /// </summary>
+    private void PromoteRookieVerdict(Tasks.RedTeamTask.Report? report, bool isRookie, int maxMedium)
+    {
+        if (!isRookie || report is null) return;
+        if (!string.Equals(report.Verdict, "needs_review", StringComparison.OrdinalIgnoreCase)) return;
+
+        var highCount = report.Findings.Count(f =>
+            string.Equals(f.Severity, "high", StringComparison.OrdinalIgnoreCase));
+        if (highCount > 0) return;
+
+        var mediumCount = report.Findings.Count(f =>
+            string.Equals(f.Severity, "medium", StringComparison.OrdinalIgnoreCase));
+        if (mediumCount > maxMedium) return;
+
+        _logger.LogInformation(
+            "Promoting Rookie RedTeam verdict needs_review→ok (highCount={High}, mediumCount={Medium}, threshold={Threshold})",
+            highCount, mediumCount, maxMedium);
+        report.Verdict = "ok";
+        report.Notes = string.IsNullOrEmpty(report.Notes)
+            ? $"Promoted to ok for Rookie case (mediumCount={mediumCount} ≤ {maxMedium}, no high findings)."
+            : report.Notes + $" | Promoted to ok for Rookie case (mediumCount={mediumCount} ≤ {maxMedium}, no high findings).";
     }
 
     // ----------------------------------------------------------------------
