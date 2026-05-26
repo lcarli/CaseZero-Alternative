@@ -339,7 +339,8 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             await Stage("refineCase", async () =>
             {
                 var result = await new Tasks.RefineCaseTask(_llm, _logger)
-                    .RunAsync(json, errors, actionableFindings, _v2SchemaJson, ct);
+                    .RunAsync(json, errors, actionableFindings, _v2SchemaJson, ct,
+                        difficulty: draft.Metadata.Difficulty);
 
                 if (result.Succeeded)
                 {
