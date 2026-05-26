@@ -435,7 +435,13 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             await Stage("renderAssets", async () =>
             {
                 var basePath = ResolveCasesBasePath();
-                var allAssets = draft.AssetFull.Concat(draft.ResultAssets).ToList();
+                // Use the FINAL json (post-refine) as the source of truth for which assets
+                // should be rendered — refine can add new assets or remove old ones, and
+                // those changes only land in `json`, never in `draft.AssetFull`. Reuse the
+                // rich Body / BodyDoc from the draft when an id matches; otherwise materialise
+                // a minimal EvidenceAsset from the JSON fields and let the renderer fall back
+                // to description-as-body / description-as-prompt.
+                var allAssets = MaterializeAssetsForRendering(draft, json);
                 renderingReport = await _renderer.RenderAllAsync(draft.CaseId, basePath, allAssets, ct);
             });
 
@@ -625,6 +631,94 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             ["solution"] = solution,
             ["gameMetadata"] = gameMetadata
         };
+    }
+
+    /// <summary>
+    /// Build the asset list passed to the renderer using the FINAL case.json as the source
+    /// of truth. The refine pass may add new assets (e.g. when the SmokingGun playbook tells
+    /// the LLM to introduce a corroborating evidence asset) or rename existing ones; those
+    /// changes only land in <paramref name="finalJson"/>, not in <see cref="CaseDraft"/>.
+    /// We reuse the rich Body / BodyDoc fields from the draft whenever an id matches, and
+    /// fall back to a minimal EvidenceAsset (built from the JSON fields) for assets that the
+    /// refine introduced — the renderer's description-as-body fallback handles the latter.
+    /// </summary>
+    private List<EvidenceAsset> MaterializeAssetsForRendering(CaseDraft draft, string finalJson)
+    {
+        var draftById = draft.AssetFull.Concat(draft.ResultAssets)
+            .GroupBy(a => a.Id, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+
+        var fallback = () => draftById.Values.ToList();
+
+        try
+        {
+            using var doc = JsonDocument.Parse(finalJson);
+            if (!doc.RootElement.TryGetProperty("assets", out var assetsArr)
+                || assetsArr.ValueKind != JsonValueKind.Array)
+            {
+                _logger.LogWarning("MaterializeAssetsForRendering: final JSON has no assets[] array — falling back to draft list");
+                return fallback();
+            }
+
+            var result = new List<EvidenceAsset>(assetsArr.GetArrayLength());
+            var seenIds = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var el in assetsArr.EnumerateArray())
+            {
+                if (el.ValueKind != JsonValueKind.Object) continue;
+                var id = el.TryGetProperty("id", out var idEl) ? idEl.GetString() ?? string.Empty : string.Empty;
+                if (string.IsNullOrEmpty(id) || !seenIds.Add(id)) continue;
+
+                var type = el.TryGetProperty("type", out var typeEl) ? typeEl.GetString() ?? "pdf" : "pdf";
+                var title = el.TryGetProperty("title", out var titleEl) ? titleEl.GetString() ?? string.Empty : string.Empty;
+                var description = el.TryGetProperty("description", out var descEl) ? descEl.GetString() : null;
+                var visibility = el.TryGetProperty("visibility", out var visEl) ? visEl.GetString() ?? "initial" : "initial";
+                var category = el.TryGetProperty("category", out var catEl) ? catEl.GetString() : null;
+
+                if (draftById.TryGetValue(id, out var draftAsset))
+                {
+                    // Adopt any title/description/visibility/category edits made during refine,
+                    // but keep the rich Body / BodyDoc that earlier stages produced.
+                    draftAsset.Type = type;
+                    draftAsset.Title = title;
+                    if (!string.IsNullOrEmpty(description)) draftAsset.Description = description;
+                    draftAsset.Visibility = visibility;
+                    if (!string.IsNullOrEmpty(category)) draftAsset.Category = category;
+                    result.Add(draftAsset);
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "Materialising refine-added asset for rendering: {Id} (type={Type}) — using description as body fallback",
+                        id, type);
+                    result.Add(new EvidenceAsset
+                    {
+                        Id = id,
+                        Type = type,
+                        Title = title,
+                        Description = description,
+                        Visibility = visibility,
+                        Category = category
+                    });
+                }
+            }
+
+            // Surface assets that were in the draft but were dropped by refine — they no
+            // longer appear in case.json so we must not render them either.
+            var dropped = draftById.Keys.Except(seenIds, StringComparer.Ordinal).ToList();
+            if (dropped.Count > 0)
+            {
+                _logger.LogInformation("Skipping {Count} draft asset(s) dropped during refine: {Ids}",
+                    dropped.Count, string.Join(", ", dropped));
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "MaterializeAssetsForRendering failed; falling back to draft-only list");
+            return fallback();
+        }
     }
 
     private static JsonNode BuildAssetNode(string caseId, EvidenceAsset a)
