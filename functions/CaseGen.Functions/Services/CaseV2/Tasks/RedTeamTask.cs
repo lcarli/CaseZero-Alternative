@@ -51,6 +51,7 @@ public class RedTeamTask
         // Compact view of the case (without re-pasting bodies): the LLM still needs to see
         // suspects with their motive/alibi/background, the timeline, and the forensic outcomes.
         var culprit = draft.SuspectFull.FirstOrDefault(s => s.Id == draft.CulpritId);
+        var difficulty = draft.Metadata.Difficulty;
         var ctxJson = JsonSerializer.Serialize(new
         {
             metadata = new
@@ -75,7 +76,7 @@ public class RedTeamTask
             }
         });
 
-        return await ExecuteAsync(ctxJson, "draft", ct);
+        return await ExecuteAsync(ctxJson, "draft", difficulty, ct);
     }
 
     /// <summary>
@@ -86,7 +87,21 @@ public class RedTeamTask
     public async Task<Report> RunOnAssembledAsync(string assembledJson, CancellationToken ct)
     {
         var ctxJson = BuildCompactContextFromJson(assembledJson);
-        return await ExecuteAsync(ctxJson, "refined-json", ct);
+        var difficulty = TryExtractDifficulty(assembledJson);
+        return await ExecuteAsync(ctxJson, "refined-json", difficulty, ct);
+    }
+
+    private static string? TryExtractDifficulty(string assembledJson)
+    {
+        try
+        {
+            var node = JsonNode.Parse(assembledJson);
+            return node?["metadata"]?["difficulty"]?.GetValue<string>();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string BuildCompactContextFromJson(string assembledJson)
@@ -202,8 +217,21 @@ public class RedTeamTask
         }
     }
 
-    private async Task<Report> ExecuteAsync(string ctxJson, string source, CancellationToken ct)
+    private async Task<Report> ExecuteAsync(string ctxJson, string source, string? difficulty, CancellationToken ct)
     {
+        var isRookie = string.Equals(difficulty, "Rookie", StringComparison.OrdinalIgnoreCase);
+
+        var rookieGuidance = @"
+
+This is a **Rookie** case — by design it must be SIMPLE, SHORT, and FAIR for novice players.
+Apply the rubric with that in mind:
+- Compact motives (1-2 sentences) are appropriate — do NOT flag brevity or lack of backstory depth.
+- 2-3 decoys (not 4+) is fine; do NOT flag ""too few suspects"" or ""decoys lack richness"".
+- A single-day timeline with a clear smoking gun is the norm — do NOT flag ""timeline could be richer"" or ""more red herrings would help"".
+- Skip check #5 entirely (unlockMode is `all_initial` — every asset/email is visible from the start).
+- Reserve `medium` severity ONLY for problems that would actually make the case unfair or unsolvable for a novice (e.g., the smoking gun does not point at the culprit, a decoy has no plausible alibi, a question relies on hidden info). Otherwise use `low`.
+- Use `high` ONLY for showstoppers (no smoking gun at all, culprit not provable, contradictory timeline).";
+
         var system = @"You are the **red-team reviewer** for an interactive detective case. Audit the supplied case package for semantic flaws that would make the case unsolvable, unfair, or implausible. Be ruthless and concise.
 
 Look specifically for:
@@ -221,7 +249,7 @@ For each issue emit a Finding with severity (low|medium|high), area (1-2 words),
 Verdict:
 - `ok`           — at most low-severity findings.
 - `needs_review` — at least one medium-severity finding.
-- `reject`       — any high-severity finding that prevents the player from solving fairly.";
+- `reject`       — any high-severity finding that prevents the player from solving fairly." + (isRookie ? rookieGuidance : string.Empty);
 
         var user = $@"CASE PACKAGE:
 {ctxJson}
@@ -233,7 +261,18 @@ Emit JSON only.";
             var raw = await _llm.GenerateStructuredResponseAsync(system, user, Schema, ct);
             var report = JsonSerializer.Deserialize<Report>(raw.Content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                          ?? new Report();
-            _logger.LogInformation("RedTeam verdict={Verdict} findings={Count} source={Source}", report.Verdict, report.Findings.Count, source);
+            _logger.LogInformation("RedTeam verdict={Verdict} findings={Count} source={Source} difficulty={Difficulty}",
+                report.Verdict, report.Findings.Count, source, difficulty ?? "(unknown)");
+            // Surface each finding (area + severity + truncated issue) so future incident
+            // analysis doesn't require rerunning the audit.
+            for (int i = 0; i < report.Findings.Count; i++)
+            {
+                var f = report.Findings[i];
+                var issue = f.Issue ?? string.Empty;
+                if (issue.Length > 240) issue = issue.Substring(0, 240) + "…";
+                _logger.LogInformation("RedTeam finding #{Index} severity={Severity} area={Area} issue={Issue}",
+                    i + 1, f.Severity, f.Area, issue);
+            }
             return report;
         }
         catch (Exception ex)
