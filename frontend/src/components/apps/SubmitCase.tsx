@@ -4,6 +4,7 @@ import { useCase, useAssets, useSuspects, useSubmission } from '../../contexts/C
 import { useLanguage } from '../../hooks/useLanguageContext'
 import { forensicRequestApi, type ForensicRequestDTO } from '../../services/api'
 import type { SubmitCaseRequest } from '../../types/caseV2'
+import { rankI18nKey } from '../../types/ranks'
 
 const Container = styled.div`
   height: 100%;
@@ -244,6 +245,24 @@ const ResultPanel = styled.div<{ $correct: boolean }>`
 const ScoreLine = styled.div`
   font-size: 13px;
   color: rgba(255, 255, 255, 0.85);
+`
+
+const PromotionBanner = styled.div`
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 215, 0, 0.5);
+  background: rgba(255, 215, 0, 0.1);
+  color: #ffd700;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`
+
+const PromotionTitle = styled.div`
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 `
 
 const BreakdownGrid = styled.div`
@@ -650,6 +669,18 @@ const SubmitCase: React.FC = () => {
             })()}
           </ScoreLine>
         </ResultPanel>
+      )}
+
+      {lastResult?.promotion?.promoted && (
+        <PromotionBanner>
+          <PromotionTitle>🎖️ {t('promotionToastTitle')}</PromotionTitle>
+          <div>
+            {t('promotionToastBody').replace(
+              '{rank}',
+              t(rankI18nKey(lastResult.promotion.newRank) as Parameters<typeof t>[0])
+            )}
+          </div>
+        </PromotionBanner>
       )}
 
       {lastResult?.explanationMarkdown && (

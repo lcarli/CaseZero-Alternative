@@ -810,4 +810,23 @@ export const profileApi = {
   getStats: async (): Promise<ProfileStats> => apiFetch('/profile/stats'),
 }
 
+export interface InboxEmail {
+  id: number
+  subject: string
+  content: string
+  preview?: string
+  type: string
+  priority: string
+  sentAt: string
+  isRead: boolean
+  metadataJson?: string
+}
+
+export const inboxApi = {
+  getInbox: async (): Promise<InboxEmail[]> => apiFetch('/inbox'),
+  getUnreadCount: async (): Promise<{ unread: number }> => apiFetch('/inbox/unread-count'),
+  markRead: async (id: number): Promise<void> =>
+    apiFetch(`/inbox/${id}/read`, { method: 'POST' }),
+}
+
 export { ApiError }

@@ -7,6 +7,8 @@ import { useLanguage } from '../hooks/useLanguageContext'
 import { casesV2Api } from '../services/api'
 import type { CaseDashboardItem, DashboardActivity, CasesByDifficultyBucket, PromotionProgress } from '../types/caseV2'
 import LanguageSelector from '../components/LanguageSelector'
+import InboxPanel from '../components/InboxPanel'
+import { rankI18nKey } from '../types/ranks'
 import departmentBadge from '../assets/LogoMetroPolice_transparent.png'
 
 const PageContainer = styled.div`
@@ -704,7 +706,7 @@ const DashboardPage = () => {
               <PromotionWrap>
                 <PromotionLine>
                   <span>{t('currentRank')}</span>
-                  <PromotionRank>{promotion.currentRank}</PromotionRank>
+                  <PromotionRank>{t(rankI18nKey(promotion.currentRank) as Parameters<typeof t>[0])}</PromotionRank>
                 </PromotionLine>
                 <PromotionBar>
                   <PromotionFill pct={promotion.progressPct} />
@@ -712,7 +714,7 @@ const DashboardPage = () => {
                 {promotion.nextRank ? (
                   <PromotionLine>
                     <PromotionMeta>
-                      → {promotion.nextRank} · {promotion.casesResolved}
+                      → {t(rankI18nKey(promotion.nextRank) as Parameters<typeof t>[0])} · {promotion.casesResolved}
                       {promotion.casesRequiredForNext != null ? `/${promotion.casesRequiredForNext}` : ''}
                     </PromotionMeta>
                     <PromotionMeta>
@@ -750,6 +752,8 @@ const DashboardPage = () => {
               </DifficultyList>
             )}
           </Panel>
+
+          <InboxPanel />
         </div>
       </SecondaryLayout>
     </PageContainer>

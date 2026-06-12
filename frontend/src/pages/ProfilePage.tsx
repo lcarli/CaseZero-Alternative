@@ -7,6 +7,7 @@ import { useLanguage } from '../hooks/useLanguageContext'
 import { profileApi } from '../services/api'
 import type { ProfileStats } from '../types/profile'
 import LanguageSelector from '../components/LanguageSelector'
+import { rankI18nKey } from '../types/ranks'
 import departmentBadge from '../assets/LogoMetroPolice_transparent.png'
 
 // ── Layout / shared styles (mirror DashboardPage palette) ────────────────────
@@ -353,6 +354,8 @@ const ProfilePage = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { t } = useLanguage()
+  const localizeRank = (rank?: string | null) =>
+    rank ? t(rankI18nKey(rank) as Parameters<typeof t>[0]) : ''
   const [stats, setStats] = useState<ProfileStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -407,7 +410,7 @@ const ProfilePage = () => {
               {stats?.agent.firstName || user?.firstName} {stats?.agent.lastName || user?.lastName}
             </AgentName>
             <AgentMeta>
-              <span>{stats?.agent.currentRank || user?.position || t('detective')}</span>
+              <span>{stats?.agent.currentRank ? localizeRank(stats.agent.currentRank) : (user?.position || t('detective'))}</span>
               {stats?.agent.badgeNumber && <span>Badge #{stats.agent.badgeNumber}</span>}
               <span>
                 {t('profileLastPromotion')}: {stats?.agent.lastPromotionDate
@@ -435,8 +438,8 @@ const ProfilePage = () => {
             <PanelHeader><Award size={16} />{t('promotionProgress')}</PanelHeader>
             <PromotionWrap>
               <PromotionRow>
-                <span><strong>{stats.promotion.currentRank}</strong>
-                  {stats.promotion.nextRank ? ` → ${stats.promotion.nextRank}` : ''}
+                <span><strong>{localizeRank(stats.promotion.currentRank)}</strong>
+                  {stats.promotion.nextRank ? ` → ${localizeRank(stats.promotion.nextRank)}` : ''}
                 </span>
                 <span>{stats.promotion.casesResolved}
                   {stats.promotion.casesRequiredForNext != null ? ` / ${stats.promotion.casesRequiredForNext}` : ''}
@@ -546,8 +549,8 @@ const ProfilePage = () => {
                   <TimelineItem key={`${row.changedAt}-${i}`}>
                     <span>
                       {row.previousRank
-                        ? <>{row.previousRank} → <strong>{row.newRank}</strong></>
-                        : <><strong>{row.newRank}</strong> ({t('profileRankInitial')})</>}
+                        ? <>{localizeRank(row.previousRank)} → <strong>{localizeRank(row.newRank)}</strong></>
+                        : <><strong>{localizeRank(row.newRank)}</strong> ({t('profileRankInitial')})</>}
                     </span>
                     <TimelineMeta>
                       {formatDate(row.changedAt)}{row.reason ? ` · ${row.reason}` : ''}

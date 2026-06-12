@@ -31,7 +31,9 @@ public class SolutionServiceTests : IDisposable
             .Options;
         _context = new ApplicationDbContext(options);
         _storageMock = new Mock<ICaseV2StorageService>();
-        _sut = new SolutionService(_context, _storageMock.Object, NullLogger<SolutionService>.Instance);
+        _sut = new SolutionService(_context, _storageMock.Object,
+            new PromotionService(_context, NullLogger<PromotionService>.Instance),
+            NullLogger<SolutionService>.Instance);
     }
 
     // ──────────────────────────────────────────────────────────────

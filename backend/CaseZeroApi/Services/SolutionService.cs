@@ -10,15 +10,18 @@ public class SolutionService : ISolutionService
 {
     private readonly ApplicationDbContext _context;
     private readonly ICaseV2StorageService _storage;
+    private readonly IPromotionService _promotion;
     private readonly ILogger<SolutionService> _logger;
 
     public SolutionService(
         ApplicationDbContext context,
         ICaseV2StorageService storage,
+        IPromotionService promotion,
         ILogger<SolutionService> logger)
     {
         _context = context;
         _storage = storage;
+        _promotion = promotion;
         _logger = logger;
     }
 
@@ -134,6 +137,26 @@ public class SolutionService : ISolutionService
         _context.CaseSubmissions.Add(submission);
         await _context.SaveChangesAsync(ct);
 
+        // Career progression: graded submissions update the player's stats and may
+        // trigger a promotion. The sync is idempotent (rank derives purely from the
+        // resolved-case count), so re-submissions never double-count.
+        PromotionInfo? promotionInfo = null;
+        if (graded)
+        {
+            try
+            {
+                var outcome = await _promotion.SyncAsync(userId, ct);
+                if (outcome.Promoted)
+                    promotionInfo = new PromotionInfo(
+                        true, outcome.PreviousRank.ToString(), outcome.NewRank.ToString());
+            }
+            catch (Exception ex)
+            {
+                // A promotion failure must not fail the submission itself.
+                _logger.LogError(ex, "Promotion sync failed for user {UserId} on case {CaseId}", userId, caseId);
+            }
+        }
+
         // The player chose "unlimited_ungraded": the explanation is only revealed
         // when the case is actually solved. Running out of graded attempts no
         // longer auto-spoils the answer — the player can keep trying ungraded.
@@ -163,7 +186,8 @@ public class SolutionService : ISolutionService
             attemptsRemaining,
             graded,
             feedbackCode,
-            showExplanation ? sol.Explanation : null);
+            showExplanation ? sol.Explanation : null,
+            promotionInfo);
     }
 
     private static bool IsRookieDifficulty(string? value)
