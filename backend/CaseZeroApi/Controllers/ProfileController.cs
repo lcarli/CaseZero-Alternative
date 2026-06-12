@@ -40,7 +40,7 @@ public class ProfileController : ControllerBase
 
         var userInfo = await _db.Users.AsNoTracking()
             .Where(u => u.Id == userId)
-            .Select(u => new { u.Rank, u.LastPromotionDate, u.FirstName, u.LastName, u.BadgeNumber })
+            .Select(u => new { u.Rank, u.LastPromotionDate, u.FirstName, u.LastName, u.BadgeNumber, u.CasesResolved })
             .FirstOrDefaultAsync(ct);
         var currentRank = userInfo?.Rank ?? DetectiveRank.Detective;
 
@@ -172,7 +172,10 @@ public class ProfileController : ControllerBase
             };
 
         // ── promotion snapshot (also used by dashboard but exposed here too) ─
-        var resolvedCaseCount = caseHistory.Count(c => c.resolvedViaGraded);
+        // Use the persisted User.CasesResolved as the source of truth (kept in sync
+        // by PromotionService); fall back to the live count for safety.
+        var liveResolvedCount = caseHistory.Count(c => c.resolvedViaGraded);
+        var resolvedCaseCount = userInfo?.CasesResolved ?? liveResolvedCount;
         var promo = PromotionRules.Compute(currentRank, resolvedCaseCount);
 
         return Ok(new

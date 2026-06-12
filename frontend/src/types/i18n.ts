@@ -137,6 +137,24 @@ export interface Translations {
   casesToNextRank: string;
   maxRankReached: string;
   viewProfile: string;
+  // Rank display names (aligned with backend DetectiveRank)
+  rankRook: string;
+  rankDetective: string;
+  rankDetective2: string;
+  rankSergeant: string;
+  rankLieutenant: string;
+  rankCaptain: string;
+  rankCommander: string;
+  // Promotion notification (submit banner + in-game e-mail)
+  promotionToastTitle: string;
+  promotionToastBody: string;
+  promotionEmailSubject: string;
+  promotionEmailBody: string;
+  // Global inbox
+  inboxTitle: string;
+  inboxEmpty: string;
+  inboxMarkRead: string;
+  inboxUnread: string;
   // Profile page
   profileTitle: string;
   profileBackToDashboard: string;

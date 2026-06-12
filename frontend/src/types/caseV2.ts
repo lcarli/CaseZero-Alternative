@@ -209,4 +209,11 @@ export interface SubmitCaseResult {
   graded: boolean
   feedbackCode: SubmitCaseFeedbackCode
   explanationMarkdown?: string
+  promotion?: SubmitCasePromotion
+}
+
+export interface SubmitCasePromotion {
+  promoted: boolean
+  previousRank: string
+  newRank: string
 }

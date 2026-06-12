@@ -224,6 +224,7 @@ builder.Services.AddSingleton<TokenCredential>(_ => new DefaultAzureCredential()
 builder.Services.AddScoped<ICaseV2SanitizerService, CaseV2SanitizerService>();
 builder.Services.AddScoped<ICaseV2StorageService, CaseV2StorageService>();
 builder.Services.AddScoped<ISolutionService, SolutionService>();
+builder.Services.AddScoped<IPromotionService, PromotionService>();
 builder.Services.AddScoped<IVisibilityService, VisibilityService>();
 builder.Services.AddScoped<IRulesEngineService, RulesEngineService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>(); // P86: Audit Log
@@ -425,7 +426,27 @@ if (environment.EnvironmentName != "Testing")
     // Seed GDD-specific data
     var seedingService = scope.ServiceProvider.GetRequiredService<DataSeedingService>();
     await seedingService.SeedGDDDataAsync();
-    
+
+    // Backfill career progression for existing players. SyncAsync is idempotent:
+    // it recomputes stats and derives rank purely from resolved cases, so this is
+    // safe to run on every startup and only emits a promotion (+ e-mail) the first
+    // time a player crosses a threshold.
+    try
+    {
+        var promotionService = scope.ServiceProvider.GetRequiredService<IPromotionService>();
+        var playerIds = await context.Users
+            .Where(u => u.UserName != "system")
+            .Select(u => u.Id)
+            .ToListAsync();
+        foreach (var playerId in playerIds)
+            await promotionService.SyncAsync(playerId);
+        logger.LogInformation("✅ Career progression backfilled for {Count} player(s).", playerIds.Count);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Career progression backfill failed (non-fatal).");
+    }
+
     // If --seed-only flag is provided, exit after seeding
     if (seedOnly)
     {

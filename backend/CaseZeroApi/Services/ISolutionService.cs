@@ -21,7 +21,17 @@ public record SubmitCaseResult(
     int AttemptsRemaining,
     bool Graded,
     string FeedbackCode,
-    string? ExplanationMarkdown);
+    string? ExplanationMarkdown,
+    PromotionInfo? Promotion = null);
+
+/// <summary>
+/// Conveyed to the client when a graded submission triggers a rank change so the
+/// UI can surface a promotion toast.
+/// </summary>
+public record PromotionInfo(
+    bool Promoted,
+    string PreviousRank,
+    string NewRank);
 
 public record ScoreBreakdown(
     double CulpritScore,
