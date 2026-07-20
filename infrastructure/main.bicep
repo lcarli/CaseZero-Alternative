@@ -17,6 +17,9 @@ param environment string
 @description('Location for all resources')
 param location string = 'canadacentral'
 
+@description('Location for the API layer (App Service). Defaults to the primary location; set to the API region when it differs, e.g. canadaeast.')
+param apiLocation string = location
+
 @description('Name prefix for all resources')
 param namePrefix string = 'casezero'
 
@@ -39,6 +42,15 @@ param repositoryUrl string = ''
 
 @description('GitHub Branch name')
 param branchName string = environment == 'prod' ? 'main' : 'develop'
+
+@description('Enable private networking (VNets, peering, private DNS and private endpoints for storage + SQL)')
+param enablePrivateNetworking bool = true
+
+@description('Address space for the canadacentral VNet (storage + Function)')
+param ccVnetAddressPrefix string = '10.30.0.0/16'
+
+@description('Address space for the canadaeast VNet (API)')
+param ceVnetAddressPrefix string = '10.31.0.0/16'
 
 // ==============================================================================
 // Resource Groups
@@ -93,6 +105,92 @@ resource frontendResourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' =
 }
 
 // ==============================================================================
+// Layer 0: Private Networking (VNets, peering, private DNS, private endpoints)
+// ==============================================================================
+// canadacentral VNet: hosts the storage/SQL private endpoints and the Function
+// App regional VNet integration. canadaeast VNet: hosts the API App Service
+// regional VNet integration. The two are peered so the API can reach the
+// private endpoints in canadacentral.
+var ccVnetName = 'vnet-${namePrefix}-cc-${environment}'
+var ceVnetName = 'vnet-${namePrefix}-ce-${environment}'
+
+module ccVnet 'network/vnet.bicep' = if (enablePrivateNetworking) {
+  name: 'cc-vnet-deployment'
+  scope: functionsResourceGroup
+  params: {
+    name: ccVnetName
+    location: location
+    addressPrefix: ccVnetAddressPrefix
+    subnets: [
+      {
+        name: 'snet-pe'
+        prefix: cidrSubnet(ccVnetAddressPrefix, 24, 1)
+        disablePeNetworkPolicies: true
+      }
+      {
+        name: 'snet-func-integration'
+        prefix: cidrSubnet(ccVnetAddressPrefix, 24, 2)
+        delegation: 'Microsoft.App/environments'
+      }
+    ]
+  }
+}
+
+module ceVnet 'network/vnet.bicep' = if (enablePrivateNetworking) {
+  name: 'ce-vnet-deployment'
+  scope: apiResourceGroup
+  params: {
+    name: ceVnetName
+    location: apiLocation
+    addressPrefix: ceVnetAddressPrefix
+    subnets: [
+      {
+        name: 'snet-api-integration'
+        prefix: cidrSubnet(ceVnetAddressPrefix, 24, 1)
+        delegation: 'Microsoft.Web/serverFarms'
+      }
+    ]
+  }
+}
+
+module peeringCcToCe 'network/peering.bicep' = if (enablePrivateNetworking) {
+  name: 'peering-cc-to-ce-deployment'
+  scope: functionsResourceGroup
+  params: {
+    name: 'cc-to-ce'
+    localVnetName: ccVnetName
+    remoteVnetId: ceVnet.outputs.id
+  }
+}
+
+module peeringCeToCc 'network/peering.bicep' = if (enablePrivateNetworking) {
+  name: 'peering-ce-to-cc-deployment'
+  scope: apiResourceGroup
+  params: {
+    name: 'ce-to-cc'
+    localVnetName: ceVnetName
+    remoteVnetId: ccVnet.outputs.id
+  }
+}
+
+module privateDns 'network/private-dns.bicep' = if (enablePrivateNetworking) {
+  name: 'private-dns-deployment'
+  scope: functionsResourceGroup
+  params: {
+    vnetLinks: [
+      {
+        name: 'cc'
+        id: ccVnet.outputs.id
+      }
+      {
+        name: 'ce'
+        id: ceVnet.outputs.id
+      }
+    ]
+  }
+}
+
+// ==============================================================================
 // Layer 1: Shared Infrastructure
 // ==============================================================================
 module sharedInfrastructure 'shared/main.bicep' = {
@@ -120,7 +218,7 @@ module apiInfrastructure 'api/main.bicep' = {
   scope: apiResourceGroup
   params: {
     environment: environment
-    location: location
+    location: apiLocation
     namePrefix: namePrefix
     appServicePlanSku: {
       name: environment == 'prod' ? 'P1v3' : 'B1'
@@ -144,6 +242,7 @@ module apiInfrastructure 'api/main.bicep' = {
     caseGeneratorFunctionBaseUrl: functionsInfrastructure.outputs.functionAppUrl
     caseGeneratorStorageAccountName: functionsInfrastructure.outputs.storageAccountName
     caseGeneratorStorageAccountId: functionsInfrastructure.outputs.storageAccountId
+    apiVnetSubnetId: enablePrivateNetworking ? ceVnet.outputs.subnetIds['snet-api-integration'] : ''
   }
 }
 
@@ -172,6 +271,22 @@ module functionsInfrastructure 'functions/main.bicep' = {
     keyVaultId: sharedInfrastructure.outputs.keyVaultId
     appInsightsConnectionString: enableMonitoring ? sharedInfrastructure.outputs.connectionString : ''
     appInsightsInstrumentationKey: enableMonitoring ? sharedInfrastructure.outputs.instrumentationKey : ''
+    functionVnetSubnetId: enablePrivateNetworking ? ccVnet.outputs.subnetIds['snet-func-integration'] : ''
+  }
+}
+
+// ==============================================================================
+// Layer 5: Private Endpoints (storage + SQL) — after storage/SQL exist
+// ==============================================================================
+module privateEndpoints 'network/private-endpoints.bicep' = if (enablePrivateNetworking) {
+  name: 'private-endpoints-deployment'
+  scope: functionsResourceGroup
+  params: {
+    location: location
+    subnetId: ccVnet.outputs.subnetIds['snet-pe']
+    storageAccountId: functionsInfrastructure.outputs.storageAccountId
+    sqlServerId: enableSqlDatabase ? sharedInfrastructure.outputs.sqlServerId : ''
+    dnsZoneIds: privateDns.outputs.zoneIds
   }
 }
 

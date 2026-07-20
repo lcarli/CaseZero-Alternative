@@ -59,6 +59,9 @@ param caseGeneratorStorageAccountName string = ''
 @description('Storage Account Resource ID for the case bundles storage (used to scope the RBAC assignment cross-RG).')
 param caseGeneratorStorageAccountId string = ''
 
+@description('Resource ID of the subnet used for API App Service regional VNet integration (empty to disable)')
+param apiVnetSubnetId string = ''
+
 var tags = {
   Environment: environment
   Project: 'CaseZero'
@@ -104,6 +107,12 @@ module apiAppService 'br/public:avm/res/web/site:0.14.0' = {
     serverFarmResourceId: appServicePlan.outputs.resourceId
     httpsOnly: true
     clientAffinityEnabled: false
+    virtualNetworkSubnetId: empty(apiVnetSubnetId) ? null : apiVnetSubnetId
+    // Route-all is intentionally left disabled: only RFC1918 traffic (the storage
+    // and SQL private endpoints in the peered VNet) is routed through the VNet.
+    // Enabling it would force all egress (SQL gateway redirect, Key Vault,
+    // App Insights) through the VNet and break connectivity.
+    vnetRouteAllEnabled: false
     managedIdentities: {
       systemAssigned: true
     }
