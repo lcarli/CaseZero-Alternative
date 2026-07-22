@@ -365,10 +365,25 @@ export interface GenerateCaseStartResponse {
   statusUri: string
 }
 
+export type GenerationStageStatus = 'pending' | 'running' | 'completed' | 'skipped' | 'failed'
+
+export interface GenerationStageProgress {
+  id: string
+  status: GenerationStageStatus
+  attempt: number
+  startedAt?: string | null
+  completedAt?: string | null
+  durationMs?: number | null
+}
+
 export interface GenerateCaseStatus {
   jobId: string
   status: 'queued' | 'running' | 'done' | 'failed'
   currentPhase?: string | null
+  currentStageId?: string | null
+  pipelineVersion?: string | null
+  progressPercent?: number | null
+  stages?: GenerationStageProgress[] | null
   runtimeStatus?: string
   createdAt?: string
   lastUpdatedAt?: string
@@ -389,6 +404,18 @@ export interface GenerateCaseStatus {
     RefineErrorsBefore?: number
     RefineErrorsAfter?: number
     RefineIterations?: number
+    CaseGraphEnabled?: boolean
+    GraphValidationPassed?: boolean
+    FirstPassSuccess?: boolean
+    RepairPlateauCount?: number
+    RepairOperationCount?: number
+    SolverSucceeded?: boolean
+    SpecialistFindingsByCategory?: Record<string, number>
+    FinalValidation?: {
+      Score?: number
+      Passed?: boolean
+      Issues?: Array<{ Blocking?: boolean }>
+    } | null
     RedTeamVerdict?: string | null
     RedTeamVerdictInitial?: string | null
     RedTeamVerdictTrajectory?: string[] | null

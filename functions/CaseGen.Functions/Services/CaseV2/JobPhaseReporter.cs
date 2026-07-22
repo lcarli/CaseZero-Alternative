@@ -32,8 +32,196 @@ public interface IJobPhaseReporter
     Task<JobPhaseStatus?> GetAsync(CancellationToken ct = default);
 }
 
-/// <summary>Compact status doc persisted to blob.</summary>
-public record JobPhaseStatus(string JobId, string Status, string? CurrentPhase, string? Error, DateTimeOffset UpdatedAt);
+public static class GenerationProgressCatalog
+{
+    public const string PipelineVersion = "casegraph-v1";
+
+    public static readonly IReadOnlyList<string> StageIds =
+    [
+        "caseDesign",
+        "graphConstruction",
+        "evidenceProduction",
+        "forensicWorkflow",
+        "solutionDesign",
+        "deterministicValidation",
+        "solutionWitness",
+        "advisoryReview",
+        "targetedRepair",
+        "finalValidation",
+        "finalization"
+    ];
+
+    public static string MapInternalPhase(string phase) =>
+        phase switch
+        {
+            "plotOutline" or "suspectCards" => "caseDesign",
+            "assetPlan" => "graphConstruction",
+            "assetsAndTimelineAndBriefing" or "rookieInitialEvidence" => "evidenceProduction",
+            "forensicsPlan" or "outcomesAndInitialEmails" => "forensicWorkflow",
+            "mechanicalRules" or "rulesAndSolutionSkeleton" or "questionsAndExplanation" => "solutionDesign",
+            "consistency" or "autoFixSchema" => "deterministicValidation",
+            "solutionWitness" or "redTeamAndSolver" => "solutionWitness",
+            "advisoryReview" or "redTeamRerun" => "advisoryReview",
+            "targetedRepair" or "refineCase" => "targetedRepair",
+            "finalValidation" => "finalValidation",
+            "renderAssets" or "publishToBlob" => "finalization",
+            _ => phase
+        };
+
+    public static int StageIndex(string stageId)
+    {
+        for (var index = 0; index < StageIds.Count; index++)
+            if (string.Equals(StageIds[index], stageId, StringComparison.Ordinal))
+                return index;
+        return -1;
+    }
+}
+
+public sealed class GenerationStageProgress
+{
+    public string Id { get; set; } = string.Empty;
+    public string Status { get; set; } = "pending";
+    public int Attempt { get; set; }
+    public DateTimeOffset? StartedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+    public double? DurationMs { get; set; }
+}
+
+/// <summary>Versioned progress document persisted to blob.</summary>
+public sealed class JobPhaseStatus
+{
+    public string JobId { get; set; } = string.Empty;
+    public string Status { get; set; } = "queued";
+    public string? CurrentPhase { get; set; }
+    public string? CurrentStageId { get; set; }
+    public string? Error { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public string PipelineVersion { get; set; } = GenerationProgressCatalog.PipelineVersion;
+    public double ProgressPercent { get; set; }
+    public List<GenerationStageProgress> Stages { get; set; } = new();
+
+    public static JobPhaseStatus Started(string jobId, DateTimeOffset now) => new()
+    {
+        JobId = jobId,
+        Status = "running",
+        UpdatedAt = now,
+        Stages = GenerationProgressCatalog.StageIds
+            .Select(id => new GenerationStageProgress { Id = id })
+            .ToList()
+    };
+
+    public void StartStage(string internalPhase, DateTimeOffset now, bool retry)
+    {
+        var stageId = GenerationProgressCatalog.MapInternalPhase(internalPhase);
+        if (string.Equals(CurrentStageId, stageId, StringComparison.Ordinal))
+        {
+            var active = FindOrAdd(stageId);
+            if (retry)
+                active.Attempt++;
+            CurrentPhase = internalPhase;
+            UpdatedAt = now;
+            return;
+        }
+        CompleteCurrentStage(now);
+        SkipStagesBefore(stageId, now);
+        var stage = FindOrAdd(stageId);
+        if (stage.Status != "running")
+        {
+            stage.Attempt = Math.Max(1, stage.Attempt + 1);
+            stage.StartedAt = now;
+            stage.CompletedAt = null;
+            stage.Status = "running";
+        }
+        else if (retry)
+        {
+            stage.Attempt++;
+        }
+        CurrentPhase = internalPhase;
+        CurrentStageId = stageId;
+        Status = "running";
+        Error = null;
+        UpdatedAt = now;
+        RecalculateProgress();
+    }
+
+    public void Complete(DateTimeOffset now)
+    {
+        CompleteCurrentStage(now);
+        foreach (var stage in Stages.Where(stage => stage.Status == "pending"))
+        {
+            stage.Status = "skipped";
+            stage.CompletedAt = now;
+            stage.DurationMs = 0;
+        }
+        CurrentPhase = null;
+        CurrentStageId = null;
+        Status = "done";
+        ProgressPercent = 100;
+        UpdatedAt = now;
+    }
+
+    public void Fail(string error, DateTimeOffset now)
+    {
+        var stage = CurrentStageId is null ? null : Stages.FirstOrDefault(item => item.Id == CurrentStageId);
+        if (stage is not null && stage.Status == "running")
+        {
+            stage.Status = "failed";
+            stage.CompletedAt = now;
+            stage.DurationMs = Elapsed(stage, now);
+        }
+        Status = "failed";
+        Error = error;
+        UpdatedAt = now;
+        RecalculateProgress();
+    }
+
+    private void CompleteCurrentStage(DateTimeOffset now)
+    {
+        if (CurrentStageId is null)
+            return;
+        var current = Stages.FirstOrDefault(stage => stage.Id == CurrentStageId);
+        if (current is null || current.Status != "running")
+            return;
+        current.Status = "completed";
+        current.CompletedAt = now;
+        current.DurationMs = Elapsed(current, now);
+    }
+
+    private void SkipStagesBefore(string stageId, DateTimeOffset now)
+    {
+        var targetIndex = GenerationProgressCatalog.StageIndex(stageId);
+        if (targetIndex < 0)
+            return;
+        foreach (var stage in Stages.Where(stage =>
+                     stage.Status == "pending"
+                     && GenerationProgressCatalog.StageIndex(stage.Id) < targetIndex))
+        {
+            stage.Status = "skipped";
+            stage.CompletedAt = now;
+            stage.DurationMs = 0;
+        }
+    }
+
+    private GenerationStageProgress FindOrAdd(string stageId)
+    {
+        var stage = Stages.FirstOrDefault(item => item.Id == stageId);
+        if (stage is not null)
+            return stage;
+        stage = new GenerationStageProgress { Id = stageId };
+        Stages.Add(stage);
+        return stage;
+    }
+
+    private void RecalculateProgress()
+    {
+        var completed = Stages.Count(stage => stage.Status is "completed" or "skipped");
+        var calculated = Stages.Count == 0 ? 0 : Math.Round(completed * 100d / Stages.Count, 1);
+        ProgressPercent = Math.Max(ProgressPercent, calculated);
+    }
+
+    private static double Elapsed(GenerationStageProgress stage, DateTimeOffset now) =>
+        stage.StartedAt is null ? 0 : Math.Round((now - stage.StartedAt.Value).TotalMilliseconds, 1);
+}
 
 /// <summary>Factory so the orchestrator / activity can create a reporter scoped to a specific jobId.</summary>
 public interface IJobPhaseReporterFactory
@@ -58,6 +246,9 @@ internal sealed class BlobJobPhaseReporter : IJobPhaseReporter
     private readonly BlobClient _blob;
     private readonly string _jobId;
     private readonly ILogger _logger;
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private JobPhaseStatus _status;
+    private string? _lastInternalPhase;
 
     public bool IsConfigured => true;
 
@@ -66,19 +257,36 @@ internal sealed class BlobJobPhaseReporter : IJobPhaseReporter
         _blob = blob;
         _jobId = jobId;
         _logger = logger;
+        _status = JobPhaseStatus.Started(jobId, DateTimeOffset.UtcNow);
     }
 
-    public Task ReportStartedAsync(CancellationToken ct = default)
-        => WriteAsync(new JobPhaseStatus(_jobId, "running", null, null, DateTimeOffset.UtcNow), ct);
+    public async Task ReportStartedAsync(CancellationToken ct = default)
+    {
+        _status = JobPhaseStatus.Started(_jobId, DateTimeOffset.UtcNow);
+        _lastInternalPhase = null;
+        await WriteAsync(ct);
+    }
 
-    public Task ReportPhaseAsync(string phase, CancellationToken ct = default)
-        => WriteAsync(new JobPhaseStatus(_jobId, "running", phase, null, DateTimeOffset.UtcNow), ct);
+    public async Task ReportPhaseAsync(string phase, CancellationToken ct = default)
+    {
+        var retry = string.Equals(phase, "targetedRepair", StringComparison.Ordinal)
+                    && string.Equals(_lastInternalPhase, phase, StringComparison.Ordinal);
+        _status.StartStage(phase, DateTimeOffset.UtcNow, retry);
+        _lastInternalPhase = phase;
+        await WriteAsync(ct);
+    }
 
-    public Task ReportCompletedAsync(CancellationToken ct = default)
-        => WriteAsync(new JobPhaseStatus(_jobId, "done", null, null, DateTimeOffset.UtcNow), ct);
+    public async Task ReportCompletedAsync(CancellationToken ct = default)
+    {
+        _status.Complete(DateTimeOffset.UtcNow);
+        await WriteAsync(ct);
+    }
 
-    public Task ReportFailedAsync(string error, CancellationToken ct = default)
-        => WriteAsync(new JobPhaseStatus(_jobId, "failed", null, error, DateTimeOffset.UtcNow), ct);
+    public async Task ReportFailedAsync(string error, CancellationToken ct = default)
+    {
+        _status.Fail(error, DateTimeOffset.UtcNow);
+        await WriteAsync(ct);
+    }
 
     public async Task<JobPhaseStatus?> GetAsync(CancellationToken ct = default)
     {
@@ -95,11 +303,12 @@ internal sealed class BlobJobPhaseReporter : IJobPhaseReporter
         }
     }
 
-    private async Task WriteAsync(JobPhaseStatus status, CancellationToken ct)
+    private async Task WriteAsync(CancellationToken ct)
     {
+        await _writeLock.WaitAsync(ct);
         try
         {
-            var json = JsonSerializer.Serialize(status, JsonOpts);
+            var json = JsonSerializer.Serialize(_status, JsonOpts);
             using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(json));
             await _blob.UploadAsync(stream, new BlobUploadOptions
             {
@@ -109,7 +318,11 @@ internal sealed class BlobJobPhaseReporter : IJobPhaseReporter
         catch (Exception ex)
         {
             // Phase reporting is best-effort — never fail the generation because of it.
-            _logger.LogWarning(ex, "Failed to write job status blob for {JobId} (phase={Phase})", _jobId, status.CurrentPhase ?? status.Status);
+            _logger.LogWarning(ex, "Failed to write job status blob for {JobId} (phase={Phase})", _jobId, _status.CurrentPhase ?? _status.Status);
+        }
+        finally
+        {
+            _writeLock.Release();
         }
     }
 }

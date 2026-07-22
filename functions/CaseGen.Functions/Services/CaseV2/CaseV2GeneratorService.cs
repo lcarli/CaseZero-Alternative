@@ -279,18 +279,16 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             });
         }
 
-        // === Phase 12: red-team + solver (semantic validation) — run in parallel
-        // Always run these — even on schema-error cases the reports help diagnose what went wrong.
-        // Both the initial red-team pass and any reruns use the assembled JSON path so the
-        // input to the LLM is identical across iterations.
+        // === Phase 12: deterministic solution witness, followed by advisory review.
         Tasks.RedTeamTask.Report? redTeam = null;
         Tasks.SolverTask.SolverResult? solver = null;
-        await Stage("redTeamAndSolver", async () =>
+        await Stage("solutionWitness", async () =>
         {
-            var rt = new Tasks.RedTeamTask(_llm, _logger).RunOnAssembledAsync(json, draft, ct);
-            var sv = new Tasks.SolverTask(_llm, _logger).RunAsync(draft, ct);
-            redTeam = await rt;
-            solver = await sv;
+            solver = await new Tasks.SolverTask(_llm, _logger).RunAsync(draft, ct);
+        });
+        await Stage("advisoryReview", async () =>
+        {
+            redTeam = await new Tasks.RedTeamTask(_llm, _logger).RunOnAssembledAsync(json, draft, ct);
         });
 
         // Rookie-aware verdict calibration: the LLM reviewer is intentionally strict, and
@@ -435,15 +433,20 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         if (repairInfrastructureError is not null)
             errors.Add(repairInfrastructureError);
 
-        var finalValidation = new CaseV2FinalValidator(_v2SchemaJson).Validate(
-            draft,
-            json,
-            solver,
-            redTeam,
-            graphModeEnabled ? parityReport : null);
-        errors.AddRange(finalValidation.Issues
-            .Where(issue => issue.Blocking)
-            .Select(issue => $"final {issue.Gate}/{issue.Code} [{issue.NodeId}]: {issue.Message}"));
+        FinalValidationReport? finalValidation = null;
+        await Stage("finalValidation", () =>
+        {
+            finalValidation = new CaseV2FinalValidator(_v2SchemaJson).Validate(
+                draft,
+                json,
+                solver,
+                redTeam,
+                graphModeEnabled ? parityReport : null);
+            errors.AddRange(finalValidation.Issues
+                .Where(issue => issue.Blocking)
+                .Select(issue => $"final {issue.Gate}/{issue.Code} [{issue.NodeId}]: {issue.Message}"));
+            return Task.CompletedTask;
+        });
         errors = errors.Distinct(StringComparer.Ordinal).ToList();
 
         var refineAttempted = refineIterations > 0;
@@ -455,14 +458,14 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         var outputPath = string.Empty;
         AssetRenderingReport? renderingReport = null;
         int blobsPublished = 0;
-        if (GenerationPersistenceGate.CanPersist(request.WriteToDisk, errors, finalValidation))
+        if (GenerationPersistenceGate.CanPersist(request.WriteToDisk, errors, finalValidation!))
         {
             outputPath = WriteToDisk(draft.CaseId, json);
             if (graphModeEnabled)
             {
                 var caseDirectory = Path.GetDirectoryName(outputPath)
                                     ?? throw new InvalidOperationException("Could not resolve generated case directory.");
-                PrivateCaseArtifactPersistence.Write(caseDirectory, draft, finalValidation, solver);
+                PrivateCaseArtifactPersistence.Write(caseDirectory, draft, finalValidation!, solver);
             }
             // Materialise PDFs / images / sidecars next to case.json
             await Stage("renderAssets", async () =>

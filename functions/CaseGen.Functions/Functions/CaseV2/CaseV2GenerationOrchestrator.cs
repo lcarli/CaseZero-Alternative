@@ -342,6 +342,10 @@ public class GetCaseV2JobStatusFunction
 
         // Pull blob phase (best-effort)
         string? currentPhase = null;
+        string? currentStageId = null;
+        string? pipelineVersion = null;
+        double? progressPercent = null;
+        object? stages = null;
         string? blobError = null;
         try
         {
@@ -350,6 +354,18 @@ public class GetCaseV2JobStatusFunction
             if (blob is not null)
             {
                 currentPhase = blob.CurrentPhase;
+                currentStageId = blob.CurrentStageId;
+                pipelineVersion = blob.PipelineVersion;
+                progressPercent = blob.ProgressPercent;
+                stages = blob.Stages.Select(stage => new
+                {
+                    id = stage.Id,
+                    status = stage.Status,
+                    attempt = stage.Attempt,
+                    startedAt = stage.StartedAt,
+                    completedAt = stage.CompletedAt,
+                    durationMs = stage.DurationMs
+                }).ToArray();
                 blobError = blob.Error;
             }
         }
@@ -364,17 +380,28 @@ public class GetCaseV2JobStatusFunction
         if (isTerminal)
         {
             currentPhase = null; // suppress stale phase on terminal states
+            currentStageId = null;
             if (status == "done" && !string.IsNullOrEmpty(metadata.SerializedOutput))
             {
                 try
                 {
-                    result = JsonSerializer.Deserialize<JsonElement>(metadata.SerializedOutput);
+                    var output = JsonSerializer.Deserialize<JsonElement>(metadata.SerializedOutput);
+                    result = output;
+                    var hasErrorsProperty =
+                        output.TryGetProperty(nameof(CaseV2JobResult.HasErrors), out var hasErrors)
+                        || output.TryGetProperty("hasErrors", out hasErrors);
+                    if (hasErrorsProperty && hasErrors.ValueKind == JsonValueKind.True)
+                    {
+                        status = "failed";
+                    }
                 }
                 catch
                 {
                     result = metadata.SerializedOutput;
                 }
             }
+            if (status == "done")
+                progressPercent = 100;
             if (status == "failed")
             {
                 error = ExtractFailureMessage(metadata, blobError);
@@ -393,6 +420,10 @@ public class GetCaseV2JobStatusFunction
             jobId,
             status,
             currentPhase,
+            currentStageId,
+            pipelineVersion,
+            progressPercent,
+            stages,
             runtimeStatus = metadata.RuntimeStatus.ToString(),
             createdAt = metadata.CreatedAt,
             lastUpdatedAt = metadata.LastUpdatedAt,
