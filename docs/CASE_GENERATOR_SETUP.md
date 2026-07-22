@@ -229,26 +229,31 @@ az functionapp cors add --name $FUNC_NAME --resource-group casezero-dev-rg --all
 
 ### Iniciar Geração de Caso
 
-**Endpoint**: `POST /api/StartCaseGeneration`
+**Endpoint v2 (via backend proxy)**: `POST /api/casegeneration/generate`
 
 **Corpo da Requisição**:
 ```json
 {
   "title": "Roubo em Empresa de Tecnologia",
   "location": "São Paulo, SP",
-  "difficulty": "Iniciante",
-  "targetDurationMinutes": 60,
-  "generateImages": true,
-  "constraints": [],
-  "timezone": "America/Sao_Paulo"
+  "difficulty": "Rookie",
+  "requiredRank": "Rookie",
+  "language": "pt-BR",
+  "writeToDisk": true
 }
 ```
+
+> **Imagens no pipeline v2:** não existe o campo `generateImages`. O gerador
+> produz imagens somente quando o portfólio do caso inclui evidências do tipo
+> `photo` ou `image`. Um caso com apenas PDFs/documentos pode terminar
+> corretamente com `AssetsRenderedImages = 0` e sem erros de renderização.
 
 **Resposta**:
 ```json
 {
-  "instanceId": "abc123...",
-  "status": "Started"
+  "jobId": "casev2-...",
+  "status": "queued",
+  "statusUri": "/api/casegeneration/jobs/casev2-..."
 }
 ```
 

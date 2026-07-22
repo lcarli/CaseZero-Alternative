@@ -4,8 +4,8 @@ The CaseZero case generator is an Azure Functions app (`CaseGen.Functions`, .NET
 isolated worker) that produces fully-playable detective cases on demand. It is
 driven by a Durable Functions orchestration and a fine-grained **micro-task**
 LLM pipeline. Each case is a `case.json` v2 document plus a folder of rendered
-assets (PDFs, images, audio sidecars), all published to the same blob container
-the website reads from.
+assets (PDFs and, when selected by the evidence portfolio, images), all published
+to the same blob container the website reads from.
 
 Internally, the pipeline compiles a typed `EvidenceGraph`, applies centralized
 `DifficultyProfile` budgets, validates each stage before downstream generation,
@@ -86,12 +86,33 @@ can show progress. Per-stage latencies are reported on completion.
 | 11 | `autoFixSchema` *(only if errors)* | **Deterministic** — `SchemaErrorAutoFixer` rewrites common LLM ID-format slips (`asset_x` → `asset.x`, etc.) |
 | 12 | `redTeamAndSolver` | Parallel: red-team adversarial review + solver verifies the case is fairly solvable |
 | 13 | `refineCase` *(conditional)* | LLM refines the case when schema errors persist OR red-team rejects with high-severity findings |
-| 14 | `renderAssets` | `AssetRenderingService` materialises PDFs (QuestPDF) and images (gpt-image-1) in parallel |
+| 14 | `renderAssets` | `AssetRenderingService` materialises PDFs (QuestPDF) and any planned `photo`/`image` assets (configured Foundry image deployment) in parallel |
 | 15 | `publishToBlob` | `CaseV2BlobPublisher` mirrors `case.json` + every asset to the configured blob container |
 
 Stages that have nothing to do (no errors → no auto-fix, no schema errors and
 red-team OK → no refine, blob publisher not configured locally) are skipped
 silently.
+
+### Image generation is conditional
+
+The v2 request does **not** contain a `generateImages` flag. Images are generated
+only when the deterministic evidence portfolio and the asset-planning stage
+produce an asset whose type is `photo` or `image`. A valid case may contain only
+`pdf`, `document`, and `digital` assets; in that situation the result legitimately
+reports `AssetsRenderedImages = 0`.
+
+Zero rendered images is not, by itself, an error. Use these result fields together:
+
+- `AssetsRenderedImages = 0` and an empty `AssetRenderingErrors` list means that
+  no image asset was planned.
+- A non-empty `AssetRenderingErrors` list means that at least one planned asset
+  failed during rendering.
+- The Function log summary has the form
+  `Rendered {Pdfs} PDFs and {Imgs} images ... (skipped {Skipped}, errors {Errors})`.
+
+If product requirements change to guarantee visual evidence, enforce at least one
+`photo` archetype in the deterministic portfolio contract rather than adding a
+UI-only switch.
 
 ## Refine loop (defense in depth)
 

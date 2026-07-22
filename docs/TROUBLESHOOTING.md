@@ -395,6 +395,41 @@ console.log(caseSession.progress);
 
 ---
 
+## 🖼️ Geração de Imagens
+
+### Caso gerado sem nenhuma imagem
+
+**Sintoma:** a geração termina com sucesso, mas o caso contém apenas PDFs ou
+documentos.
+
+**Comportamento esperado:** no pipeline v2, imagens são condicionais. Não existe
+um campo `generateImages` na requisição. O renderizador chama o modelo de imagem
+somente para assets planejados com tipo `photo` ou `image`.
+
+**Diagnóstico:**
+
+1. Verifique `AssetsRenderedImages` e `AssetRenderingErrors` no resultado do job.
+2. Consulte o resumo do `AssetRenderingService` no Application Insights:
+
+   ```kusto
+   traces
+   | where timestamp > ago(6h)
+   | where message startswith "Rendered " or message startswith "Image render failed"
+   | project timestamp, severityLevel, message
+   | order by timestamp desc
+   ```
+
+3. Interprete o resultado:
+   - `0 images`, `skipped 0`, `errors 0`: nenhum asset visual foi planejado; não
+     é falha.
+   - `errors > 0` ou mensagem `Image render failed`: a imagem foi planejada, mas
+     a chamada ao modelo ou a gravação do arquivo falhou.
+
+Para tornar imagens obrigatórias, altere o contrato do portfólio determinístico
+para exigir ao menos um asset `photo`; não adicione apenas uma opção na UI.
+
+---
+
 ## 🚀 Problemas de Deploy
 
 ### Docker não builda
