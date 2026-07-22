@@ -2,26 +2,45 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import styled, { keyframes } from 'styled-components'
 import { ArrowLeft, Star as Sparkles, AlertCircle, CheckCircle as CheckCircle2, Loader as Loader2 } from 'react-feather'
-import { caseGenerationApi, type GenerateCaseRequest, type GenerateCaseStatus } from '../services/api'
+import {
+  caseGenerationApi,
+  type GenerateCaseRequest,
+  type GenerateCaseStatus,
+  type GenerationStageProgress
+} from '../services/api'
+import { useLanguage } from '../contexts/LanguageContext'
+import type { Translations } from '../types/i18n'
 
-const PHASES: { id: string; label: string }[] = [
-  { id: 'plotOutline',                  label: 'Plot outline' },
-  { id: 'suspectCards',                 label: 'Suspect cards' },
-  { id: 'assetPlan',                    label: 'Asset plan' },
-  { id: 'assetsAndTimelineAndBriefing', label: 'Assets + timeline + briefing' },
-  { id: 'forensicsPlan',                label: 'Forensics plan' },
-  { id: 'outcomesAndInitialEmails',     label: 'Forensic outcomes + initial emails' },
-  { id: 'mechanicalRules',              label: 'Mechanical rules (deterministic)' },
-  { id: 'rulesAndSolutionSkeleton',     label: 'Rules + solution skeleton' },
-  { id: 'questionsAndExplanation',      label: 'Questions + explanation' },
-  { id: 'consistency',                  label: 'Consistency check (deterministic)' },
-  { id: 'autoFixSchema',                label: 'Auto-fix schema (deterministic, conditional)' },
-  { id: 'redTeamAndSolver',             label: 'Red-team + solver' },
-  { id: 'refineCase',                   label: 'Refine (LLM, conditional)' },
-  { id: 'redTeamRerun',                 label: 'Red-team rerun (conditional)' },
-  { id: 'renderAssets',                 label: 'Render PDFs + images' },
-  { id: 'publishToBlob',                label: 'Publish to blob storage' }
+const STAGE_IDS = [
+  'caseDesign', 'graphConstruction', 'evidenceProduction', 'forensicWorkflow',
+  'solutionDesign', 'deterministicValidation', 'solutionWitness', 'advisoryReview',
+  'targetedRepair', 'finalValidation', 'finalization'
 ]
+
+const STAGE_KEYS: Record<string, keyof Translations> = {
+  caseDesign: 'stageCaseDesign',
+  graphConstruction: 'stageGraphConstruction',
+  evidenceProduction: 'stageEvidenceProduction',
+  forensicWorkflow: 'stageForensicWorkflow',
+  solutionDesign: 'stageSolutionDesign',
+  deterministicValidation: 'stageDeterministicValidation',
+  solutionWitness: 'stageSolutionWitness',
+  advisoryReview: 'stageAdvisoryReview',
+  targetedRepair: 'stageTargetedRepair',
+  finalValidation: 'stageFinalValidation',
+  finalization: 'stageFinalization'
+}
+
+const LEGACY_STAGE: Record<string, string> = {
+  plotOutline: 'caseDesign', suspectCards: 'caseDesign',
+  assetPlan: 'graphConstruction', assetsAndTimelineAndBriefing: 'evidenceProduction',
+  rookieInitialEvidence: 'evidenceProduction', forensicsPlan: 'forensicWorkflow',
+  outcomesAndInitialEmails: 'forensicWorkflow', mechanicalRules: 'solutionDesign',
+  rulesAndSolutionSkeleton: 'solutionDesign', questionsAndExplanation: 'solutionDesign',
+  consistency: 'deterministicValidation', autoFixSchema: 'deterministicValidation',
+  redTeamAndSolver: 'solutionWitness', refineCase: 'targetedRepair',
+  redTeamRerun: 'advisoryReview', renderAssets: 'finalization', publishToBlob: 'finalization'
+}
 
 const Page = styled.div`
   min-height: 100vh;
@@ -176,7 +195,7 @@ const spin = keyframes`from { transform: rotate(0deg); } to { transform: rotate(
 const Spin = styled(Loader2)`
   animation: ${spin} 1.4s linear infinite;
 `
-const PhaseRow = styled.li<{ $state: 'done' | 'current' | 'pending' }>`
+const PhaseRow = styled.li<{ $state: 'done' | 'current' | 'pending' | 'skipped' | 'failed' }>`
   display: grid;
   grid-template-columns: 24px 1fr auto;
   align-items: center;
@@ -185,9 +204,10 @@ const PhaseRow = styled.li<{ $state: 'done' | 'current' | 'pending' }>`
   border-radius: 10px;
   background: ${p =>
     p.$state === 'current' ? 'rgba(56, 189, 248, 0.12)' :
+    p.$state === 'failed'  ? 'rgba(239, 68, 68, 0.1)' :
     p.$state === 'done'    ? 'rgba(15, 23, 42, 0.5)' :
                              'transparent'};
-  color: ${p => p.$state === 'pending' ? '#475569' : '#cbd5e1'};
+  color: ${p => p.$state === 'pending' || p.$state === 'skipped' ? '#64748b' : '#cbd5e1'};
 `
 const Mono = styled.code`
   font-family: 'JetBrains Mono', monospace;
@@ -238,10 +258,11 @@ const POLL_INTERVAL_MS = 2500
 
 const CaseGenerationPage = () => {
   const navigate = useNavigate()
+  const { currentLanguage, t } = useLanguage()
   const [form, setForm] = useState<GenerateCaseRequest>({
     difficulty: 'Rookie',
     requiredRank: 'Rookie',
-    language: 'en-US',
+    language: currentLanguage,
     writeToDisk: true
   })
   const [jobId, setJobId] = useState<string | null>(null)
@@ -272,7 +293,7 @@ const CaseGenerationPage = () => {
       }
       pollTimer.current = window.setTimeout(() => pollOnce(id), POLL_INTERVAL_MS)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Polling failed'
+      const msg = err instanceof Error ? err.message : t('generationPollError')
       setError(msg)
       // Backoff once on a transient failure, then keep trying
       pollTimer.current = window.setTimeout(() => pollOnce(id), POLL_INTERVAL_MS * 2)
@@ -295,20 +316,34 @@ const CaseGenerationPage = () => {
       setJobId(res.jobId)
       pollOnce(res.jobId)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start generation')
+      setError(err instanceof Error ? err.message : t('generationStartError'))
     } finally {
       setSubmitting(false)
     }
   }
 
-  const currentPhaseIndex = (() => {
-    if (!status?.currentPhase) return -1
-    return PHASES.findIndex(p => p.id === status.currentPhase)
+  const stages: GenerationStageProgress[] = (() => {
+    if (status?.stages?.length) return status.stages
+    const currentId = status?.currentStageId ?? (status?.currentPhase ? LEGACY_STAGE[status.currentPhase] : undefined)
+    const currentIndex = currentId ? STAGE_IDS.indexOf(currentId) : -1
+    return STAGE_IDS.map((id, index) => ({
+      id,
+      attempt: 1,
+      status: status?.status === 'done' || index < currentIndex
+        ? 'completed'
+        : index === currentIndex ? 'running' : 'pending'
+    }))
   })()
-  const completedCount = status?.status === 'done'
-    ? PHASES.length
-    : Math.max(0, currentPhaseIndex)
-  const pct = (completedCount / PHASES.length) * 100
+  const pct = status?.progressPercent
+    ?? (stages.filter(stage => stage.status === 'completed' || stage.status === 'skipped').length / stages.length) * 100
+  const stageLabel = (id: string) => STAGE_KEYS[id] ? t(STAGE_KEYS[id]) : id
+  const statusLabel = (value: GenerateCaseStatus['status'] | 'skipped') => ({
+    queued: t('generationQueued'),
+    running: t('running'),
+    done: t('completed'),
+    failed: t('failed'),
+    skipped: t('generationSkipped')
+  })[value]
 
   const update = <K extends keyof GenerateCaseRequest>(k: K, v: GenerateCaseRequest[K]) =>
     setForm(prev => ({ ...prev, [k]: v }))
@@ -316,8 +351,8 @@ const CaseGenerationPage = () => {
   return (
     <Page>
       <TopBar>
-        <Title><Sparkles size={22} />Generate New Case</Title>
-        <BackButton onClick={() => navigate('/dashboard')}><ArrowLeft size={16} />Dashboard</BackButton>
+        <Title><Sparkles size={22} />{t('generateNewCase')}</Title>
+        <BackButton onClick={() => navigate('/dashboard')}><ArrowLeft size={16} />{t('backToDashboard')}</BackButton>
       </TopBar>
 
       {!jobId && (
@@ -325,7 +360,7 @@ const CaseGenerationPage = () => {
           <Form onSubmit={handleSubmit}>
             <Row>
               <Label>
-                Difficulty *
+                {t('caseDifficulty')} *
                 <Select value={form.difficulty} onChange={e => {
                   update('difficulty', e.target.value)
                   update('requiredRank', e.target.value)
@@ -334,7 +369,7 @@ const CaseGenerationPage = () => {
                 </Select>
               </Label>
               <Label>
-                Language
+                {t('generationLanguage')}
                 <Select value={form.language ?? 'en-US'} onChange={e => update('language', e.target.value)}>
                   <option value="en-US">English (en-US)</option>
                   <option value="pt-BR">Português (pt-BR)</option>
@@ -345,31 +380,31 @@ const CaseGenerationPage = () => {
             </Row>
             <Row>
               <Label>
-                Title (optional)
-                <Input value={form.title ?? ''} onChange={e => update('title', e.target.value)} placeholder="e.g. The River Drop" />
+                {t('generationTitleOptional')}
+                <Input value={form.title ?? ''} onChange={e => update('title', e.target.value)} />
               </Label>
               <Label>
-                Location (optional)
-                <Input value={form.location ?? ''} onChange={e => update('location', e.target.value)} placeholder="e.g. Seattle, Washington" />
+                {t('generationLocationOptional')}
+                <Input value={form.location ?? ''} onChange={e => update('location', e.target.value)} />
               </Label>
             </Row>
             <Label>
-              Theme (optional)
-              <Input value={form.theme ?? ''} onChange={e => update('theme', e.target.value)} placeholder="e.g. Body found at a dockyard under the morning fog" />
+              {t('generationThemeOptional')}
+              <Input value={form.theme ?? ''} onChange={e => update('theme', e.target.value)} />
             </Label>
             <Row>
               <Label>
-                Case ID (optional)
-                <Input value={form.caseId ?? ''} onChange={e => update('caseId', e.target.value)} placeholder="auto" />
+                {t('generationCaseIdOptional')}
+                <Input value={form.caseId ?? ''} onChange={e => update('caseId', e.target.value)} />
               </Label>
               <Label>
-                Seed (optional)
-                <Input type="number" value={form.seed ?? ''} onChange={e => update('seed', e.target.value === '' ? undefined : Number(e.target.value))} placeholder="random" />
+                {t('generationSeedOptional')}
+                <Input type="number" value={form.seed ?? ''} onChange={e => update('seed', e.target.value === '' ? undefined : Number(e.target.value))} />
               </Label>
             </Row>
             <Button type="submit" disabled={submitting}>
               {submitting ? <Spin size={16} /> : <Sparkles size={16} />}
-              {submitting ? 'Starting…' : 'Generate'}
+              {submitting ? t('generationStarting') : t('generateCase')}
             </Button>
             {error && <ErrorBox><AlertCircle size={16} />{error}</ErrorBox>}
           </Form>
@@ -380,34 +415,41 @@ const CaseGenerationPage = () => {
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
             <div>
-              <div style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Job</div>
+              <div style={{ fontSize: '0.78rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t('generationJob')}</div>
               <Mono>{jobId}</Mono>
             </div>
             <StatusBadge $status={status?.status ?? 'queued'}>
               {status?.status === 'done' && <CheckCircle2 size={14} />}
               {status?.status === 'failed' && <AlertCircle size={14} />}
               {(status?.status === 'running' || !status) && <Spin size={14} />}
-              {status?.status ?? 'queued'}
-              {status?.currentPhase ? ` · ${status.currentPhase}` : ''}
+              {statusLabel(status?.status ?? 'queued')}
+              {(status?.currentStageId || status?.currentPhase)
+                ? ` · ${stageLabel(status.currentStageId ?? LEGACY_STAGE[status.currentPhase!] ?? status.currentPhase!)}`
+                : ''}
             </StatusBadge>
           </div>
 
           <ProgressBar><ProgressFill $pct={pct} /></ProgressBar>
 
           <PhaseList>
-            {PHASES.map((p, idx) => {
-              const state: 'done' | 'current' | 'pending' =
-                idx < currentPhaseIndex || status?.status === 'done' ? 'done' :
-                idx === currentPhaseIndex                            ? 'current' :
-                                                                       'pending'
-              const ms = status?.result?.StageLatencyMs?.[p.id]
+            {stages.map(stage => {
+              const state =
+                stage.status === 'completed' ? 'done' :
+                stage.status === 'running' ? 'current' :
+                stage.status
+              const ms = stage.durationMs
               return (
-                <PhaseRow key={p.id} $state={state}>
+                <PhaseRow key={stage.id} $state={state}>
                   {state === 'done' && <CheckCircle2 size={16} color="#22c55e" />}
                   {state === 'current' && <Spin size={16} color="#38bdf8" />}
-                  {state === 'pending' && <span />}
-                  <span>{p.label}</span>
-                  {ms !== undefined && <Mono>{(ms / 1000).toFixed(1)}s</Mono>}
+                  {state === 'failed' && <AlertCircle size={16} color="#ef4444" />}
+                  {(state === 'pending' || state === 'skipped') && <span />}
+                  <span>
+                    {stageLabel(stage.id)}
+                    {state === 'skipped' && ` · ${statusLabel('skipped')}`}
+                    {stage.attempt > 1 && ` · ${t('generationAttempt')} ${stage.attempt}`}
+                  </span>
+                  {ms != null && <Mono>{(ms / 1000).toFixed(1)}s</Mono>}
                 </PhaseRow>
               )
             })}
@@ -416,44 +458,16 @@ const CaseGenerationPage = () => {
           {status?.status === 'done' && status.result && (
             <>
               <SummaryGrid>
-                <Stat><StatLbl>Case ID</StatLbl><StatVal style={{ fontSize: '0.95rem' }}><Mono>{status.result.CaseId}</Mono></StatVal></Stat>
-                <Stat><StatLbl>Validation errors</StatLbl><StatVal>{status.result.ValidationErrorsCount}</StatVal></Stat>
-                <Stat><StatLbl>PDFs rendered</StatLbl><StatVal>{status.result.AssetsRenderedPdfs}</StatVal></Stat>
-                <Stat><StatLbl>Images rendered</StatLbl><StatVal>{status.result.AssetsRenderedImages}</StatVal></Stat>
-                <Stat><StatLbl>Blobs published</StatLbl><StatVal>{status.result.BlobsPublished}</StatVal></Stat>
-                <Stat><StatLbl>Auto-fixes applied</StatLbl><StatVal>{status.result.AutoFixesApplied?.length ?? 0}</StatVal></Stat>
-                <Stat>
-                  <StatLbl>Refine attempted</StatLbl>
-                  <StatVal>
-                    {status.result.RefineAttempted ? 'yes' : 'no'}
-                    {(status.result.RefineIterations ?? 0) > 0 && (
-                      <span style={{ color: 'rgba(148, 197, 255, 0.7)', fontSize: '0.8rem', marginLeft: '0.4rem' }}>
-                        ({status.result.RefineIterations} iter)
-                      </span>
-                    )}
-                  </StatVal>
-                </Stat>
-                <Stat>
-                  <StatLbl>Red-team verdict</StatLbl>
-                  <StatVal style={{ fontSize: '0.95rem' }}>
-                    {status.result.RedTeamVerdict ?? '—'}
-                    {(status.result.RedTeamVerdictTrajectory?.length ?? 0) > 1 && (
-                      <span style={{ color: 'rgba(148, 197, 255, 0.7)', fontSize: '0.8rem', marginLeft: '0.4rem' }}>
-                        ({status.result.RedTeamVerdictTrajectory!.join(' → ')})
-                      </span>
-                    )}
-                    {(status.result.RedTeamVerdictTrajectory?.length ?? 0) <= 1
-                      && status.result.RedTeamRerun
-                      && status.result.RedTeamVerdictInitial && (
-                      <span style={{ color: 'rgba(148, 197, 255, 0.7)', fontSize: '0.8rem', marginLeft: '0.4rem' }}>
-                        (was {status.result.RedTeamVerdictInitial})
-                      </span>
-                    )}
-                  </StatVal>
-                </Stat>
+                <Stat><StatLbl>{t('generationCaseIdOptional')}</StatLbl><StatVal style={{ fontSize: '0.95rem' }}><Mono>{status.result.CaseId}</Mono></StatVal></Stat>
+                <Stat><StatLbl>{t('generationValidationErrors')}</StatLbl><StatVal>{status.result.ValidationErrorsCount}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationGraphValidation')}</StatLbl><StatVal>{status.result.GraphValidationPassed ? t('generationPassed') : t('generationNotPassed')}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationSolutionWitness')}</StatLbl><StatVal>{status.result.SolverSucceeded ? t('generationPassed') : t('generationNotPassed')}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationRepairOperations')}</StatLbl><StatVal>{status.result.RepairOperationCount ?? 0}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationFirstPass')}</StatLbl><StatVal>{status.result.FirstPassSuccess ? t('generationYes') : t('generationNo')}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationAdvisoryFindings')}</StatLbl><StatVal>{Object.values(status.result.SpecialistFindingsByCategory ?? {}).reduce((sum, count) => sum + count, 0)}</StatVal></Stat>
               </SummaryGrid>
               <Button style={{ marginTop: '1rem' }} onClick={() => navigate('/dashboard')}>
-                <CheckCircle2 size={16} />Back to dashboard
+                <CheckCircle2 size={16} />{t('backToDashboard')}
               </Button>
             </>
           )}
@@ -462,15 +476,15 @@ const CaseGenerationPage = () => {
             <ErrorBox style={{ marginTop: '1rem' }}>
               <AlertCircle size={18} />
               <div>
-                <div style={{ fontWeight: 600, marginBottom: '0.3rem' }}>Generation failed</div>
-                {status.error || status.result?.ErrorMessage || 'Unknown error.'}
+                <div style={{ fontWeight: 600, marginBottom: '0.3rem' }}>{t('caseGenerationError')}</div>
+                {status.error || status.result?.ErrorMessage || t('generationUnknownError')}
               </div>
             </ErrorBox>
           )}
 
           {(status?.status === 'done' || status?.status === 'failed') && (
             <Button $variant="ghost" style={{ marginTop: '1rem' }} onClick={() => { setJobId(null); setStatus(null) }}>
-              Generate another
+              {t('generationAnother')}
             </Button>
           )}
 

@@ -1,0 +1,699 @@
+{
+  "Origin": "Generated",
+  "Entities": [
+    {
+      "id": "person.elena_soto",
+      "kind": "Person",
+      "displayName": "Elena Soto",
+      "attributes": {}
+    },
+    {
+      "id": "person.gavin_holt",
+      "kind": "Person",
+      "displayName": "Gavin Holt",
+      "attributes": {}
+    },
+    {
+      "id": "person.ryan_abad",
+      "kind": "Person",
+      "displayName": "Ryan Abad",
+      "attributes": {}
+    },
+    {
+      "id": "organization.case_context",
+      "kind": "Organization",
+      "displayName": "The Vanishing Laptop",
+      "attributes": {}
+    },
+    {
+      "id": "document.access_log_export_20260513_itcage_lc2",
+      "kind": "Document",
+      "displayName": "Building Access-Control Log (IT Cage \u0026 Loading Corridor LC-2) \u2014 2026-05-13 \u2014 document.access_log_export_20260513_itcage_lc2",
+      "attributes": {}
+    },
+    {
+      "id": "device.reader_it_cage",
+      "kind": "Device",
+      "displayName": "Building Access-Control Log (IT Cage \u0026 Loading Corridor LC-2) \u2014 2026-05-13 \u2014 device.reader_it_cage",
+      "attributes": {}
+    },
+    {
+      "id": "device.door_contact_lc2",
+      "kind": "Device",
+      "displayName": "Building Access-Control Log (IT Cage \u0026 Loading Corridor LC-2) \u2014 2026-05-13 \u2014 device.door_contact_lc2",
+      "attributes": {}
+    },
+    {
+      "id": "document.m365_version_history_it_assets_q2_2026",
+      "kind": "Document",
+      "displayName": "Microsoft 365 File Version History \u2014 IT_Assets_Q2_2026.xlsx \u2014 document.m365_version_history_it_assets_q2_2026",
+      "attributes": {}
+    },
+    {
+      "id": "account.m365_user_rabad",
+      "kind": "Account",
+      "displayName": "Microsoft 365 File Version History \u2014 IT_Assets_Q2_2026.xlsx \u2014 account.m365_user_rabad",
+      "attributes": {}
+    },
+    {
+      "id": "document.servicedesk_export_al_77821_search_20260513_20260514",
+      "kind": "Document",
+      "displayName": "Service Desk System Export \u2014 Asset Tag Search (AL-77821) \u2014 document.servicedesk_export_al_77821_search_20260513_20260514",
+      "attributes": {}
+    },
+    {
+      "id": "session.servicedesk_search_al_77821",
+      "kind": "Session",
+      "displayName": "Service Desk System Export \u2014 Asset Tag Search (AL-77821) \u2014 session.servicedesk_search_al_77821",
+      "attributes": {}
+    },
+    {
+      "id": "document.spd_evidence_log_case_graph_rookie_103",
+      "kind": "Document",
+      "displayName": "SPD Evidence Inventory \u0026 Chain-of-Custody \u2014 Initial Collection (IT Cage) \u2014 document.spd_evidence_log_case_graph_rookie_103",
+      "attributes": {}
+    },
+    {
+      "id": "object.printout_it_assets_q2_row_al_77821",
+      "kind": "PhysicalObject",
+      "displayName": "SPD Evidence Inventory \u0026 Chain-of-Custody \u2014 Initial Collection (IT Cage) \u2014 object.printout_it_assets_q2_row_al_77821",
+      "attributes": {}
+    },
+    {
+      "id": "document.interview_transcript_maya_lin_20260514",
+      "kind": "Document",
+      "displayName": "Interview Transcript \u2014 Maya Lin (IT) on Last Verified Sight, Issuance Workflow, and Missing Report \u2014 document.interview_transcript_maya_lin_20260514",
+      "attributes": {}
+    },
+    {
+      "id": "communication.interview_record_maya_lin",
+      "kind": "Communication",
+      "displayName": "Interview Transcript \u2014 Maya Lin (IT) on Last Verified Sight, Issuance Workflow, and Missing Report \u2014 communication.interview_record_maya_lin",
+      "attributes": {}
+    }
+  ],
+  "SuspectReferences": [
+    {
+      "suspectId": "suspect.elena_soto",
+      "personEntityId": "person.elena_soto"
+    },
+    {
+      "suspectId": "suspect.gavin_holt",
+      "personEntityId": "person.gavin_holt"
+    },
+    {
+      "suspectId": "suspect.ryan_abad",
+      "personEntityId": "person.ryan_abad"
+    }
+  ],
+  "Facts": [
+    {
+      "Id": "fact.clue_asset_context",
+      "Predicate": "context_asset_context",
+      "SubjectId": "organization.case_context",
+      "ObjectId": null,
+      "LiteralValue": "The IT inventory sheet lists asset tag \u0022AL-77821\u0022 as \u0022Lenovo ThinkPad T14s Gen 3\u0022 with storage location \u0022IT Cage / Shelf C3\u0022 on the row last saved on 2026-05-13.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_badge_to_person",
+      "Predicate": "identity_badge_to_person",
+      "SubjectId": "person.ryan_abad",
+      "ObjectId": null,
+      "LiteralValue": "The building credential directory lists badge ID ending \u00224421\u0022 as assigned to \u0022Ryan Abad\u0022 with department \u0022IT Support\u0022.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_cage_access_log",
+      "Predicate": "action_cage_access_log",
+      "SubjectId": "person.ryan_abad",
+      "ObjectId": null,
+      "LiteralValue": "The IT cage reader log shows badge ID ending \u00224421\u0022 granted at \u00222026-05-13 19:12:18\u0022 and again at \u002219:21:09\u0022.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_inventory_issued_entry",
+      "Predicate": "action_inventory_issued_entry",
+      "SubjectId": "organization.case_context",
+      "ObjectId": null,
+      "LiteralValue": "The inventory row for \u0022AL-77821\u0022 shows status \u0022Issued\u0022 with \u0022Recipient: Elena Soto\u0022 and \u0022Pickup time: 2026-05-13 19:20\u0022 entered as typed text in the \u0022Sign-out\u0022 cell.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_no_ticket_for_issue",
+      "Predicate": "action_no_ticket_for_issue",
+      "SubjectId": "person.ryan_abad",
+      "ObjectId": null,
+      "LiteralValue": "Service desk ticket search for asset tag \u0022AL-77821\u0022 returns no results between \u00222026-05-13 00:00\u0022 and \u00222026-05-14 09:00\u0022.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_spreadsheet_version_history",
+      "Predicate": "action_spreadsheet_version_history",
+      "SubjectId": "person.ryan_abad",
+      "ObjectId": null,
+      "LiteralValue": "The file history for \u0022IT_Assets_Q2_2026.xlsx\u0022 shows a save event at \u00222026-05-13 19:18:44\u0022 by user \u0022rabad\u0022.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.culprit_ryan_abad",
+      "Predicate": "isCulprit",
+      "SubjectId": "person.ryan_abad",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_suspicion_elena_soto",
+      "Predicate": "decoySuspicion",
+      "SubjectId": "person.elena_soto",
+      "ObjectId": null,
+      "LiteralValue": "The inventory row lists Elena Soto as the recipient of the laptop, implying she picked it up.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_verification_elena_soto",
+      "Predicate": "decoyVerification",
+      "SubjectId": "person.elena_soto",
+      "ObjectId": null,
+      "LiteralValue": "HR onboarding schedule email lists \u0022Elena Soto\u0022 with start date \u00222026-05-20\u0022 and includes the line \u0022Badge pickup: Day 1, 9:00 AM (Lobby)\u0022.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_elena_soto",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.elena_soto",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_suspicion_gavin_holt",
+      "Predicate": "decoySuspicion",
+      "SubjectId": "person.gavin_holt",
+      "ObjectId": null,
+      "LiteralValue": "A loading-corridor door opened after hours, suggesting facilities/security involvement.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_verification_gavin_holt",
+      "Predicate": "decoyVerification",
+      "SubjectId": "person.gavin_holt",
+      "ObjectId": null,
+      "LiteralValue": "The loading-corridor door contact log shows \u0022Door LC-2: OPEN 2026-05-13 19:26:03\u0022 and the facilities duty roster shows \u0022Gavin Holt on call 18:00\u201322:00\u0022.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_gavin_holt",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.gavin_holt",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    }
+  ],
+  "Events": [],
+  "Sources": [
+    {
+      "Id": "asset.access_log",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.cage_access_log_access_log",
+        "observation.decoy_suspicion_gavin_holt_access_log"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_cage_access_log",
+        "fact.decoy_suspicion_gavin_holt"
+      ],
+      "EvidentiaryOriginId": "asset.access_log",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.bank_statement",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.spreadsheet_version_history_bank_statement"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_spreadsheet_version_history"
+      ],
+      "EvidentiaryOriginId": "asset.bank_statement",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.call_log",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.no_ticket_for_issue_call_log",
+        "observation.decoy_verification_gavin_holt_call_log"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_no_ticket_for_issue",
+        "fact.decoy_verification_gavin_holt"
+      ],
+      "EvidentiaryOriginId": "asset.call_log",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.evidence_log",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.asset_context_evidence_log",
+        "observation.inventory_issued_entry_evidence_log"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_asset_context",
+        "fact.clue_inventory_issued_entry"
+      ],
+      "EvidentiaryOriginId": "asset.evidence_log",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.suspect_interview",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.asset_context_suspect_interview",
+        "observation.badge_to_person_suspect_interview",
+        "observation.inventory_issued_entry_suspect_interview",
+        "observation.decoy_suspicion_elena_soto_suspect_interview",
+        "observation.decoy_verification_elena_soto_suspect_interview"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_asset_context",
+        "fact.clue_badge_to_person",
+        "fact.clue_inventory_issued_entry",
+        "fact.decoy_suspicion_elena_soto",
+        "fact.decoy_verification_elena_soto"
+      ],
+      "EvidentiaryOriginId": "asset.suspect_interview",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "email.facilities_preservation_lc2",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "email.facilities_preservation_lc2",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "email.maya_lin_missing_report",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "email.maya_lin_missing_report",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "email.servicedesk_zero_tickets",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "email.servicedesk_zero_tickets",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    }
+  ],
+  "AssetSpecs": [
+    {
+      "Id": "asset.access_log",
+      "ArchetypeId": "access_log",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.cage_access_log_access_log",
+        "observation.decoy_suspicion_gavin_holt_access_log"
+      ],
+      "ContainedObjectIds": [
+        "document.access_log_export_20260513_itcage_lc2",
+        "device.reader_it_cage",
+        "device.door_contact_lc2"
+      ],
+      "ContainedObjectTypes": {
+        "document.access_log_export_20260513_itcage_lc2": "AccessRecord",
+        "device.reader_it_cage": "AccessRecord",
+        "device.door_contact_lc2": "AccessRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "AccessLog"
+    },
+    {
+      "Id": "asset.bank_statement",
+      "ArchetypeId": "bank_statement",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.spreadsheet_version_history_bank_statement"
+      ],
+      "ContainedObjectIds": [
+        "document.m365_version_history_it_assets_q2_2026",
+        "account.m365_user_rabad"
+      ],
+      "ContainedObjectTypes": {
+        "document.m365_version_history_it_assets_q2_2026": "FinancialRecord",
+        "account.m365_user_rabad": "FinancialRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "BankStatement"
+    },
+    {
+      "Id": "asset.call_log",
+      "ArchetypeId": "call_log",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.decoy_verification_gavin_holt_call_log",
+        "observation.no_ticket_for_issue_call_log"
+      ],
+      "ContainedObjectIds": [
+        "document.servicedesk_export_al_77821_search_20260513_20260514",
+        "session.servicedesk_search_al_77821"
+      ],
+      "ContainedObjectTypes": {
+        "document.servicedesk_export_al_77821_search_20260513_20260514": "CommunicationRecord",
+        "session.servicedesk_search_al_77821": "CommunicationRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "CallLog"
+    },
+    {
+      "Id": "asset.evidence_log",
+      "ArchetypeId": "evidence_log",
+      "AssetType": "document",
+      "ObservationIds": [
+        "observation.asset_context_evidence_log",
+        "observation.inventory_issued_entry_evidence_log"
+      ],
+      "ContainedObjectIds": [
+        "document.spd_evidence_log_case_graph_rookie_103",
+        "object.printout_it_assets_q2_row_al_77821"
+      ],
+      "ContainedObjectTypes": {
+        "document.spd_evidence_log_case_graph_rookie_103": "Document",
+        "object.printout_it_assets_q2_row_al_77821": "Document"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "EvidenceLog"
+    },
+    {
+      "Id": "asset.suspect_interview",
+      "ArchetypeId": "suspect_interview",
+      "AssetType": "document",
+      "ObservationIds": [
+        "observation.asset_context_suspect_interview",
+        "observation.badge_to_person_suspect_interview",
+        "observation.decoy_suspicion_elena_soto_suspect_interview",
+        "observation.decoy_verification_elena_soto_suspect_interview",
+        "observation.inventory_issued_entry_suspect_interview"
+      ],
+      "ContainedObjectIds": [
+        "document.interview_transcript_maya_lin_20260514",
+        "communication.interview_record_maya_lin"
+      ],
+      "ContainedObjectTypes": {
+        "document.interview_transcript_maya_lin_20260514": "Document",
+        "communication.interview_record_maya_lin": "Document"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "InterviewTranscript"
+    }
+  ],
+  "DecoyArcs": [
+    {
+      "SuspectId": "suspect.elena_soto",
+      "SuspicionObservationIds": [
+        "observation.decoy_suspicion_elena_soto_suspect_interview"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_verification_elena_soto_suspect_interview"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_elena_soto",
+      "MustBePlayerReachable": true
+    },
+    {
+      "SuspectId": "suspect.gavin_holt",
+      "SuspicionObservationIds": [
+        "observation.decoy_suspicion_gavin_holt_access_log"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_verification_gavin_holt_call_log"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_gavin_holt",
+      "MustBePlayerReachable": true
+    }
+  ],
+  "ForensicTransforms": [],
+  "Observations": [
+    {
+      "Id": "observation.asset_context_evidence_log",
+      "FactId": "fact.clue_asset_context",
+      "SourceAssetId": "asset.evidence_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.asset_context_suspect_interview",
+      "FactId": "fact.clue_asset_context",
+      "SourceAssetId": "asset.suspect_interview",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.badge_to_person_suspect_interview",
+      "FactId": "fact.clue_badge_to_person",
+      "SourceAssetId": "asset.suspect_interview",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.cage_access_log_access_log",
+      "FactId": "fact.clue_cage_access_log",
+      "SourceAssetId": "asset.access_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.inventory_issued_entry_evidence_log",
+      "FactId": "fact.clue_inventory_issued_entry",
+      "SourceAssetId": "asset.evidence_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.inventory_issued_entry_suspect_interview",
+      "FactId": "fact.clue_inventory_issued_entry",
+      "SourceAssetId": "asset.suspect_interview",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.no_ticket_for_issue_call_log",
+      "FactId": "fact.clue_no_ticket_for_issue",
+      "SourceAssetId": "asset.call_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.spreadsheet_version_history_bank_statement",
+      "FactId": "fact.clue_spreadsheet_version_history",
+      "SourceAssetId": "asset.bank_statement",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_elena_soto_suspect_interview",
+      "FactId": "fact.decoy_suspicion_elena_soto",
+      "SourceAssetId": "asset.suspect_interview",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_verification_elena_soto_suspect_interview",
+      "FactId": "fact.decoy_verification_elena_soto",
+      "SourceAssetId": "asset.suspect_interview",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_gavin_holt_access_log",
+      "FactId": "fact.decoy_suspicion_gavin_holt",
+      "SourceAssetId": "asset.access_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_verification_gavin_holt_call_log",
+      "FactId": "fact.decoy_verification_gavin_holt",
+      "SourceAssetId": "asset.call_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    }
+  ],
+  "Derivations": [
+    {
+      "Id": "derivation.cage_access_log_cage_access_log_access_log",
+      "PremiseIds": [
+        "observation.cage_access_log_access_log"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.culprit_ryan_abad",
+      "SupportsSuspectId": "suspect.ryan_abad",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.badge_to_person_badge_to_person_suspect_interview",
+      "PremiseIds": [
+        "observation.badge_to_person_suspect_interview"
+      ],
+      "Rule": "IdentityMatch",
+      "ConclusionFactId": "fact.culprit_ryan_abad",
+      "SupportsSuspectId": "suspect.ryan_abad",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.no_ticket_for_issue_no_ticket_for_issue_call_log",
+      "PremiseIds": [
+        "observation.no_ticket_for_issue_call_log"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.culprit_ryan_abad",
+      "SupportsSuspectId": "suspect.ryan_abad",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.spreadsheet_version_history_spreadsheet_version_history_bank_statement",
+      "PremiseIds": [
+        "observation.spreadsheet_version_history_bank_statement"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.culprit_ryan_abad",
+      "SupportsSuspectId": "suspect.ryan_abad",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.exclude_elena_soto",
+      "PremiseIds": [
+        "observation.decoy_verification_elena_soto_suspect_interview"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_elena_soto",
+      "SupportsSuspectId": "suspect.elena_soto",
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.exclude_gavin_holt",
+      "PremiseIds": [
+        "observation.decoy_verification_gavin_holt_call_log"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_gavin_holt",
+      "SupportsSuspectId": "suspect.gavin_holt",
+      "IsCulpritConclusion": false
+    }
+  ],
+  "EventOrderConstraints": [],
+  "TravelWindows": [],
+  "Actions": [],
+  "RequiredSourceIds": [],
+  "RequiredAnalysisIds": []
+}

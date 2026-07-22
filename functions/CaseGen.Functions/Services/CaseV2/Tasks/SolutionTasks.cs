@@ -22,14 +22,19 @@ public class SolutionSkeletonTask
     {"type":"object","required":["requiredEvidenceIds","requiredAnalysisIds","questionTopics"],
      "properties":{
        "requiredEvidenceIds":{"type":"array","minItems":1,"items":{"type":"string","pattern":"^asset\\.[a-z0-9_]+$"}},
-       "requiredAnalysisIds":{"type":"array","minItems":1,"items":{"type":"string","pattern":"^asset\\.[a-z0-9_]+:[A-Za-z0-9_]+$"}},
+       "requiredAnalysisIds":{"type":"array","items":{"type":"string","pattern":"^asset\\.[a-z0-9_]+:[A-Za-z0-9_]+$"}},
        "questionTopics":{"type":"array","minItems":2,"maxItems":4,
-         "items":{"type":"object","required":["id","topic","weight"],
-           "properties":{"id":{"type":"string","pattern":"^q\\.[a-z0-9_]+$"}}}}}}
+         "items":{"type":"object","required":["id","topic","weight","supportingEvidenceIds"],
+           "properties":{
+             "id":{"type":"string","pattern":"^q\\.[a-z0-9_]+$"},
+             "supportingEvidenceIds":{"type":"array","minItems":1,"maxItems":3,
+               "items":{"type":"string","pattern":"^asset\\.[a-z0-9_]+$"}}}}}}}
     """;
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
+        var isRookie = string.Equals(draft.Metadata.Difficulty, "Rookie", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase);
         // Compose a richer context: tell the model which assets are already accessible
         // (initial OR revealed by a pre-built rule). Prefer those in requiredEvidenceIds
         // so the player always has a path to the solution.
@@ -47,16 +52,38 @@ public class SolutionSkeletonTask
             .ToHashSet(StringComparer.Ordinal);
         var reachableAssets = initialIds.Union(revealedByRules).ToHashSet(StringComparer.Ordinal);
 
+        var fullAssets = draft.AssetFull.Concat(draft.ResultAssets)
+            .GroupBy(asset => asset.Id, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        var culpritClueIds = draft.Blueprint.ClueLadder
+            .Where(clue => clue.SupportsSuspectId == draft.CulpritId)
+            .Select(clue => clue.Id)
+            .ToHashSet(StringComparer.Ordinal);
         var ctxJson = System.Text.Json.JsonSerializer.Serialize(new
         {
             culpritId = draft.CulpritId,
             assets = draft.AssetStubs
                 .Concat(draft.ResultAssets.Select(a => new AssetStub { Id = a.Id, Type = a.Type, Title = a.Title, Role = "lab result" }))
-                .Select(a => new { a.Id, a.Type, a.Title, role = a.Role, reachable = reachableAssets.Contains(a.Id) }),
+                .Select(a =>
+                {
+                    fullAssets.TryGetValue(a.Id, out var full);
+                    return new
+                    {
+                        a.Id,
+                        a.Type,
+                        a.Title,
+                        role = a.Role,
+                        reachable = reachableAssets.Contains(a.Id),
+                        supportsCulprit = a.SupportsClueIds.Any(culpritClueIds.Contains),
+                        clueIds = a.SupportsClueIds,
+                        description = full?.Description,
+                        content = RenderedEvidence(full)
+                    };
+                }),
             forensics = draft.ForensicFull.Where(f => f.Findings).Select(f => new { id = $"{f.InputAssetId}:{f.AnalysisType}", f.MatchedSuspectId })
         });
 
-        var system = @"You are writing the **skeleton** of the case solution.
+        var system = $@"You are writing the **skeleton** of the case solution.
 
 CRITICAL CONSTRAINT: every id you put in `requiredEvidenceIds` MUST be marked `reachable: true` in the supplied context.
 `reachable` means the asset is either visibility=initial or already gets revealed by a pre-built rule. Picking an
@@ -64,8 +91,14 @@ unreachable asset would make the case unsolvable — DO NOT do it.
 
 Pick:
 - `requiredEvidenceIds` (1-3 reachable assets that are the strongest probative items, including result PDFs when reachable);
-- `requiredAnalysisIds` (1-2 entries in the `<assetId>:<analysisType>` form, only for analyses that had `findings: true`);
-- `questionTopics`: 2-4 entries. Each has `id` (`q.<slug>`), `topic` (short label like ""motive"", ""method"", ""location"", ""contactChannel"", ""accomplice""), and a `weight` (1.0 for primary topics, 0.5 for secondary). No options yet — those come per-question.";
+- `requiredAnalysisIds`: {(isRookie ? "MUST be an empty array. Rookie cases have no forensic workflow." : "1-2 entries in the `<assetId>:<analysisType>` form, only for analyses that had `findings: true`")};
+- `questionTopics`: 2-4 entries. Each has `id` (`q.<slug>`), `topic`, `weight`, and `supportingEvidenceIds`.
+  Every supporting evidence id must be reachable and must directly contain the fact needed to answer the future question.
+  Do not select a topic such as exact method, hidden location, or private motive unless an initial/reachable asset explicitly states enough to distinguish the correct option.
+  Never create a suspect-identity / 'who did it' topic. Culprit identification is scored separately; questions must test evidence interpretation, chronology, method, motive, or contradiction.";
+        system += isRookie
+            ? "\nFor Rookie, requiredEvidenceIds must prioritize at least two different reachable assets marked `supportsCulprit: true` when available. Do not require background-only opportunity records when stronger culprit-supporting assets exist."
+            : string.Empty;
         var user = $@"CONTEXT:
 {ctxJson}
 
@@ -81,8 +114,21 @@ Emit JSON only.";
             ids = o.RequiredEvidenceIds;
         }
         draft.RequiredEvidenceIds = ids;
-        draft.RequiredAnalysisIds = o.RequiredAnalysisIds;
-        draft.QuestionTopics = o.QuestionTopics;
+        draft.RequiredAnalysisIds = isRookie ? new() : o.RequiredAnalysisIds;
+        draft.QuestionTopics = o.QuestionTopics
+            .Where(topic => topic.SupportingEvidenceIds.Any(reachableAssets.Contains))
+            .ToList();
+    }
+
+    private static string? RenderedEvidence(EvidenceAsset? asset)
+    {
+        if (asset is null) return null;
+        return string.Join("\n", new[]
+        {
+            asset.Body,
+            asset.BodyDoc is null ? null : System.Text.Json.JsonSerializer.Serialize(asset.BodyDoc),
+            asset.Description
+        }.Where(value => !string.IsNullOrWhiteSpace(value)));
     }
 }
 
@@ -112,6 +158,8 @@ Topic: ""{topic.Topic}"". Echo id `{topic.Id}` and `weight` {topic.Weight}.
 All options must be plausible (no obvious distractors). One is the correct answer (`correctOptionId`), and it
 MUST be one of the `option.id` values you emit.
 Keep the prompt under 25 words.
+The correct answer must be directly supported by these evidence IDs: {string.Join(", ", topic.SupportingEvidenceIds)}.
+If those documents do not support the originally proposed topic, ask a narrower question that they do support.
 
 CRITICAL — NO NAME LEAKAGE:
 - This question is about WHAT happened (the topic above), NEVER about WHO did it.
@@ -120,28 +168,38 @@ CRITICAL — NO NAME LEAKAGE:
 - Refer to people generically (in the same language as the prompt): ""the perpetrator"",
   ""the victim"", ""an accomplice"", ""the contact"", ""the witness"". Pick whichever generic role
   fits the topic — never an actual name from the draft.";
+        var supportingAssets = draft.AssetFull.Concat(draft.ResultAssets)
+            .Where(asset => topic.SupportingEvidenceIds.Contains(asset.Id, StringComparer.Ordinal))
+            .Select(asset => new
+            {
+                asset.Id,
+                asset.Title,
+                asset.Description,
+                content = RenderedEvidence(asset)
+            });
         var user = $@"CASE DRAFT (read-only):
 {draft.ToSummaryJson()}
 
 CULPRIT INFO: {draft.SuspectFull.FirstOrDefault(s => s.Id == draft.CulpritId)?.Motive ?? "(see culprit suspect's motive in draft)"}
+
+EXACT PLAYER-VISIBLE CONTENT SUPPORTING THIS QUESTION:
+{System.Text.Json.JsonSerializer.Serialize(supportingAssets)}
 
 Emit JSON only.";
         var q = await TaskRunner.RunStructuredAsync<SolutionQuestion>(_llm, _logger, $"Question:{topic.Id}", system, user, Schema, ct);
         q.Id = topic.Id;
         q.Weight = topic.Weight;
 
-        // Defensive: coerce `opt_xxx` (underscore) to `opt.xxx` (dot) if the LLM drifts.
+        var originalCorrectOptionId = q.CorrectOptionId;
+        var normalizedOptionIds = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var opt in q.Options)
         {
-            if (opt.Id.StartsWith("opt_", StringComparison.Ordinal))
-                opt.Id = "opt." + opt.Id.Substring(4);
-            if (opt.Id.StartsWith("opt-", StringComparison.Ordinal))
-                opt.Id = "opt." + opt.Id.Substring(4);
+            var originalId = opt.Id;
+            opt.Id = NormalizeOptionId(originalId);
+            normalizedOptionIds[originalId] = opt.Id;
         }
-        if (q.CorrectOptionId.StartsWith("opt_", StringComparison.Ordinal))
-            q.CorrectOptionId = "opt." + q.CorrectOptionId.Substring(4);
-        if (q.CorrectOptionId.StartsWith("opt-", StringComparison.Ordinal))
-            q.CorrectOptionId = "opt." + q.CorrectOptionId.Substring(4);
+        q.CorrectOptionId = normalizedOptionIds.GetValueOrDefault(originalCorrectOptionId)
+                            ?? NormalizeOptionId(originalCorrectOptionId);
 
         // Ensure correctOptionId is one of the options.
         if (!q.Options.Any(o => o.Id == q.CorrectOptionId) && q.Options.Count > 0)
@@ -157,6 +215,31 @@ Emit JSON only.";
 
         return q;
     }
+
+    private static string NormalizeOptionId(string? value)
+    {
+        var suffix = value?.Trim() ?? string.Empty;
+        if (suffix.StartsWith("opt.", StringComparison.OrdinalIgnoreCase)
+            || suffix.StartsWith("opt_", StringComparison.OrdinalIgnoreCase)
+            || suffix.StartsWith("opt-", StringComparison.OrdinalIgnoreCase))
+        {
+            suffix = suffix[4..];
+        }
+
+        var normalized = new string(suffix
+            .ToLowerInvariant()
+            .Select(character => char.IsAsciiLetterOrDigit(character) ? character : '_')
+            .ToArray()).Trim('_');
+        return $"opt.{(string.IsNullOrWhiteSpace(normalized) ? "option" : normalized)}";
+    }
+
+    private static string RenderedEvidence(EvidenceAsset asset) =>
+        string.Join("\n", new[]
+        {
+            asset.Body,
+            asset.BodyDoc is null ? null : System.Text.Json.JsonSerializer.Serialize(asset.BodyDoc),
+            asset.Description
+        }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     /// <summary>
     /// Best-effort scrub of suspect surface forms in a question's prompt and option labels.
@@ -245,7 +328,7 @@ public class ExplanationTask
     {
         var culprit = draft.SuspectFull.FirstOrDefault(s => s.Id == draft.CulpritId);
         var system = @"You are writing the post-mortem explanation shown to the player when they solve the case (or run out of attempts).
-2-4 sentence markdown. Tie the evidence + forensic analyses to the culprit. State why each decoy is cleared.";
+Write 4-7 concise sentences. Reconstruct the causal sequence, then triangulate the culprit using at least two independent clues and the decisive analysis. State the limitation of the forensic result where relevant, and explain how the strongest red herrings are resolved. Do not merely list evidence IDs.";
         var user = $@"CASE DRAFT (read-only):
 {draft.ToSummaryJson()}
 

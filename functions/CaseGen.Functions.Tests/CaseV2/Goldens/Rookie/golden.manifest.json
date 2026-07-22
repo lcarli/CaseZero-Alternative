@@ -1,0 +1,13 @@
+{
+  "CaseId": "case_test",
+  "Difficulty": "Rookie",
+  "ArtifactStatus": "approved-regression",
+  "RealGenerated": false,
+  "Language": "en-US",
+  "TimeZoneId": "America/New_York",
+  "UtcOffset": "-04:00",
+  "PoliceAgency": "Boston Police Department",
+  "InvestigatorName": "Alex Morgan",
+  "InvestigatorEmail": "alex@casezero.local",
+  "Notes": "Deterministic Rookie regression golden."
+}

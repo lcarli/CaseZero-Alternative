@@ -1,0 +1,296 @@
+{
+  "Correct": true,
+  "Score": 1,
+  "CulpritScore": 0.4,
+  "EvidenceScore": 0.2,
+  "AnalysisScore": 0.2,
+  "QuestionsScore": 0.2,
+  "Attempt": {
+    "suspectId": "suspect.owen_schultz",
+    "evidenceIds": [
+      "asset.bank_statement",
+      "asset.access_log",
+      "asset.email_export",
+      "asset.report_metadata_device_correlation_mad_ws_04419"
+    ],
+    "analysisIds": [
+      "asset.custody_form:MetadataAnalysis"
+    ],
+    "observationIds": [
+      "observation.action_unfamiliar_editor_session_bank_statement",
+      "observation.alibi_building_entry_access_log",
+      "observation.benefit_vendor_message_email_export",
+      "observation.bid_context_addendum_email_export",
+      "observation.decoy_suspicion_derek_yazzie_email_export",
+      "observation.decoy_verification_derek_yazzie_email_export",
+      "observation.decoy_verification_mara_kline_access_log",
+      "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+    ],
+    "answers": [
+      {
+        "questionId": "q.addendum_distribution_time",
+        "optionId": "opt.1826"
+      },
+      {
+        "questionId": "q.badge_window",
+        "optionId": "opt.1803_1831"
+      },
+      {
+        "questionId": "q.runmru_print_artifact",
+        "optionId": "opt.runmru_b_acrord32_docx_181240"
+      },
+      {
+        "questionId": "q.vendor_benefit_model",
+        "optionId": "opt.badger_state_tech_bst_14g"
+      }
+    ],
+    "rationale": "Deterministic CaseGraph proof witness"
+  },
+  "LogicalProofPassed": true,
+  "NarrativeSimulationPassed": true,
+  "Trace": {
+    "Entries": [
+      {
+        "Sequence": 1,
+        "Kind": 0,
+        "ActionId": "inspect:asset.access_log",
+        "TargetId": "asset.access_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 2,
+        "Kind": 0,
+        "ActionId": "inspect:asset.bank_statement",
+        "TargetId": "asset.bank_statement",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 3,
+        "Kind": 0,
+        "ActionId": "inspect:asset.call_log",
+        "TargetId": "asset.call_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 4,
+        "Kind": 0,
+        "ActionId": "inspect:asset.chat_export",
+        "TargetId": "asset.chat_export",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 5,
+        "Kind": 0,
+        "ActionId": "inspect:asset.custody_form",
+        "TargetId": "asset.custody_form",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 6,
+        "Kind": 0,
+        "ActionId": "inspect:asset.email_export",
+        "TargetId": "asset.email_export",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 7,
+        "Kind": 0,
+        "ActionId": "inspect:asset.witness_statement",
+        "TargetId": "asset.witness_statement",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 8,
+        "Kind": 0,
+        "ActionId": "inspect:email.ccb_security_preservation_notice",
+        "TargetId": "email.ccb_security_preservation_notice",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 9,
+        "Kind": 0,
+        "ActionId": "inspect:email.lena_hart_vendor_demo_window",
+        "TargetId": "email.lena_hart_vendor_demo_window",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 10,
+        "Kind": 0,
+        "ActionId": "inspect:email.mara_kline_hold_instruction",
+        "TargetId": "email.mara_kline_hold_instruction",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 11,
+        "Kind": 2,
+        "ActionId": "action.analysis_custody_form_metadataanalysis",
+        "TargetId": "asset.custody_form",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [
+          "asset.report_metadata_device_correlation_mad_ws_04419",
+          "email.lab_metadata_device_correlation_mad_ws_04419"
+        ],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 12,
+        "Kind": 0,
+        "ActionId": "inspect:asset.report_metadata_device_correlation_mad_ws_04419",
+        "TargetId": "asset.report_metadata_device_correlation_mad_ws_04419",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 13,
+        "Kind": 0,
+        "ActionId": "inspect:email.lab_metadata_device_correlation_mad_ws_04419",
+        "TargetId": "email.lab_metadata_device_correlation_mad_ws_04419",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 14,
+        "Kind": 4,
+        "ActionId": "accuse:suspect.owen_schultz",
+        "TargetId": "suspect.owen_schultz",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": [
+          "observation.action_unfamiliar_editor_session_bank_statement",
+          "observation.alibi_building_entry_access_log",
+          "observation.benefit_vendor_message_email_export",
+          "observation.bid_context_addendum_email_export",
+          "observation.decoy_suspicion_derek_yazzie_email_export",
+          "observation.decoy_verification_derek_yazzie_email_export",
+          "observation.decoy_verification_mara_kline_access_log",
+          "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+        ]
+      },
+      {
+        "Sequence": 15,
+        "Kind": 5,
+        "ActionId": "answer:q.addendum_distribution_time",
+        "TargetId": "q.addendum_distribution_time",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 16,
+        "Kind": 5,
+        "ActionId": "answer:q.badge_window",
+        "TargetId": "q.badge_window",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 17,
+        "Kind": 5,
+        "ActionId": "answer:q.runmru_print_artifact",
+        "TargetId": "q.runmru_print_artifact",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 18,
+        "Kind": 5,
+        "ActionId": "answer:q.vendor_benefit_model",
+        "TargetId": "q.vendor_benefit_model",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      }
+    ],
+    "FinalReachableSourceIds": [
+      "asset.access_log",
+      "asset.bank_statement",
+      "asset.call_log",
+      "asset.chat_export",
+      "asset.custody_form",
+      "asset.email_export",
+      "asset.report_metadata_device_correlation_mad_ws_04419",
+      "asset.witness_statement",
+      "email.ccb_security_preservation_notice",
+      "email.lab_metadata_device_correlation_mad_ws_04419",
+      "email.lena_hart_vendor_demo_window",
+      "email.mara_kline_hold_instruction"
+    ],
+    "FinalReachableObservationIds": [
+      "observation.action_unfamiliar_editor_session_bank_statement",
+      "observation.alibi_building_entry_access_log",
+      "observation.benefit_vendor_message_email_export",
+      "observation.bid_context_addendum_email_export",
+      "observation.decoy_suspicion_derek_yazzie_email_export",
+      "observation.decoy_suspicion_lena_hart_chat_export",
+      "observation.decoy_suspicion_mara_kline_call_log",
+      "observation.decoy_verification_derek_yazzie_email_export",
+      "observation.decoy_verification_lena_hart_chat_export",
+      "observation.decoy_verification_mara_kline_access_log",
+      "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "observation.identity_workstation_owner_custody_form"
+    ],
+    "LogicalProofPassed": true,
+    "NarrativeSimulationPassed": true
+  },
+  "Notes": null
+}

@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text;
+using CaseZeroApi.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,7 +17,7 @@ namespace CaseZeroApi.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/casegeneration")]
-[Authorize]
+[Authorize(Roles = UserRoles.Admin)]
 public class CaseGenerationController : ControllerBase
 {
     private readonly IHttpClientFactory _httpClientFactory;

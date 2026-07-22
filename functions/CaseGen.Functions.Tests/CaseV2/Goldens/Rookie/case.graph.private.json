@@ -1,0 +1,299 @@
+{
+  "Origin": "HandAuthored",
+  "Entities": [
+    {
+      "id": "person.culprit",
+      "kind": "Person",
+      "displayName": "suspect.culprit",
+      "attributes": {}
+    },
+    {
+      "id": "person.decoy_one",
+      "kind": "Person",
+      "displayName": "suspect.decoy_one",
+      "attributes": {}
+    },
+    {
+      "id": "person.decoy_two",
+      "kind": "Person",
+      "displayName": "suspect.decoy_two",
+      "attributes": {}
+    }
+  ],
+  "SuspectReferences": [
+    {
+      "suspectId": "suspect.culprit",
+      "personEntityId": "person.culprit"
+    },
+    {
+      "suspectId": "suspect.decoy_one",
+      "personEntityId": "person.decoy_one"
+    },
+    {
+      "suspectId": "suspect.decoy_two",
+      "personEntityId": "person.decoy_two"
+    }
+  ],
+  "Facts": [
+    {
+      "Id": "fact.culprit",
+      "Predicate": "isCulprit",
+      "SubjectId": "person.culprit",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.identity_a",
+      "Predicate": "identitya",
+      "SubjectId": "person.culprit",
+      "ObjectId": null,
+      "LiteralValue": "Identity A",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.identity_b",
+      "Predicate": "identityb",
+      "SubjectId": "person.culprit",
+      "ObjectId": null,
+      "LiteralValue": "Identity B",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_one",
+      "Predicate": "verification",
+      "SubjectId": "person.decoy_one",
+      "ObjectId": null,
+      "LiteralValue": "Verified one",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_one",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.decoy_one",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_two",
+      "Predicate": "verification",
+      "SubjectId": "person.decoy_two",
+      "ObjectId": null,
+      "LiteralValue": "Verified two",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_two",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.decoy_two",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    }
+  ],
+  "Events": [],
+  "Sources": [
+    {
+      "Id": "asset.initial",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.identity_a"
+      ],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "origin.a",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.second",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.identity_b"
+      ],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "origin.b",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.decoy_one",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.decoy_one"
+      ],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": null,
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.decoy_two",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.decoy_two"
+      ],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": null,
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.extra",
+      "Kind": "Asset",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": null,
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    }
+  ],
+  "AssetSpecs": [],
+  "DecoyArcs": [
+    {
+      "SuspectId": "suspect.decoy_one",
+      "SuspicionObservationIds": [
+        "observation.decoy_one"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_one"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_one",
+      "MustBePlayerReachable": true
+    },
+    {
+      "SuspectId": "suspect.decoy_two",
+      "SuspicionObservationIds": [
+        "observation.decoy_two"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_two"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_two",
+      "MustBePlayerReachable": true
+    }
+  ],
+  "ForensicTransforms": [],
+  "Observations": [
+    {
+      "Id": "observation.identity_a",
+      "FactId": "fact.identity_a",
+      "SourceAssetId": "asset.initial",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.identity_b",
+      "FactId": "fact.identity_b",
+      "SourceAssetId": "asset.second",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_one",
+      "FactId": "fact.decoy_one",
+      "SourceAssetId": "asset.decoy_one",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_two",
+      "FactId": "fact.decoy_two",
+      "SourceAssetId": "asset.decoy_two",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    }
+  ],
+  "Derivations": [
+    {
+      "Id": "derivation.culprit_a",
+      "PremiseIds": [
+        "observation.identity_a"
+      ],
+      "Rule": "IdentityMatch",
+      "ConclusionFactId": "fact.culprit",
+      "SupportsSuspectId": "suspect.culprit",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.culprit_b",
+      "PremiseIds": [
+        "observation.identity_b"
+      ],
+      "Rule": "IdentityMatch",
+      "ConclusionFactId": "fact.culprit",
+      "SupportsSuspectId": "suspect.culprit",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.exclude_one",
+      "PremiseIds": [
+        "observation.decoy_one"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_one",
+      "SupportsSuspectId": "suspect.decoy_one",
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.exclude_two",
+      "PremiseIds": [
+        "observation.decoy_two"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_two",
+      "SupportsSuspectId": "suspect.decoy_two",
+      "IsCulpritConclusion": false
+    }
+  ],
+  "EventOrderConstraints": [],
+  "TravelWindows": [],
+  "Actions": [],
+  "RequiredSourceIds": [],
+  "RequiredAnalysisIds": []
+}

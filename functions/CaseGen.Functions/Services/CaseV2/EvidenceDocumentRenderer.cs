@@ -27,12 +27,15 @@ public class EvidenceDocumentRenderer : IEvidenceDocumentRenderer
     {
         _layouts = layouts;
         _logger = logger;
-        DocumentResources.EnsureInitialized();
     }
 
     public byte[] Render(EvidenceDocument doc)
     {
         ArgumentNullException.ThrowIfNull(doc);
+        // Delay native QuestPDF initialization until an asset is actually rendered.
+        // AssetRenderingService isolates render failures per document, so unsupported
+        // local architectures can still generate and persist a valid case.json.
+        DocumentResources.EnsureInitialized();
         var layout = _layouts.Resolve(doc.Layout);
         return Document.Create(c => layout.Compose(c, doc)).GeneratePdf();
     }

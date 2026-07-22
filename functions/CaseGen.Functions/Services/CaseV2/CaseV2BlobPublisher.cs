@@ -37,6 +37,12 @@ public class CaseV2BlobPublisher : ICaseV2BlobPublisher
     {
         _logger = logger;
         _container = configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
+        if (configuration.GetValue("CaseGenV2:DisableBlobPublishing", false))
+        {
+            IsConfigured = false;
+            _logger.LogInformation("CaseV2BlobPublisher disabled by configuration");
+            return;
+        }
         try
         {
             _client = BlobServiceClientFactory.Create(configuration);

@@ -48,6 +48,9 @@ param appInsightsConnectionString string = ''
 @description('Application Insights Instrumentation Key from shared infrastructure')
 param appInsightsInstrumentationKey string = ''
 
+@description('Resource ID of the subnet used for Function App regional VNet integration (empty to disable)')
+param functionVnetSubnetId string = ''
+
 // Variables
 var tags = {
   Environment: environment
@@ -74,12 +77,12 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.17.1' = {
     skuName: storageSku
     kind: 'StorageV2'
     allowSharedKeyAccess: true
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'Disabled'
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
     networkAcls: {
       bypass: 'AzureServices'
-      defaultAction: 'Allow'
+      defaultAction: 'Deny'
     }
     blobServices: {
       containers: [for containerName in containerNames: {
@@ -131,6 +134,7 @@ module functionApp 'br/public:avm/res/web/site:0.14.0' = {
     httpsOnly: true
     clientAffinityEnabled: false
     publicNetworkAccess: 'Enabled'
+    virtualNetworkSubnetId: empty(functionVnetSubnetId) ? null : functionVnetSubnetId
     managedIdentities: {
       systemAssigned: true
     }

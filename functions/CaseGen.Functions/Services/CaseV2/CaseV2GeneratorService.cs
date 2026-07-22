@@ -77,11 +77,13 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
     public async Task<GenerateCaseV2Response> GenerateAsync(GenerateCaseV2Request request, IJobPhaseReporter reporter, CancellationToken ct = default)
     {
+        using var usageScope = CaseV2TokenUsageTracker.Begin();
         var draft = new CaseDraft
         {
             CaseId = NormaliseCaseId(request.CaseId),
             Request = request
         };
+        var graphModeEnabled = CaseGraphFeatureOptions.From(_config).Enabled;
 
         var stageMs = new Dictionary<string, double>();
 
@@ -98,6 +100,10 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
         // === Phase 1: plot outline (sequential gate)
         await Stage("plotOutline", () => new PlotOutlineTask(_llm, _logger).RunAsync(draft, ct));
+        var isRookie = string.Equals(draft.Metadata.Difficulty, "Rookie", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase);
+        var difficultyProfile = DifficultyProfileCatalog.Get(draft);
+        LogStageValidation("blueprint", PipelineStageValidator.ValidateBlueprint(draft));
 
         // === Phase 2: suspect cards in parallel
         await Stage("suspectCards", async () =>
@@ -109,6 +115,8 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
         // === Phase 3: asset plan (gate)
         await Stage("assetPlan", () => new AssetPlanTask(_llm, _logger).RunAsync(draft, ct));
+        EvidenceGraphCompiler.Compile(draft);
+        LogStageValidation("evidencePlan", PipelineStageValidator.ValidateEvidencePlan(draft));
 
         // === Phase 4: asset cards + timeline + briefing in parallel
         await Stage("assetsAndTimelineAndBriefing", async () =>
@@ -131,44 +139,49 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             foreach (var a in draft.AssetFull)
                 if (a.BodyDoc is not null) a.BodyDoc.Language = language;
         });
+        LogStageValidation("evidenceContent", PipelineStageValidator.ValidateEvidenceContent(draft));
 
-        // === Phase 5: forensics plan (gate)
-        await Stage("forensicsPlan", () => new ForensicsPlanTask(_llm, _logger).RunAsync(draft, ct));
-
-        // === Phase 6: outcome details + initial emails in parallel
-        await Stage("outcomesAndInitialEmails", async () =>
+        // Rookie cases intentionally have no forensic workflow. Every clue needed
+        // to solve them is authored directly into the initial evidence portfolio.
+        if (!isRookie)
         {
-            var outcomeTask = new ForensicOutcomeTask(_llm, _logger);
-            var detailTasks = draft.ForensicStubs.Select(s => outcomeTask.RunAsync(draft, s, ct));
-            var emailsTask = new InitialEmailsTask(_llm, _logger).RunAsync(draft, ct);
+            // === Phase 5: forensics plan (gate)
+            await Stage("forensicsPlan", () => new ForensicsPlanTask(_llm, _logger).RunAsync(draft, ct));
 
-            var details = await Task.WhenAll(detailTasks);
-            await emailsTask;
-
-            foreach (var (full, asset, email) in details)
+            // === Phase 6: outcome details + initial emails in parallel
+            await Stage("outcomesAndInitialEmails", async () =>
             {
-                draft.ForensicFull.Add(full);
-                if (asset is not null)
+                var outcomeTask = new ForensicOutcomeTask(_llm, _logger);
+                var detailTasks = draft.ForensicStubs.Select(s => outcomeTask.RunAsync(draft, s, ct));
+                var emailsTask = new InitialEmailsTask(_llm, _logger).RunAsync(draft, ct);
+
+                var details = await Task.WhenAll(detailTasks);
+                await emailsTask;
+
+                foreach (var (full, asset, email) in details)
                 {
-                    if (asset.BodyDoc is not null)
-                        asset.BodyDoc.Language = string.IsNullOrWhiteSpace(draft.Request.Language) ? "en-US" : draft.Request.Language!;
-                    draft.ResultAssets.Add(asset);
+                    draft.ForensicFull.Add(full);
+                    if (asset is not null)
+                    {
+                        if (asset.BodyDoc is not null)
+                            asset.BodyDoc.Language = string.IsNullOrWhiteSpace(draft.Request.Language) ? "en-US" : draft.Request.Language!;
+                        draft.ResultAssets.Add(asset);
+                    }
+                    if (email is not null) draft.ResultEmails.Add(email);
                 }
-                if (email is not null) draft.ResultEmails.Add(email);
-            }
-        });
+            });
+        }
+        else
+        {
+            await Stage("rookieInitialEvidence", () => new InitialEmailsTask(_llm, _logger).RunAsync(draft, ct));
+        }
+        EvidenceGraphCompiler.Compile(draft);
+        LogStageValidation("forensics", PipelineStageValidator.ValidateForensics(draft));
 
         // === Phase 7: deterministic mechanical rules (cuts the most common LLM mistake)
         await Stage("mechanicalRules", () =>
         {
             _mechanicalRules.Build(draft);
-            // Mark Rookie cases: result assets/emails are revealed automatically by all_initial,
-            // but we also mirror them as 'initial' so SolutionSkeleton & Solver see them as visible.
-            if (string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase))
-            {
-                foreach (var a in draft.ResultAssets) a.Visibility = "initial";
-                foreach (var e in draft.ResultEmails) e.Visibility = "initial";
-            }
             return Task.CompletedTask;
         });
 
@@ -179,7 +192,8 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             // which hidden assets/emails are reachable. Run it first, then narrative rules in parallel
             // with Questions in the next phase.
             await new SolutionSkeletonTask(_llm, _logger).RunAsync(draft, ct);
-            await new RulesTask(_llm, _logger).RunAsync(draft, ct);
+            if (!isRookie)
+                await new RulesTask(_llm, _logger).RunAsync(draft, ct);
         });
 
         // === Phase 9: questions (parallel) + explanation
@@ -207,17 +221,40 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         });
 
         // === Phase 11: assemble + JSON-schema validate (structural)
-        var assembled = Assemble(draft);
+        var assembled = AssembleForMode(draft, graphModeEnabled, out var parityReport);
         var json = assembled.ToJsonString(JsonOpts);
+        var currentRepairIssues = new List<RepairIssue>();
 
-        // Local helper: schema + consistency errors combined. Refine accepts the
-        // refined JSON based on this combined count, so consistency findings don't
-        // silently get erased when refine fixes schema issues.
+        // Recompute deterministic and stage validation from the current draft every time.
         List<string> ValidateAll(string j)
         {
             var all = Validate(j);
-            if (consistencyReport is not null) all.AddRange(consistencyReport.Errors);
-            return all;
+            currentRepairIssues = all
+                .Select(error => new RepairIssue("schema", error))
+                .ToList();
+            consistencyReport = _consistency.Validate(draft);
+            all.AddRange(consistencyReport.Errors);
+            currentRepairIssues.AddRange(consistencyReport.Errors.Select(error => new RepairIssue("consistency", error)));
+            AddStageIssues("blueprint", PipelineStageValidator.ValidateBlueprint(draft), all, currentRepairIssues);
+            AddStageIssues("evidencePlan", PipelineStageValidator.ValidateEvidencePlan(draft), all, currentRepairIssues);
+            AddStageIssues("evidenceContent", PipelineStageValidator.ValidateEvidenceContent(draft), all, currentRepairIssues);
+            AddStageIssues("forensics", PipelineStageValidator.ValidateForensics(draft), all, currentRepairIssues);
+            AddStageIssues("locale", PipelineStageValidator.ValidateLocale(draft), all, currentRepairIssues);
+            AddStageIssues("difficulty", PipelineStageValidator.ValidateDifficultyTopology(draft), all, currentRepairIssues);
+            if (graphModeEnabled)
+            {
+                foreach (var issue in parityReport.Issues)
+                {
+                    var message = $"CaseGraph public parity failed for '{issue.Surface}': {issue.Message}";
+                    all.Add(message);
+                    currentRepairIssues.Add(new RepairIssue("graphProjection", message)
+                    {
+                        NodeId = $"public.{issue.Surface}",
+                        ConstraintId = $"parity.{issue.Surface}"
+                    });
+                }
+            }
+            return all.Distinct(StringComparer.Ordinal).ToList();
         }
 
         var errors = ValidateAll(json);
@@ -242,18 +279,16 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             });
         }
 
-        // === Phase 12: red-team + solver (semantic validation) — run in parallel
-        // Always run these — even on schema-error cases the reports help diagnose what went wrong.
-        // Both the initial red-team pass and any reruns use the assembled JSON path so the
-        // input to the LLM is identical across iterations.
+        // === Phase 12: deterministic solution witness, followed by advisory review.
         Tasks.RedTeamTask.Report? redTeam = null;
         Tasks.SolverTask.SolverResult? solver = null;
-        await Stage("redTeamAndSolver", async () =>
+        await Stage("solutionWitness", async () =>
         {
-            var rt = new Tasks.RedTeamTask(_llm, _logger).RunOnAssembledAsync(json, ct);
-            var sv = new Tasks.SolverTask(_llm, _logger).RunAsync(draft, ct);
-            redTeam = await rt;
-            solver = await sv;
+            solver = await new Tasks.SolverTask(_llm, _logger).RunAsync(draft, ct);
+        });
+        await Stage("advisoryReview", async () =>
+        {
+            redTeam = await new Tasks.RedTeamTask(_llm, _logger).RunOnAssembledAsync(json, draft, ct);
         });
 
         // Rookie-aware verdict calibration: the LLM reviewer is intentionally strict, and
@@ -261,163 +296,158 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         // nits even when fully playable. Promote needs_review → ok when (a) it's a Rookie
         // case, (b) zero high-severity findings, and (c) at most a small number of
         // medium-severity findings. Findings themselves are preserved for transparency.
-        var isRookie = string.Equals(draft.Metadata.Difficulty, "Rookie", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase);
         var rookieMaxMedium = int.TryParse(_config["CaseGenV2:RookieMaxMediumFindings"], out var cfgRm) && cfgRm >= 0
             ? cfgRm : 2;
         PromoteRookieVerdict(redTeam, isRookie, rookieMaxMedium);
 
-        // === Phase 12b: iterative refine + red-team loop.
-        // Goal: drive the case toward an `ok` verdict without schema errors.
-        // Up to N refine attempts; each accepted refine triggers a fresh red-team audit.
-        // Stops early on success, plateau, or regression (with revert).
-        // For Rookie cases, default to a single refine pass — repeated refines on a Rookie
-        // case tend to inject complexity that re-triggers `medium` findings without
-        // converging on `ok`.
-        var defaultMaxRefineIterations = isRookie ? 1 : 3;
-        var maxRefineIterations = int.TryParse(_config["CaseGenV2:RefineMaxIterations"], out var cfgN) && cfgN > 0
-            ? cfgN : defaultMaxRefineIterations;
-        if (isRookie && int.TryParse(_config["CaseGenV2:RefineMaxIterationsRookie"], out var cfgRookieN) && cfgRookieN > 0)
-            maxRefineIterations = cfgRookieN;
-        var refineIterations = 0;
+        // === Phase 12b: owner-stage repair loop.
+        // Red-team findings are routed back to the task that owns the invalid content;
+        // downstream stages are then regenerated from the repaired draft.
+        var maxRepairIterations = int.TryParse(_config["CaseGenV2:RepairMaxIterations"], out var cfgN) && cfgN > 0
+            ? cfgN : difficultyProfile.MaxRepairIterations;
+        var refineIterations = 0; // response field retained for public API compatibility
         var refineErrorsBefore = errors.Count;
         Tasks.RedTeamTask.Report? redTeamInitial = null;
         var verdictTrajectory = new List<string>();
         if (!string.IsNullOrEmpty(redTeam?.Verdict))
             verdictTrajectory.Add(redTeam!.Verdict);
+        var repairCoordinator = new RepairCoordinator(_llm, _mechanicalRules, _logger);
+        var totalRepairOperations = 0;
+        var totalRepairPlateaus = 0;
+        var bestDraft = CloneDraft(draft);
+        var bestJson = json;
+        var bestErrors = errors.ToList();
+        var bestRedTeam = redTeam;
+        var bestSolver = solver;
+        var bestPenalty = QualityPenalty(errors, redTeam, solver);
+        var plateauIterations = 0;
+        string? repairInfrastructureError = null;
 
-        static int VerdictRank(string? v) => (v?.ToLowerInvariant()) switch
+        while (refineIterations < maxRepairIterations)
         {
-            "ok" => 0,
-            "needs_review" => 1,
-            _ => 2 // reject or unknown
-        };
-
-        // Severity-weighted score: high counts much more than medium, medium much
-        // more than low. Used for plateau / regression comparisons so swapping
-        // 3 medium findings for 1 high finding registers as a regression.
-        static int FindingsScore(IEnumerable<Tasks.RedTeamTask.Finding>? findings)
-        {
-            if (findings is null) return 0;
-            var score = 0;
-            foreach (var f in findings)
-            {
-                score += (f.Severity?.ToLowerInvariant()) switch
-                {
-                    "high" => 100,
-                    "medium" => 10,
-                    _ => 1
-                };
-            }
-            return score;
-        }
-
-        while (refineIterations < maxRefineIterations)
-        {
-            // Refine if schema errors remain OR if red-team verdict is not `ok` AND has at least one non-low finding.
-            var actionableFindings = redTeam?.Findings.Where(f =>
-                !string.Equals(f.Severity, "low", StringComparison.OrdinalIgnoreCase)).ToList()
+            var actionableFindings = redTeam?.Findings.Where(f => f.Blocking).ToList()
                 ?? new List<Tasks.RedTeamTask.Finding>();
-            var verdictLower = redTeam?.Verdict?.ToLowerInvariant();
-            var shouldRefine = errors.Count > 0
-                || ((verdictLower == "reject" || verdictLower == "needs_review") && actionableFindings.Count > 0);
-
-            if (!shouldRefine) break;
+            var shouldRepair = errors.Count > 0
+                || solver?.Correct != true
+                || actionableFindings.Count > 0;
+            if (!shouldRepair) break;
 
             refineIterations++;
             if (redTeamInitial is null) redTeamInitial = redTeam;
-
-            // Snapshot for potential revert on regression / plateau (semantic-only).
-            var prevJson = json;
-            var prevErrors = errors;
-            var prevRedTeam = redTeam;
-            var prevFindingScore = FindingsScore(redTeam?.Findings);
-            var prevRank = VerdictRank(redTeam?.Verdict);
-            var prevHadSchemaErrors = errors.Count > 0;
-            var refinedAccepted = false;
-
-            await Stage("refineCase", async () =>
+            try
             {
-                var result = await new Tasks.RefineCaseTask(_llm, _logger)
-                    .RunAsync(json, errors, actionableFindings, _v2SchemaJson, ct,
-                        difficulty: draft.Metadata.Difficulty);
-
-                if (result.Succeeded)
+                await Stage("targetedRepair", async () =>
                 {
-                    var refined = result.RefinedJson!;
-                    var revalidated = ValidateAll(refined);
-                    if (revalidated.Count < errors.Count
-                        || (errors.Count == 0 && !string.Equals(refined, json, StringComparison.Ordinal)))
+                    await repairCoordinator.RepairAsync(
+                        draft,
+                        actionableFindings,
+                        currentRepairIssues,
+                        solver?.Correct != true,
+                        ct);
+                    totalRepairOperations += repairCoordinator.LastGranularReport.Operations.Count;
+                    totalRepairPlateaus += repairCoordinator.LastGranularReport.Plateaus.Count;
+                    if (graphModeEnabled && draft.CaseGraph.Origin == CaseGraphOrigin.Generated)
+                        draft.CaseGraph.Origin = CaseGraphOrigin.TransitionalClueLadder;
+                    EvidenceGraphCompiler.Compile(draft);
+                    assembled = AssembleForMode(draft, graphModeEnabled, out parityReport);
+                    json = EnforceDifficultyContract(assembled.ToJsonString(JsonOpts), isRookie);
+                    errors = ValidateAll(json);
+                    if (errors.Count > 0)
                     {
-                        _logger.LogInformation("Refine iteration {N} accepted (validation errors {Before}→{After})",
-                            refineIterations, errors.Count, revalidated.Count);
-                        json = refined;
-                        errors = revalidated;
-                        refinedAccepted = true;
+                        autoFixes.AddRange(_autoFixer.Fix(assembled));
+                        json = EnforceDifficultyContract(assembled.ToJsonString(JsonOpts), isRookie);
+                        errors = ValidateAll(json);
                     }
-                    else
-                    {
-                        _logger.LogWarning("Refine iteration {N} did NOT improve — stopping loop", refineIterations);
-                    }
-                }
-                else
-                {
-                    _logger.LogWarning("RefineCaseTask iteration {N} returned no document: {Error}",
-                        refineIterations, result.Error);
-                }
-            });
 
-            if (!refinedAccepted) break;
-
-            // Re-run RedTeam only once the schema is clean; otherwise spend the next iteration
-            // on fixing the remaining schema errors first.
-            if (errors.Count > 0) continue;
-
-            await Stage("redTeamRerun", async () =>
+                    var redTeamTask = new Tasks.RedTeamTask(_llm, _logger)
+                        .RunOnAssembledAsync(json, draft, ct);
+                    var solverTask = new Tasks.SolverTask(_llm, _logger).RunAsync(draft, ct);
+                    redTeam = await redTeamTask;
+                    solver = await solverTask;
+                    PromoteRookieVerdict(redTeam, isRookie, rookieMaxMedium);
+                    verdictTrajectory.Add(redTeam.Verdict);
+                    _logger.LogInformation(
+                        "Targeted repair {Iteration}: verdict={Verdict}, findings={Findings}, solverScore={Score}, errors={Errors}",
+                        refineIterations, redTeam.Verdict, redTeam.Findings.Count, solver.Score, errors.Count);
+                });
+            }
+            catch (AggregateException exception) when (ContainsTransientNetworkFailure(exception))
             {
-                redTeam = await new Tasks.RedTeamTask(_llm, _logger).RunOnAssembledAsync(json, ct);
-                PromoteRookieVerdict(redTeam, isRookie, rookieMaxMedium);
-                verdictTrajectory.Add(redTeam.Verdict);
-                _logger.LogInformation("RedTeam rerun {N}: verdict={Verdict} findings={Count}",
-                    refineIterations, redTeam.Verdict, redTeam.Findings.Count);
-            });
-
-            var newRank = VerdictRank(redTeam?.Verdict);
-            var newFindingScore = FindingsScore(redTeam?.Findings);
-
-            // Regression → revert and stop.
-            if (newRank > prevRank || (newRank == prevRank && newFindingScore > prevFindingScore))
-            {
-                _logger.LogWarning("Refine iteration {N} regressed (verdict {PrevV}→{NewV}, score {PrevS}→{NewS}) — reverting",
-                    refineIterations, prevRedTeam?.Verdict, redTeam?.Verdict, prevFindingScore, newFindingScore);
-                json = prevJson;
-                errors = prevErrors;
-                redTeam = prevRedTeam;
-                if (verdictTrajectory.Count > 0)
-                    verdictTrajectory[verdictTrajectory.Count - 1] += " (reverted)";
+                repairInfrastructureError = "targeted repair stopped because the LLM endpoint was temporarily unreachable";
+                _logger.LogError(exception, "{Message}; restoring the best snapshot", repairInfrastructureError);
+                draft = CloneDraft(bestDraft);
+                assembled = AssembleForMode(draft, graphModeEnabled, out parityReport);
+                json = bestJson;
+                errors = bestErrors.ToList();
+                redTeam = bestRedTeam;
+                solver = bestSolver;
                 break;
             }
-
-            // Success.
-            if (newRank == 0) break;
-
-            // Plateau — verdict didn't improve and severity-weighted score didn't decrease.
-            if (newRank >= prevRank && newFindingScore >= prevFindingScore)
+            var penalty = QualityPenalty(errors, redTeam, solver);
+            if (penalty < bestPenalty)
             {
-                _logger.LogInformation("Refine iteration {N} plateaued — stopping loop", refineIterations);
-                // For semantic-only iterations (no pre-existing schema errors), revert to
-                // the snapshot since the LLM edits brought no measurable benefit.
-                if (!prevHadSchemaErrors)
-                {
-                    json = prevJson;
-                    errors = prevErrors;
-                    redTeam = prevRedTeam;
-                    if (verdictTrajectory.Count > 0)
-                        verdictTrajectory[verdictTrajectory.Count - 1] += " (no gain)";
-                }
+                bestPenalty = penalty;
+                bestDraft = CloneDraft(draft);
+                bestJson = json;
+                bestErrors = errors.ToList();
+                bestRedTeam = redTeam;
+                bestSolver = solver;
+                plateauIterations = 0;
+            }
+            else
+            {
+                plateauIterations++;
+            }
+            if (string.Equals(redTeam?.Verdict, "ok", StringComparison.OrdinalIgnoreCase)
+                && solver?.Correct == true
+                && errors.Count == 0)
+                break;
+            if (plateauIterations >= 2)
+            {
+                _logger.LogWarning("Targeted repair stopped after {Count} non-improving iterations", plateauIterations);
                 break;
             }
         }
+
+        if (QualityPenalty(errors, redTeam, solver) > bestPenalty)
+        {
+            draft = bestDraft;
+            assembled = AssembleForMode(draft, graphModeEnabled, out parityReport);
+            json = bestJson;
+            errors = bestErrors;
+            redTeam = bestRedTeam;
+            solver = bestSolver;
+            _logger.LogInformation("Restored the best targeted-repair snapshot");
+        }
+
+        json = EnforceDifficultyContract(json, isRookie);
+        errors = ValidateAll(json);
+
+        var remainingBlockingFindings = redTeam?.Findings.Count(f => f.Blocking) ?? 0;
+        if (remainingBlockingFindings > 0)
+        {
+            errors.Add($"deterministic specialist quality gate rejected the case ({remainingBlockingFindings} blocking finding(s))");
+        }
+        if (solver?.Correct != true)
+            errors.Add($"blind-solver quality gate rejected the case (score={solver?.Score ?? 0:0.####})");
+        if (repairInfrastructureError is not null)
+            errors.Add(repairInfrastructureError);
+
+        FinalValidationReport? finalValidation = null;
+        await Stage("finalValidation", () =>
+        {
+            finalValidation = new CaseV2FinalValidator(_v2SchemaJson).Validate(
+                draft,
+                json,
+                solver,
+                redTeam,
+                graphModeEnabled ? parityReport : null);
+            errors.AddRange(finalValidation.Issues
+                .Where(issue => issue.Blocking)
+                .Select(issue => $"final {issue.Gate}/{issue.Code} [{issue.NodeId}]: {issue.Message}"));
+            return Task.CompletedTask;
+        });
+        errors = errors.Distinct(StringComparer.Ordinal).ToList();
 
         var refineAttempted = refineIterations > 0;
         var redTeamRerun = (redTeamInitial is not null
@@ -428,9 +458,15 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         var outputPath = string.Empty;
         AssetRenderingReport? renderingReport = null;
         int blobsPublished = 0;
-        if (errors.Count == 0 && request.WriteToDisk)
+        if (GenerationPersistenceGate.CanPersist(request.WriteToDisk, errors, finalValidation!))
         {
             outputPath = WriteToDisk(draft.CaseId, json);
+            if (graphModeEnabled)
+            {
+                var caseDirectory = Path.GetDirectoryName(outputPath)
+                                    ?? throw new InvalidOperationException("Could not resolve generated case directory.");
+                PrivateCaseArtifactPersistence.Write(caseDirectory, draft, finalValidation!, solver);
+            }
             // Materialise PDFs / images / sidecars next to case.json
             await Stage("renderAssets", async () =>
             {
@@ -462,6 +498,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             _logger.LogWarning("Case {CaseId} failed schema validation: {Errors}", draft.CaseId, string.Join("; ", errors));
         }
 
+        var tokenUsage = CaseV2TokenUsageTracker.Snapshot();
         return new GenerateCaseV2Response
         {
             CaseId = draft.CaseId,
@@ -484,6 +521,28 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             RedTeamInitial = redTeamInitial,
             RedTeamVerdictTrajectory = verdictTrajectory,
             Solver = solver,
+            CaseGraphEnabled = graphModeEnabled,
+            PublicContractParity = parityReport,
+            FinalValidation = finalValidation,
+            RepairPlateauCount = totalRepairPlateaus,
+            RepairOperationCount = totalRepairOperations,
+            InputTokens = tokenUsage.InputTokens,
+            OutputTokens = tokenUsage.OutputTokens,
+            EvidenceLayoutDiversity = draft.AssetStubs
+                .Select(asset => asset.LayoutHint)
+                .Where(layout => !string.IsNullOrWhiteSpace(layout))
+                .Distinct(StringComparer.Ordinal)
+                .Count(),
+            EvidenceLayouts = draft.AssetStubs
+                .Select(asset => asset.LayoutHint)
+                .Where(layout => !string.IsNullOrWhiteSpace(layout))
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+                .ToList(),
+            SpecialistFindingsByCategory = redTeam?.Findings
+                .GroupBy(finding => finding.Area, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal)
+                ?? new Dictionary<string, int>(StringComparer.Ordinal),
             Consistency = consistencyReport
         };
     }
@@ -521,6 +580,63 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             : report.Notes + $" | Promoted to ok for Rookie case (mediumCount={mediumCount} ≤ {maxMedium}, no high findings).";
     }
 
+    private static void AddStageIssues(
+        string stage,
+        StageValidationReport report,
+        ICollection<string> errors,
+        ICollection<RepairIssue> repairIssues)
+    {
+        foreach (var error in report.Errors)
+        {
+            errors.Add(error);
+            repairIssues.Add(new RepairIssue(stage, error));
+        }
+    }
+
+    private static CaseDraft CloneDraft(CaseDraft draft)
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(draft, JsonOpts);
+        return System.Text.Json.JsonSerializer.Deserialize<CaseDraft>(json, JsonOpts)
+            ?? throw new InvalidOperationException("Could not snapshot the case draft.");
+    }
+
+    private static int QualityPenalty(
+        IReadOnlyCollection<string> errors,
+        Tasks.RedTeamTask.Report? redTeam,
+        Tasks.SolverTask.SolverResult? solver)
+    {
+        var high = redTeam?.Findings.Count(finding =>
+            string.Equals(finding.Severity, "high", StringComparison.OrdinalIgnoreCase)) ?? 0;
+        var medium = redTeam?.Findings.Count(finding =>
+            string.Equals(finding.Severity, "medium", StringComparison.OrdinalIgnoreCase)) ?? 0;
+        var verdictPenalty = redTeam?.Verdict?.ToLowerInvariant() switch
+        {
+            "ok" => 0,
+            "needs_review" => 100,
+            _ => 300
+        };
+        var solverPenalty = solver?.Correct == true ? 0 : 500;
+        return errors.Count * 1000 + high * 300 + medium * 30 + verdictPenalty + solverPenalty;
+    }
+
+    private static bool ContainsTransientNetworkFailure(Exception exception)
+    {
+        if (exception is HttpRequestException or System.Net.Sockets.SocketException)
+            return true;
+        if (exception is AggregateException aggregate)
+            return aggregate.InnerExceptions.Any(ContainsTransientNetworkFailure);
+        return exception.InnerException is not null
+            && ContainsTransientNetworkFailure(exception.InnerException);
+    }
+
+    private void LogStageValidation(string stage, StageValidationReport report)
+    {
+        if (report.Errors.Count > 0)
+            _logger.LogWarning("{Stage} validation errors: {Errors}", stage, string.Join(" · ", report.Errors));
+        if (report.Warnings.Count > 0)
+            _logger.LogInformation("{Stage} validation warnings: {Warnings}", stage, string.Join(" · ", report.Warnings));
+    }
+
     // ----------------------------------------------------------------------
     // Assembly
     // ----------------------------------------------------------------------
@@ -532,8 +648,8 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         foreach (var a in d.ResultAssets) assetsNode.Add(BuildAssetNode(d.CaseId, a));
 
         var emailsNode = new JsonArray { BuildBriefingNode(d) };
-        foreach (var e in d.FollowUpEmails) emailsNode.Add(BuildEmailNode(e, "initial"));
-        foreach (var e in d.ResultEmails) emailsNode.Add(BuildEmailNode(e, "hidden"));
+        foreach (var e in d.FollowUpEmails) emailsNode.Add(BuildEmailNode(d, e, "initial"));
+        foreach (var e in d.ResultEmails) emailsNode.Add(BuildEmailNode(d, e, "hidden"));
 
         var suspectsNode = new JsonArray();
         foreach (var s in d.SuspectFull)
@@ -562,12 +678,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         var forensicsDefaults = new JsonObject
         {
             ["analysisTypes"] = JsonSerializer.SerializeToNode(d.AnalysisTypes, JsonOpts),
-            ["noFindingsEmail"] = new JsonObject
-            {
-                ["template"] = "Detective,\n\nThe {{analysisType}} analysis on {{assetName}} did not reveal any actionable leads.\n\nForensics Lab",
-                ["from"] = "Forensics Lab <lab@citypolice.gov>",
-                ["subject"] = "Analysis Results — {{analysisType}} — No Findings"
-            }
+            ["noFindingsEmail"] = BuildNoFindingsEmail(d)
         };
 
         // Normalise solution partial credit weights to sum 1.0
@@ -631,6 +742,18 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             ["solution"] = solution,
             ["gameMetadata"] = gameMetadata
         };
+    }
+
+    private JsonObject AssembleForMode(
+        CaseDraft draft,
+        bool graphModeEnabled,
+        out PublicContractParityReport parityReport)
+    {
+        CaseGraphGenerationCoordinator.PrepareCanonicalGraph(draft, graphModeEnabled);
+        var legacy = Assemble(draft);
+        var graph = CaseGraphPublicContractCompiler.Compile(draft, legacy);
+        parityReport = CaseGraphPublicContractCompiler.Compare(legacy, graph);
+        return graphModeEnabled ? graph : legacy;
     }
 
     /// <summary>
@@ -759,11 +882,20 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             .Take(2)
             .Select(a => a.Id)
             .ToList();
+        var investigatorName = string.IsNullOrWhiteSpace(d.Blueprint.Locale.InvestigatorName)
+            ? "Alex Morgan"
+            : d.Blueprint.Locale.InvestigatorName;
+        var investigatorEmail = string.IsNullOrWhiteSpace(d.Blueprint.Locale.InvestigatorEmail)
+            ? "detective@citypolice.gov"
+            : d.Blueprint.Locale.InvestigatorEmail;
+        var agency = string.IsNullOrWhiteSpace(d.Blueprint.Locale.PoliceAgency)
+            ? "Police Department"
+            : d.Blueprint.Locale.PoliceAgency;
         return new JsonObject
         {
             ["id"] = "email.briefing",
-            ["from"] = string.IsNullOrEmpty(d.Briefing.From) ? "Chief of Police <chief@citypolice.gov>" : d.Briefing.From,
-            ["to"] = new JsonArray("Detective Alex Morgan <detective@citypolice.gov>"),
+            ["from"] = string.IsNullOrEmpty(d.Briefing.From) ? agency : d.Briefing.From,
+            ["to"] = new JsonArray($"{investigatorName} <{investigatorEmail}>"),
             ["subject"] = string.IsNullOrEmpty(d.Briefing.Subject) ? "URGENT: Case Assignment" : d.Briefing.Subject,
             ["body"] = d.Briefing.Body,
             ["sentAt"] = string.IsNullOrEmpty(d.Metadata.OpenedAt) ? DateTime.UtcNow.ToString("o") : d.Metadata.OpenedAt,
@@ -773,13 +905,19 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         };
     }
 
-    private static JsonNode BuildEmailNode(EvidenceEmail e, string defaultVisibility)
+    private static JsonNode BuildEmailNode(CaseDraft d, EvidenceEmail e, string defaultVisibility)
     {
+        var investigatorName = string.IsNullOrWhiteSpace(d.Blueprint.Locale.InvestigatorName)
+            ? "Alex Morgan"
+            : d.Blueprint.Locale.InvestigatorName;
+        var investigatorEmail = string.IsNullOrWhiteSpace(d.Blueprint.Locale.InvestigatorEmail)
+            ? "detective@citypolice.gov"
+            : d.Blueprint.Locale.InvestigatorEmail;
         return new JsonObject
         {
             ["id"] = e.Id,
             ["from"] = e.From,
-            ["to"] = new JsonArray("Detective Alex Morgan <detective@citypolice.gov>"),
+            ["to"] = new JsonArray($"{investigatorName} <{investigatorEmail}>"),
             ["subject"] = e.Subject,
             ["body"] = e.Body,
             ["sentAt"] = string.IsNullOrEmpty(e.SentAt) ? DateTime.UtcNow.ToString("o") : e.SentAt,
@@ -863,6 +1001,99 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             if (File.Exists(full)) return full;
         }
         throw new FileNotFoundException("Could not locate case.v2 schema next to the build output.");
+    }
+
+    private static JsonObject BuildNoFindingsEmail(CaseDraft draft)
+    {
+        var agency = draft.Blueprint.Locale.PoliceAgency;
+        var investigator = draft.Blueprint.Locale.InvestigatorName;
+        return draft.Request.Language?.ToLowerInvariant() switch
+        {
+            "pt-br" => new JsonObject
+            {
+                ["template"] = $"{investigator},\n\nA análise {{{{analysisType}}}} de {{{{assetName}}}} não revelou elementos úteis para a investigação.\n\n{agency}",
+                ["from"] = agency,
+                ["subject"] = "Resultado da análise — {{analysisType}} — Sem achados"
+            },
+            "es-es" => new JsonObject
+            {
+                ["template"] = $"{investigator},\n\nEl análisis {{{{analysisType}}}} de {{{{assetName}}}} no reveló hallazgos útiles para la investigación.\n\n{agency}",
+                ["from"] = agency,
+                ["subject"] = "Resultado del análisis — {{analysisType}} — Sin hallazgos"
+            },
+            "fr-fr" => new JsonObject
+            {
+                ["template"] = $"{investigator},\n\nL'analyse {{{{analysisType}}}} de {{{{assetName}}}} n'a révélé aucun élément utile à l'enquête.\n\n{agency}",
+                ["from"] = agency,
+                ["subject"] = "Résultat de l'analyse — {{analysisType}} — Aucun résultat"
+            },
+            _ => new JsonObject
+            {
+                ["template"] = $"{investigator},\n\nThe {{{{analysisType}}}} analysis of {{{{assetName}}}} did not reveal any actionable findings.\n\n{agency}",
+                ["from"] = agency,
+                ["subject"] = "Analysis result — {{analysisType}} — No findings"
+            }
+        };
+    }
+
+    private static string EnforceDifficultyContract(string json, bool isRookie)
+    {
+        if (!isRookie) return json;
+
+        var root = JsonNode.Parse(json)?.AsObject()
+            ?? throw new JsonException("Refined case JSON must be an object.");
+
+        if (root["forensicsDefaults"] is JsonObject defaults)
+            defaults["analysisTypes"] = new JsonArray();
+        root["forensicOutcomes"] = new JsonArray();
+
+        if (root["solution"] is JsonObject solution)
+        {
+            solution["requiredAnalysisIds"] = new JsonArray();
+            solution["partialCreditRules"] = new JsonObject
+            {
+                ["culpritWeight"] = 0.4,
+                ["evidenceWeight"] = 0.2,
+                ["analysisWeight"] = 0.2,
+                ["questionsWeight"] = 0.2
+            };
+        }
+
+        var culpritId = root["solution"]?["culpritId"]?.GetValue<string>();
+        var culpritName = root["suspects"]?.AsArray()
+            .OfType<JsonObject>()
+            .FirstOrDefault(s => string.Equals(s["id"]?.GetValue<string>(), culpritId, StringComparison.Ordinal))?["name"]
+            ?.GetValue<string>();
+        if (!string.IsNullOrWhiteSpace(culpritName) && root["timeline"] is JsonArray timeline)
+        {
+            var nameForms = culpritName.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Append(culpritName)
+                .Where(form => form.Length >= 4)
+                .ToList();
+            for (var i = timeline.Count - 1; i >= 0; i--)
+            {
+                var eventText = timeline[i]?["event"]?.GetValue<string>();
+                if (eventText is not null && nameForms.Any(form =>
+                        eventText.Contains(form, StringComparison.OrdinalIgnoreCase)))
+                {
+                    timeline.RemoveAt(i);
+                }
+            }
+        }
+
+        if (root["rules"] is JsonArray rules)
+        {
+            for (var i = rules.Count - 1; i >= 0; i--)
+            {
+                if (rules[i]?["trigger"]?["type"]?.GetValue<string>() is { } triggerType
+                    && string.Equals(triggerType, "forensics_complete", StringComparison.OrdinalIgnoreCase))
+                {
+                    rules.RemoveAt(i);
+                }
+            }
+        }
+
+        return root.ToJsonString(JsonOpts);
     }
 
     private static string NormaliseCaseId(string? caseId)

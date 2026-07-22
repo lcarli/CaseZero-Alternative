@@ -63,6 +63,8 @@ describe('API Service', () => {
         })
       )
       expect(result).toEqual(mockResponse)
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('casezero_token', 'test-token')
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('casezero_user', JSON.stringify(mockResponse.user))
     })
 
     it('should throw error on failed login', async () => {

@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "5409758438042462884"
+      "templateHash": "15676796614910882600"
     }
   },
   "parameters": {
@@ -20,6 +20,13 @@
       "defaultValue": "canadacentral",
       "metadata": {
         "description": "Location for all resources"
+      }
+    },
+    "apiLocation": {
+      "type": "string",
+      "defaultValue": "[parameters('location')]",
+      "metadata": {
+        "description": "Location for the API layer (App Service). Defaults to the primary location; set to the API region when it differs, e.g. canadaeast."
       }
     },
     "namePrefix": {
@@ -70,7 +77,32 @@
       "metadata": {
         "description": "GitHub Branch name"
       }
+    },
+    "enablePrivateNetworking": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable private networking (VNets, peering, private DNS and private endpoints for storage + SQL)"
+      }
+    },
+    "ccVnetAddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.30.0.0/16",
+      "metadata": {
+        "description": "Address space for the canadacentral VNet (storage + Function)"
+      }
+    },
+    "ceVnetAddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.31.0.0/16",
+      "metadata": {
+        "description": "Address space for the canadaeast VNet (API)"
+      }
     }
+  },
+  "variables": {
+    "ccVnetName": "[format('vnet-{0}-cc-{1}', parameters('namePrefix'), parameters('environment'))]",
+    "ceVnetName": "[format('vnet-{0}-ce-{1}', parameters('namePrefix'), parameters('environment'))]"
   },
   "resources": [
     {
@@ -122,6 +154,533 @@
       }
     },
     {
+      "condition": "[parameters('enablePrivateNetworking')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "cc-vnet-deployment",
+      "resourceGroup": "[format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "[variables('ccVnetName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "addressPrefix": {
+            "value": "[parameters('ccVnetAddressPrefix')]"
+          },
+          "subnets": {
+            "value": [
+              {
+                "name": "snet-pe",
+                "prefix": "[cidrSubnet(parameters('ccVnetAddressPrefix'), 24, 1)]",
+                "disablePeNetworkPolicies": true
+              },
+              {
+                "name": "snet-func-integration",
+                "prefix": "[cidrSubnet(parameters('ccVnetAddressPrefix'), 24, 2)]",
+                "delegation": "Microsoft.App/environments"
+              }
+            ]
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "3218625580507404513"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "VNet name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location"
+              }
+            },
+            "addressPrefix": {
+              "type": "string",
+              "metadata": {
+                "description": "Address space (single CIDR)"
+              }
+            },
+            "subnets": {
+              "type": "array",
+              "metadata": {
+                "description": "Subnets: [{ name, prefix, delegation (optional), disablePeNetworkPolicies (optional bool) }]"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2023-11-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "copy": [
+                  {
+                    "name": "subnets",
+                    "count": "[length(parameters('subnets'))]",
+                    "input": {
+                      "name": "[parameters('subnets')[copyIndex('subnets')].name]",
+                      "properties": {
+                        "addressPrefixes": [
+                          "[parameters('subnets')[copyIndex('subnets')].prefix]"
+                        ],
+                        "privateEndpointNetworkPolicies": "[if(coalesce(tryGet(parameters('subnets')[copyIndex('subnets')], 'disablePeNetworkPolicies'), false()), 'Disabled', 'Enabled')]",
+                        "delegations": "[if(empty(coalesce(tryGet(parameters('subnets')[copyIndex('subnets')], 'delegation'), '')), createArray(), createArray(createObject('name', 'delegation', 'properties', createObject('serviceName', parameters('subnets')[copyIndex('subnets')].delegation))))]"
+                      }
+                    }
+                  }
+                ],
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('addressPrefix')]"
+                  ]
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "subnetIds": {
+              "type": "object",
+              "metadata": {
+                "description": "Map of subnet name -> subnet resourceId"
+              },
+              "value": "[toObject(parameters('subnets'), lambda('s', lambdaVariables('s').name), lambda('s', resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('name'), lambdaVariables('s').name)))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment')))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enablePrivateNetworking')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "ce-vnet-deployment",
+      "resourceGroup": "[format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "[variables('ceVnetName')]"
+          },
+          "location": {
+            "value": "[parameters('apiLocation')]"
+          },
+          "addressPrefix": {
+            "value": "[parameters('ceVnetAddressPrefix')]"
+          },
+          "subnets": {
+            "value": [
+              {
+                "name": "snet-api-integration",
+                "prefix": "[cidrSubnet(parameters('ceVnetAddressPrefix'), 24, 1)]",
+                "delegation": "Microsoft.Web/serverFarms"
+              }
+            ]
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "3218625580507404513"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "VNet name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location"
+              }
+            },
+            "addressPrefix": {
+              "type": "string",
+              "metadata": {
+                "description": "Address space (single CIDR)"
+              }
+            },
+            "subnets": {
+              "type": "array",
+              "metadata": {
+                "description": "Subnets: [{ name, prefix, delegation (optional), disablePeNetworkPolicies (optional bool) }]"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2023-11-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "copy": [
+                  {
+                    "name": "subnets",
+                    "count": "[length(parameters('subnets'))]",
+                    "input": {
+                      "name": "[parameters('subnets')[copyIndex('subnets')].name]",
+                      "properties": {
+                        "addressPrefixes": [
+                          "[parameters('subnets')[copyIndex('subnets')].prefix]"
+                        ],
+                        "privateEndpointNetworkPolicies": "[if(coalesce(tryGet(parameters('subnets')[copyIndex('subnets')], 'disablePeNetworkPolicies'), false()), 'Disabled', 'Enabled')]",
+                        "delegations": "[if(empty(coalesce(tryGet(parameters('subnets')[copyIndex('subnets')], 'delegation'), '')), createArray(), createArray(createObject('name', 'delegation', 'properties', createObject('serviceName', parameters('subnets')[copyIndex('subnets')].delegation))))]"
+                      }
+                    }
+                  }
+                ],
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('addressPrefix')]"
+                  ]
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "subnetIds": {
+              "type": "object",
+              "metadata": {
+                "description": "Map of subnet name -> subnet resourceId"
+              },
+              "value": "[toObject(parameters('subnets'), lambda('s', lambdaVariables('s').name), lambda('s', resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('name'), lambdaVariables('s').name)))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment')))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enablePrivateNetworking')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "peering-cc-to-ce-deployment",
+      "resourceGroup": "[format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "cc-to-ce"
+          },
+          "localVnetName": {
+            "value": "[variables('ccVnetName')]"
+          },
+          "remoteVnetId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'ce-vnet-deployment'), '2025-04-01').outputs.id.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "7074731612113735287"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the peering resource"
+              }
+            },
+            "localVnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the existing local VNet the peering is attached to"
+              }
+            },
+            "remoteVnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the remote VNet to peer with"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+              "apiVersion": "2023-11-01",
+              "name": "[format('{0}/{1}', parameters('localVnetName'), parameters('name'))]",
+              "properties": {
+                "remoteVirtualNetwork": {
+                  "id": "[parameters('remoteVnetId')]"
+                },
+                "allowVirtualNetworkAccess": true,
+                "allowForwardedTraffic": false,
+                "allowGatewayTransit": false,
+                "useRemoteGateways": false
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'ce-vnet-deployment')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment')))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enablePrivateNetworking')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "peering-ce-to-cc-deployment",
+      "resourceGroup": "[format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "ce-to-cc"
+          },
+          "localVnetName": {
+            "value": "[variables('ceVnetName')]"
+          },
+          "remoteVnetId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment'), '2025-04-01').outputs.id.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "7074731612113735287"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the peering resource"
+              }
+            },
+            "localVnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the existing local VNet the peering is attached to"
+              }
+            },
+            "remoteVnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the remote VNet to peer with"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+              "apiVersion": "2023-11-01",
+              "name": "[format('{0}/{1}', parameters('localVnetName'), parameters('name'))]",
+              "properties": {
+                "remoteVirtualNetwork": {
+                  "id": "[parameters('remoteVnetId')]"
+                },
+                "allowVirtualNetworkAccess": true,
+                "allowForwardedTraffic": false,
+                "allowGatewayTransit": false,
+                "useRemoteGateways": false
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment')]"
+      ]
+    },
+    {
+      "condition": "[parameters('enablePrivateNetworking')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "private-dns-deployment",
+      "resourceGroup": "[format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "vnetLinks": {
+            "value": [
+              {
+                "name": "cc",
+                "id": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment'), '2025-04-01').outputs.id.value]"
+              },
+              {
+                "name": "ce",
+                "id": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'ce-vnet-deployment'), '2025-04-01').outputs.id.value]"
+              }
+            ]
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "14198804689145273189"
+            }
+          },
+          "parameters": {
+            "zoneNames": {
+              "type": "array",
+              "defaultValue": [
+                "[format('privatelink.blob.{0}', environment().suffixes.storage)]",
+                "[format('privatelink.queue.{0}', environment().suffixes.storage)]",
+                "[format('privatelink.table.{0}', environment().suffixes.storage)]",
+                "[format('privatelink{0}', environment().suffixes.sqlServerHostname)]"
+              ],
+              "metadata": {
+                "description": "Private DNS zone names to create (e.g. privatelink.blob.core.windows.net)"
+              }
+            },
+            "vnetLinks": {
+              "type": "array",
+              "metadata": {
+                "description": "VNet resource IDs to link the zones to: [{ name, id }]"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            }
+          },
+          "variables": {
+            "linkPairs": "[flatten(map(parameters('zoneNames'), lambda('zone', map(parameters('vnetLinks'), lambda('v', createObject('zone', lambdaVariables('zone'), 'vnetId', lambdaVariables('v').id, 'linkName', format('link-{0}', lambdaVariables('v').name)))))))]"
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "zones",
+                "count": "[length(parameters('zoneNames'))]"
+              },
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "[parameters('zoneNames')[copyIndex()]]",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "copy": {
+                "name": "links",
+                "count": "[length(variables('linkPairs'))]"
+              },
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', variables('linkPairs')[copyIndex()].zone, variables('linkPairs')[copyIndex()].linkName)]",
+              "location": "global",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[variables('linkPairs')[copyIndex()].vnetId]"
+                }
+              },
+              "dependsOn": [
+                "zones"
+              ]
+            }
+          ],
+          "outputs": {
+            "zoneIds": {
+              "type": "object",
+              "metadata": {
+                "description": "Map of zone name -> zone resourceId"
+              },
+              "value": "[toObject(parameters('zoneNames'), lambda('z', lambdaVariables('z')), lambda('z', resourceId('Microsoft.Network/privateDnsZones', lambdaVariables('z'))))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'ce-vnet-deployment')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment')))]"
+      ]
+    },
+    {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "shared-infrastructure-deployment",
@@ -161,7 +720,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "13968669279112914207"
+              "templateHash": "1894810252674673444"
             }
           },
           "parameters": {
@@ -7076,7 +7635,7 @@
                     "value": "1.2"
                   },
                   "publicNetworkAccess": {
-                    "value": "Enabled"
+                    "value": "Disabled"
                   },
                   "databases": {
                     "value": [
@@ -13834,6 +14393,10 @@
               "type": "string",
               "value": "[if(parameters('enableSqlDatabase'), reference(resourceId('Microsoft.Resources/deployments', 'sqlserver-deployment'), '2025-04-01').outputs.name.value, '')]"
             },
+            "sqlServerId": {
+              "type": "string",
+              "value": "[if(parameters('enableSqlDatabase'), reference(resourceId('Microsoft.Resources/deployments', 'sqlserver-deployment'), '2025-04-01').outputs.resourceId.value, '')]"
+            },
             "sqlServerFqdn": {
               "type": "string",
               "value": "[if(parameters('enableSqlDatabase'), format('{0}.{1}', reference(resourceId('Microsoft.Resources/deployments', 'sqlserver-deployment'), '2025-04-01').outputs.name.value, environment().suffixes.sqlServerHostname), '')]"
@@ -13868,7 +14431,7 @@
             "value": "[parameters('environment')]"
           },
           "location": {
-            "value": "[parameters('location')]"
+            "value": "[parameters('apiLocation')]"
           },
           "namePrefix": {
             "value": "[parameters('namePrefix')]"
@@ -13900,7 +14463,8 @@
           },
           "caseGeneratorStorageAccountId": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2025-04-01').outputs.storageAccountId.value]"
-          }
+          },
+          "apiVnetSubnetId": "[if(parameters('enablePrivateNetworking'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'ce-vnet-deployment'), '2025-04-01').outputs.subnetIds.value['snet-api-integration']), createObject('value', ''))]"
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -13909,7 +14473,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "10079933765412903654"
+              "templateHash": "5649513071453551004"
             }
           },
           "parameters": {
@@ -14013,6 +14577,13 @@
               "defaultValue": "",
               "metadata": {
                 "description": "Storage Account Resource ID for the case bundles storage (used to scope the RBAC assignment cross-RG)."
+              }
+            },
+            "apiVnetSubnetId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Resource ID of the subnet used for API App Service regional VNet integration (empty to disable)"
               }
             }
           },
@@ -14625,6 +15196,10 @@
                     "value": true
                   },
                   "clientAffinityEnabled": {
+                    "value": false
+                  },
+                  "virtualNetworkSubnetId": "[if(empty(parameters('apiVnetSubnetId')), createObject('value', null()), createObject('value', parameters('apiVnetSubnetId')))]",
+                  "vnetRouteAllEnabled": {
                     "value": false
                   },
                   "managedIdentities": {
@@ -20346,6 +20921,7 @@
       },
       "dependsOn": [
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'ce-vnet-deployment')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment')]"
       ]
@@ -20392,7 +20968,8 @@
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.keyVaultId.value]"
           },
           "appInsightsConnectionString": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.connectionString.value), createObject('value', ''))]",
-          "appInsightsInstrumentationKey": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.instrumentationKey.value), createObject('value', ''))]"
+          "appInsightsInstrumentationKey": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.instrumentationKey.value), createObject('value', ''))]",
+          "functionVnetSubnetId": "[if(parameters('enablePrivateNetworking'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment'), '2025-04-01').outputs.subnetIds.value['snet-func-integration']), createObject('value', ''))]"
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -20402,7 +20979,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "3775805189380899413"
+              "templateHash": "18253439586775253105"
             }
           },
           "parameters": {
@@ -20480,6 +21057,13 @@
               "metadata": {
                 "description": "Application Insights Instrumentation Key from shared infrastructure"
               }
+            },
+            "functionVnetSubnetId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Resource ID of the subnet used for Function App regional VNet integration (empty to disable)"
+              }
             }
           },
           "variables": {
@@ -20548,7 +21132,7 @@
                     "value": true
                   },
                   "publicNetworkAccess": {
-                    "value": "Enabled"
+                    "value": "Disabled"
                   },
                   "minimumTlsVersion": {
                     "value": "TLS1_2"
@@ -20559,7 +21143,7 @@
                   "networkAcls": {
                     "value": {
                       "bypass": "AzureServices",
-                      "defaultAction": "Allow"
+                      "defaultAction": "Deny"
                     }
                   },
                   "blobServices": {
@@ -26831,6 +27415,7 @@
                   "publicNetworkAccess": {
                     "value": "Enabled"
                   },
+                  "virtualNetworkSubnetId": "[if(empty(parameters('functionVnetSubnetId')), createObject('value', null()), createObject('value', parameters('functionVnetSubnetId')))]",
                   "managedIdentities": {
                     "value": {
                       "systemAssigned": true
@@ -32484,7 +33069,207 @@
         }
       },
       "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment')]",
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment')]"
+      ]
+    },
+    {
+      "condition": "[parameters('enablePrivateNetworking')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "private-endpoints-deployment",
+      "resourceGroup": "[format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "subnetId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment'), '2025-04-01').outputs.subnetIds.value['snet-pe']]"
+          },
+          "storageAccountId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2025-04-01').outputs.storageAccountId.value]"
+          },
+          "sqlServerId": "[if(parameters('enableSqlDatabase'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.sqlServerId.value), createObject('value', ''))]",
+          "dnsZoneIds": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'private-dns-deployment'), '2025-04-01').outputs.zoneIds.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "11592937360076522165"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for the private endpoints"
+              }
+            },
+            "subnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the subnet that hosts the private endpoints"
+              }
+            },
+            "storageAccountId": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage Account resource ID"
+              }
+            },
+            "storageGroupIds": {
+              "type": "array",
+              "defaultValue": [
+                "blob",
+                "queue",
+                "table"
+              ],
+              "metadata": {
+                "description": "Storage sub-resources (group IDs) to create endpoints for"
+              }
+            },
+            "sqlServerId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Azure SQL Server resource ID (empty to skip the SQL private endpoint)"
+              }
+            },
+            "dnsZoneIds": {
+              "type": "object",
+              "metadata": {
+                "description": "Map of private DNS zone name -> zone resourceId"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            }
+          },
+          "variables": {
+            "storageZoneSuffix": {
+              "blob": "[format('privatelink.blob.{0}', environment().suffixes.storage)]",
+              "queue": "[format('privatelink.queue.{0}', environment().suffixes.storage)]",
+              "table": "[format('privatelink.table.{0}', environment().suffixes.storage)]"
+            },
+            "sqlZoneName": "[format('privatelink{0}', environment().suffixes.sqlServerHostname)]"
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "storagePe",
+                "count": "[length(parameters('storageGroupIds'))]"
+              },
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2023-11-01",
+              "name": "[format('pe-st-{0}', parameters('storageGroupIds')[copyIndex()])]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[parameters('subnetId')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "[format('conn-{0}', parameters('storageGroupIds')[copyIndex()])]",
+                    "properties": {
+                      "privateLinkServiceId": "[parameters('storageAccountId')]",
+                      "groupIds": [
+                        "[parameters('storageGroupIds')[copyIndex()]]"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "copy": {
+                "name": "storageDnsGroup",
+                "count": "[length(parameters('storageGroupIds'))]"
+              },
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2023-11-01",
+              "name": "[format('{0}/{1}', format('pe-st-{0}', parameters('storageGroupIds')[copyIndex()]), format('zg-{0}', parameters('storageGroupIds')[copyIndex()]))]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "[parameters('storageGroupIds')[copyIndex()]]",
+                    "properties": {
+                      "privateDnsZoneId": "[parameters('dnsZoneIds')[variables('storageZoneSuffix')[parameters('storageGroupIds')[copyIndex()]]]]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateEndpoints', format('pe-st-{0}', parameters('storageGroupIds')[copyIndex()]))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('sqlServerId')))]",
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2023-11-01",
+              "name": "pe-sql",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[parameters('subnetId')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "conn-sql",
+                    "properties": {
+                      "privateLinkServiceId": "[parameters('sqlServerId')]",
+                      "groupIds": [
+                        "sqlServer"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "condition": "[not(empty(parameters('sqlServerId')))]",
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2023-11-01",
+              "name": "[format('{0}/{1}', 'pe-sql', 'zg-sql')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "sql",
+                    "properties": {
+                      "privateDnsZoneId": "[parameters('dnsZoneIds')[variables('sqlZoneName')]]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateEndpoints', 'pe-sql')]"
+              ]
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'private-dns-deployment')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment')]"
       ]
     },

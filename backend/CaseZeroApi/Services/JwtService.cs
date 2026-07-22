@@ -8,7 +8,7 @@ namespace CaseZeroApi.Services
 {
     public interface IJwtService
     {
-        string GenerateToken(User user);
+        string GenerateToken(User user, IEnumerable<string>? roles = null);
     }
 
     public class JwtService : IJwtService
@@ -20,12 +20,12 @@ namespace CaseZeroApi.Services
             _configuration = configuration;
         }
 
-        public string GenerateToken(User user)
+        public string GenerateToken(User user, IEnumerable<string>? roles = null)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
             var key = Encoding.ASCII.GetBytes(jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured"));
             
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
@@ -34,6 +34,8 @@ namespace CaseZeroApi.Services
                 new Claim("Department", user.Department ?? string.Empty),
                 new Claim("Position", user.Position ?? string.Empty)
             };
+            claims.AddRange((roles ?? []).Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(role => new Claim(ClaimTypes.Role, role)));
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {

@@ -7,6 +7,16 @@ LLM pipeline. Each case is a `case.json` v2 document plus a folder of rendered
 assets (PDFs, images, audio sidecars), all published to the same blob container
 the website reads from.
 
+Internally, the pipeline compiles a typed `EvidenceGraph`, applies centralized
+`DifficultyProfile` budgets, validates each stage before downstream generation,
+and routes red-team findings through `RepairCoordinator`. Repairs regenerate the
+owning stage and its dependents; deterministic validator errors are routed through
+the same mechanism. Non-Rookie decisive clues are owned by explicit forensic
+outcomes and materialized in their gated result assets rather than leaking into
+initial documents. The repair loop keeps the best immutable snapshot, stops on a
+quality plateau, and restores that snapshot after regressions or transient LLM
+endpoint failures. The final `case.json` is not rewritten wholesale.
+
 ## Entry points
 
 - **`POST /api/cases/v2/generate`** — kicks off generation, returns `202 Accepted + jobId`.
@@ -63,12 +73,12 @@ can show progress. Per-stage latencies are reported on completion.
 
 | # | Phase | Role |
 |---|-------|------|
-| 1 | `plotOutline` | LLM produces the seed: setting, victim, incident, briefing email, suspect stubs, culprit choice |
+| 1 | `plotOutline` | Lead architect produces the seed plus a canonical investigation blueprint: causal incident sequence, clue ladder, and fair red-herring resolutions |
 | 2 | `suspectCards` | One LLM call per suspect, in parallel — full background, motive, alibi, alibi-verified flag |
-| 3 | `assetPlan` | LLM decides which evidence assets exist (initial vs gated, file types, descriptions) |
+| 3 | `assetPlan` | A deterministic archetype catalog selects a variable-size portfolio by difficulty, seed, clue load, and red herrings; the LLM adapts interviews, newspaper clippings, letters, receipts, warrants, dispatch logs, maps, calendars, police records, photos, and digital exports to the case |
 | 4 | `assetsAndTimelineAndBriefing` | Parallel: full asset bodies, briefing email body, timeline events |
-| 5 | `forensicsPlan` | LLM picks which assets get a forensic outcome and the analysis types |
-| 6 | `outcomesAndInitialEmails` | Parallel: forensic outcome bodies + the additional initial emails |
+| 5 | `forensicsPlan` | Non-Rookie only: LLM picks which assets get a forensic outcome and the analysis types |
+| 6 | `outcomesAndInitialEmails` | Non-Rookie: forensic outcomes + initial emails. Rookie: initial evidence emails only, with no lab workflow |
 | 7 | `mechanicalRules` | **Deterministic** — `MechanicalRulesBuilder` emits the `rules[]` array from the forensic outcomes (no LLM) |
 | 8 | `rulesAndSolutionSkeleton` | LLM enriches rules where needed + fills the solution skeleton |
 | 9 | `questionsAndExplanation` | Parallel: solution questions + the case explanation |
@@ -114,6 +124,8 @@ one-command bring-up and a worked example.
   `SuspectCardTask`, `AssetPlanTask`, `RedTeamTask`, `SolverTask`,
   `RefineCaseTask`, etc).
 - `Services/CaseV2/MechanicalRulesBuilder.cs` — deterministic rule emission.
+- `Services/CaseV2/EvidenceArchetypeCatalog.cs` — evidence taxonomy, rarity, investigative purpose, and rotating portfolio selection.
+- `Services/CaseV2/PlayerTimelineCompiler.cs` — compiles the public timeline from explicitly public CaseBible events and blocks culprit-name leakage.
 - `Services/CaseV2/ConsistencyValidator.cs` — deterministic cross-ref check.
 - `Services/CaseV2/SchemaErrorAutoFixer.cs` — deterministic ID-format
   normaliser. Unit-tested in `CaseGen.Functions.Tests`.

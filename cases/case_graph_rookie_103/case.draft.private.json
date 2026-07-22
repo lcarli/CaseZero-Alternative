@@ -1,0 +1,2207 @@
+{
+  "CaseId": "case_graph_rookie_103",
+  "Request": {
+    "caseId": "case_graph_rookie_103",
+    "title": null,
+    "theme": "office theft with access logs and inventory records",
+    "location": null,
+    "difficulty": "Rookie",
+    "requiredRank": "Rookie",
+    "language": "en-US",
+    "seed": 103,
+    "writeToDisk": true
+  },
+  "Metadata": {
+    "title": "The Vanishing Laptop",
+    "description": "A company-issued laptop disappears from a locked IT cage after hours, despite clean-looking access logs and a routine inventory check.",
+    "location": "Seattle, Washington, USA",
+    "incidentDate": "2026-05-13T19:18:00-07:00",
+    "openedAt": "2026-05-14T09:12:00-07:00",
+    "difficulty": "Rookie",
+    "requiredRank": "Rookie",
+    "category": "Theft",
+    "briefing": "An employee reports a missing laptop that was last seen in the office IT cage. The building\u2019s badge logs and inventory records don\u2019t immediately agree, and a small timing window is all you have.",
+    "tags": [
+      "office",
+      "theft",
+      "access-logs",
+      "inventory",
+      "after-hours"
+    ],
+    "victim": null
+  },
+  "CulpritId": "suspect.ryan_abad",
+  "Blueprint": {
+    "crimeMechanism": "Ryan Abad removed a boxed laptop from the IT cage near close of business, using his authorized cage badge access during a short window when the area was quiet. He concealed the loss by editing the asset spreadsheet entry to show the unit had been assigned and picked up, relying on the fact that the official inventory process is a manual spreadsheet plus a separate ticketing system that doesn\u2019t automatically reconcile. He then carried the box out through the loading corridor, where the exit is recorded only by a door contact timestamp rather than camera coverage.",
+    "culpritObjective": "To obtain a company laptop for personal resale before a scheduled quarterly asset audit. It happened now because the audit roster was posted for the following week and the specific model was being phased out, making it less likely to be noticed immediately if its record looked \u2018assigned\u2019.",
+    "caseHook": "The cage door access log shows a normal IT entry, but the inventory record shows the same laptop as \u2018issued\u2019 with a signature line that is filled in using a typed name rather than a handwritten sign-off.",
+    "locale": {
+      "timeZoneId": "America/Los_Angeles",
+      "utcOffset": "-07:00",
+      "policeAgency": "Seattle Police Department (SPD), East Precinct",
+      "investigatorName": "Det. Kendra Walsh",
+      "investigatorEmail": "kendra.walsh@seattle.gov"
+    },
+    "incidentSequence": [
+      {
+        "id": "event.maya_last_verified",
+        "time": "2026-05-13T16:42:00-07:00",
+        "event": "Maya Lin visually verifies the boxed laptop with asset tag AL-77821 is on shelf C3 in the IT cage during routine end-of-day spot check.",
+        "publicDescription": "IT staff report that the missing laptop was present in the cage earlier that afternoon during routine work.",
+        "visibility": "public",
+        "source": "witness",
+        "verified": false,
+        "importance": "medium",
+        "causalRole": "context"
+      },
+      {
+        "id": "event.ryan_cage_entry",
+        "time": "2026-05-13T19:12:18-07:00",
+        "event": "Ryan Abad badged into the IT cage and removed the boxed laptop AL-77821 from shelf C3, placing it into a plain cardboard shipper.",
+        "publicDescription": "Badge logs show an authorized IT-cage entry at 7:12 PM by an IT staff credential.",
+        "visibility": "public",
+        "source": "sensor",
+        "verified": true,
+        "importance": "high",
+        "causalRole": "opportunity"
+      },
+      {
+        "id": "event.inventory_edit",
+        "time": "2026-05-13T19:18:44-07:00",
+        "event": "Ryan edits the inventory spreadsheet row for AL-77821 to mark it as \u0027Issued\u0027 with a typed recipient name and a pickup time, without a matching ticket in the service desk system.",
+        "publicDescription": null,
+        "visibility": "private",
+        "source": "investigation",
+        "verified": true,
+        "importance": "high",
+        "causalRole": "concealment"
+      },
+      {
+        "id": "event.loading_corridor_exit",
+        "time": "2026-05-13T19:26:03-07:00",
+        "event": "Ryan exits through the loading corridor door with the boxed laptop concealed inside the shipper.",
+        "publicDescription": "A loading-corridor door contact shows an after-hours exit at 7:26 PM.",
+        "visibility": "public",
+        "source": "sensor",
+        "verified": true,
+        "importance": "medium",
+        "causalRole": "escape"
+      },
+      {
+        "id": "event.missing_reported",
+        "time": "2026-05-14T08:37:00-07:00",
+        "event": "Maya discovers AL-77821 is missing from shelf C3 and reports the loss to facilities and SPD.",
+        "publicDescription": "At 8:37 AM, IT reported a company laptop missing from the locked IT cage during the prior evening.",
+        "visibility": "public",
+        "source": "witness",
+        "verified": true,
+        "importance": "critical",
+        "causalRole": "discovery"
+      }
+    ],
+    "clueLadder": [
+      {
+        "id": "clue.asset_context",
+        "discovery": "The IT inventory sheet lists asset tag \u0022AL-77821\u0022 as \u0022Lenovo ThinkPad T14s Gen 3\u0022 with storage location \u0022IT Cage / Shelf C3\u0022 on the row last saved on 2026-05-13.",
+        "inference": "The missing item is a specifically identified laptop tied to a specific storage spot, enabling reconciliation against access and ticket records.",
+        "supportsSuspectId": null,
+        "strength": "context",
+        "sourceType": "document",
+        "role": "context"
+      },
+      {
+        "id": "clue.cage_access_log",
+        "discovery": "The IT cage reader log shows badge ID ending \u00224421\u0022 granted at \u00222026-05-13 19:12:18\u0022 and again at \u002219:21:09\u0022.",
+        "inference": "The culprit had physical opportunity during the relevant window, and the repeated access suggests time spent inside consistent with removing an item and adjusting placement/records.",
+        "supportsSuspectId": "suspect.ryan_abad",
+        "strength": "supporting",
+        "sourceType": "digital",
+        "role": "action"
+      },
+      {
+        "id": "clue.badge_to_person",
+        "discovery": "The building credential directory lists badge ID ending \u00224421\u0022 as assigned to \u0022Ryan Abad\u0022 with department \u0022IT Support\u0022.",
+        "inference": "The badge used to access the cage can be attributed to a specific suspect with routine reason to be near the cage.",
+        "supportsSuspectId": "suspect.ryan_abad",
+        "strength": "supporting",
+        "sourceType": "document",
+        "role": "identity"
+      },
+      {
+        "id": "clue.no_ticket_for_issue",
+        "discovery": "Service desk ticket search for asset tag \u0022AL-77821\u0022 returns no results between \u00222026-05-13 00:00\u0022 and \u00222026-05-14 09:00\u0022.",
+        "inference": "If the laptop was truly issued, the expected issuance workflow record is missing, indicating the inventory \u0027issued\u0027 status may have been used to mask removal.",
+        "supportsSuspectId": "suspect.ryan_abad",
+        "strength": "supporting",
+        "sourceType": "digital",
+        "role": "action"
+      },
+      {
+        "id": "clue.inventory_issued_entry",
+        "discovery": "The inventory row for \u0022AL-77821\u0022 shows status \u0022Issued\u0022 with \u0022Recipient: Elena Soto\u0022 and \u0022Pickup time: 2026-05-13 19:20\u0022 entered as typed text in the \u0022Sign-out\u0022 cell.",
+        "inference": "The concealment strategy was to make the laptop appear legitimately issued at a specific time to a real employee, aligning with the access window.",
+        "supportsSuspectId": null,
+        "strength": "supporting",
+        "sourceType": "document",
+        "role": "action"
+      },
+      {
+        "id": "clue.spreadsheet_version_history",
+        "discovery": "The file history for \u0022IT_Assets_Q2_2026.xlsx\u0022 shows a save event at \u00222026-05-13 19:18:44\u0022 by user \u0022rabad\u0022.",
+        "inference": "The person controlling the inventory record during the critical minutes overlaps with the cage access window, tying opportunity to active concealment work by Ryan.",
+        "supportsSuspectId": "suspect.ryan_abad",
+        "strength": "decisive",
+        "sourceType": "digital",
+        "role": "action"
+      }
+    ],
+    "redHerrings": [
+      {
+        "suspectId": "suspect.elena_soto",
+        "suspicion": "The inventory row lists Elena Soto as the recipient of the laptop, implying she picked it up.",
+        "verification": "HR onboarding schedule email lists \u0022Elena Soto\u0022 with start date \u00222026-05-20\u0022 and includes the line \u0022Badge pickup: Day 1, 9:00 AM (Lobby)\u0022.",
+        "resolution": "If her start date is after the incident, she could not have legitimately received the laptop on 2026-05-13, making her appearance in the inventory row more consistent with someone selecting a plausible name."
+      },
+      {
+        "suspectId": "suspect.gavin_holt",
+        "suspicion": "A loading-corridor door opened after hours, suggesting facilities/security involvement.",
+        "verification": "The loading-corridor door contact log shows \u0022Door LC-2: OPEN 2026-05-13 19:26:03\u0022 and the facilities duty roster shows \u0022Gavin Holt on call 18:00\u201322:00\u0022.",
+        "resolution": "Being on call does not establish he operated the door or entered the cage; the stronger linkage is between the cage badge event and the inventory edit, which is not part of Gavin\u2019s routine systems access."
+      }
+    ]
+  },
+  "CaseGraph": {
+    "Origin": "Generated",
+    "Entities": [
+      {
+        "id": "person.elena_soto",
+        "kind": "Person",
+        "displayName": "Elena Soto",
+        "attributes": {}
+      },
+      {
+        "id": "person.gavin_holt",
+        "kind": "Person",
+        "displayName": "Gavin Holt",
+        "attributes": {}
+      },
+      {
+        "id": "person.ryan_abad",
+        "kind": "Person",
+        "displayName": "Ryan Abad",
+        "attributes": {}
+      },
+      {
+        "id": "organization.case_context",
+        "kind": "Organization",
+        "displayName": "The Vanishing Laptop",
+        "attributes": {}
+      },
+      {
+        "id": "document.access_log_export_20260513_itcage_lc2",
+        "kind": "Document",
+        "displayName": "Building Access-Control Log (IT Cage \u0026 Loading Corridor LC-2) \u2014 2026-05-13 \u2014 document.access_log_export_20260513_itcage_lc2",
+        "attributes": {}
+      },
+      {
+        "id": "device.reader_it_cage",
+        "kind": "Device",
+        "displayName": "Building Access-Control Log (IT Cage \u0026 Loading Corridor LC-2) \u2014 2026-05-13 \u2014 device.reader_it_cage",
+        "attributes": {}
+      },
+      {
+        "id": "device.door_contact_lc2",
+        "kind": "Device",
+        "displayName": "Building Access-Control Log (IT Cage \u0026 Loading Corridor LC-2) \u2014 2026-05-13 \u2014 device.door_contact_lc2",
+        "attributes": {}
+      },
+      {
+        "id": "document.m365_version_history_it_assets_q2_2026",
+        "kind": "Document",
+        "displayName": "Microsoft 365 File Version History \u2014 IT_Assets_Q2_2026.xlsx \u2014 document.m365_version_history_it_assets_q2_2026",
+        "attributes": {}
+      },
+      {
+        "id": "account.m365_user_rabad",
+        "kind": "Account",
+        "displayName": "Microsoft 365 File Version History \u2014 IT_Assets_Q2_2026.xlsx \u2014 account.m365_user_rabad",
+        "attributes": {}
+      },
+      {
+        "id": "document.servicedesk_export_al_77821_search_20260513_20260514",
+        "kind": "Document",
+        "displayName": "Service Desk System Export \u2014 Asset Tag Search (AL-77821) \u2014 document.servicedesk_export_al_77821_search_20260513_20260514",
+        "attributes": {}
+      },
+      {
+        "id": "session.servicedesk_search_al_77821",
+        "kind": "Session",
+        "displayName": "Service Desk System Export \u2014 Asset Tag Search (AL-77821) \u2014 session.servicedesk_search_al_77821",
+        "attributes": {}
+      },
+      {
+        "id": "document.spd_evidence_log_case_graph_rookie_103",
+        "kind": "Document",
+        "displayName": "SPD Evidence Inventory \u0026 Chain-of-Custody \u2014 Initial Collection (IT Cage) \u2014 document.spd_evidence_log_case_graph_rookie_103",
+        "attributes": {}
+      },
+      {
+        "id": "object.printout_it_assets_q2_row_al_77821",
+        "kind": "PhysicalObject",
+        "displayName": "SPD Evidence Inventory \u0026 Chain-of-Custody \u2014 Initial Collection (IT Cage) \u2014 object.printout_it_assets_q2_row_al_77821",
+        "attributes": {}
+      },
+      {
+        "id": "document.interview_transcript_maya_lin_20260514",
+        "kind": "Document",
+        "displayName": "Interview Transcript \u2014 Maya Lin (IT) on Last Verified Sight, Issuance Workflow, and Missing Report \u2014 document.interview_transcript_maya_lin_20260514",
+        "attributes": {}
+      },
+      {
+        "id": "communication.interview_record_maya_lin",
+        "kind": "Communication",
+        "displayName": "Interview Transcript \u2014 Maya Lin (IT) on Last Verified Sight, Issuance Workflow, and Missing Report \u2014 communication.interview_record_maya_lin",
+        "attributes": {}
+      }
+    ],
+    "SuspectReferences": [
+      {
+        "suspectId": "suspect.elena_soto",
+        "personEntityId": "person.elena_soto"
+      },
+      {
+        "suspectId": "suspect.gavin_holt",
+        "personEntityId": "person.gavin_holt"
+      },
+      {
+        "suspectId": "suspect.ryan_abad",
+        "personEntityId": "person.ryan_abad"
+      }
+    ],
+    "Facts": [
+      {
+        "Id": "fact.clue_asset_context",
+        "Predicate": "context_asset_context",
+        "SubjectId": "organization.case_context",
+        "ObjectId": null,
+        "LiteralValue": "The IT inventory sheet lists asset tag \u0022AL-77821\u0022 as \u0022Lenovo ThinkPad T14s Gen 3\u0022 with storage location \u0022IT Cage / Shelf C3\u0022 on the row last saved on 2026-05-13.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_badge_to_person",
+        "Predicate": "identity_badge_to_person",
+        "SubjectId": "person.ryan_abad",
+        "ObjectId": null,
+        "LiteralValue": "The building credential directory lists badge ID ending \u00224421\u0022 as assigned to \u0022Ryan Abad\u0022 with department \u0022IT Support\u0022.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_cage_access_log",
+        "Predicate": "action_cage_access_log",
+        "SubjectId": "person.ryan_abad",
+        "ObjectId": null,
+        "LiteralValue": "The IT cage reader log shows badge ID ending \u00224421\u0022 granted at \u00222026-05-13 19:12:18\u0022 and again at \u002219:21:09\u0022.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_inventory_issued_entry",
+        "Predicate": "action_inventory_issued_entry",
+        "SubjectId": "organization.case_context",
+        "ObjectId": null,
+        "LiteralValue": "The inventory row for \u0022AL-77821\u0022 shows status \u0022Issued\u0022 with \u0022Recipient: Elena Soto\u0022 and \u0022Pickup time: 2026-05-13 19:20\u0022 entered as typed text in the \u0022Sign-out\u0022 cell.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_no_ticket_for_issue",
+        "Predicate": "action_no_ticket_for_issue",
+        "SubjectId": "person.ryan_abad",
+        "ObjectId": null,
+        "LiteralValue": "Service desk ticket search for asset tag \u0022AL-77821\u0022 returns no results between \u00222026-05-13 00:00\u0022 and \u00222026-05-14 09:00\u0022.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_spreadsheet_version_history",
+        "Predicate": "action_spreadsheet_version_history",
+        "SubjectId": "person.ryan_abad",
+        "ObjectId": null,
+        "LiteralValue": "The file history for \u0022IT_Assets_Q2_2026.xlsx\u0022 shows a save event at \u00222026-05-13 19:18:44\u0022 by user \u0022rabad\u0022.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.culprit_ryan_abad",
+        "Predicate": "isCulprit",
+        "SubjectId": "person.ryan_abad",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_suspicion_elena_soto",
+        "Predicate": "decoySuspicion",
+        "SubjectId": "person.elena_soto",
+        "ObjectId": null,
+        "LiteralValue": "The inventory row lists Elena Soto as the recipient of the laptop, implying she picked it up.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_verification_elena_soto",
+        "Predicate": "decoyVerification",
+        "SubjectId": "person.elena_soto",
+        "ObjectId": null,
+        "LiteralValue": "HR onboarding schedule email lists \u0022Elena Soto\u0022 with start date \u00222026-05-20\u0022 and includes the line \u0022Badge pickup: Day 1, 9:00 AM (Lobby)\u0022.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.excluded_elena_soto",
+        "Predicate": "excludedFromCrime",
+        "SubjectId": "person.elena_soto",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_suspicion_gavin_holt",
+        "Predicate": "decoySuspicion",
+        "SubjectId": "person.gavin_holt",
+        "ObjectId": null,
+        "LiteralValue": "A loading-corridor door opened after hours, suggesting facilities/security involvement.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_verification_gavin_holt",
+        "Predicate": "decoyVerification",
+        "SubjectId": "person.gavin_holt",
+        "ObjectId": null,
+        "LiteralValue": "The loading-corridor door contact log shows \u0022Door LC-2: OPEN 2026-05-13 19:26:03\u0022 and the facilities duty roster shows \u0022Gavin Holt on call 18:00\u201322:00\u0022.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.excluded_gavin_holt",
+        "Predicate": "excludedFromCrime",
+        "SubjectId": "person.gavin_holt",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      }
+    ],
+    "Events": [],
+    "Sources": [
+      {
+        "Id": "asset.access_log",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.cage_access_log_access_log",
+          "observation.decoy_suspicion_gavin_holt_access_log"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_cage_access_log",
+          "fact.decoy_suspicion_gavin_holt"
+        ],
+        "EvidentiaryOriginId": "asset.access_log",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.bank_statement",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.spreadsheet_version_history_bank_statement"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_spreadsheet_version_history"
+        ],
+        "EvidentiaryOriginId": "asset.bank_statement",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.call_log",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.no_ticket_for_issue_call_log",
+          "observation.decoy_verification_gavin_holt_call_log"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_no_ticket_for_issue",
+          "fact.decoy_verification_gavin_holt"
+        ],
+        "EvidentiaryOriginId": "asset.call_log",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.evidence_log",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.asset_context_evidence_log",
+          "observation.inventory_issued_entry_evidence_log"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_asset_context",
+          "fact.clue_inventory_issued_entry"
+        ],
+        "EvidentiaryOriginId": "asset.evidence_log",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.suspect_interview",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.asset_context_suspect_interview",
+          "observation.badge_to_person_suspect_interview",
+          "observation.inventory_issued_entry_suspect_interview",
+          "observation.decoy_suspicion_elena_soto_suspect_interview",
+          "observation.decoy_verification_elena_soto_suspect_interview"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_asset_context",
+          "fact.clue_badge_to_person",
+          "fact.clue_inventory_issued_entry",
+          "fact.decoy_suspicion_elena_soto",
+          "fact.decoy_verification_elena_soto"
+        ],
+        "EvidentiaryOriginId": "asset.suspect_interview",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "email.facilities_preservation_lc2",
+        "Kind": "Email",
+        "ObservationIds": [],
+        "ClaimedFactIds": [],
+        "EvidentiaryOriginId": "email.facilities_preservation_lc2",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "email.maya_lin_missing_report",
+        "Kind": "Email",
+        "ObservationIds": [],
+        "ClaimedFactIds": [],
+        "EvidentiaryOriginId": "email.maya_lin_missing_report",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "email.servicedesk_zero_tickets",
+        "Kind": "Email",
+        "ObservationIds": [],
+        "ClaimedFactIds": [],
+        "EvidentiaryOriginId": "email.servicedesk_zero_tickets",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      }
+    ],
+    "AssetSpecs": [
+      {
+        "Id": "asset.access_log",
+        "ArchetypeId": "access_log",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.cage_access_log_access_log",
+          "observation.decoy_suspicion_gavin_holt_access_log"
+        ],
+        "ContainedObjectIds": [
+          "document.access_log_export_20260513_itcage_lc2",
+          "device.reader_it_cage",
+          "device.door_contact_lc2"
+        ],
+        "ContainedObjectTypes": {
+          "document.access_log_export_20260513_itcage_lc2": "AccessRecord",
+          "device.reader_it_cage": "AccessRecord",
+          "device.door_contact_lc2": "AccessRecord"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "AccessLog"
+      },
+      {
+        "Id": "asset.bank_statement",
+        "ArchetypeId": "bank_statement",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.spreadsheet_version_history_bank_statement"
+        ],
+        "ContainedObjectIds": [
+          "document.m365_version_history_it_assets_q2_2026",
+          "account.m365_user_rabad"
+        ],
+        "ContainedObjectTypes": {
+          "document.m365_version_history_it_assets_q2_2026": "FinancialRecord",
+          "account.m365_user_rabad": "FinancialRecord"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "BankStatement"
+      },
+      {
+        "Id": "asset.call_log",
+        "ArchetypeId": "call_log",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.decoy_verification_gavin_holt_call_log",
+          "observation.no_ticket_for_issue_call_log"
+        ],
+        "ContainedObjectIds": [
+          "document.servicedesk_export_al_77821_search_20260513_20260514",
+          "session.servicedesk_search_al_77821"
+        ],
+        "ContainedObjectTypes": {
+          "document.servicedesk_export_al_77821_search_20260513_20260514": "CommunicationRecord",
+          "session.servicedesk_search_al_77821": "CommunicationRecord"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "CallLog"
+      },
+      {
+        "Id": "asset.evidence_log",
+        "ArchetypeId": "evidence_log",
+        "AssetType": "document",
+        "ObservationIds": [
+          "observation.asset_context_evidence_log",
+          "observation.inventory_issued_entry_evidence_log"
+        ],
+        "ContainedObjectIds": [
+          "document.spd_evidence_log_case_graph_rookie_103",
+          "object.printout_it_assets_q2_row_al_77821"
+        ],
+        "ContainedObjectTypes": {
+          "document.spd_evidence_log_case_graph_rookie_103": "Document",
+          "object.printout_it_assets_q2_row_al_77821": "Document"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "EvidenceLog"
+      },
+      {
+        "Id": "asset.suspect_interview",
+        "ArchetypeId": "suspect_interview",
+        "AssetType": "document",
+        "ObservationIds": [
+          "observation.asset_context_suspect_interview",
+          "observation.badge_to_person_suspect_interview",
+          "observation.decoy_suspicion_elena_soto_suspect_interview",
+          "observation.decoy_verification_elena_soto_suspect_interview",
+          "observation.inventory_issued_entry_suspect_interview"
+        ],
+        "ContainedObjectIds": [
+          "document.interview_transcript_maya_lin_20260514",
+          "communication.interview_record_maya_lin"
+        ],
+        "ContainedObjectTypes": {
+          "document.interview_transcript_maya_lin_20260514": "Document",
+          "communication.interview_record_maya_lin": "Document"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "InterviewTranscript"
+      }
+    ],
+    "DecoyArcs": [
+      {
+        "SuspectId": "suspect.elena_soto",
+        "SuspicionObservationIds": [
+          "observation.decoy_suspicion_elena_soto_suspect_interview"
+        ],
+        "VerificationObservationIds": [
+          "observation.decoy_verification_elena_soto_suspect_interview"
+        ],
+        "ResolutionDerivationId": "derivation.exclude_elena_soto",
+        "MustBePlayerReachable": true
+      },
+      {
+        "SuspectId": "suspect.gavin_holt",
+        "SuspicionObservationIds": [
+          "observation.decoy_suspicion_gavin_holt_access_log"
+        ],
+        "VerificationObservationIds": [
+          "observation.decoy_verification_gavin_holt_call_log"
+        ],
+        "ResolutionDerivationId": "derivation.exclude_gavin_holt",
+        "MustBePlayerReachable": true
+      }
+    ],
+    "ForensicTransforms": [],
+    "Observations": [
+      {
+        "Id": "observation.asset_context_evidence_log",
+        "FactId": "fact.clue_asset_context",
+        "SourceAssetId": "asset.evidence_log",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.asset_context_suspect_interview",
+        "FactId": "fact.clue_asset_context",
+        "SourceAssetId": "asset.suspect_interview",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.badge_to_person_suspect_interview",
+        "FactId": "fact.clue_badge_to_person",
+        "SourceAssetId": "asset.suspect_interview",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.cage_access_log_access_log",
+        "FactId": "fact.clue_cage_access_log",
+        "SourceAssetId": "asset.access_log",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.inventory_issued_entry_evidence_log",
+        "FactId": "fact.clue_inventory_issued_entry",
+        "SourceAssetId": "asset.evidence_log",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.inventory_issued_entry_suspect_interview",
+        "FactId": "fact.clue_inventory_issued_entry",
+        "SourceAssetId": "asset.suspect_interview",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.no_ticket_for_issue_call_log",
+        "FactId": "fact.clue_no_ticket_for_issue",
+        "SourceAssetId": "asset.call_log",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.spreadsheet_version_history_bank_statement",
+        "FactId": "fact.clue_spreadsheet_version_history",
+        "SourceAssetId": "asset.bank_statement",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_suspicion_elena_soto_suspect_interview",
+        "FactId": "fact.decoy_suspicion_elena_soto",
+        "SourceAssetId": "asset.suspect_interview",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "Circumstantial",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_verification_elena_soto_suspect_interview",
+        "FactId": "fact.decoy_verification_elena_soto",
+        "SourceAssetId": "asset.suspect_interview",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_suspicion_gavin_holt_access_log",
+        "FactId": "fact.decoy_suspicion_gavin_holt",
+        "SourceAssetId": "asset.access_log",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "Circumstantial",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_verification_gavin_holt_call_log",
+        "FactId": "fact.decoy_verification_gavin_holt",
+        "SourceAssetId": "asset.call_log",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      }
+    ],
+    "Derivations": [
+      {
+        "Id": "derivation.cage_access_log_cage_access_log_access_log",
+        "PremiseIds": [
+          "observation.cage_access_log_access_log"
+        ],
+        "Rule": "ActionAttribution",
+        "ConclusionFactId": "fact.culprit_ryan_abad",
+        "SupportsSuspectId": "suspect.ryan_abad",
+        "IsCulpritConclusion": true
+      },
+      {
+        "Id": "derivation.badge_to_person_badge_to_person_suspect_interview",
+        "PremiseIds": [
+          "observation.badge_to_person_suspect_interview"
+        ],
+        "Rule": "IdentityMatch",
+        "ConclusionFactId": "fact.culprit_ryan_abad",
+        "SupportsSuspectId": "suspect.ryan_abad",
+        "IsCulpritConclusion": true
+      },
+      {
+        "Id": "derivation.no_ticket_for_issue_no_ticket_for_issue_call_log",
+        "PremiseIds": [
+          "observation.no_ticket_for_issue_call_log"
+        ],
+        "Rule": "ActionAttribution",
+        "ConclusionFactId": "fact.culprit_ryan_abad",
+        "SupportsSuspectId": "suspect.ryan_abad",
+        "IsCulpritConclusion": true
+      },
+      {
+        "Id": "derivation.spreadsheet_version_history_spreadsheet_version_history_bank_statement",
+        "PremiseIds": [
+          "observation.spreadsheet_version_history_bank_statement"
+        ],
+        "Rule": "ActionAttribution",
+        "ConclusionFactId": "fact.culprit_ryan_abad",
+        "SupportsSuspectId": "suspect.ryan_abad",
+        "IsCulpritConclusion": true
+      },
+      {
+        "Id": "derivation.exclude_elena_soto",
+        "PremiseIds": [
+          "observation.decoy_verification_elena_soto_suspect_interview"
+        ],
+        "Rule": "Exclusion",
+        "ConclusionFactId": "fact.excluded_elena_soto",
+        "SupportsSuspectId": "suspect.elena_soto",
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.exclude_gavin_holt",
+        "PremiseIds": [
+          "observation.decoy_verification_gavin_holt_call_log"
+        ],
+        "Rule": "Exclusion",
+        "ConclusionFactId": "fact.excluded_gavin_holt",
+        "SupportsSuspectId": "suspect.gavin_holt",
+        "IsCulpritConclusion": false
+      }
+    ],
+    "EventOrderConstraints": [],
+    "TravelWindows": [],
+    "Actions": [],
+    "RequiredSourceIds": [],
+    "RequiredAnalysisIds": []
+  },
+  "EvidenceGraph": {
+    "Claims": [
+      {
+        "ClueId": "clue.asset_context",
+        "Discovery": "The IT inventory sheet lists asset tag \u0022AL-77821\u0022 as \u0022Lenovo ThinkPad T14s Gen 3\u0022 with storage location \u0022IT Cage / Shelf C3\u0022 on the row last saved on 2026-05-13.",
+        "Inference": "The missing item is a specifically identified laptop tied to a specific storage spot, enabling reconciliation against access and ticket records.",
+        "SupportsSuspectId": null,
+        "Strength": "context",
+        "SourceType": "document",
+        "Role": "context",
+        "AssetIds": [
+          "asset.evidence_log",
+          "asset.suspect_interview"
+        ]
+      },
+      {
+        "ClueId": "clue.cage_access_log",
+        "Discovery": "The IT cage reader log shows badge ID ending \u00224421\u0022 granted at \u00222026-05-13 19:12:18\u0022 and again at \u002219:21:09\u0022.",
+        "Inference": "The culprit had physical opportunity during the relevant window, and the repeated access suggests time spent inside consistent with removing an item and adjusting placement/records.",
+        "SupportsSuspectId": "suspect.ryan_abad",
+        "Strength": "supporting",
+        "SourceType": "digital",
+        "Role": "action",
+        "AssetIds": [
+          "asset.access_log"
+        ]
+      },
+      {
+        "ClueId": "clue.badge_to_person",
+        "Discovery": "The building credential directory lists badge ID ending \u00224421\u0022 as assigned to \u0022Ryan Abad\u0022 with department \u0022IT Support\u0022.",
+        "Inference": "The badge used to access the cage can be attributed to a specific suspect with routine reason to be near the cage.",
+        "SupportsSuspectId": "suspect.ryan_abad",
+        "Strength": "supporting",
+        "SourceType": "document",
+        "Role": "identity",
+        "AssetIds": [
+          "asset.suspect_interview"
+        ]
+      },
+      {
+        "ClueId": "clue.no_ticket_for_issue",
+        "Discovery": "Service desk ticket search for asset tag \u0022AL-77821\u0022 returns no results between \u00222026-05-13 00:00\u0022 and \u00222026-05-14 09:00\u0022.",
+        "Inference": "If the laptop was truly issued, the expected issuance workflow record is missing, indicating the inventory \u0027issued\u0027 status may have been used to mask removal.",
+        "SupportsSuspectId": "suspect.ryan_abad",
+        "Strength": "supporting",
+        "SourceType": "digital",
+        "Role": "action",
+        "AssetIds": [
+          "asset.call_log"
+        ]
+      },
+      {
+        "ClueId": "clue.inventory_issued_entry",
+        "Discovery": "The inventory row for \u0022AL-77821\u0022 shows status \u0022Issued\u0022 with \u0022Recipient: Elena Soto\u0022 and \u0022Pickup time: 2026-05-13 19:20\u0022 entered as typed text in the \u0022Sign-out\u0022 cell.",
+        "Inference": "The concealment strategy was to make the laptop appear legitimately issued at a specific time to a real employee, aligning with the access window.",
+        "SupportsSuspectId": null,
+        "Strength": "supporting",
+        "SourceType": "document",
+        "Role": "action",
+        "AssetIds": [
+          "asset.evidence_log",
+          "asset.suspect_interview"
+        ]
+      },
+      {
+        "ClueId": "clue.spreadsheet_version_history",
+        "Discovery": "The file history for \u0022IT_Assets_Q2_2026.xlsx\u0022 shows a save event at \u00222026-05-13 19:18:44\u0022 by user \u0022rabad\u0022.",
+        "Inference": "The person controlling the inventory record during the critical minutes overlaps with the cage access window, tying opportunity to active concealment work by Ryan.",
+        "SupportsSuspectId": "suspect.ryan_abad",
+        "Strength": "decisive",
+        "SourceType": "digital",
+        "Role": "action",
+        "AssetIds": [
+          "asset.bank_statement"
+        ]
+      }
+    ],
+    "RedHerrings": [
+      {
+        "SuspectId": "suspect.elena_soto",
+        "Suspicion": "The inventory row lists Elena Soto as the recipient of the laptop, implying she picked it up.",
+        "Verification": "HR onboarding schedule email lists \u0022Elena Soto\u0022 with start date \u00222026-05-20\u0022 and includes the line \u0022Badge pickup: Day 1, 9:00 AM (Lobby)\u0022.",
+        "Resolution": "If her start date is after the incident, she could not have legitimately received the laptop on 2026-05-13, making her appearance in the inventory row more consistent with someone selecting a plausible name.",
+        "AssetIds": [
+          "asset.suspect_interview"
+        ]
+      },
+      {
+        "SuspectId": "suspect.gavin_holt",
+        "Suspicion": "A loading-corridor door opened after hours, suggesting facilities/security involvement.",
+        "Verification": "The loading-corridor door contact log shows \u0022Door LC-2: OPEN 2026-05-13 19:26:03\u0022 and the facilities duty roster shows \u0022Gavin Holt on call 18:00\u201322:00\u0022.",
+        "Resolution": "Being on call does not establish he operated the door or entered the cage; the stronger linkage is between the cage badge event and the inventory edit, which is not part of Gavin\u2019s routine systems access.",
+        "AssetIds": [
+          "asset.call_log"
+        ]
+      }
+    ]
+  },
+  "SuspectStubs": [
+    {
+      "id": "suspect.ryan_abad",
+      "name": "Ryan Abad",
+      "role": "IT support technician who regularly works inside the locked IT cage.",
+      "isCulprit": true
+    },
+    {
+      "id": "suspect.elena_soto",
+      "name": "Elena Soto",
+      "role": "New hire in marketing awaiting a company laptop assignment.",
+      "isCulprit": false
+    },
+    {
+      "id": "suspect.gavin_holt",
+      "name": "Gavin Holt",
+      "role": "Facilities/security liaison with access to building entry data and after-hours procedures.",
+      "isCulprit": false
+    }
+  ],
+  "SuspectFull": [
+    {
+      "id": "suspect.ryan_abad",
+      "name": "Ryan Abad",
+      "age": 29,
+      "occupation": "IT support technician",
+      "relationship": "Works in the same IT group as Maya Lin and has routine authorized access to the IT cage",
+      "motive": "Ryan knew a quarterly asset audit roster had been posted for the following week and that the specific Lenovo model was being phased out. A boxed unit quietly disappearing while its record looked \u201Cissued\u201D would buy time to resell it before anyone noticed the mismatch.",
+      "alibi": "He says he stayed late to finish after-hours IT cage tasks and then left through the loading corridor because it was closest to the staging area. Badge-reader records can confirm he entered the IT cage at 19:12, but there\u2019s no camera coverage in the loading corridor to independently confirm what he carried out.",
+      "alibiVerified": false,
+      "background": "Ryan Abad is an IT support technician with routine, authorized access to the locked IT cage and the inventory spreadsheet used for manual asset tracking.\n\nOn 2026-05-13, the building access system recorded his badge ID entering the IT cage after hours.\n\nThe asset inventory file for Q2 shows a save in version history the same evening under the username \u0022rabad\u0022."
+    },
+    {
+      "id": "suspect.elena_soto",
+      "name": "Elena Soto",
+      "age": 29,
+      "occupation": "Marketing coordinator (new hire)",
+      "relationship": "Listed as the laptop\u2019s recipient in the IT inventory spreadsheet",
+      "motive": "She is starting soon and would need a company laptop to begin work; seeing her name attached to an issued device could be explained as trying to ensure equipment was ready before her first day. If there was confusion about onboarding, she might have tried to expedite pickup through informal channels rather than waiting for the normal Day 1 process.",
+      "alibi": "She states she was not yet an employee onsite and was at home that evening, communicating with her recruiter about pre-start paperwork. Her start date and badge pickup time are independently confirmed by HR\u2019s onboarding schedule email, though it does not track her location minute-by-minute outside the office.",
+      "alibiVerified": false,
+      "background": "Elena Soto is a marketing new hire scheduled to start on **2026-05-20**, with **badge pickup on Day 1 at 9:00 AM (Lobby)** per the HR onboarding schedule. Her name appears as the typed \u201CRecipient\u201D on the inventory row for asset **AL-77821** with a listed pickup time of **2026-05-13 19:20**. She is not part of IT operations and would normally receive equipment through the standard onboarding issuance process rather than direct access to the IT cage."
+    },
+    {
+      "id": "suspect.gavin_holt",
+      "name": "Gavin Holt",
+      "age": 41,
+      "occupation": "Facilities/security liaison",
+      "relationship": "Manages after-hours procedures and coordinates with IT on secure-area access issues",
+      "motive": "He\u2019s responsible for keeping after-hours building activity low-friction for staff while still meeting security rules, and a reported loss from a locked cage would reflect poorly on his oversight. He also had a practical incentive to avoid an escalation that could trigger tighter controls and extra workload during the upcoming audit period.",
+      "alibi": "He says he was on call from 18:00\u201322:00 and handled facilities requests remotely, including logging into the duty phone system and responding to messages during the evening. The duty roster and call/message records can confirm he was on duty and active, but they don\u2019t independently prove where he was at 19:26 when the loading-corridor door contact recorded an after-hours opening.",
+      "alibiVerified": false,
+      "background": "Serves as the facilities/security point person for after-hours procedures and can review building entry-related data as part of his role. The facilities duty roster lists him as on call from 18:00\u201322:00 on 2026-05-13. The loading-corridor door (LC-2) recorded an open event at 19:26:03 that evening, which falls within his on-call window."
+    }
+  ],
+  "AssetStubs": [
+    {
+      "archetypeId": "access_log",
+      "id": "asset.access_log",
+      "type": "digital",
+      "title": "Building Access-Control Log (IT Cage \u0026 Loading Corridor LC-2) \u2014 2026-05-13",
+      "role": "Provides the timestamped door-reader and door-contact events that frame who had physical opportunity and when an after-hours exit occurred.",
+      "visibility": "initial",
+      "layoutHint": "AccessLog",
+      "supportsClueIds": [
+        "clue.cage_access_log"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [],
+      "introducesRedHerringSuspectIds": [
+        "suspect.gavin_holt"
+      ],
+      "containedObjectIds": [
+        "document.access_log_export_20260513_itcage_lc2",
+        "device.reader_it_cage",
+        "device.door_contact_lc2"
+      ]
+    },
+    {
+      "archetypeId": "evidence_log",
+      "id": "asset.evidence_log",
+      "type": "document",
+      "title": "SPD Evidence Inventory \u0026 Chain-of-Custody \u2014 Initial Collection (IT Cage)",
+      "role": "Anchors what was actually collected on day one (including the inventory sheet printout) so later comparisons can prove whether records were altered to mask the loss.",
+      "visibility": "initial",
+      "layoutHint": "EvidenceLog",
+      "supportsClueIds": [
+        "clue.asset_context",
+        "clue.inventory_issued_entry"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [],
+      "introducesRedHerringSuspectIds": [],
+      "containedObjectIds": [
+        "document.spd_evidence_log_case_graph_rookie_103",
+        "object.printout_it_assets_q2_row_al_77821"
+      ]
+    },
+    {
+      "archetypeId": "call_log",
+      "id": "asset.call_log",
+      "type": "digital",
+      "title": "Service Desk System Export \u2014 Asset Tag Search (AL-77821)",
+      "role": "Shows whether an issuance ticket exists for the laptop, testing if the \u0027Issued\u0027 inventory status reflects a legitimate workflow.",
+      "visibility": "initial",
+      "layoutHint": "CallLog",
+      "supportsClueIds": [
+        "clue.no_ticket_for_issue"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [
+        "suspect.gavin_holt"
+      ],
+      "introducesRedHerringSuspectIds": [],
+      "containedObjectIds": [
+        "document.servicedesk_export_al_77821_search_20260513_20260514",
+        "session.servicedesk_search_al_77821"
+      ]
+    },
+    {
+      "archetypeId": "bank_statement",
+      "id": "asset.bank_statement",
+      "type": "digital",
+      "title": "Microsoft 365 File Version History \u2014 IT_Assets_Q2_2026.xlsx",
+      "role": "Pins the precise timestamp and account that saved changes to the asset spreadsheet during the critical minutes around the cage access.",
+      "visibility": "initial",
+      "layoutHint": "BankStatement",
+      "supportsClueIds": [
+        "clue.spreadsheet_version_history"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [],
+      "introducesRedHerringSuspectIds": [],
+      "containedObjectIds": [
+        "document.m365_version_history_it_assets_q2_2026",
+        "account.m365_user_rabad"
+      ]
+    },
+    {
+      "archetypeId": "suspect_interview",
+      "id": "asset.suspect_interview",
+      "type": "document",
+      "title": "Interview Transcript \u2014 Maya Lin (IT) on Last Verified Sight, Issuance Workflow, and Missing Report",
+      "role": "Establishes the last-seen time and how legitimate sign-outs are supposed to occur, clarifying why a typed \u0027sign-out\u0027 with no ticket is suspicious and why the listed recipient is unlikely.",
+      "visibility": "initial",
+      "layoutHint": "InterviewTranscript",
+      "supportsClueIds": [
+        "clue.badge_to_person",
+        "clue.asset_context",
+        "clue.inventory_issued_entry"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [
+        "suspect.elena_soto"
+      ],
+      "introducesRedHerringSuspectIds": [
+        "suspect.elena_soto"
+      ],
+      "containedObjectIds": [
+        "document.interview_transcript_maya_lin_20260514",
+        "communication.interview_record_maya_lin"
+      ]
+    }
+  ],
+  "AssetFull": [
+    {
+      "id": "asset.access_log",
+      "type": "digital",
+      "title": "Building Access-Control Log (IT Cage \u0026 Loading Corridor LC-2) \u2014 2026-05-13",
+      "description": "Exported access-control events for the IT Cage badge reader and the LC-2 loading-corridor door contact on 2026-05-13. Shows two IT cage badge grants for badge ID ending 4421 and an after-hours LC-2 door open event at 19:26:03.",
+      "visibility": "initial",
+      "category": "Digital",
+      "body": "",
+      "bodyDoc": {
+        "layout": "AccessLog",
+        "language": "en-US",
+        "title": "Building Access-Control Log (IT Cage \u0026 Loading Corridor LC-2) \u2014 2026-05-13",
+        "subtitle": "Reader: IT Cage \u2022 Door Contact: Loading Corridor LC-2 \u2022 Time zone: America/Los_Angeles (UTC\u221207:00)",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_rookie_103"
+          },
+          {
+            "label": "Incident",
+            "value": "The Vanishing Laptop \u2014 Seattle, WA \u2014 2026-05-13"
+          },
+          {
+            "label": "Source System",
+            "value": "Building access-control (badge reader \u002B door contact sensors)"
+          },
+          {
+            "label": "Location Scope",
+            "value": "IT Cage reader \u002B Loading Corridor door LC-2"
+          },
+          {
+            "label": "Generated At",
+            "value": "2026-05-14"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "callout",
+            "heading": "Scope \u0026 identifiers",
+            "text": "- Badge events are recorded by badge ID (only the last four digits are shown in this export).\n- Door-contact events (LC-2) record open/close state only; they do not identify a person.\n- Timestamps below are local time (America/Los_Angeles, UTC\u221207:00).",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Access events (IT Cage reader \u002B LC-2 door contact)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Timestamp",
+                "Source IP",
+                "Method",
+                "Path",
+                "Status"
+              ],
+              "rows": [
+                [
+                  "2026-05-13 19:12:18",
+                  "",
+                  "GRANT",
+                  "IT Cage Reader \u2014 Badge ****4421",
+                  "GRANTED"
+                ],
+                [
+                  "2026-05-13 19:21:09",
+                  "",
+                  "GRANT",
+                  "IT Cage Reader \u2014 Badge ****4421",
+                  "GRANTED"
+                ],
+                [
+                  "2026-05-13 19:26:03",
+                  "",
+                  "SENSOR",
+                  "Door LC-2 (Loading Corridor) \u2014 OPEN",
+                  "OPEN"
+                ]
+              ],
+              "footnote": "Blank Source IP reflects events sourced from on-prem door controllers/sensors where an IP is not included in the exported event row."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- The IT cage reader log shows badge ID ending \u00224421\u0022 granted at \u00222026-05-13 19:12:18\u0022 and again at \u002219:21:09\u0022.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Suspicion indicators",
+            "text": "- A loading-corridor door opened after hours, suggesting facilities/security involvement.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": null
+      }
+    },
+    {
+      "id": "asset.evidence_log",
+      "type": "document",
+      "title": "SPD Evidence Inventory \u0026 Chain-of-Custody \u2014 Initial Collection (IT Cage)",
+      "description": "SPD evidence inventory and chain-of-custody record for items collected from the IT cage following the reported theft. Includes a seized printout of the IT inventory row for asset tag AL-77821 showing its model, storage location, and a typed \u201CIssued\u201D sign-out entry.",
+      "visibility": "initial",
+      "category": "Document",
+      "body": "",
+      "bodyDoc": {
+        "layout": "EvidenceLog",
+        "language": "en-US",
+        "title": "SPD Evidence Inventory \u0026 Chain-of-Custody \u2014 Initial Collection (IT Cage)",
+        "subtitle": "Seattle Police Department (SPD), East Precinct",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_rookie_103"
+          },
+          {
+            "label": "Incident",
+            "value": "Reported missing company laptop from locked IT cage (Seattle, WA)"
+          },
+          {
+            "label": "Incident Date/Time",
+            "value": "2026-05-13 19:18 (America/Los_Angeles)"
+          },
+          {
+            "label": "Opened",
+            "value": "2026-05-14 09:12 (America/Los_Angeles)"
+          },
+          {
+            "label": "Evidence Log Created",
+            "value": "2026-05-14 (America/Los_Angeles)"
+          },
+          {
+            "label": "Custodian",
+            "value": "Seattle Police Department (SPD), East Precinct Property Unit"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "callout",
+            "heading": "Scope of Initial Collection",
+            "text": "This log documents items taken into SPD custody during initial collection related to the reported missing laptop from the IT cage. One item is a paper printout of the relevant inventory spreadsheet row for asset tag **AL-77821**.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Evidence / Chain-of-Custody Table",
+            "text": null,
+            "table": {
+              "columns": [
+                "Item",
+                "Description",
+                "Collected By",
+                "Time",
+                "Location",
+                "Container",
+                "Seal"
+              ],
+              "rows": [
+                [
+                  "1",
+                  "Paper printout: IT inventory spreadsheet row for asset tag **AL-77821**. Row content includes: Model/Type **\u201CLenovo ThinkPad T14s Gen 3\u201D**; Storage location **\u201CIT Cage / Shelf C3\u201D**; Status **\u201CIssued\u201D**; \u201CSign-out\u201D cell contains typed text **\u201CRecipient: Elena Soto\u201D** and **\u201CPickup time: 2026-05-13 19:20\u201D**. Printout notes row was last saved on **2026-05-13**.",
+                  "Det. Kendra Walsh",
+                  "2026-05-14 (time not specified)",
+                  "IT Cage (Seattle, WA)",
+                  "Document sleeve / evidence bag (paper)",
+                  "Sealed (seal number not specified)"
+                ],
+                [
+                  "2",
+                  "SPD evidence inventory \u0026 chain-of-custody form for this collection (original).",
+                  "Det. Kendra Walsh",
+                  "2026-05-14 (time not specified)",
+                  "SPD East Precinct",
+                  "Case file jacket",
+                  "N/A"
+                ]
+              ],
+              "footnote": "Times/identifiers not shown on the provided materials are recorded here as \u201Cnot specified.\u201D Item 1 is preserved as collected for later comparison to the electronic inventory record."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "keyValue",
+            "heading": "Player-Readable Extract (Item 1)",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Asset Tag",
+                "value": "AL-77821"
+              },
+              {
+                "label": "Listed Device",
+                "value": "Lenovo ThinkPad T14s Gen 3"
+              },
+              {
+                "label": "Listed Storage Location",
+                "value": "IT Cage / Shelf C3"
+              },
+              {
+                "label": "Row Last Saved",
+                "value": "2026-05-13"
+              },
+              {
+                "label": "Inventory Status",
+                "value": "Issued"
+              },
+              {
+                "label": "Sign-out Cell (typed text)",
+                "value": "Recipient: Elena Soto; Pickup time: 2026-05-13 19:20"
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- The IT inventory sheet lists asset tag \u0022AL-77821\u0022 as \u0022Lenovo ThinkPad T14s Gen 3\u0022 with storage location \u0022IT Cage / Shelf C3\u0022 on the row last saved on 2026-05-13.\n- The inventory row for \u0022AL-77821\u0022 shows status \u0022Issued\u0022 with \u0022Recipient: Elena Soto\u0022 and \u0022Pickup time: 2026-05-13 19:20\u0022 entered as typed text in the \u0022Sign-out\u0022 cell.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": {
+          "name": "Det. Kendra Walsh",
+          "badge": "",
+          "title": "Detective",
+          "signedAt": "2026-05-14 (time not specified)"
+        }
+      }
+    },
+    {
+      "id": "asset.call_log",
+      "type": "digital",
+      "title": "Service Desk System Export \u2014 Asset Tag Search (AL-77821)",
+      "description": "Exported service desk search results for asset tag AL-77821 covering 2026-05-13 through the morning of 2026-05-14. The log shows a query returning zero matching tickets and includes an entry referencing the LC-2 door-open event and the facilities on-call roster for that evening.",
+      "visibility": "initial",
+      "category": "Communication",
+      "body": "",
+      "bodyDoc": {
+        "layout": "CallLog",
+        "language": "en-US",
+        "title": "Service Desk System Export \u2014 Asset Tag Search (AL-77821)",
+        "subtitle": "Search window: 2026-05-13 00:00 to 2026-05-14 09:00 (America/Los_Angeles)",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_rookie_103"
+          },
+          {
+            "label": "Incident",
+            "value": "The Vanishing Laptop \u2014 Seattle, WA \u2014 2026-05-13"
+          },
+          {
+            "label": "System",
+            "value": "Service Desk (Asset/Incident Ticketing)"
+          },
+          {
+            "label": "Export Source",
+            "value": "document.servicedesk_export_al_77821_search_20260513_20260514"
+          },
+          {
+            "label": "Session",
+            "value": "session.servicedesk_search_al_77821"
+          },
+          {
+            "label": "Generated For",
+            "value": "Seattle Police Department (SPD), East Precinct \u2014 Det. Kendra Walsh"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "narrative",
+            "heading": "Scope",
+            "text": "- Record type: system export of an asset-tag search.\n- Query term: **AL-77821**.\n- Time filter applied in export: **2026-05-13 00:00** through **2026-05-14 09:00** (America/Los_Angeles).",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Service Desk Query Log (exported)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Timestamp",
+                "Direction",
+                "Other Party",
+                "Duration",
+                "Notes"
+              ],
+              "rows": [
+                [
+                  "2026-05-14 08:58",
+                  "System",
+                  "Service Desk Search \u2014 session.servicedesk_search_al_77821",
+                  "",
+                  "Search executed: term **AL-77821**; filters: ticket created/updated between **2026-05-13 00:00** and **2026-05-14 09:00**."
+                ],
+                [
+                  "2026-05-14 08:58",
+                  "System",
+                  "Service Desk Results",
+                  "",
+                  "Result count: **0**. Message: no tickets found matching asset tag **AL-77821** within the selected time window."
+                ],
+                [
+                  "2026-05-14 09:00",
+                  "System",
+                  "Facilities Duty Roster Reference",
+                  "",
+                  "Roster line included in export notes: **Gavin Holt on call 18:00\u201322:00** (date: **2026-05-13**)."
+                ],
+                [
+                  "2026-05-14 09:00",
+                  "System",
+                  "LC-2 Door Contact Reference",
+                  "",
+                  "Referenced event text included in export notes: **Door LC-2: OPEN 2026-05-13 19:26:03**."
+                ]
+              ],
+              "footnote": "This export reflects only what is present in the service desk system for the specified query term and time filter; it does not include access-control data beyond the referenced line items included in the export notes."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Player-readable observation",
+            "text": "Within the export\u2019s stated time window (**2026-05-13 00:00** to **2026-05-14 09:00**), the service desk search for asset tag **AL-77821** returns **zero tickets**.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- Service desk ticket search for asset tag \u0022AL-77821\u0022 returns no results between \u00222026-05-13 00:00\u0022 and \u00222026-05-14 09:00\u0022.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Supporting checks",
+            "text": "- The loading-corridor door contact log shows \u0022Door LC-2: OPEN 2026-05-13 19:26:03\u0022 and the facilities duty roster shows \u0022Gavin Holt on call 18:00\u201322:00\u0022.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": {
+          "name": "Det. Kendra Walsh",
+          "badge": null,
+          "title": "Seattle Police Department (SPD), East Precinct",
+          "signedAt": "2026-05-14T09:12:00-07:00"
+        }
+      }
+    },
+    {
+      "id": "asset.bank_statement",
+      "type": "digital",
+      "title": "Microsoft 365 File Version History \u2014 IT_Assets_Q2_2026.xlsx",
+      "description": "Microsoft 365 version history record for the IT asset inventory spreadsheet. Shows a save event on 2026-05-13 at 19:18:44 by user \u0022rabad\u0022 during the after-hours window relevant to the missing laptop.",
+      "visibility": "initial",
+      "category": "Digital",
+      "body": "",
+      "bodyDoc": {
+        "layout": "BankStatement",
+        "language": "en-US",
+        "title": "Microsoft 365 File Version History \u2014 IT_Assets_Q2_2026.xlsx",
+        "subtitle": "Exported activity record for spreadsheet saves (case_graph_rookie_103)",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_rookie_103"
+          },
+          {
+            "label": "Incident Date",
+            "value": "2026-05-13 (America/Los_Angeles)"
+          },
+          {
+            "label": "Generated By",
+            "value": "Det. Kendra Walsh (Seattle Police Department, East Precinct)"
+          },
+          {
+            "label": "Generated At",
+            "value": "2026-05-14T09:12:00-07:00"
+          },
+          {
+            "label": "Source System",
+            "value": "Microsoft 365 \u00B7 Version History (IT_Assets_Q2_2026.xlsx)"
+          },
+          {
+            "label": "Relevant Account",
+            "value": "rabad (Microsoft 365 user)"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "narrative",
+            "heading": "Scope",
+            "text": "This record reflects Microsoft 365 file version activity for **IT_Assets_Q2_2026.xlsx**. Timestamps are shown in **America/Los_Angeles (UTC\u221207:00)**.\n\nOnly entries relevant to the reported after-hours window are listed here.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Activity (version history entries)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Date",
+                "Description",
+                "Debit",
+                "Credit",
+                "Balance"
+              ],
+              "rows": [
+                [
+                  "2026-05-13 19:18:44",
+                  "Save event recorded in file history for \u0022IT_Assets_Q2_2026.xlsx\u0022 \u2014 User: \u0022rabad\u0022.",
+                  "",
+                  "",
+                  ""
+                ]
+              ],
+              "footnote": "Template layout uses bank-statement columns; non-financial fields are embedded in the Description column. No additional save events were provided in the case draft for this asset."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Player-readable observation",
+            "text": "The file history for **\u0022IT_Assets_Q2_2026.xlsx\u0022** shows a **save event at 2026-05-13 19:18:44** by user **\u0022rabad\u0022**.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- The file history for \u0022IT_Assets_Q2_2026.xlsx\u0022 shows a save event at \u00222026-05-13 19:18:44\u0022 by user \u0022rabad\u0022.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": {
+          "name": "Det. Kendra Walsh",
+          "badge": null,
+          "title": "Seattle Police Department (SPD), East Precinct",
+          "signedAt": "2026-05-14T09:12:00-07:00"
+        }
+      }
+    },
+    {
+      "id": "asset.suspect_interview",
+      "type": "document",
+      "title": "Interview Transcript \u2014 Maya Lin (IT) on Last Verified Sight, Issuance Workflow, and Missing Report",
+      "description": "Transcript of SPD\u2019s interview with IT staffer Maya Lin about the last verified location of asset AL-77821, how laptop issuance is normally documented, and why the inventory entry listing \u201CRecipient: Elena Soto\u201D with a typed pickup time is suspicious. Includes the credential-directory detail tying badge ID ending 4421 to Ryan Abad, and HR onboarding details indicating Elena Soto\u2019s start date is after the incident.",
+      "visibility": "initial",
+      "category": "Document",
+      "body": "",
+      "bodyDoc": {
+        "layout": "InterviewTranscript",
+        "language": "en-US",
+        "title": "Interview Transcript \u2014 Maya Lin (IT) on Last Verified Sight, Issuance Workflow, and Missing Report",
+        "subtitle": "Seattle Police Department (SPD), East Precinct \u2014 Case: The Vanishing Laptop (case_graph_rookie_103)",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_rookie_103"
+          },
+          {
+            "label": "Interview Date/Time",
+            "value": "2026-05-14 (opened 09:12 PT; interview time not recorded on provided copy)"
+          },
+          {
+            "label": "Location",
+            "value": "SPD East Precinct (interview room)"
+          },
+          {
+            "label": "Interviewed",
+            "value": "Maya Lin (IT)"
+          },
+          {
+            "label": "Interviewer",
+            "value": "Det. Kendra Walsh"
+          },
+          {
+            "label": "Reference Window",
+            "value": "Incident timeline anchor: 2026-05-13 19:18 PT"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "transcript",
+            "heading": "Recorded Transcript (Typed)",
+            "text": null,
+            "table": null,
+            "items": null,
+            "transcript": [
+              {
+                "timestamp": "",
+                "speaker": "DET. WALSH",
+                "text": "State your name and role for the record."
+              },
+              {
+                "timestamp": "",
+                "speaker": "MAYA LIN",
+                "text": "Maya Lin. I\u2019m in IT\u2014asset prep and support. I handle laptop staging and our inventory spreadsheet updates for the cage."
+              },
+              {
+                "timestamp": "",
+                "speaker": "DET. WALSH",
+                "text": "What item is missing?"
+              },
+              {
+                "timestamp": "",
+                "speaker": "MAYA LIN",
+                "text": "A company laptop with asset tag AL-77821. The inventory sheet line for it calls it a Lenovo ThinkPad T14s Gen 3 and lists the storage location as \u201CIT Cage / Shelf C3.\u201D The row shows it was last saved on 2026-05-13."
+              },
+              {
+                "timestamp": "",
+                "speaker": "DET. WALSH",
+                "text": "When did you last personally see it in the cage?"
+              },
+              {
+                "timestamp": "",
+                "speaker": "MAYA LIN",
+                "text": "During the afternoon on 05/13 I saw it boxed on Shelf C3. The next morning I checked C3 and it was gone."
+              },
+              {
+                "timestamp": "",
+                "speaker": "DET. WALSH",
+                "text": "Walk me through how a legitimate laptop issuance is supposed to be documented."
+              },
+              {
+                "timestamp": "",
+                "speaker": "MAYA LIN",
+                "text": "Normally there\u2019s a service desk ticket for the request, then we prep the unit, and the spreadsheet gets updated when it\u2019s actually issued. For sign-outs we typically have a person physically present and we capture an acknowledgement. When someone just types a name into the sign-out cell, that\u2019s not how it usually looks when the recipient is actually there."
+              },
+              {
+                "timestamp": "",
+                "speaker": "DET. WALSH",
+                "text": "What does the spreadsheet currently show for AL-77821?"
+              },
+              {
+                "timestamp": "",
+                "speaker": "MAYA LIN",
+                "text": "The row shows status \u201CIssued.\u201D In the sign-out area it has \u201CRecipient: Elena Soto\u201D and it lists \u201CPickup time: 2026-05-13 19:20.\u201D That pickup time is typed text in the cell."
+              },
+              {
+                "timestamp": "",
+                "speaker": "DET. WALSH",
+                "text": "Do you recognize Elena Soto?"
+              },
+              {
+                "timestamp": "",
+                "speaker": "MAYA LIN",
+                "text": "I recognized the name because she\u2019s on the onboarding list, but I haven\u2019t met her in person."
+              },
+              {
+                "timestamp": "",
+                "speaker": "DET. WALSH",
+                "text": "Do you have anything showing whether Elena Soto could have legitimately picked up a laptop on 05/13?"
+              },
+              {
+                "timestamp": "",
+                "speaker": "MAYA LIN",
+                "text": "HR sent an onboarding schedule email. It lists Elena Soto\u2019s start date as 2026-05-20. It also includes a line that says, \u201CBadge pickup: Day 1, 9:00 AM (Lobby).\u201D So she shouldn\u2019t have had a badge or be doing a pickup on 05/13."
+              },
+              {
+                "timestamp": "",
+                "speaker": "DET. WALSH",
+                "text": "Who has access to the cage and these records?"
+              },
+              {
+                "timestamp": "",
+                "speaker": "MAYA LIN",
+                "text": "IT support staff have authorized access. The access-control badges are individual. Also, the building has a credential directory for badge assignments."
+              },
+              {
+                "timestamp": "",
+                "speaker": "DET. WALSH",
+                "text": "Did you check the credential directory for the badge involved in the after-hours cage access?"
+              },
+              {
+                "timestamp": "",
+                "speaker": "MAYA LIN",
+                "text": "Yes. The credential directory entry I saw lists badge ID ending \u201C4421\u201D assigned to Ryan Abad, department \u201CIT Support.\u201D"
+              },
+              {
+                "timestamp": "",
+                "speaker": "DET. WALSH",
+                "text": "To be clear, your concern with the spreadsheet entry is the \u201CIssued\u201D status and the typed sign-out fields?"
+              },
+              {
+                "timestamp": "",
+                "speaker": "MAYA LIN",
+                "text": "Yes. Seeing \u201CIssued\u201D with \u201CRecipient: Elena Soto\u201D and a typed pickup time\u20142026-05-13 19:20\u2014doesn\u2019t match how it usually looks when we hand someone a device. And with her start date being 05/20, it doesn\u2019t make sense as a real pickup on 05/13."
+              },
+              {
+                "timestamp": "",
+                "speaker": "DET. WALSH",
+                "text": "How did you report the missing device?"
+              },
+              {
+                "timestamp": "",
+                "speaker": "MAYA LIN",
+                "text": "The morning of 05/14 I reported that AL-77821 was missing from Shelf C3 and escalated it to facilities and SPD."
+              }
+            ],
+            "code": null
+          },
+          {
+            "kind": "keyValue",
+            "heading": "Player-Readable Extracts Referenced in Interview",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Missing asset (per inventory sheet)",
+                "value": "Asset tag AL-77821 \u2014 \u201CLenovo ThinkPad T14s Gen 3\u201D \u2014 Storage: \u201CIT Cage / Shelf C3\u201D \u2014 Row last saved on 2026-05-13"
+              },
+              {
+                "label": "Inventory \u201CIssued\u201D entry (per spreadsheet row described)",
+                "value": "Status: \u201CIssued\u201D; Sign-out cell contains typed text: \u201CRecipient: Elena Soto\u201D; \u201CPickup time: 2026-05-13 19:20\u201D"
+              },
+              {
+                "label": "Credential directory (badge assignment described)",
+                "value": "Badge ID ending \u201C4421\u201D assigned to \u201CRyan Abad\u201D \u2014 Department: \u201CIT Support\u201D"
+              },
+              {
+                "label": "HR onboarding schedule email (as cited by witness)",
+                "value": "Elena Soto start date: 2026-05-20; includes line: \u201CBadge pickup: Day 1, 9:00 AM (Lobby)\u201D"
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Notes on Record Quality",
+            "text": "This transcript is a typed rendition. Several prompts/responses reference documents (inventory sheet row, credential directory entry, and HR onboarding schedule email) by their visible text fields; exact email subject line and timestamp are not included on the provided copy.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- The IT inventory sheet lists asset tag \u0022AL-77821\u0022 as \u0022Lenovo ThinkPad T14s Gen 3\u0022 with storage location \u0022IT Cage / Shelf C3\u0022 on the row last saved on 2026-05-13.\n- The building credential directory lists badge ID ending \u00224421\u0022 as assigned to \u0022Ryan Abad\u0022 with department \u0022IT Support\u0022.\n- The inventory row for \u0022AL-77821\u0022 shows status \u0022Issued\u0022 with \u0022Recipient: Elena Soto\u0022 and \u0022Pickup time: 2026-05-13 19:20\u0022 entered as typed text in the \u0022Sign-out\u0022 cell.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Suspicion indicators",
+            "text": "- The inventory row lists Elena Soto as the recipient of the laptop, implying she picked it up.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Supporting checks",
+            "text": "- HR onboarding schedule email lists \u0022Elena Soto\u0022 with start date \u00222026-05-20\u0022 and includes the line \u0022Badge pickup: Day 1, 9:00 AM (Lobby)\u0022.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": {
+          "name": "Det. Kendra Walsh",
+          "badge": "",
+          "title": "Detective",
+          "signedAt": "2026-05-14"
+        }
+      }
+    }
+  ],
+  "ResultAssets": [],
+  "Timeline": [
+    {
+      "time": "2026-05-13T16:42:00-07:00",
+      "event": "IT staff report that the missing laptop was present in the cage earlier that afternoon during routine work.",
+      "source": "witness",
+      "verified": false,
+      "importance": "medium"
+    },
+    {
+      "time": "2026-05-13T19:12:18-07:00",
+      "event": "Badge logs show an authorized IT-cage entry at 7:12 PM by an IT staff credential.",
+      "source": "sensor",
+      "verified": true,
+      "importance": "high"
+    },
+    {
+      "time": "2026-05-13T19:26:03-07:00",
+      "event": "A loading-corridor door contact shows an after-hours exit at 7:26 PM.",
+      "source": "sensor",
+      "verified": true,
+      "importance": "medium"
+    },
+    {
+      "time": "2026-05-14T08:37:00-07:00",
+      "event": "At 8:37 AM, IT reported a company laptop missing from the locked IT cage during the prior evening.",
+      "source": "witness",
+      "verified": true,
+      "importance": "critical"
+    }
+  ],
+  "TemporalEvents": [],
+  "AnalysisTypes": [],
+  "ForensicStubs": [],
+  "ForensicFull": [],
+  "ResultEmails": [],
+  "Briefing": {
+    "from": "Seattle Police Department (SPD), East Precinct",
+    "subject": "Assignment: The Vanishing Laptop (Company IT cage theft)",
+    "body": "Det. Walsh,\n\nSPD East Precinct opened a theft case after a company-issued laptop (asset tag AL-77821; Lenovo ThinkPad T14s Gen 3) was reported missing from a locked IT cage after hours. The inventory record for that asset shows an \u201CIssued\u201D status with \u201CRecipient: Elena Soto\u201D and a pickup time entered as typed text, and the service desk export shows no corresponding ticket activity for the asset during the relevant period.\n\nAccess-control records show an authorized IT-cage badge entry that evening tied to a credential assigned to Ryan Abad (IT Support). Microsoft 365 version history for the IT asset spreadsheet also reflects a save event that night by the user account \u201Crabad,\u201D indicating the inventory record was actively modified around the window of after-hours cage access.\n\nWhat remains uncertain is the precise chain of custody after the laptop left the cage and whether any additional persons or policy gaps facilitated removal. A separate loading-corridor door contact shows an after-hours door opening during the same general period; facilities on-call coverage (Gavin Holt) overlaps that window, but current information does not establish his entry to the cage or handling of the asset.\n\nThis matters now because the report was made the next morning and the documentation trail is already showing potential manipulation (issued entry without workflow support). Immediate investigative objective: lock down and reconcile the access logs, spreadsheet version history, and service desk records to establish an evidentiary timeline for physical access versus administrative changes, and identify the most actionable interview and recovery steps to locate AL-77821 and preserve chain-of-custody."
+  },
+  "FollowUpEmails": [
+    {
+      "id": "email.maya_lin_missing_report",
+      "from": "Maya Lin \u003Cmaya.lin@company.example\u003E",
+      "subject": "Missing asset AL-77821 reported from IT Cage / Shelf C3 (morning discovery)",
+      "body": "Det. Kendra Walsh,\n\nI\u2019m the IT staffer who reported the missing laptop. At 08:37 on 2026-05-14 I opened the IT cage for morning tasks and noticed the boxed Lenovo ThinkPad T14s Gen 3 with asset tag AL-77821 was not on IT Cage / Shelf C3 where it should have been.\n\nFor context: during an end-of-day spot check the prior afternoon (2026-05-13) I visually verified the boxed unit was present on shelf C3.\n\nAlso noting our normal issuance workflow: we expect a service desk ticket and a handoff record when a device is issued; a typed name and time entered in the spreadsheet without a ticket is not normal.\n\n\u2014Maya Lin",
+      "sentAt": "2026-05-14T09:26:00-07:00",
+      "priority": null,
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.facilities_preservation_lc2",
+      "from": "Facilities Duty Desk \u003Cfacilities.duty@company.example\u003E",
+      "subject": "Preservation notice: LC-2 loading corridor door contact \u002B access-control export for 2026-05-13",
+      "body": "Det. Kendra Walsh,\n\nPer your request, we are preserving the building access-control export covering the IT Cage badge reader and the LC-2 loading-corridor door contact for 2026-05-13.\n\nReminder of what\u2019s in that export: IT cage reader shows badge ID ending 4421 granted at 2026-05-13 19:12:18 and again at 19:21:09. The LC-2 door contact shows an OPEN event at 2026-05-13 19:26:03.\n\nWe have not altered any configurations on the reader_it_cage or door_contact_lc2 devices since the report.\n\n\u2014Facilities Duty Desk",
+      "sentAt": "2026-05-14T10:02:00-07:00",
+      "priority": null,
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.servicedesk_zero_tickets",
+      "from": "Service Desk Operations \u003Cservicedesk.ops@company.example\u003E",
+      "subject": "Service desk search results for asset tag AL-77821 (no tickets in window)",
+      "body": "Det. Kendra Walsh,\n\nConfirming what we found on the service desk side: a search for asset tag AL-77821 returned zero matching tickets between 2026-05-13 00:00 and 2026-05-14 09:00.\n\nGiven our normal process, an issuance (or replacement) should have generated a ticket tied to the asset tag, so the absence of any record in that timeframe is unusual.\n\n\u2014Service Desk Operations",
+      "sentAt": "2026-05-14T10:18:00-07:00",
+      "priority": null,
+      "attachments": [],
+      "visibility": "initial"
+    }
+  ],
+  "Rules": [],
+  "RequiredEvidenceIds": [
+    "asset.access_log",
+    "asset.bank_statement",
+    "asset.call_log"
+  ],
+  "RequiredAnalysisIds": [],
+  "QuestionTopics": [
+    {
+      "id": "q.badge_access_times",
+      "topic": "What after-hours times were recorded for the IT Cage badge grants and the LC-2 loading-corridor door opening on 2026-05-13?",
+      "weight": 0.35,
+      "supportingEvidenceIds": [
+        "asset.access_log"
+      ]
+    },
+    {
+      "id": "q.spreadsheet_save_actor_time",
+      "topic": "Which account saved the IT_Assets_Q2_2026.xlsx spreadsheet during the incident window, and at what time?",
+      "weight": 0.35,
+      "supportingEvidenceIds": [
+        "asset.bank_statement"
+      ]
+    },
+    {
+      "id": "q.no_ticket_for_asset",
+      "topic": "What did the service desk asset-tag search for AL-77821 show within the export window (tickets found vs. none)?",
+      "weight": 0.3,
+      "supportingEvidenceIds": [
+        "asset.call_log"
+      ]
+    }
+  ],
+  "Questions": [
+    {
+      "id": "q.badge_access_times",
+      "prompt": "What after-hours times were logged for the IT Cage badge grants and LC-2 door opening on 2026-05-13?",
+      "options": [
+        {
+          "id": "opt.191218_192109_192603",
+          "label": "IT Cage grants at 19:12:18 and 19:21:09; LC-2 door OPEN at 19:26:03"
+        },
+        {
+          "id": "opt.191109_192118_192603",
+          "label": "IT Cage grants at 19:11:09 and 19:21:18; LC-2 door OPEN at 19:26:03"
+        },
+        {
+          "id": "opt.191218_192603_192109",
+          "label": "IT Cage grants at 19:12:18 and 19:26:03; LC-2 door OPEN at 19:21:09"
+        },
+        {
+          "id": "opt.191203_192109_192618",
+          "label": "IT Cage grants at 19:12:03 and 19:21:09; LC-2 door OPEN at 19:26:18"
+        }
+      ],
+      "correctOptionId": "opt.191218_192109_192603",
+      "weight": 0.35
+    },
+    {
+      "id": "q.spreadsheet_save_actor_time",
+      "prompt": "Which account saved IT_Assets_Q2_2026.xlsx during the incident window, and at what time?",
+      "options": [
+        {
+          "id": "opt.rabad_191844",
+          "label": "Account rabad at 2026-05-13 19:18:44"
+        },
+        {
+          "id": "opt.rabad_192044",
+          "label": "Account rabad at 2026-05-13 19:20:44"
+        },
+        {
+          "id": "opt.m365_admin_191844",
+          "label": "Account m365_admin at 2026-05-13 19:18:44"
+        },
+        {
+          "id": "opt.it_support_shared_191844",
+          "label": "Account it_support_shared at 2026-05-13 19:18:44"
+        }
+      ],
+      "correctOptionId": "opt.rabad_191844",
+      "weight": 0.35
+    },
+    {
+      "id": "q.no_ticket_for_asset",
+      "prompt": "Within the export window, what did the service desk asset-tag search for AL-77821 show?",
+      "options": [
+        {
+          "id": "opt.zero_tickets_found",
+          "label": "Zero tickets found for AL-77821 in the selected time window"
+        },
+        {
+          "id": "opt.one_ticket_found",
+          "label": "One matching ticket found for AL-77821 in the selected time window"
+        },
+        {
+          "id": "opt.multiple_tickets_found",
+          "label": "Multiple matching tickets found for AL-77821 in the selected time window"
+        },
+        {
+          "id": "opt.results_uncertain",
+          "label": "Results were inconclusive due to missing export data"
+        }
+      ],
+      "correctOptionId": "opt.zero_tickets_found",
+      "weight": 0.3
+    }
+  ],
+  "Explanation": "Maya last saw AL-77821 on shelf C3, then after hours someone with IT-cage access removed it and tried to make the spreadsheet show a legitimate issuance. The cage reader logged badge 4421 entering at 19:12, and the credential directory ties that badge to Ryan Abad, placing him at the secure storage during the theft window. Independently, Microsoft 365 version history shows the inventory file was saved at 19:18 by user \u201Crabad,\u201D matching the suspicious typed \u201CIssued / Recipient: Elena Soto / 19:20\u201D entry and indicating deliberate concealment rather than a normal handoff. The decisive contradiction is workflow-based: the service desk search shows no ticket for AL-77821 in the relevant period, so a real issuance wasn\u2019t processed even though the spreadsheet claims it was. The forensic limitation is that access logs and file history prove Ryan\u2019s badge and account activity, not that he physically carried the laptop out\u2014but the combined timing and concealment behavior triangulate him as the only consistent actor. The strongest red herrings collapse: Elena Soto is listed as recipient, yet HR shows she hadn\u2019t started and couldn\u2019t have picked it up, and the LC-2 door opening plus Gavin Holt being on call doesn\u2019t connect him to cage entry or the spreadsheet edit.",
+  "SolverTrace": {
+    "Entries": [
+      {
+        "Sequence": 1,
+        "Kind": 0,
+        "ActionId": "inspect:asset.access_log",
+        "TargetId": "asset.access_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 2,
+        "Kind": 0,
+        "ActionId": "inspect:asset.bank_statement",
+        "TargetId": "asset.bank_statement",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 3,
+        "Kind": 0,
+        "ActionId": "inspect:asset.call_log",
+        "TargetId": "asset.call_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 4,
+        "Kind": 0,
+        "ActionId": "inspect:asset.evidence_log",
+        "TargetId": "asset.evidence_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 5,
+        "Kind": 0,
+        "ActionId": "inspect:asset.suspect_interview",
+        "TargetId": "asset.suspect_interview",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 6,
+        "Kind": 0,
+        "ActionId": "inspect:email.facilities_preservation_lc2",
+        "TargetId": "email.facilities_preservation_lc2",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 7,
+        "Kind": 0,
+        "ActionId": "inspect:email.maya_lin_missing_report",
+        "TargetId": "email.maya_lin_missing_report",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 8,
+        "Kind": 0,
+        "ActionId": "inspect:email.servicedesk_zero_tickets",
+        "TargetId": "email.servicedesk_zero_tickets",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 9,
+        "Kind": 4,
+        "ActionId": "accuse:suspect.ryan_abad",
+        "TargetId": "suspect.ryan_abad",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": [
+          "observation.badge_to_person_suspect_interview",
+          "observation.cage_access_log_access_log",
+          "observation.decoy_suspicion_gavin_holt_access_log",
+          "observation.decoy_verification_gavin_holt_call_log",
+          "observation.no_ticket_for_issue_call_log",
+          "observation.spreadsheet_version_history_bank_statement"
+        ]
+      },
+      {
+        "Sequence": 10,
+        "Kind": 5,
+        "ActionId": "answer:q.badge_access_times",
+        "TargetId": "q.badge_access_times",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 11,
+        "Kind": 5,
+        "ActionId": "answer:q.no_ticket_for_asset",
+        "TargetId": "q.no_ticket_for_asset",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 12,
+        "Kind": 5,
+        "ActionId": "answer:q.spreadsheet_save_actor_time",
+        "TargetId": "q.spreadsheet_save_actor_time",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      }
+    ],
+    "FinalReachableSourceIds": [
+      "asset.access_log",
+      "asset.bank_statement",
+      "asset.call_log",
+      "asset.evidence_log",
+      "asset.suspect_interview",
+      "email.facilities_preservation_lc2",
+      "email.maya_lin_missing_report",
+      "email.servicedesk_zero_tickets"
+    ],
+    "FinalReachableObservationIds": [
+      "observation.asset_context_evidence_log",
+      "observation.asset_context_suspect_interview",
+      "observation.badge_to_person_suspect_interview",
+      "observation.cage_access_log_access_log",
+      "observation.decoy_suspicion_elena_soto_suspect_interview",
+      "observation.decoy_suspicion_gavin_holt_access_log",
+      "observation.decoy_verification_elena_soto_suspect_interview",
+      "observation.decoy_verification_gavin_holt_call_log",
+      "observation.inventory_issued_entry_evidence_log",
+      "observation.inventory_issued_entry_suspect_interview",
+      "observation.no_ticket_for_issue_call_log",
+      "observation.spreadsheet_version_history_bank_statement"
+    ],
+    "LogicalProofPassed": true,
+    "NarrativeSimulationPassed": true
+  }
+}

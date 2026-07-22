@@ -28,6 +28,7 @@ export interface User {
   position?: string
   badgeNumber?: string
   emailVerified: boolean
+  roles?: string[]
 }
 
 export interface Case {
@@ -111,7 +112,7 @@ export interface GeneratePoliceEmailResponse {
 
 // (Legacy v1 generation request shapes were here; replaced by the v2 GenerateCaseRequest below the new caseGenerationApi.)
 
-class ApiError extends Error {
+export class ApiError extends Error {
   public status: number
   
   constructor(status: number, message: string) {
@@ -123,11 +124,27 @@ class ApiError extends Error {
 
 // Token management
 const TOKEN_KEY = 'casezero_token'
+const USER_KEY = 'casezero_user'
 
 export const tokenStorage = {
   get: () => localStorage.getItem(TOKEN_KEY),
   set: (token: string) => localStorage.setItem(TOKEN_KEY, token),
   remove: () => localStorage.removeItem(TOKEN_KEY)
+}
+
+export const userStorage = {
+  get: (): User | null => {
+    const value = localStorage.getItem(USER_KEY)
+    if (!value) return null
+    try {
+      return JSON.parse(value) as User
+    } catch {
+      localStorage.removeItem(USER_KEY)
+      return null
+    }
+  },
+  set: (user: User) => localStorage.setItem(USER_KEY, JSON.stringify(user)),
+  remove: () => localStorage.removeItem(USER_KEY)
 }
 
 // Base fetch function with token handling
@@ -184,9 +201,12 @@ export const authApi = {
     
     // Store the token
     tokenStorage.set(response.token)
+    userStorage.set(response.user)
     
     return response
   },
+
+  me: async (): Promise<User> => apiFetch('/auth/me'),
   
   register: async (userData: RegisterRequest): Promise<{ message: string, policeEmail: string, personalEmail: string }> => {
     return apiFetch('/auth/register', {
@@ -221,6 +241,7 @@ export const authApi = {
   
   logout: () => {
     tokenStorage.remove()
+    userStorage.remove()
   },
   
   isAuthenticated: () => {
@@ -365,10 +386,25 @@ export interface GenerateCaseStartResponse {
   statusUri: string
 }
 
+export type GenerationStageStatus = 'pending' | 'running' | 'completed' | 'skipped' | 'failed'
+
+export interface GenerationStageProgress {
+  id: string
+  status: GenerationStageStatus
+  attempt: number
+  startedAt?: string | null
+  completedAt?: string | null
+  durationMs?: number | null
+}
+
 export interface GenerateCaseStatus {
   jobId: string
   status: 'queued' | 'running' | 'done' | 'failed'
   currentPhase?: string | null
+  currentStageId?: string | null
+  pipelineVersion?: string | null
+  progressPercent?: number | null
+  stages?: GenerationStageProgress[] | null
   runtimeStatus?: string
   createdAt?: string
   lastUpdatedAt?: string
@@ -389,6 +425,18 @@ export interface GenerateCaseStatus {
     RefineErrorsBefore?: number
     RefineErrorsAfter?: number
     RefineIterations?: number
+    CaseGraphEnabled?: boolean
+    GraphValidationPassed?: boolean
+    FirstPassSuccess?: boolean
+    RepairPlateauCount?: number
+    RepairOperationCount?: number
+    SolverSucceeded?: boolean
+    SpecialistFindingsByCategory?: Record<string, number>
+    FinalValidation?: {
+      Score?: number
+      Passed?: boolean
+      Issues?: Array<{ Blocking?: boolean }>
+    } | null
     RedTeamVerdict?: string | null
     RedTeamVerdictInitial?: string | null
     RedTeamVerdictTrajectory?: string[] | null
@@ -828,5 +876,3 @@ export const inboxApi = {
   markRead: async (id: number): Promise<void> =>
     apiFetch(`/inbox/${id}/read`, { method: 'POST' }),
 }
-
-export { ApiError }

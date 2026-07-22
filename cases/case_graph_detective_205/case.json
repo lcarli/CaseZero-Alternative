@@ -1,0 +1,455 @@
+{
+  "version": "2.0",
+  "caseId": "case_graph_detective_205",
+  "metadata": {
+    "title": "The Vanishing Receipts",
+    "description": "A mid-level finance employee is found dead shortly after flagging suspicious expense reimbursements. The case hinges on access logs and subtle document metadata left behind in routine office systems.",
+    "location": "Portland, Oregon, USA",
+    "incidentDate": "2026-03-12T19:18:00-07:00",
+    "openedAt": "2026-03-13T09:05:00-07:00",
+    "difficulty": "Detective",
+    "requiredRank": "Detective",
+    "category": "Homicide / Workplace Fraud",
+    "briefing": "Portland Police respond to a death in a finance office after-hours, days after an internal expense audit started turning up altered receipts. Someone used ordinary office access and everyday file workflows to hide a trail\u2014until a single overlooked metadata artifact ties it together.",
+    "tags": [
+      "expense_fraud",
+      "access_logs",
+      "document_metadata",
+      "workplace",
+      "digital_forensics"
+    ],
+    "unlockMode": "gated",
+    "estimatedDurationMinutes": 90
+  },
+  "assets": [
+    {
+      "id": "asset.witness_statement",
+      "type": "document",
+      "title": "Witness Statement: Morning Discovery in Copy/Records Room",
+      "description": "Sworn statement from a finance staff member describing the 2026-03-13 morning discovery in the copy/records room, including immediate scene observations and what was seen on the FIN-WS-03 workstation. Notes include the shared reimbursement folder path and a visible modified-time window for Packet_0312 receipt PDFs (19:26\u201319:31 on 2026-03-12).",
+      "uri": "case://case_graph_detective_205/assets/witness_statement.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.medical_report",
+      "type": "document",
+      "title": "Preliminary Medical Examiner Report (Field/Intake)",
+      "description": "A preliminary medical examiner intake report documenting the victim\u2019s condition at the scene and early external findings. It provides an initial estimated window of death and notes injuries and signs consistent with asphyxial mechanisms, pending full autopsy and laboratory testing.",
+      "uri": "case://case_graph_detective_205/assets/medical_report.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.bank_statement",
+      "type": "digital",
+      "title": "Bank Statement Extract: Jordan Kim (Recent Activity)",
+      "description": "Recent activity extract for a checking account ending in 2291 associated with Jordan Kim. The listing highlights routine and irregularly timed transactions around 2026-03-12 that could be read as financial pressure relevant to the reimbursement dispute context.",
+      "uri": "case://case_graph_detective_205/assets/bank_statement.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.access_log",
+      "type": "digital",
+      "title": "Access Control Logs: Badge Entry \u002B Facilities Change Ticket Audit",
+      "description": "Extracted access-control records showing an after-hours badge entry into the finance suite and a related Facilities change ticket audit entry. Includes the badge assignment for BK-44719 and a narrowly scoped permission-extension ticket (FAC-11802) recorded under the Facilities admin username.",
+      "uri": "case://case_graph_detective_205/assets/access_log.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.receipt",
+      "type": "document",
+      "title": "Packet_0312 Receipt: Hotel_Receipt.pdf (Modified Copy Printout)",
+      "description": "A printed copy of the modified Hotel_Receipt.pdf from the Packet_0312 reimbursement folder, showing itemized lodging charges and embedded PDF document properties. The printout preserves the Author, Producer, and CreationDate metadata captured from the file at review time.",
+      "uri": "case://case_graph_detective_205/assets/receipt.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.gps_track",
+      "type": "digital",
+      "title": "Remote Activity Track: VPN Session Window \u002B File Share Audit View",
+      "description": "Extracted remote-access timing for account \u0022mreed\u0022 alongside a file share audit view of after-hours changes inside Finance\\Reimbursements\\Q1\\Packet_0312. Shows two overwrite events attributed to user \u0022SYNC-SVC\u0022 with session token \u0022S-9c2f1\u0022 occurring after the recorded VPN disconnect.",
+      "uri": "case://case_graph_detective_205/assets/gps_track.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.personal_letter",
+      "type": "document",
+      "title": "IT Asset Inventory Memo: FIN-WS-03 Assignment \u0026 Hardware ID",
+      "description": "An internal IT note documenting the assigned location and hardware identifiers for workstation FIN-WS-03. It places the device in the finance suite copy/records room and records its wired MAC suffix.",
+      "uri": "case://case_graph_detective_205/assets/personal_letter.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "type": "pdf",
+      "title": "Forensic Timeline Correlation Report: Session Token to Endpoint (S-9c2f1 \u2192 10.44.8.23 / :7B:19)",
+      "description": "Time-aligned correlation report linking file-server session token S-9c2f1 to source IP 10.44.8.23 and a DHCP lease mapping that IP to MAC suffix :7B:19 during the 2026-03-12 after-hours overwrite window. Includes key timestamps from the submitted VPN/file-share extract and limitations regarding clock drift and identity attribution.",
+      "uri": "case://case_graph_detective_205/assets/report_timeline_correlation_gps_track_vpn_extract_20260312.pdf",
+      "visibility": "hidden",
+      "category": "Document"
+    }
+  ],
+  "emails": [
+    {
+      "id": "email.briefing",
+      "from": "Portland Police Bureau (PPB), Detective Division",
+      "to": [
+        "Det. Kira Leland \u003Ckira.leland@portlandoregon.gov\u003E"
+      ],
+      "subject": "Assignment: The Vanishing Receipts \u2014 Homicide / Workplace Fraud (case_graph_detective_205)",
+      "body": "Det. Leland \u2014 We\u2019re investigating the death of a mid-level finance employee discovered unresponsive in the finance suite copy/records room the morning after she indicated reimbursements would be frozen pending audit reconciliation. The case presents as Homicide / Workplace Fraud with potential post-incident document manipulation in routine office systems.\n\nWhat we can currently place with records: after-hours badge entry into the finance suite consistent with the relevant window, and file server audit activity showing overwrites within a shared reimbursement packet folder (including receipt PDFs) shortly after business hours. The modified receipt printout retains PDF properties (Author string, Producer, and creation date) that may indicate who generated the altered version.\n\nWhat remains uncertain: exact movements inside the suite, the victim\u2019s last confirmed interactions, and whether the overwrite activity reflects deliberate concealment, opportunistic cleanup, or an automated/authorized workflow executed at an unusual time. We also need to clarify how access extensions were requested/approved and whether any account use could reflect credential sharing or a staged trail.\n\nWhy this matters now: the apparent convergence of a reimbursement \u201Cfreeze\u201D message, after-hours access, and near-immediate changes to Packet_0312 creates a narrow, time-sensitive opportunity to preserve and interpret volatile logs and office system artifacts before routine retention and sync cycles degrade them.\n\nImmediate objective: lock down and reconcile access-control entries, file server audit events, and the workstation attribution indicators tied to the copy/records room device, then use that timeline to prioritize interviews (facilities/admin, finance leadership, AP) and determine who had the opportunity and means to be in the room and alter the packet during the critical window.",
+      "sentAt": "2026-03-13T09:05:00-07:00",
+      "priority": "urgent",
+      "attachments": [
+        "asset.witness_statement",
+        "asset.medical_report"
+      ],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.lena_park_scene_hold",
+      "from": "lena.park@ppb.portlandoregon.gov",
+      "to": [
+        "Det. Kira Leland \u003Ckira.leland@portlandoregon.gov\u003E"
+      ],
+      "subject": "Copy/Records Room scene status \u002B preservation request (case_graph_detective_205)",
+      "body": "Det. Leland,\n\nI\u2019m the first PPB patrol supervisor who arrived after the 07:22 call on 2026-03-13. The copy/records room within the finance suite was treated as a restricted area on arrival; staff were told to stay out and not touch the workstation labeled FIN-WS-03, the printer/scanner, or any papers in the room.\n\nFacilities was instructed not to power down or move any equipment from that room pending detectives\u2019 review. The door to the finance suite was controlled while we waited for detectives.\n\n\u2014Sgt. Lena Park\nPortland Police Bureau (PPB)",
+      "sentAt": "2026-03-13T09:18:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.alicia_nguyen_finance_observation",
+      "from": "alicia.nguyen@company.example",
+      "to": [
+        "Det. Kira Leland \u003Ckira.leland@portlandoregon.gov\u003E"
+      ],
+      "subject": "What I saw on FIN-WS-03 during the 07:22 discovery",
+      "body": "Detective,\n\nI\u2019m the finance staff member who found her at about 07:22 on 2026-03-13 in the copy/records room.\n\nBefore we realized it was an emergency, I glanced at the workstation screen (the one labeled FIN-WS-03). A File Explorer window was already open to the shared folder path \u201CFinance\\Reimbursements\\Q1\\Packet_0312.\u201D I also remember seeing file modified times for receipts clustered around 19:26\u201319:31 on 2026-03-12.\n\nAfter I saw her, I backed out and called 911; I didn\u2019t touch the keyboard or mouse.\n\nAlicia Nguyen",
+      "sentAt": "2026-03-13T09:33:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.colin_hart_fac_ticket_context",
+      "from": "colin.hart@facilitiesvendor.example",
+      "to": [
+        "Det. Kira Leland \u003Ckira.leland@portlandoregon.gov\u003E"
+      ],
+      "subject": "FAC-11802 context: after-hours access extension for BK-44719",
+      "body": "PPB,\n\nRe: badge access questions. I\u2019m Colin Hart (Facilities/security contractor). I can confirm the change ticket \u201CFAC-11802\u201D was used to extend after-hours access for badge \u201CBK-44719\u201D only. The work was performed under my admin username \u201Cchart\u201D and shows an approval timestamp of 2026-03-11 14:06 with the logged action at 2026-03-11 14:09:33.\n\nThis was requested as a temporary exception for a late deliverable and was not a broad change to the suite\u2019s access rules.\n\nColin Hart",
+      "sentAt": "2026-03-13T10:02:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.lab_timeline_correlation_gps_track_vpn_extract_20260312",
+      "from": "PPB Digital Forensics Unit \u003Cdfu@portlandoregon.gov\u003E",
+      "to": [
+        "Det. Kira Leland \u003Ckira.leland@portlandoregon.gov\u003E"
+      ],
+      "subject": "DFU Report (Timeline Correlation): S-9c2f1 session token \u2192 10.44.8.23 / :7B:19 (case_graph_detective_205)",
+      "body": "Detective Leland,\n\nPer request, we completed a **timeline correlation** on the submitted log extract (**document.vpn_log_extract_mreed_20260312**, from **asset.gps_track**) and aligned the key after-hours activity entries to the correlated session authentication/DHCP mapping associated with the overwrite session token.\n\nIn the submitted file-share audit view, the folder **Finance\\\\Reimbursements\\\\Q1\\\\Packet_0312** shows a modification burst window between **2026-03-12 19:26** and **19:31**. Within that window, the audit log records two overwrite events by service user **SYNC-SVC** with session token **S-9c2f1**: **Hotel_Receipt.pdf** at **2026-03-12 19:28:11** and **Mileage_Log.pdf** at **2026-03-12 19:29:03**.\n\nThe correlated security/DHCP data for this analysis associates **session token S-9c2f1** with an authentication from **source IP 10.44.8.23** at **2026-03-12 19:27:49**, and shows DHCP mapping **10.44.8.23** to a MAC ending **:7B:19** with lease start **2026-03-12 18:50:00**. This supports linkage of the overwrite session activity to a specific internal endpoint identity (IP\u2192MAC) during the relevant timeframe.\n\nPlease note the stated limitations: **independent clock sources may drift or use different time zones**, and **temporal correlation does not by itself establish identity**. The attached report documents the correlated timestamps and identifiers as observed.\n",
+      "sentAt": "2026-03-13T09:05:00-07:00",
+      "priority": "normal",
+      "attachments": [
+        "asset.report_timeline_correlation_gps_track_vpn_extract_20260312"
+      ],
+      "visibility": "hidden"
+    }
+  ],
+  "suspects": [
+    {
+      "id": "suspect.jordan_kim",
+      "name": "Jordan Kim",
+      "age": 34,
+      "occupation": "Project manager",
+      "relationship": "Frequent reimbursement claimant whose expense packet was being reviewed by the victim",
+      "motive": "Jordan had a specific travel reimbursement packet under scrutiny, and a pending dispute risked forcing him to repay an inflated claim and triggering an HR or compliance review. The victim\u2019s end-of-day message about freezing reimbursements created a narrow window where his claim could be challenged or halted before it was finalized the next morning.",
+      "alibi": "Jordan says he was at the downtown office after hours to finish a late client deliverable under a temporary Facilities access extension; building access logs can confirm an entry through the 3rd-floor east stairwell at 6:57 PM. He has no independent witness continuously with him inside the finance suite, and the copy/records room area has limited camera coverage.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Jordan Kim is a project manager known for frequent work travel and routine expense reimbursements.\n\nHis badge permissions were temporarily extended by Facilities for late-hours access tied to a deliverable.\n\nHe had an active reimbursement dispute in the same period the victim was reconciling and preparing to freeze processing.\n\nJordan had practical familiarity with the company\u2019s office workflows, including shared folders and scanning/printing receipts for reimbursement packets.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.colin_hart",
+      "name": "Colin Hart",
+      "age": 46,
+      "occupation": "Facilities/security contractor (badge access administrator)",
+      "relationship": "Building access administrator for the victim\u2019s office suite",
+      "motive": "The victim\u2019s reimbursement freeze threatened to trigger an audit that would draw attention to how after-hours access exceptions were being requested and approved. Colin also had an incentive to avoid scrutiny or complaints about his access-control change handling if the dispute escalated to leadership.",
+      "alibi": "He states he was off-site and working through routine access requests from home the evening of 2026-03-12; his home internet activity and device login history can be checked against his account usage. The limitation is that some of his Facilities work involves remote administrative actions that don\u2019t require him to be physically present in the building.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Colin Hart is a contracted facilities/security administrator responsible for scheduling and approving badge access changes for the downtown office. Building systems record his username on access-change tickets, including narrowly scoped extensions for individual badges. His role gives him administrative visibility into access reports and the ability to process after-hours access exceptions through documented change requests.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.elena_soto",
+      "name": "Elena Soto",
+      "age": 44,
+      "occupation": "Finance director",
+      "relationship": "Victim\u2019s department head overseeing the audit and performance",
+      "motive": "The reimbursement freeze threatened to derail a high-visibility audit closeout and expose control gaps on Elena\u2019s watch. She had a personal stake in keeping the finance team\u2019s metrics and leadership credibility intact ahead of reporting deadlines.",
+      "alibi": "Building records show she signed out in the lobby at 17:52 and a parking garage exit reader logged her vehicle tag (OR 684-KQJ) at 17:59:14, both before the after-hours activity window. The verification depends on badge/vehicle systems and assumes she did not return using alternative transportation later that evening.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Elena Soto is the finance director responsible for oversight of reimbursement controls and the victim\u2019s team performance. She had direct professional visibility into the flagged packet and the internal email about freezing reimbursements pending audit reconciliation. She works primarily on-site during business hours and is documented leaving the premises before the evening window when the reimbursement packet was altered.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.maya_reed",
+      "name": "Maya Reed",
+      "age": 32,
+      "occupation": "Accounts payable specialist",
+      "relationship": "Worked closely with the victim on reimbursements and the Q1 packet workflow",
+      "motive": "The victim\u2019s decision to freeze reimbursements threatened to expose errors or irregularities in a packet Maya helped assemble and would likely trigger scrutiny of her processing and sign-offs. She also had reason to want a flagged packet corrected quickly to avoid a public escalation to audit leadership and the resulting reputational hit inside the team.",
+      "alibi": "Maya reports she was working remotely and connected to the company network via VPN from 6:10 PM to 6:46 PM; VPN authentication logs for account \u0022mreed\u0022 corroborate that connection window and source public IP. The VPN records confirm timing and remote access but don\u2019t show what she was doing off-network after disconnecting.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Maya Reed is an accounts payable specialist with routine access to reimbursement documentation and shared packet folders used by finance.\nShe regularly coordinated with the victim on receipt completeness, naming conventions, and submission deadlines for reimbursement packets.\nHer work is largely administrative but involves handling scanned receipts and PDFs that later feed into audit reconciliation.",
+      "visibility": "initial"
+    }
+  ],
+  "timeline": [
+    {
+      "time": "2026-03-12T16:41:00-07:00",
+      "event": "An internal email from the victim at 4:41 PM mentions putting a hold on reimbursements pending audit reconciliation.",
+      "source": "investigation",
+      "verified": true,
+      "importance": "medium"
+    },
+    {
+      "time": "2026-03-12T18:57:12-07:00",
+      "event": "Access control logs show a single entry at 6:57 PM through the 3rd-floor east stairwell into the finance suite.",
+      "source": "sensor",
+      "verified": true,
+      "importance": "high"
+    },
+    {
+      "time": "2026-03-13T07:22:00-07:00",
+      "event": "At 7:22 AM, staff reported finding the victim unresponsive in a small copy/records room within the finance suite.",
+      "source": "witness",
+      "verified": true,
+      "importance": "high"
+    }
+  ],
+  "temporalEvents": [],
+  "rules": [
+    {
+      "ruleId": "rule.reveal_asset_gps_track_timelinecorrelation",
+      "description": "Reveal forensic outcome of asset.gps_track:TimelineCorrelation",
+      "trigger": {
+        "type": "forensics_complete",
+        "inputAssetId": "asset.gps_track",
+        "analysisType": "TimelineCorrelation"
+      },
+      "actions": [
+        {
+          "type": "reveal_email",
+          "emailId": "email.lab_timeline_correlation_gps_track_vpn_extract_20260312"
+        },
+        {
+          "type": "reveal_asset",
+          "assetId": "asset.report_timeline_correlation_gps_track_vpn_extract_20260312"
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.notify_on_lab_email_opened_next_steps",
+      "trigger": {
+        "type": "email_opened",
+        "emailId": "email.lab_timeline_correlation_gps_track_vpn_extract_20260312"
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "level": "info",
+          "message": "Timeline correlation report reviewed. Next steps: compare the access log against the GPS track window, then cross-check recent financial activity for anomalies that align with the same timeframe."
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.notify_on_gps_asset_viewed_pivot_to_access_log",
+      "trigger": {
+        "type": "asset_viewed",
+        "assetId": "asset.gps_track"
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "level": "info",
+          "message": "GPS movement establishes a working window of interest. Pull the access log for that interval and note any badge use, door exceptions, or after-hours entries that need follow-up."
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.notify_on_access_log_viewed_interview_prep",
+      "trigger": {
+        "type": "asset_viewed",
+        "assetId": "asset.access_log"
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "level": "warn",
+          "message": "Access activity may indicate who could physically reach the scene during the relevant window. Prepare targeted questions and review each suspect\u2019s timeline for gaps before the next interview round."
+        }
+      ]
+    }
+  ],
+  "forensicsDefaults": {
+    "analysisTypes": [
+      {
+        "type": "TimelineCorrelation",
+        "durationMinutes": 60,
+        "availableFor": [
+          "digital",
+          "document",
+          "pdf"
+        ]
+      }
+    ],
+    "noFindingsEmail": {
+      "template": "Det. Kira Leland,\n\nThe {{analysisType}} analysis of {{assetName}} did not reveal any actionable findings.\n\nPortland Police Bureau (PPB), Detective Division",
+      "from": "Portland Police Bureau (PPB), Detective Division",
+      "subject": "Analysis result \u2014 {{analysisType}} \u2014 No findings"
+    }
+  },
+  "forensicOutcomes": [
+    {
+      "inputAssetId": "asset.gps_track",
+      "analysisType": "TimelineCorrelation",
+      "findings": true,
+      "matchedSuspectId": "suspect.jordan_kim",
+      "conclusionText": "Timeline correlation of the submitted log extract associates session token \u0022S-9c2f1\u0022 with an authentication from source IP \u002210.44.8.23\u0022 at \u00222026-03-12 19:27:49\u0022 and a DHCP lease for that IP mapping to a MAC ending \u0022:7B:19\u0022 starting at \u00222026-03-12 18:50:00\u0022. This places the overwrite-session activity within the same endpoint identity (IP\u2192MAC) observed for the copy/records room workstation, subject to stated clock and attribution limitations.",
+      "resultAssetId": "asset.report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "resultEmailId": "email.lab_timeline_correlation_gps_track_vpn_extract_20260312"
+    }
+  ],
+  "solution": {
+    "culpritId": "suspect.jordan_kim",
+    "requiredEvidenceIds": [
+      "asset.access_log",
+      "asset.gps_track",
+      "asset.report_timeline_correlation_gps_track_vpn_extract_20260312"
+    ],
+    "requiredAnalysisIds": [
+      "asset.gps_track:TimelineCorrelation"
+    ],
+    "questions": [
+      {
+        "id": "q.after_hours_entry_time",
+        "prompt": "What time did badge BK-44719 enter the finance suite, per badge logs?",
+        "options": [
+          {
+            "id": "opt.185712",
+            "label": "18:57:12"
+          },
+          {
+            "id": "opt.185052",
+            "label": "18:50:52"
+          },
+          {
+            "id": "opt.190112",
+            "label": "19:01:12"
+          },
+          {
+            "id": "opt.184712",
+            "label": "18:47:12"
+          }
+        ],
+        "correctOptionId": "opt.185712",
+        "weight": 0.34
+      },
+      {
+        "id": "q.overwrite_window_and_files",
+        "prompt": "When were Packet_0312 receipt PDFs modified, and which two files were overwritten in that burst?",
+        "options": [
+          {
+            "id": "opt.1926_1931_hotel_mileage",
+            "label": "19:26\u201319:31; Hotel_Receipt.pdf and Mileage_Log.pdf"
+          },
+          {
+            "id": "opt.1810_1846_hotel_mileage",
+            "label": "18:10\u201318:46; Hotel_Receipt.pdf and Mileage_Log.pdf"
+          },
+          {
+            "id": "opt.1928_1930_hotel_meals",
+            "label": "19:28\u201319:30; Hotel_Receipt.pdf and Meals_Receipt.pdf"
+          },
+          {
+            "id": "opt.1931_1936_mileage_hotel",
+            "label": "19:31\u201319:36; Mileage_Log.pdf and Hotel_Receipt.pdf"
+          }
+        ],
+        "correctOptionId": "opt.1926_1931_hotel_mileage",
+        "weight": 0.36
+      },
+      {
+        "id": "q.session_token_to_endpoint",
+        "prompt": "During the overwrite window, which internal endpoint (source IP and MAC suffix) correlates to session token S-9c2f1?",
+        "options": [
+          {
+            "id": "opt.ip_10_44_8_23_mac_7b_19",
+            "label": "10.44.8.23 / :7B:19"
+          },
+          {
+            "id": "opt.ip_10_44_8_32_mac_7b_19",
+            "label": "10.44.8.32 / :7B:19"
+          },
+          {
+            "id": "opt.ip_10_44_8_23_mac_7b_91",
+            "label": "10.44.8.23 / :7B:91"
+          },
+          {
+            "id": "opt.ip_10_44_8_25_mac_7b_1a",
+            "label": "10.44.8.25 / :7B:1A"
+          }
+        ],
+        "correctOptionId": "opt.ip_10_44_8_23_mac_7b_19",
+        "weight": 0.3
+      }
+    ],
+    "explanation": "After the victim froze reimbursements pending audit reconciliation, Jordan Kim used badge BK-44719 to enter the finance suite after hours, confronted her in the copy/records room, and killed her, then immediately tried to erase the fraud trail by overwriting Packet_0312 receipt PDFs via the background sync account. The badge-entry log independently places Jordan in the building at 18:57, matching the narrow window before the edits and the estimated incident time. The decisive link comes from the overwrite session token (S-9c2f1): forensic timeline correlation ties it to IP 10.44.8.23, which DHCP maps to the FIN-WS-03 workstation\u2019s MAC suffix (:7B:19) located in that same copy/records room. The modified Hotel_Receipt.pdf also carries the human-entered Author string \u201CJ.Kim\u201D and a creation time minutes before the overwrites, reinforcing that Jordan produced the altered document. The forensic result can\u2019t prove who was physically at the keyboard (clocks can drift and correlation isn\u2019t identity), but combined with Jordan\u2019s unique after-hours access and the document metadata, it triangulates him as the actor behind both the concealment and the killing. The strongest red herrings collapse under time-and-access checks: Maya Reed\u2019s VPN session ends before the overwrite timestamps, Elena Soto is logged leaving before the after-hours window, and Colin Hart\u2019s admin ticket merely extended Jordan\u2019s badge rather than giving Colin a path to be on scene.",
+    "minimumScore": 0.7,
+    "maxAttempts": 3,
+    "partialCreditRules": {
+      "culpritWeight": 0.4,
+      "evidenceWeight": 0.2,
+      "analysisWeight": 0.2,
+      "questionsWeight": 0.2
+    }
+  },
+  "gameMetadata": {
+    "schemaVersion": "2.0",
+    "createdAt": "2026-07-22T02:13:42.3660364Z",
+    "tags": [
+      "expense_fraud",
+      "access_logs",
+      "document_metadata",
+      "workplace",
+      "digital_forensics"
+    ],
+    "contentWarnings": [],
+    "localizations": [
+      "en-US"
+    ],
+    "generation": {
+      "pipelineVersion": "v2-microtasks",
+      "model": "gpt-5.2",
+      "seed": 205,
+      "bundleChecksum": ""
+    }
+  }
+}
