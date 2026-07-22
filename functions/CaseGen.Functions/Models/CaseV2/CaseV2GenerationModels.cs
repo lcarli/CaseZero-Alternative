@@ -41,6 +41,16 @@ public class GenerateCaseV2Response
     public Services.CaseV2.Tasks.RedTeamTask.Report? RedTeamInitial { get; set; }
     public List<string> RedTeamVerdictTrajectory { get; set; } = new();
     public Services.CaseV2.Tasks.SolverTask.SolverResult? Solver { get; set; }
+    public bool CaseGraphEnabled { get; set; }
+    public Services.CaseV2.PublicContractParityReport? PublicContractParity { get; set; }
+    public Services.CaseV2.FinalValidationReport? FinalValidation { get; set; }
+    public int RepairPlateauCount { get; set; }
+    public int RepairOperationCount { get; set; }
+    public long InputTokens { get; set; }
+    public long OutputTokens { get; set; }
+    public int EvidenceLayoutDiversity { get; set; }
+    public List<string> EvidenceLayouts { get; set; } = new();
+    public Dictionary<string, int> SpecialistFindingsByCategory { get; set; } = new();
 }
 
 // ----- Stage 1: Plot -----

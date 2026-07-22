@@ -1,0 +1,478 @@
+{
+  "version": "2.0",
+  "caseId": "case_graph_detective_204",
+  "metadata": {
+    "title": "The Missing Pallet Ledger",
+    "description": "A mid-size fulfillment warehouse reports a quiet inventory diversion masked as routine cycle counts. Badge access logs and file metadata suggest someone used ordinary systems and a small procedural gap to walk product out.",
+    "location": "Daly City, California, USA",
+    "incidentDate": "2026-03-18T03:12:00-07:00",
+    "openedAt": "2026-03-18T10:26:00-07:00",
+    "difficulty": "Detective",
+    "requiredRank": "Detective",
+    "category": "Theft / Inventory Diversion",
+    "briefing": "Overnight counts at a Daly City warehouse don\u2019t reconcile, but the paperwork looks clean. Your job is to determine whether it\u2019s error or diversion\u2014and who used routine access controls to make it happen.",
+    "tags": [
+      "warehouse",
+      "inventory",
+      "badge-access",
+      "file-metadata",
+      "diversion"
+    ],
+    "unlockMode": "gated",
+    "estimatedDurationMinutes": 90
+  },
+  "assets": [
+    {
+      "id": "asset.access_log",
+      "type": "digital",
+      "title": "Roseway 3PL Badge Reader Export \u2014 Staff Entrance \u0026 Mezzanine Office Door (03/18)",
+      "description": "Badge-reader exports for Roseway 3PL show an after-hours entry sequence for badge ID 004982 (labelled \u201CTRN-L\u201D) through Door E-Staff at 02:41:18 and Door MZ-Office at 02:49:02 on 2026-03-18. Also included are roster/camera-motion records placing overnight guard R. Ibarra at the gatehouse window around 04:05\u201304:08 during a courier pickup window.",
+      "uri": "case://case_graph_detective_204/assets/access_log.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.email_export",
+      "type": "digital",
+      "title": "Email Export \u2014 Reconciliation Thread Referencing HHS-4102 Variance (03/18)",
+      "description": "Exported email thread from 2026-03-18 discussing a reconciliation discrepancy for SKU HHS-4102 (handheld scanners), including a noted -48 unit variance following the 03:12 adjustment batch. Includes header metadata from an approval-related message showing an earlier attachment hash that differs from the later shared-drive file hash.",
+      "uri": "case://case_graph_detective_204/assets/email_export.pdf",
+      "visibility": "initial",
+      "category": "Communication"
+    },
+    {
+      "id": "asset.chat_export",
+      "type": "digital",
+      "title": "Chat Export \u2014 Night Ops/IC Messages Around Auto-Post Window (03/18)",
+      "description": "Export of internal Night Ops/Inventory Control chat messages around the 03:12 auto-post window, including discussion of SKU HHS-4102 variance (-48) after the adjustment batch and mentions of outbound dock paperwork responsibility tied to the shipping supervisor role.",
+      "uri": "case://case_graph_detective_204/assets/chat_export.pdf",
+      "visibility": "initial",
+      "category": "Communication"
+    },
+    {
+      "id": "asset.witness_statement",
+      "type": "document",
+      "title": "Witness Statement \u2014 Ops Manager on HHS-4102 Variance \u0026 Overnight Controls",
+      "description": "Sworn statement from Roseway 3PL Operations Manager describing the overnight inventory-adjustment workflow and the operational sensitivity of the 03:00\u201304:00 auto-post window. Includes the manager\u2019s account of a reconciliation thread noting a -48 variance for SKU HHS-4102 after the 03:12 adjustment batch, and their understanding of when the cycle-count approvals were sent.",
+      "uri": "case://case_graph_detective_204/assets/witness_statement.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.medical_report",
+      "type": "document",
+      "title": "Medical Report \u2014 Dock 1 Slip/Spill Evaluation (Night Shift, 03/18)",
+      "description": "On-site occupational health evaluation created after a reported Dock 1 slip/spill during the overnight shift on 2026-03-18. The record includes supervisor timing notes and an attached incident-context summary referencing the HHS-4102 handheld scanner variance following the 03:12 WMS adjustment batch, plus documentation that the overnight gatehouse guard was on post around the 04:06 courier pickup window.",
+      "uri": "case://case_graph_detective_204/assets/medical_report.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.bank_statement",
+      "type": "digital",
+      "title": "WMS Audit Export \u2014 Adjustment Batch ADJ-20260318-0312 (MZ-PC-03)",
+      "description": "Exported WMS audit records showing a specific inventory adjustment batch posted at 03:12 on 2026-03-18, including the initiating user and terminal name. Includes a separate dock-office kiosk scan excerpt showing the shipping supervisor login appears later in the morning, not during the overnight window.",
+      "uri": "case://case_graph_detective_204/assets/bank_statement.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.gps_track",
+      "type": "digital",
+      "title": "Gatehouse/Gate Log Export \u2014 Bay 2 Courier Pickup RET-EXC-1187 (04:06)",
+      "description": "Exported gatehouse log entries for Bay 2 during the overnight window, including a 04:06 courier pickup entry for \u201CPeninsula SameDay\u201D referencing RET-EXC-1187 and a contact phone ending -5521. Includes roster/camera-note excerpts that place the overnight guard at the gatehouse window around the same time.",
+      "uri": "case://case_graph_detective_204/assets/gps_track.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.surveillance_still",
+      "type": "photo",
+      "title": "Surveillance Still \u2014 Mezzanine Office Corridor Near Door MZ-Office (02:49)",
+      "description": "A grainy mezzanine office corridor CCTV still time-stamped 2026-03-18 02:49 shows a lone employee approaching the door labeled \u201CMZ-Office.\u201D A bottom overlay references the access-control event for badge ID 004982 at 02:49:02, and a separate on-screen note flags that shipping supervisor activity (user ODEL) appears later in the morning.",
+      "uri": "case://case_graph_detective_204/assets/surveillance_still.png",
+      "visibility": "initial",
+      "category": "Physical"
+    },
+    {
+      "id": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "type": "pdf",
+      "title": "Metadata Analysis Report \u2014 Medical Packet (Dock 1 Slip/Spill Evaluation) \u2014 MZ-PC-03 Correlation",
+      "description": "Report summarizing metadata-derived device and timestamp correlations extracted in association with the submitted medical evaluation packet, including correlations to terminal MZ-PC-03 and recorded session artifacts (LINH.T logon; WMS SessionToken=7c1b9a2e) during the incident window.",
+      "uri": "case://case_graph_detective_204/assets/report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e.pdf",
+      "visibility": "hidden",
+      "category": "Document"
+    }
+  ],
+  "emails": [
+    {
+      "id": "email.briefing",
+      "from": "Daly City Police Department",
+      "to": [
+        "Det. Alana Ruiz \u003Calana.ruiz@dalycitypd.gov\u003E"
+      ],
+      "subject": "Assignment Briefing \u2014 Roseway 3PL \u201CMissing Pallet Ledger\u201D (Inventory Diversion / Cycle Count Manipulation)",
+      "body": "Det. Ruiz,\n\nRoseway 3PL in Daly City has reported a suspected inventory diversion tied to routine cycle-count activity. Records indicate an overnight WMS adjustment was made to a specific pallet (PLT-77431, tablets), and the pallet was subsequently reported \u201Cnot located\u201D during follow-up review. The working theory is that ordinary systems and a procedural gap were used to mask product removal.\n\nWhat we can place on record at this stage: verified WMS audit activity reflects an inventory adjustment (audit token ADJ-920771) during the overnight window, and access-control logs place an employee badge assigned to Alina Cho entering through the employee entrance and using the admin corridor door around the same timeframe. In addition, the \u201CDiscrepancy Summary\u201D spreadsheet distributed by the inventory mailbox later that morning shows file metadata indicating it was modified during the overnight hours and saved under the \u201Cacho\u201D user.\n\nWhat remains uncertain is whether the digital activity corresponds to a single operator versus credential/shared-session use, and how the pallet physically left controlled inventory (e.g., through dock/returns handling, standard outbound paperwork, or another pathway). While other personnel have roles that could touch labels, staging, or security rounds, currently available records do not independently establish their involvement in the overnight adjustment or document edits.\n\nThis matters now because the loss was initially concealed as routine cycle counts and only surfaced on reconciliation, increasing the risk of further diversion if the same gap remains in place. Immediate objective: secure and correlate the access-control exports, WMS audit trail, and the email/attachment metadata into a clear attribution timeline, then identify the most likely physical egress path for PLT-77431 so we can request targeted preservation from Roseway (dock/returns movement documentation and related logs) before routine retention cycles overwrite them.",
+      "sentAt": "2026-03-18T10:26:00-07:00",
+      "priority": "urgent",
+      "attachments": [
+        "asset.access_log",
+        "asset.email_export"
+      ],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.inventory_mailbox_context",
+      "from": "Inventory Control Shared Mailbox \u003Cinventory@warehouse.local\u003E",
+      "to": [
+        "Det. Alana Ruiz \u003Calana.ruiz@dalycitypd.gov\u003E"
+      ],
+      "subject": "Heads-up: HHS-4102 discrepancy flagged after overnight auto-post",
+      "body": "Det. Ruiz,\n\nFlagging what our team noticed on 2026-03-18: right after the 03:12 auto-post, the reconciliation chatter focused on SKU HHS-4102 (handheld scanners) showing a -48 unit variance. The adjustment trail being discussed was tied to batch ADJ-20260318-0312.\n\nThis is the same SKU that later showed up as an empty location when day shift checked staging.\n\n\u2014Inventory Control",
+      "sentAt": "2026-03-18T10:41:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.ops_manager_preservation_notice",
+      "from": "Roseway 3PL Ops Manager \u003Cops.manager@warehouse.local\u003E",
+      "to": [
+        "Det. Alana Ruiz \u003Calana.ruiz@dalycitypd.gov\u003E"
+      ],
+      "subject": "Preservation request: keep MZ-PC-03 and cycle-count shared drive data unchanged",
+      "body": "Det. Ruiz,\n\nPer our internal incident protocol, we have asked IT and floor leadership to preserve (no changes, no reboots if avoidable) the mezzanine workstation referenced in the WMS audit as terminal MZ-PC-03, and to preserve the shared-drive folder containing \u0027CycleCount_Adjustments_2026-03-18.xlsx\u0027.\n\nWe are also instructing staff not to \u201Ccorrect\u201D the HHS-4102 numbers pending your review.\n\n\u2014Ops Manager, Roseway 3PL",
+      "sentAt": "2026-03-18T11:02:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.security_rounds_context",
+      "from": "Gatehouse Security Desk \u003Csecurity@warehouse.local\u003E",
+      "to": [
+        "Det. Alana Ruiz \u003Calana.ruiz@dalycitypd.gov\u003E"
+      ],
+      "subject": "Bay 2 pickup logged 04:06 \u2014 Peninsula SameDay (RET-EXC-1187)",
+      "body": "Det. Ruiz,\n\nConfirming the gatehouse entry from the overnight shift: Bay 2 pickup for courier Peninsula SameDay was logged at 2026-03-18 04:06 with reference RET-EXC-1187 and a contact phone ending -5521.\n\nThis was handled as a routine pickup entry on our side.\n\n\u2014Gatehouse Security Desk",
+      "sentAt": "2026-03-18T10:58:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "from": "Digital Forensics Laboratory \u003Clab@dalycitypd.gov\u003E",
+      "to": [
+        "Det. Alana Ruiz \u003Calana.ruiz@dalycitypd.gov\u003E"
+      ],
+      "subject": "Metadata analysis completed: Dock 1 Slip/Spill Evaluation packet \u2014 MZ-PC-03 / SessionToken correlation",
+      "body": "Detective Ruiz,\n\nOur lab completed the requested **metadata analysis** for the submitted item **document.medical_report_dock1_spill_eval_20260318** (from **asset.medical_report**) in case **case_graph_detective_204**. The work was limited to recorded metadata/artifact identifiers and timestamp correlations (no inference of an unrecorded human operator).\n\nWe identified a Windows Security logon artifact on terminal **MZ-PC-03**: **Microsoft-Windows-Security-Auditing 4624** with **Logon ID 0x3F2A9** for user **LINH.T** at **2026-03-18 02:54:58 (PT)**. We also identified a WMS client log entry on the same machine recording **SessionToken=7c1b9a2e** at **2026-03-18 03:11:41 (PT)**.\n\nThese two artifacts provide **device correlation** (same endpoint: **MZ-PC-03**) and **timestamp correlation** (both occurring during the overnight incident window) between the authenticated endpoint session (LINH.T) and the WMS client session token (7c1b9a2e).\n\nLimitations apply: the presence of an account/device artifact **does not prove who physically operated** the device, and **metadata can be modified** by software, copying, or system processes.\n\nThe full report is attached in the case file as **asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e**.\n\nRespectfully,\nDigital Forensics Unit Examiner\nDaly City Police Department",
+      "sentAt": "2026-03-18T10:26:00-07:00",
+      "priority": "normal",
+      "attachments": [
+        "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      ],
+      "visibility": "hidden"
+    }
+  ],
+  "suspects": [
+    {
+      "id": "suspect.linh_tran",
+      "name": "Linh Tran",
+      "age": 33,
+      "occupation": "Warehouse systems analyst (WMS \u0026 reporting templates)",
+      "relationship": "Internal systems support for inventory control and night shift operations",
+      "motive": "She was under pressure to avoid a damaging variance ahead of the quarterly pre-count and wanted one problematic high-value pallet to disappear from the numbers before tighter controls kicked in. The after-hours window offered a chance to \u201Cfix\u201D the records without having to explain an exception during the audit prep.",
+      "alibi": "She says she was on-site after hours to troubleshoot reporting access for the generic warehouse reporting account and to prep templates, and that her badge entry can be confirmed by access control logs. She cannot provide an independent witness for her time at the mezzanine workstations, since she says she worked alone and communicated only via email/IM.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Maintains WMS report templates, shared drive permissions, and supports inventory reporting users, including night shift.\nHas access to office mezzanine areas and is familiar with cycle-count variance workflows and how adjustment spreadsheets are handled.\nHer role gives her routine reason to use shared workstations and interact with the generic reporting account used for warehouse reporting.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.maya_kline",
+      "name": "Maya Kline",
+      "age": 38,
+      "occupation": "Night shift inventory control lead",
+      "relationship": "Approves and signs cycle-count adjustments for the warehouse",
+      "motive": "Maya\u2019s performance is judged on keeping cycle-count variances low before audits, and she\u2019s been under pressure to keep the nightly adjustment flow moving without delays. If an adjustment later turned out to be improper, she could be motivated to protect her reputation by standing by the approval and minimizing questions about the process.",
+      "alibi": "She states she was off the warehouse floor and handling approvals remotely from home after 01:00, and her sent email header for \u201CRe: Cycle Count 3/18 approvals\u201D shows MAYA.K sent an approval message at 01:22:09 with an attached spreadsheet hash logged in the message metadata. The limitation is that this only verifies an email send and attachment version at 01:22, not her location or any later access to the shared drive file.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Maya is the night shift inventory control lead responsible for reviewing and signing cycle-count adjustments before they are posted in the WMS.\n\nShe regularly uses the warehouse email system for approvals and is familiar with the shared-drive spreadsheets used for nightly variance and adjustment workflows.\n\nHer name and account appear in the cycle-count approval email chain associated with the 03/18 adjustment paperwork.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.owen_delgado",
+      "name": "Owen Delgado",
+      "age": 41,
+      "occupation": "Day-shift shipping supervisor",
+      "relationship": "Oversees outbound dock operations that interface with the victim warehouse\u2019s inventory paperwork",
+      "motive": "Owen\u2019s performance metrics are tied to on-time departures and clean outbound documentation, and repeated exceptions can trigger write-ups. He had reason to want irregular returns-cage moves or missing paperwork kept from escalating into a visible dock-side problem during audit week.",
+      "alibi": "BOL packet scan log shows his supervisor login (ODEL) at the Dock Office kiosk at 08:14:22 and 08:37:05 on 2026-03-18, with no kiosk entries tied to his login between 01:00 and 06:00. This log reflects kiosk use specifically, so it does not capture where he was if he was away from that terminal.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Owen runs the day-shift outbound floor, including staging lanes and bill-of-lading packet handling at the dock office kiosk.\n\nHis role gives him routine access to shipping paperwork flows and authority to direct how pallets are organized for carrier pickup.\n\nHe is not scheduled as an overnight office mezzanine user, and the after-hours activity in this case centers on systems and document handling before day shift begins.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.rafael_ibarra",
+      "name": "Rafael Ibarra",
+      "age": 41,
+      "occupation": "Contract security guard (overnight gatehouse)",
+      "relationship": "After-hours guard assigned to the warehouse site",
+      "motive": "He is responsible for keeping after-hours pickups orderly and documented, and a quiet exception pickup that later drew scrutiny could put his contract standing at risk. If pressure came from drivers or site staff to move things along quickly, he would have a personal reason to minimize delays rather than escalate irregularities.",
+      "alibi": "He states he was on scheduled duty at the gatehouse from 22:00\u201306:00, including processing a courier pickup around 04:06; the security roster and gatehouse/dock-area camera motion log can independently confirm his presence at the window during that time. The limitation is that these records show he was on post, not what he entered into the visitor/gate log line-by-line.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Rafael Ibarra is a third-party security contractor assigned to overnight coverage, handling gate checks and logging after-hours vehicle activity. Site records place him on the 22:00\u201306:00 shift on 2026-03-18. A gate-related record and a separate camera motion log both correspond to activity at the gatehouse window around 04:05\u201304:08, consistent with him performing routine pickup processing.",
+      "visibility": "initial"
+    }
+  ],
+  "timeline": [
+    {
+      "time": "2026-03-18T03:06:44-07:00",
+      "event": "The cycle-count adjustment spreadsheet shows edits during the 03:00 hour despite appearing approved.",
+      "source": "investigation",
+      "verified": true,
+      "importance": "high"
+    },
+    {
+      "time": "2026-03-18T03:12:00-07:00",
+      "event": "The WMS shows an adjustment batch posted at 03:12 that changed on-hand counts for the affected SKU.",
+      "source": "sensor",
+      "verified": true,
+      "importance": "critical"
+    },
+    {
+      "time": "2026-03-18T09:47:10-07:00",
+      "event": "At 09:47, day shift reported a high-value pallet location empty and requested a reconciliation review.",
+      "source": "witness",
+      "verified": true,
+      "importance": "high"
+    }
+  ],
+  "temporalEvents": [],
+  "rules": [
+    {
+      "ruleId": "rule.reveal_asset_medical_report_metadataanalysis",
+      "description": "Reveal forensic outcome of asset.medical_report:MetadataAnalysis",
+      "trigger": {
+        "type": "forensics_complete",
+        "inputAssetId": "asset.medical_report",
+        "analysisType": "MetadataAnalysis"
+      },
+      "actions": [
+        {
+          "type": "reveal_email",
+          "emailId": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        },
+        {
+          "type": "reveal_asset",
+          "assetId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.narrative_open_lab_result_next_steps",
+      "trigger": {
+        "type": "email_opened",
+        "emailId": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "level": "info",
+          "message": "Lab results are in. Next step: correlate the device/session details with internal access records and communications from the same window (access logs, email export, and chat export). Look for a matching user, workstation, or unusual login pattern."
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.narrative_view_metadata_asset_pivot",
+      "trigger": {
+        "type": "asset_viewed",
+        "assetId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "level": "warn",
+          "message": "This metadata ties the report to a specific workstation session. Pull the access log and compare timestamps against GPS and surveillance, then review mailbox/chat exports for anyone discussing the report or requesting it during that period."
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.narrative_after_core_triage_prompt_suspect_review",
+      "trigger": {
+        "type": "multiple_conditions",
+        "conditions": [
+          {
+            "type": "asset_viewed",
+            "assetId": "asset.access_log"
+          },
+          {
+            "type": "asset_viewed",
+            "assetId": "asset.chat_export"
+          },
+          {
+            "type": "asset_viewed",
+            "assetId": "asset.gps_track"
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "level": "info",
+          "message": "You now have access activity, comms, and movement data. Re-check each suspect profile against these timelines and note any mismatches or gaps worth following up with surveillance stills or witness statements."
+        }
+      ]
+    }
+  ],
+  "forensicsDefaults": {
+    "analysisTypes": [
+      {
+        "type": "MetadataAnalysis",
+        "durationMinutes": 90,
+        "availableFor": [
+          "digital",
+          "document",
+          "pdf",
+          "photo"
+        ]
+      }
+    ],
+    "noFindingsEmail": {
+      "template": "Det. Alana Ruiz,\n\nThe {{analysisType}} analysis of {{assetName}} did not reveal any actionable findings.\n\nDaly City Police Department",
+      "from": "Daly City Police Department",
+      "subject": "Analysis result \u2014 {{analysisType}} \u2014 No findings"
+    }
+  },
+  "forensicOutcomes": [
+    {
+      "inputAssetId": "asset.medical_report",
+      "analysisType": "MetadataAnalysis",
+      "findings": true,
+      "matchedSuspectId": "suspect.linh_tran",
+      "conclusionText": "Metadata analysis identified workstation/session artifacts attributable to terminal MZ-PC-03, including a Windows Security logon event for user LINH.T at 2026-03-18 02:54:58 and a WMS client log entry recording SessionToken=7c1b9a2e at 2026-03-18 03:11:41 on the same machine. These timestamps provide device- and time-correlation between the endpoint session and the recorded WMS session token; however, the artifacts do not establish the specific human operator.",
+      "resultAssetId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "resultEmailId": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+    }
+  ],
+  "solution": {
+    "culpritId": "suspect.linh_tran",
+    "requiredEvidenceIds": [
+      "asset.access_log",
+      "asset.bank_statement",
+      "asset.gps_track"
+    ],
+    "requiredAnalysisIds": [
+      "asset.medical_report:MetadataAnalysis"
+    ],
+    "questions": [
+      {
+        "id": "q.key_timestamps_sequence",
+        "prompt": "Which sequence matches records: badge access \u2192 WMS adjustment batch \u2192 courier pickup, with times?",
+        "options": [
+          {
+            "id": "opt.badge_024118_wms_031200_pickup_0406",
+            "label": "Badge access 02:41:18 (then 02:49:02) \u2192 WMS batch posted 03:12:00 \u2192 courier pickup logged 04:06"
+          },
+          {
+            "id": "opt.badge_024902_wms_031200_pickup_0406",
+            "label": "Badge access 02:49:02 \u2192 WMS batch posted 03:12:00 \u2192 courier pickup logged 04:06"
+          },
+          {
+            "id": "opt.badge_024118_wms_0406_pickup_031200",
+            "label": "Badge access 02:41:18 (then 02:49:02) \u2192 courier pickup logged 04:06 \u2192 WMS batch posted 03:12:00"
+          },
+          {
+            "id": "opt.badge_024902_wms_031200_pickup_0418",
+            "label": "Badge access 02:49:02 \u2192 WMS batch posted 03:12:00 \u2192 courier pickup logged 04:18"
+          }
+        ],
+        "correctOptionId": "opt.badge_024118_wms_031200_pickup_0406",
+        "weight": 0.36
+      },
+      {
+        "id": "q.wms_batch_identifiers",
+        "prompt": "Which WMS adjustment batch was posted, and what initiating user and terminal are recorded?",
+        "options": [
+          {
+            "id": "opt.adj_20260318_0312_rpt_floor_mz_pc_03",
+            "label": "Batch ADJ-20260318-0312; user rpt-floor; terminal MZ-PC-03"
+          },
+          {
+            "id": "opt.adj_20260318_0306_rpt_floor_mz_pc_03",
+            "label": "Batch ADJ-20260318-0306; user rpt-floor; terminal MZ-PC-03"
+          },
+          {
+            "id": "opt.adj_20260318_0312_rpt_floor_mz_pc_02",
+            "label": "Batch ADJ-20260318-0312; user rpt-floor; terminal MZ-PC-02"
+          },
+          {
+            "id": "opt.adj_20260318_0312_rep_floor_mz_pc_03",
+            "label": "Batch ADJ-20260318-0312; user rep-floor; terminal MZ-PC-03"
+          }
+        ],
+        "correctOptionId": "opt.adj_20260318_0312_rpt_floor_mz_pc_03",
+        "weight": 0.34
+      },
+      {
+        "id": "q.gate_pickup_details",
+        "prompt": "For the Bay 2 courier pickup, what did the gatehouse log record (courier, reference, phone ending)?",
+        "options": [
+          {
+            "id": "opt.peninsula_sameday_ret_exc_1187_5521",
+            "label": "Peninsula SameDay \u2014 RET-EXC-1187 \u2014 ending -5521"
+          },
+          {
+            "id": "opt.peninsula_sameday_ret_exc_1187_5215",
+            "label": "Peninsula SameDay \u2014 RET-EXC-1187 \u2014 ending -5215"
+          },
+          {
+            "id": "opt.peninsula_sameday_ret_exe_1187_5521",
+            "label": "Peninsula SameDay \u2014 RET-EXE-1187 \u2014 ending -5521"
+          },
+          {
+            "id": "opt.peninsula_sameday_ret_exc_1871_5521",
+            "label": "Peninsula SameDay \u2014 RET-EXC-1871 \u2014 ending -5521"
+          }
+        ],
+        "correctOptionId": "opt.peninsula_sameday_ret_exc_1187_5521",
+        "weight": 0.3
+      }
+    ],
+    "explanation": "Linh Tran badged in after hours, entered the mezzanine office, and used the shared workstation to alter the cycle-count adjustment spreadsheet at 03:06 so the HHS-4102 handheld scanners would be written down and reclassified as returns/damaged. Minutes later, an adjustment batch posted at 03:12 from terminal MZ-PC-03, and a courier pickup was logged at Bay 2 at 04:06, consistent with the pallet being physically removed under the weaker returns-exception lane. Two independent trails converge on Linh: the access logs place her badge at Door E-Staff and the MZ-Office during the relevant window, and the shared-drive file properties show the spreadsheet was last modified by LINH.T at the key time. The decisive analysis ties the MZ-PC-03 session artifacts (LINH.T Windows logon and the WMS session token timestamped just before the 03:12 post) to the same machine used for the adjustment, bridging identity, location, and system action\u2014while noting the forensic limitation that endpoint artifacts correlate a session/device and time, not the operator\u2019s hands with absolute certainty. The strongest red herrings fall away: Maya\u2019s \u201Capproval\u201D email referenced an earlier attachment hash, indicating the file was changed after she signed off, and Owen\u2019s dock-kiosk log activity begins hours later, missing the overnight window. Rafael\u2019s presence at the gatehouse explains the logged pickup but doesn\u2019t connect him to the mezzanine access, file edit, or WMS adjustment that made the pallet disappear on paper.",
+    "minimumScore": 0.7,
+    "maxAttempts": 3,
+    "partialCreditRules": {
+      "culpritWeight": 0.4,
+      "evidenceWeight": 0.2,
+      "analysisWeight": 0.2,
+      "questionsWeight": 0.2
+    }
+  },
+  "gameMetadata": {
+    "schemaVersion": "2.0",
+    "createdAt": "2026-07-22T02:20:14.8351833Z",
+    "tags": [
+      "warehouse",
+      "inventory",
+      "badge-access",
+      "file-metadata",
+      "diversion"
+    ],
+    "contentWarnings": [],
+    "localizations": [
+      "en-US"
+    ],
+    "generation": {
+      "pipelineVersion": "v2-microtasks",
+      "model": "gpt-5.2",
+      "seed": 204,
+      "bundleChecksum": ""
+    }
+  }
+}

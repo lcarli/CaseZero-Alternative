@@ -1,0 +1,338 @@
+{
+  "version": "2.0",
+  "caseId": "case_rookie_repair_pipeline_office_theft_v7",
+  "metadata": {
+    "title": "A Gaveta 12",
+    "description": "Um objeto de alto valor desaparece de um pequeno escrit\u00F3rio no Centro do Recife durante o expediente. Quatro pessoas tinham tr\u00E2nsito pr\u00F3ximo \u00E0 sala administrativa, mas apenas uma deixou um rastro verific\u00E1vel fora do ambiente.",
+    "location": "Recife, Brasil",
+    "incidentDate": "2026-04-14T15:10:00-03:00",
+    "openedAt": "2026-04-14T17:35:00-03:00",
+    "difficulty": "Rookie",
+    "requiredRank": "Rookie",
+    "category": "Furto (ambiente corporativo)",
+    "briefing": "Um notebook corporativo sumiu de uma gaveta trancada na sala ADM durante o expediente. A equipe quer resolver discretamente antes que a seguradora e a matriz sejam acionadas.",
+    "tags": [
+      "furto",
+      "escritorio",
+      "recife",
+      "expediente",
+      "cadeado",
+      "notebook"
+    ],
+    "unlockMode": "all_initial",
+    "estimatedDurationMinutes": 90
+  },
+  "assets": [
+    {
+      "id": "asset.evidence_log",
+      "type": "document",
+      "title": "Auto de Exibi\u00E7\u00E3o e Apreens\u00E3o (Interno) \u2014 Materiais Preservados (14/04)",
+      "description": "Auto interno que formaliza a preserva\u00E7\u00E3o e a cadeia de cust\u00F3dia de registros do escrit\u00F3rio relacionados ao desaparecimento de um notebook da gaveta 12 (ADM), incluindo foto do arm\u00E1rio, extrato patrimonial, livro de recep\u00E7\u00E3o, registro do ramal 201 e print de an\u00FAncio online com n\u00FAmero de s\u00E9rie.",
+      "uri": "case://case_rookie_repair_pipeline_office_theft_v7/assets/evidence_log.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.chat_export",
+      "type": "digital",
+      "title": "Exporta\u00E7\u00E3o WhatsApp Business \u2014 Grupo \u201CADM - Rotina\u201D (14/04)",
+      "description": "Trecho exportado do grupo corporativo \u201CADM - Rotina\u201D (WhatsApp Business) com mensagens de Luana Medeiros informando que saiu para a copa \u00E0s 15:09 e que retornou \u00E0s 15:16 em 14/04/2026. O registro ajuda a situar uma aus\u00EAncia breve da sala ADM dentro do per\u00EDodo estimado do desaparecimento.",
+      "uri": "case://case_rookie_repair_pipeline_office_theft_v7/assets/chat_export.pdf",
+      "visibility": "initial",
+      "category": "Communication"
+    },
+    {
+      "id": "asset.access_log",
+      "type": "digital",
+      "title": "Log de Acesso \u2014 Sistema de Chamados de TI e Calend\u00E1rio Corporativo (14/04)",
+      "description": "Extrato institucional combinando registros do sistema de chamados de TI e do calend\u00E1rio corporativo em 14/04/2026. Mostra o chamado #4172 aberto \u00E0s 15:03 para \u201CWi\u2011Fi da impressora (ADM)\u201D com atendente indicado, e um compromisso de videoconfer\u00EAncia de 14:55\u201315:35 no calend\u00E1rio com link do Meet.",
+      "uri": "case://case_rookie_repair_pipeline_office_theft_v7/assets/access_log.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.suspect_interview",
+      "type": "document",
+      "title": "Termo de Declara\u00E7\u00F5es \u2014 Caio Nascimento (Suporte TI)",
+      "description": "Transcri\u00E7\u00E3o de entrevista presencial com Caio Nascimento, estagi\u00E1rio de TI, sobre o atendimento na sala ADM na tarde de 14/04. O depoimento registra a exist\u00EAncia do chamado interno de TI #4172 (\u0022Wi\u2011Fi da impressora (ADM)\u0022) \u00E0s 15:03 atribu\u00EDdo a ele, e a rotina declarada no per\u00EDodo.",
+      "uri": "case://case_rookie_repair_pipeline_office_theft_v7/assets/suspect_interview.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.bank_statement",
+      "type": "digital",
+      "title": "Ficha Cadastral de Colaborador (RH) \u2014 Contato Telef\u00F4nico de Caio",
+      "description": "Registro extra\u00EDdo do cadastro interno de colaboradores (RH) mostrando o telefone celular associado ao colaborador Caio Nascimento. Inclui data de \u00FAltima atualiza\u00E7\u00E3o (03/02/2026) e o n\u00FAmero (81) 98871-4432 (final 4432), apresentado como dado administrativo de contato.",
+      "uri": "case://case_rookie_repair_pipeline_office_theft_v7/assets/bank_statement.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    }
+  ],
+  "emails": [
+    {
+      "id": "email.briefing",
+      "from": "Pol\u00EDcia Civil de Pernambuco \u2014 1\u00AA Delegacia Seccional (Recife)",
+      "to": [
+        "Insp. Renata Albuquerque \u003Crenata.albuquerque@pc.pe.gov.br\u003E"
+      ],
+      "subject": "Briefing \u2014 Furto (ambiente corporativo) \u2014 desaparecimento de notebook na gaveta 12 (Sala ADM)",
+      "body": "Insp. Renata Albuquerque,\n\nH\u00E1 not\u00EDcia de **furto em ambiente corporativo** no Centro do Recife, com desaparecimento de um **notebook corporativo** que constava como guardado na **gaveta 12 (Sala ADM)**. O sumi\u00E7o foi percebido durante o expediente, quando a respons\u00E1vel pelo setor tentou separar o equipamento para entrega interna e encontrou a gaveta vazia.\n\nO que se tem, at\u00E9 aqui, \u00E9: registro patrimonial apontando o bem e seu local de guarda; foto de rotina do arm\u00E1rio de arquivos mostrando a **chave identificada da gaveta 12** acess\u00EDvel no interior do m\u00F3vel; e registros internos que situam uma **janela prov\u00E1vel** em que a sala ficou sem presen\u00E7a cont\u00EDnua da respons\u00E1vel. H\u00E1 tamb\u00E9m documenta\u00E7\u00E3o de **chamado de TI** associado ao setor no per\u00EDodo e indica\u00E7\u00E3o de **an\u00FAncio online** com refer\u00EAncia compat\u00EDvel ao patrim\u00F4nio, vincul\u00E1vel a contato telef\u00F4nico cadastrado internamente.\n\nPermanecem incertas a din\u00E2mica exata dentro da sala durante a janela estimada (quem efetivamente entrou, por quanto tempo e com qual justificativa) e a **cadeia de posse** do bem ap\u00F3s o desaparecimento (se houve repasse a terceiros e onde se encontra atualmente). Embora existam registros de circula\u00E7\u00E3o e compromissos que reduzem a plausibilidade de algumas hip\u00F3teses, os \u00E1libis ainda dependem de checagens complementares.\n\nO caso importa agora pela **possibilidade de r\u00E1pida aliena\u00E7\u00E3o do equipamento** e pelo risco de dispers\u00E3o do bem no mercado informal, al\u00E9m do impacto na seguran\u00E7a patrimonial do escrit\u00F3rio (vulnerabilidade de guarda de chave/controle de acesso). **Objetivo imediato:** consolidar a linha de tempo com base nos registros preservados (chamados de TI, livro de recep\u00E7\u00E3o/portaria, comunica\u00E7\u00F5es corporativas e print do an\u00FAncio) e diligenciar para **localiza\u00E7\u00E3o e recupera\u00E7\u00E3o do notebook**, com identifica\u00E7\u00E3o formal de quem controlava o an\u00FAncio/contato e o acesso \u00E0 sala no intervalo cr\u00EDtico.",
+      "sentAt": "2026-04-14T17:35:00-03:00",
+      "priority": "urgent",
+      "attachments": [
+        "asset.evidence_log",
+        "asset.chat_export"
+      ],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.luana_avisos_copa",
+      "from": "Luana Medeiros \u003Cluana.medeiros@empresa.local\u003E",
+      "to": [
+        "Insp. Renata Albuquerque \u003Crenata.albuquerque@pc.pe.gov.br\u003E"
+      ],
+      "subject": "Relato inicial \u2014 gaveta 12 vazia e chave no arm\u00E1rio",
+      "body": "Insp. Renata Albuquerque,\n\nS\u00F3 para registrar por escrito o que observei hoje (14/04).\n\n1) \u00C0s 16:41, quando fui separar o equipamento para o novo colaborador, abri a gaveta 12 (ADM) e ela estava vazia \u2014 o notebook Lenovo ThinkPad E14 (SN PF-7X29Q) n\u00E3o estava l\u00E1.\n2) Mais cedo, eu tinha fotografado o interior do arm\u00E1rio de arquivos \u00E0s 14:18 (procedimento interno) e notei depois que a chaveiro branco escrito \u201CGAV 12\u201D aparece pendurado no gancho interno do arm\u00E1rio.\n3) No per\u00EDodo da tarde, eu sa\u00ED rapidamente da sala para pegar caf\u00E9 na copa; eu avisei no grupo \u201CADM - Rotina\u201D \u00E0s 15:09 (\u201Ct\u00F4 na copa pegando caf\u00E9, volto j\u00E1\u201D) e depois \u00E0s 15:16 (\u201Cvoltei\u201D).\n\nFico \u00E0 disposi\u00E7\u00E3o para esclarecer o fluxo de quem costuma ter acesso \u00E0 sala ADM e ao arm\u00E1rio de arquivos.\n\nAtenciosamente,\nLuana Medeiros",
+      "sentAt": "2026-04-14T17:48:00-03:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.joana_portaria_preservacao",
+      "from": "Joana Siqueira \u003Cjoana.siqueira@empresa.local\u003E",
+      "to": [
+        "Insp. Renata Albuquerque \u003Crenata.albuquerque@pc.pe.gov.br\u003E"
+      ],
+      "subject": "Preserva\u00E7\u00E3o \u2014 livro de recep\u00E7\u00E3o e movimenta\u00E7\u00E3o de visitante (Bravox OS 98311)",
+      "body": "Insp. Renata Albuquerque,\n\nComo recepcionista, registrei no livro de recep\u00E7\u00E3o a entrada \u201CT\u00E9c. Copiadoras Bravox \u2014 OS 98311\u201D hoje (14/04), com chegada \u00E0s 15:20 e sa\u00EDda \u00E0s 16:05, com atendimento descrito como \u201Csal\u00E3o (impressora recep\u00E7\u00E3o)\u201D.\n\nTamb\u00E9m informo que, ap\u00F3s a ger\u00EAncia abrir a ocorr\u00EAncia interna \u00E0s 17:35, o livro de recep\u00E7\u00E3o ficou separado para preserva\u00E7\u00E3o e n\u00E3o foi mais manuseado para registros posteriores (a partir desse hor\u00E1rio, os registros passaram a ser feitos em folha avulsa).\n\nPermane\u00E7o dispon\u00EDvel para confirmar a rotina do balc\u00E3o e os procedimentos de entrada/sa\u00EDda.\n\nJoana Siqueira",
+      "sentAt": "2026-04-14T18:02:00-03:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.operacoes_ti_chamado4172",
+      "from": "Opera\u00E7\u00F5es de TI \u003Coperacoes.ti@empresa.local\u003E",
+      "to": [
+        "Insp. Renata Albuquerque \u003Crenata.albuquerque@pc.pe.gov.br\u003E"
+      ],
+      "subject": "Confirma\u00E7\u00E3o operacional \u2014 chamado de TI #4172 (Wi\u2011Fi da impressora ADM)",
+      "body": "Insp. Renata Albuquerque,\n\nConfirmo, pelo fluxo operacional do suporte interno, que em 14/04 foi registrado \u00E0s 15:03 o chamado de TI #4172 com o assunto \u201CWi\u2011Fi da impressora (ADM)\u201D, constando \u201CAtendente: Caio Nascimento\u201D.\n\nEsse tipo de chamado normalmente exige presen\u00E7a f\u00EDsica no ambiente para checagem de conex\u00E3o/rede da impressora e pode envolver entrada na sala ADM com mochila de ferramentas.\n\nSe necess\u00E1rio, posso detalhar o procedimento padr\u00E3o de atendimento e quem tem permiss\u00E3o de deslocamento para chamados na \u00E1rea administrativa.\n\nAtenciosamente,\nOpera\u00E7\u00F5es de TI",
+      "sentAt": "2026-04-14T18:10:00-03:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    }
+  ],
+  "suspects": [
+    {
+      "id": "suspect.caio_nascimento",
+      "name": "Caio Nascimento",
+      "age": 22,
+      "occupation": "Estagi\u00E1rio de TI (suporte interno)",
+      "relationship": "Prestava suporte de TI ao setor administrativo do escrit\u00F3rio",
+      "motive": "Estava precisando levantar dinheiro no mesmo dia e viu no notebook rec\u00E9m-chegado (ainda sem etiqueta patrimonial vis\u00EDvel e sem rastreador configurado) uma chance de conseguir vender r\u00E1pido. O fato de o item estar guardado na gaveta 12, com uma chave acess\u00EDvel no arm\u00E1rio de arquivos, tornava a oportunidade pr\u00E1tica durante um atendimento rotineiro.",
+      "alibi": "Diz que esteve na sala ADM apenas para atender o chamado de TI sobre o Wi\u2011Fi da impressora e depois seguiu a rotina do suporte; o chamado interno #4172 (registrado \u00E0s 15:03 e atribu\u00EDdo a ele) e o livro de portaria (entrada 14:20 e sa\u00EDda 16:02) confirmam presen\u00E7a e hor\u00E1rios gerais. A limita\u00E7\u00E3o \u00E9 que esses registros n\u00E3o mostram o que ele fez dentro da sala no intervalo de 15:08\u201315:14 nem comprovam com quem esteve minuto a minuto.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Atuava como estagi\u00E1rio de TI circulando entre as salas para atender chamados internos, normalmente carregando mochila com ferramentas. No dia 14/04/2026, assumiu/abriu o chamado de TI #4172 \u00E0s 15:03 para \u201CWi\u2011Fi da impressora (ADM)\u201D, o que o levou \u00E0 sala administrativa durante o expediente. O acesso a rotinas e locais do escrit\u00F3rio inclu\u00EDa transitar pelo corredor e entrar em salas para suporte conforme solicita\u00E7\u00E3o.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.luana_medeiros",
+      "name": "Luana Medeiros",
+      "age": 29,
+      "occupation": "Assistente administrativa",
+      "relationship": "Respons\u00E1vel pela sala administrativa e pela guarda de documentos do escrit\u00F3rio",
+      "motive": "Ela era cobrada pela organiza\u00E7\u00E3o e pela entrega do equipamento a um novo colaborador, e um sumi\u00E7o sob sua responsabilidade poderia gerar advert\u00EAncia ou desgaste com a ger\u00EAncia. Isso cria um incentivo pr\u00E1tico para controlar a narrativa do que aconteceu e proteger a pr\u00F3pria rotina de trabalho.",
+      "alibi": "Diz que saiu da sala ADM para pegar caf\u00E9 na copa e avisou no WhatsApp Business \u201CADM - Rotina\u201D \u00E0s 15:09 (\u201Ct\u00F4 na copa...\u201D) e \u00E0s 15:16 (\u201Cvoltei\u201D), o que pode ser conferido no hist\u00F3rico do grupo. A limita\u00E7\u00E3o \u00E9 que as mensagens confirmam o per\u00EDodo fora da sala, mas n\u00E3o registram com precis\u00E3o onde ela esteve a cada minuto nem quem mais passou pelo corredor nesse intervalo.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Luana Medeiros trabalha no administrativo e mant\u00E9m rotinas de organiza\u00E7\u00E3o e controle de materiais na sala ADM.\nEm 14/04, ela fez uma foto interna do arm\u00E1rio de arquivos \u00E0s 14:18 como parte de um procedimento de organiza\u00E7\u00E3o.\nFoi quem percebeu e comunicou o desaparecimento do notebook ao tentar separar o equipamento \u00E0s 16:41.\nSeu acesso \u00E0 sala e aos m\u00F3veis administrativos \u00E9 cotidiano por fun\u00E7\u00E3o.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.marcos_barbosa",
+      "name": "Marcos Barbosa",
+      "age": 32,
+      "occupation": "Analista comercial",
+      "relationship": "Colega de trabalho do escrit\u00F3rio (\u00E1rea comercial), com circula\u00E7\u00E3o pelo corredor pr\u00F3ximo \u00E0 sala ADM",
+      "motive": "Ele vinha tentando fechar um contrato importante e precisava de um notebook dispon\u00EDvel para preparar uma apresenta\u00E7\u00E3o de \u00FAltima hora no mesmo dia. O sumi\u00E7o de um equipamento rec\u00E9m-chegado (sem etiqueta patrimonial vis\u00EDvel) poderia parecer uma forma r\u00E1pida de \u201Cresolver\u201D uma urg\u00EAncia sem pedir autoriza\u00E7\u00E3o formal.",
+      "alibi": "Diz que estava em uma videoconfer\u00EAncia de trabalho (\u201CCall Cliente - Porto Norte\u201D) das 14:55 \u00E0s 15:35; o convite no calend\u00E1rio interno registra sua participa\u00E7\u00E3o e inclui o link meet.google.com/qxk-rtvp-yzs. Limita\u00E7\u00E3o: o registro de agenda mostra o compromisso marcado, mas n\u00E3o prova sozinho se ele permaneceu conectado durante todo o per\u00EDodo.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Trabalha no time comercial e costuma circular entre salas para atender liga\u00E7\u00F5es e alinhar propostas.\nNa tarde de 14/04/2026, havia um compromisso de call registrado no calend\u00E1rio interno atravessando a janela do desaparecimento.\nFoi lembrado por colegas por estar no corredor/receptivo em outro momento do expediente, o que o coloca entre as pessoas com tr\u00E2nsito pr\u00F3ximo \u00E0 \u00E1rea administrativa.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.joana_siqueira",
+      "name": "Joana Siqueira",
+      "age": 28,
+      "occupation": "Recepcionista",
+      "relationship": "Funcion\u00E1ria da recep\u00E7\u00E3o; atende o administrativo e registra entradas/entregas",
+      "motive": "Joana j\u00E1 teve atritos com o setor ADM por cobran\u00E7as de procedimentos (protocolo de entregas e controle de chaves), e poderia querer evitar nova responsabiliza\u00E7\u00E3o por falhas de organiza\u00E7\u00E3o. Um sumi\u00E7o ligado \u00E0 sala ADM tamb\u00E9m desloca a aten\u00E7\u00E3o para rotinas internas que passam pela recep\u00E7\u00E3o, \u00E1rea que ela administra diariamente.",
+      "alibi": "Ela afirma que permaneceu na recep\u00E7\u00E3o durante a janela do desaparecimento atendendo o ramal 201; o registro de telefonia do ramal mostra chamadas atendidas \u00E0s 15:07 (02:11) e 15:12 (01:34). A limita\u00E7\u00E3o \u00E9 que o registro indica o uso do ramal, mas n\u00E3o identifica por biometria quem estava fisicamente ao lado do aparelho em cada momento.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Trabalha na recep\u00E7\u00E3o do escrit\u00F3rio no Centro do Recife, controlando fluxo de visitantes, recebimento de encomendas e o livro de portaria.\nTem acesso cotidiano aos corredores e \u00E0 comunica\u00E7\u00E3o interna entre recep\u00E7\u00E3o e administrativo, mas n\u00E3o \u00E9 respons\u00E1vel direta pela sala ADM.\nNo dia do incidente, o hist\u00F3rico do ramal 201 registra atendimentos em dois pontos dentro do intervalo cr\u00EDtico, compat\u00EDveis com perman\u00EAncia no posto de recep\u00E7\u00E3o.",
+      "visibility": "initial"
+    }
+  ],
+  "timeline": [
+    {
+      "time": "2026-04-14T14:18:00-03:00",
+      "event": "H\u00E1 uma foto interna do arm\u00E1rio de arquivos feita por Luana \u00E0s 14:18; nela d\u00E1 para ver um chaveiro rotulado \u0022GAV 12\u0022 pendurado no gancho interno.",
+      "source": "investigation",
+      "verified": true,
+      "importance": "medium"
+    },
+    {
+      "time": "2026-04-14T15:10:00-03:00",
+      "event": "O sumi\u00E7o \u00E9 estimado para o intervalo entre 15:08 e 15:14, quando a sala ADM ficou sem a presen\u00E7a cont\u00EDnua de Luana.",
+      "source": "investigation",
+      "verified": false,
+      "importance": "critical"
+    },
+    {
+      "time": "2026-04-14T16:41:00-03:00",
+      "event": "\u00C0s 16:41, Luana reportou que a gaveta 12 da sala ADM estava vazia ao tentar separar um notebook para um novo colaborador.",
+      "source": "witness",
+      "verified": true,
+      "importance": "critical"
+    },
+    {
+      "time": "2026-04-14T17:35:00-03:00",
+      "event": "A investiga\u00E7\u00E3o interna foi aberta \u00E0s 17:35 com preserva\u00E7\u00E3o de registros do escrit\u00F3rio.",
+      "source": "investigation",
+      "verified": true,
+      "importance": "high"
+    }
+  ],
+  "temporalEvents": [],
+  "rules": [],
+  "forensicsDefaults": {
+    "analysisTypes": [],
+    "noFindingsEmail": {
+      "template": "Insp. Renata Albuquerque,\n\nA an\u00E1lise {{analysisType}} de {{assetName}} n\u00E3o revelou elementos \u00FAteis para a investiga\u00E7\u00E3o.\n\nPol\u00EDcia Civil de Pernambuco \u2014 1\u00AA Delegacia Seccional (Recife)",
+      "from": "Pol\u00EDcia Civil de Pernambuco \u2014 1\u00AA Delegacia Seccional (Recife)",
+      "subject": "Resultado da an\u00E1lise \u2014 {{analysisType}} \u2014 Sem achados"
+    }
+  },
+  "forensicOutcomes": [],
+  "solution": {
+    "culpritId": "suspect.caio_nascimento",
+    "requiredEvidenceIds": [
+      "asset.evidence_log",
+      "asset.access_log",
+      "asset.bank_statement"
+    ],
+    "requiredAnalysisIds": [],
+    "questions": [
+      {
+        "id": "q.ad_listing_identifier",
+        "prompt": "Qual n\u00FAmero de s\u00E9rie no an\u00FAncio online preservado corresponde ao notebook desaparecido?",
+        "options": [
+          {
+            "id": "opt.pf_7x29q",
+            "label": "PF-7X29Q"
+          },
+          {
+            "id": "opt.pf_7x92q",
+            "label": "PF-7X92Q"
+          },
+          {
+            "id": "opt.pf_7x28q",
+            "label": "PF-7X28Q"
+          },
+          {
+            "id": "opt.pf_7x29o",
+            "label": "PF-7X29O"
+          }
+        ],
+        "correctOptionId": "opt.pf_7x29q",
+        "weight": 0.35
+      },
+      {
+        "id": "q.phone_link_to_employee",
+        "prompt": "Qual evid\u00EAncia liga diretamente o telefone do an\u00FAncio ao cadastro interno do colaborador?",
+        "options": [
+          {
+            "id": "opt.numero_do_anuncio_igual_ao_rh",
+            "label": "O n\u00FAmero do an\u00FAncio (\u20264432) coincide com o campo \u201CCelular\u201D na ficha do RH (\u20264432)."
+          },
+          {
+            "id": "opt.url_do_anuncio_contem_numero_de_serie",
+            "label": "A URL do an\u00FAncio inclui o n\u00FAmero de s\u00E9rie do notebook, permitindo inferir o contato associado."
+          },
+          {
+            "id": "opt.livro_recepcao_mostra_contato",
+            "label": "O livro de recep\u00E7\u00E3o registra um contato telef\u00F4nico relacionado \u00E0 visita externa no mesmo dia."
+          },
+          {
+            "id": "opt.chaveiro_gav12_em_foto",
+            "label": "A foto do arm\u00E1rio mostra o chaveiro \u201CGAV 12\u201D, indicando acesso ligado ao an\u00FAncio."
+          }
+        ],
+        "correctOptionId": "opt.numero_do_anuncio_igual_ao_rh",
+        "weight": 0.35
+      },
+      {
+        "id": "q.ti_ticket_assignment_time",
+        "prompt": "No log institucional, o chamado TI #4172 registra qual assunto, atendente e hor\u00E1rio de cria\u00E7\u00E3o/atribui\u00E7\u00E3o?",
+        "options": [
+          {
+            "id": "opt.wifi_impressora_adm_1503",
+            "label": "Assunto \u201CWi\u2011Fi da impressora (ADM)\u201D, atendente de TI indicado no registro, \u00E0s 15:03 (14/04/2026)"
+          },
+          {
+            "id": "opt.rede_sala_reuniao_1455",
+            "label": "Assunto \u201CRede da sala de reuni\u00E3o\u201D, atendente de TI indicado no registro, \u00E0s 14:55 (14/04/2026)"
+          },
+          {
+            "id": "opt.impressora_driver_adm_1510",
+            "label": "Assunto \u201CDriver da impressora (ADM)\u201D, atendente de TI indicado no registro, \u00E0s 15:10 (14/04/2026)"
+          },
+          {
+            "id": "opt.wifi_impressora_recepcao_1503",
+            "label": "Assunto \u201CWi\u2011Fi da impressora (Recep\u00E7\u00E3o)\u201D, atendente de TI indicado no registro, \u00E0s 15:03 (14/04/2026)"
+          }
+        ],
+        "correctOptionId": "opt.wifi_impressora_adm_1503",
+        "weight": 0.3
+      }
+    ],
+    "explanation": "O notebook Lenovo ThinkPad E14 (SN PF-7X29Q) estava guardado na gaveta 12, e uma foto de rotina antes do sumi\u00E7o mostra que a \u201Cgaveta trancada\u201D era vulner\u00E1vel porque a chave \u201CGAV 12\u201D ficava pendurada dentro do arm\u00E1rio de arquivos. \u00C0s 15:03, Caio abriu/assumiu um chamado de TI para a sala ADM e, quando Luana avisou no chat que estava na copa, surgiu a janela em que algu\u00E9m com acesso poderia pegar a chave, abrir a gaveta e levar o equipamento sem arrombar nada. A autoria se fecha por duas linhas independentes: o registro do chamado coloca Caio no local e hor\u00E1rio cr\u00EDtico, e poucas horas depois apareceu um an\u00FAncio de venda citando exatamente o mesmo n\u00FAmero de s\u00E9rie, com telefone rastre\u00E1vel. A an\u00E1lise decisiva foi bater o telefone do an\u00FAncio com o celular cadastrado no RH em nome de Caio, ligando a posse e tentativa de venda diretamente a ele. Isso tamb\u00E9m explica por que n\u00E3o houve sinais de arrombamento: a chave foi usada e recolocada, simulando normalidade. Os principais desvios caem porque Luana estava fora da sala no momento-chave, Marcos tinha reuni\u00E3o marcada atravessando o intervalo, e o t\u00E9cnico externo s\u00F3 chegou depois; j\u00E1 os registros de hor\u00E1rio e chamadas/agenda ajudam a delimitar oportunidade, mas n\u00E3o provam por si s\u00F3 o que cada pessoa fez minuto a minuto dentro da sala.",
+    "minimumScore": 0.7,
+    "maxAttempts": 3,
+    "partialCreditRules": {
+      "culpritWeight": 0.4,
+      "evidenceWeight": 0.2,
+      "analysisWeight": 0.2,
+      "questionsWeight": 0.2
+    }
+  },
+  "gameMetadata": {
+    "schemaVersion": "2.0",
+    "createdAt": "2026-07-21T05:17:05.7998488Z",
+    "tags": [
+      "furto",
+      "escritorio",
+      "recife",
+      "expediente",
+      "cadeado",
+      "notebook"
+    ],
+    "contentWarnings": [],
+    "localizations": [
+      "pt-BR"
+    ],
+    "generation": {
+      "pipelineVersion": "v2-microtasks",
+      "model": "gpt-5.2",
+      "seed": 20260724,
+      "bundleChecksum": ""
+    }
+  }
+}

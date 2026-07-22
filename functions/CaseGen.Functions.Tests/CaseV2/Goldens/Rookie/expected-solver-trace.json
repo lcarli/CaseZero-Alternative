@@ -1,0 +1,58 @@
+{
+  "Correct": true,
+  "Score": 1,
+  "CulpritScore": 0,
+  "EvidenceScore": 0,
+  "AnalysisScore": 0,
+  "QuestionsScore": 0,
+  "Attempt": {
+    "suspectId": "suspect.culprit",
+    "evidenceIds": [
+      "asset.initial",
+      "asset.second"
+    ],
+    "analysisIds": [],
+    "observationIds": [
+      "observation.identity_a",
+      "observation.identity_b"
+    ],
+    "answers": [],
+    "rationale": null
+  },
+  "LogicalProofPassed": true,
+  "NarrativeSimulationPassed": true,
+  "Trace": {
+    "Entries": [
+      {
+        "Sequence": 1,
+        "Kind": 4,
+        "ActionId": "accuse:suspect.culprit",
+        "TargetId": "suspect.culprit",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": [
+          "observation.identity_a",
+          "observation.identity_b"
+        ]
+      }
+    ],
+    "FinalReachableSourceIds": [
+      "asset.decoy_one",
+      "asset.decoy_two",
+      "asset.extra",
+      "asset.initial",
+      "asset.second"
+    ],
+    "FinalReachableObservationIds": [
+      "observation.decoy_one",
+      "observation.decoy_two",
+      "observation.identity_a",
+      "observation.identity_b"
+    ],
+    "LogicalProofPassed": true,
+    "NarrativeSimulationPassed": true
+  },
+  "Notes": null
+}

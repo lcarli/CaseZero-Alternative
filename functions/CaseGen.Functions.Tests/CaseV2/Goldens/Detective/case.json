@@ -1,0 +1,49 @@
+{
+  "version":"2.0",
+  "caseId":"case_detective_test",
+  "metadata":{
+    "title":"Detective Test Case","description":"A complete deterministic validation case.",
+    "location":"Boston, Massachusetts","incidentDate":"2026-07-20T20:00:00-04:00",
+    "openedAt":"2026-07-21T09:00:00-04:00","difficulty":"Detective","requiredRank":"Detective",
+    "unlockMode":"gated","estimatedDurationMinutes":90
+  },
+  "assets":[
+    {"id":"asset.initial_a","type":"digital","title":"Initial A","uri":"case://case_detective_test/assets/initial_a.pdf","visibility":"initial"},
+    {"id":"asset.result_a","type":"pdf","title":"Result A","uri":"case://case_detective_test/assets/result_a.pdf","visibility":"hidden"},
+    {"id":"asset.initial_b","type":"digital","title":"Initial B","uri":"case://case_detective_test/assets/initial_b.pdf","visibility":"initial"},
+    {"id":"asset.result_b","type":"pdf","title":"Result B","uri":"case://case_detective_test/assets/result_b.pdf","visibility":"hidden"},
+    {"id":"asset.decoy_one","type":"document","title":"Decoy One","uri":"case://case_detective_test/assets/decoy_one.pdf","visibility":"initial"},
+    {"id":"asset.decoy_two","type":"document","title":"Decoy Two","uri":"case://case_detective_test/assets/decoy_two.pdf","visibility":"initial"}
+  ],
+  "emails":[
+    {"id":"email.briefing","from":"unit@casezero.local","to":"detective@casezero.local",
+     "subject":"Briefing","body":"Review the evidence.","sentAt":"2026-07-21T09:00:00-04:00","visibility":"initial"}
+  ],
+  "suspects":[
+    {"id":"suspect.culprit","name":"Culprit","visibility":"initial"},
+    {"id":"suspect.decoy_one","name":"Decoy One","visibility":"initial"},
+    {"id":"suspect.decoy_two","name":"Decoy Two","visibility":"initial"}
+  ],
+  "timeline":[],
+  "temporalEvents":[],
+  "rules":[
+    {"ruleId":"rule.analysis_a","trigger":{"type":"forensics_complete","inputAssetId":"asset.initial_a","analysisType":"MetadataAnalysis"},"actions":[{"type":"reveal_asset","assetId":"asset.result_a"}]},
+    {"ruleId":"rule.analysis_b","trigger":{"type":"forensics_complete","inputAssetId":"asset.initial_b","analysisType":"MetadataAnalysis"},"actions":[{"type":"reveal_asset","assetId":"asset.result_b"}]}
+  ],
+  "forensicsDefaults":{
+    "analysisTypes":[{"type":"MetadataAnalysis","durationMinutes":60,"availableFor":["digital","document","pdf","photo"]}],
+    "noFindingsEmail":{"template":"none","from":"lab@casezero.local","subject":"No findings"}
+  },
+  "forensicOutcomes":[
+    {"inputAssetId":"asset.initial_a","analysisType":"MetadataAnalysis","findings":true,"resultAssetId":"asset.result_a"},
+    {"inputAssetId":"asset.initial_b","analysisType":"MetadataAnalysis","findings":true,"resultAssetId":"asset.result_b"}
+  ],
+  "solution":{
+    "culpritId":"suspect.culprit","requiredEvidenceIds":["asset.result_a","asset.result_b"],
+    "requiredAnalysisIds":["asset.initial_a:MetadataAnalysis","asset.initial_b:MetadataAnalysis"],
+    "questions":[],"explanation":"Two gated correlations identify the culprit.",
+    "minimumScore":0.7,"maxAttempts":3,
+    "partialCreditRules":{"culpritWeight":0.4,"evidenceWeight":0.2,"analysisWeight":0.2,"questionsWeight":0.2}
+  },
+  "gameMetadata":{"schemaVersion":"2.0","createdAt":"2026-07-21T15:00:00Z"}
+}

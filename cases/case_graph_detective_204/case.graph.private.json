@@ -1,0 +1,1124 @@
+{
+  "Origin": "Generated",
+  "Entities": [
+    {
+      "id": "person.linh_tran",
+      "kind": "Person",
+      "displayName": "Linh Tran",
+      "attributes": {}
+    },
+    {
+      "id": "person.maya_kline",
+      "kind": "Person",
+      "displayName": "Maya Kline",
+      "attributes": {}
+    },
+    {
+      "id": "person.owen_delgado",
+      "kind": "Person",
+      "displayName": "Owen Delgado",
+      "attributes": {}
+    },
+    {
+      "id": "person.rafael_ibarra",
+      "kind": "Person",
+      "displayName": "Rafael Ibarra",
+      "attributes": {}
+    },
+    {
+      "id": "organization.case_context",
+      "kind": "Organization",
+      "displayName": "The Missing Pallet Ledger",
+      "attributes": {}
+    },
+    {
+      "id": "document.roseway_access_export_door_e_staff_20260318",
+      "kind": "Document",
+      "displayName": "Roseway 3PL Badge Reader Export \u2014 Staff Entrance \u0026 Mezzanine Office Door (03/18) \u2014 document.roseway_access_export_door_e_staff_20260318",
+      "attributes": {}
+    },
+    {
+      "id": "document.roseway_access_export_door_mz_office_20260318",
+      "kind": "Document",
+      "displayName": "Roseway 3PL Badge Reader Export \u2014 Staff Entrance \u0026 Mezzanine Office Door (03/18) \u2014 document.roseway_access_export_door_mz_office_20260318",
+      "attributes": {}
+    },
+    {
+      "id": "document.wms_audit_export_adj_20260318_0312",
+      "kind": "Document",
+      "displayName": "WMS Audit Export \u2014 Adjustment Batch ADJ-20260318-0312 (MZ-PC-03) \u2014 document.wms_audit_export_adj_20260318_0312",
+      "attributes": {}
+    },
+    {
+      "id": "account.wms_user_rpt_floor",
+      "kind": "Account",
+      "displayName": "WMS Audit Export \u2014 Adjustment Batch ADJ-20260318-0312 (MZ-PC-03) \u2014 account.wms_user_rpt_floor",
+      "attributes": {}
+    },
+    {
+      "id": "document.chat_export_ops_ic_channel_20260318_0000_0600",
+      "kind": "Document",
+      "displayName": "Chat Export \u2014 Night Ops/IC Messages Around Auto-Post Window (03/18) \u2014 document.chat_export_ops_ic_channel_20260318_0000_0600",
+      "attributes": {}
+    },
+    {
+      "id": "document.email_export_reconciliation_thread_hhs_4102_20260318",
+      "kind": "Document",
+      "displayName": "Email Export \u2014 Reconciliation Thread Referencing HHS-4102 Variance (03/18) \u2014 document.email_export_reconciliation_thread_hhs_4102_20260318",
+      "attributes": {}
+    },
+    {
+      "id": "object.attachment_variance_snapshot_20260318_xlsx",
+      "kind": "PhysicalObject",
+      "displayName": "Email Export \u2014 Reconciliation Thread Referencing HHS-4102 Variance (03/18) \u2014 object.attachment_variance_snapshot_20260318_xlsx",
+      "attributes": {}
+    },
+    {
+      "id": "document.gate_log_export_bay2_20260318_0000_0600",
+      "kind": "Document",
+      "displayName": "Gatehouse/Gate Log Export \u2014 Bay 2 Courier Pickup RET-EXC-1187 (04:06) \u2014 document.gate_log_export_bay2_20260318_0000_0600",
+      "attributes": {}
+    },
+    {
+      "id": "document.medical_report_dock1_spill_eval_20260318",
+      "kind": "Document",
+      "displayName": "Medical Report \u2014 Dock 1 Slip/Spill Evaluation (Night Shift, 03/18) \u2014 document.medical_report_dock1_spill_eval_20260318",
+      "attributes": {}
+    },
+    {
+      "id": "device.mz_pc_03",
+      "kind": "Device",
+      "displayName": "Medical Report \u2014 Dock 1 Slip/Spill Evaluation (Night Shift, 03/18) \u2014 device.mz_pc_03",
+      "attributes": {}
+    },
+    {
+      "id": "object.surveillance_still_mezzanine_corridor_20260318_0249",
+      "kind": "PhysicalObject",
+      "displayName": "Surveillance Still \u2014 Mezzanine Office Corridor Near Door MZ-Office (02:49) \u2014 object.surveillance_still_mezzanine_corridor_20260318_0249",
+      "attributes": {}
+    },
+    {
+      "id": "document.witness_statement_ops_manager_variance_context_20260319",
+      "kind": "Document",
+      "displayName": "Witness Statement \u2014 Ops Manager on HHS-4102 Variance \u0026 Overnight Controls \u2014 document.witness_statement_ops_manager_variance_context_20260319",
+      "attributes": {}
+    }
+  ],
+  "SuspectReferences": [
+    {
+      "suspectId": "suspect.linh_tran",
+      "personEntityId": "person.linh_tran"
+    },
+    {
+      "suspectId": "suspect.maya_kline",
+      "personEntityId": "person.maya_kline"
+    },
+    {
+      "suspectId": "suspect.owen_delgado",
+      "personEntityId": "person.owen_delgado"
+    },
+    {
+      "suspectId": "suspect.rafael_ibarra",
+      "personEntityId": "person.rafael_ibarra"
+    }
+  ],
+  "Facts": [
+    {
+      "Id": "fact.clue_action_file_metadata",
+      "Predicate": "action_action_file_metadata",
+      "SubjectId": "person.linh_tran",
+      "ObjectId": null,
+      "LiteralValue": "The spreadsheet \u0027CycleCount_Adjustments_2026-03-18.xlsx\u0027 on the shared drive shows \u0027Last Modified: 2026-03-18 03:06:44\u0027 and \u0027Last Modified By: LINH.T\u0027 in its file properties.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_action_wms_batch",
+      "Predicate": "action_action_wms_batch",
+      "SubjectId": "organization.case_context",
+      "ObjectId": null,
+      "LiteralValue": "WMS audit log shows adjustment batch \u0027ADJ-20260318-0312\u0027 posted at 2026-03-18 03:12:00 and initiated by user \u0027rpt-floor\u0027 from terminal name \u0027MZ-PC-03\u0027.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_benefit_courier_pickup",
+      "Predicate": "benefit_benefit_courier_pickup",
+      "SubjectId": "organization.case_context",
+      "ObjectId": null,
+      "LiteralValue": "Gate log lists \u0027Bay 2 pickup\u0027 for courier \u0027Peninsula SameDay\u0027 at 2026-03-18 04:06 with reference \u0027RET-EXC-1187\u0027 and contact phone ending -5521.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_context_variance",
+      "Predicate": "context_context_variance",
+      "SubjectId": "organization.case_context",
+      "ObjectId": null,
+      "LiteralValue": "A reconciliation email thread dated 2026-03-18 references SKU HHS-4102 \u0027handheld scanners\u0027 showing a -48 unit variance after the 03:12 adjustment batch.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_forensic_session_link",
+      "Predicate": "forensicAttribution_forensic_session_link",
+      "SubjectId": "person.linh_tran",
+      "ObjectId": null,
+      "LiteralValue": "Forensic analysis of MZ-PC-03 shows Windows Event Log entry \u0027Microsoft-Windows-Security-Auditing 4624\u0027 with Logon ID 0x3F2A9 for user LINH.T at 2026-03-18 02:54:58 and WMS client log line \u0027SessionToken=7c1b9a2e\u0027 at 2026-03-18 03:11:41 on the same machine.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_identity_badge_linh",
+      "Predicate": "identity_identity_badge_linh",
+      "SubjectId": "person.linh_tran",
+      "ObjectId": null,
+      "LiteralValue": "Badge log entry \u0027TRN-L\u0027 shows badge ID 004982 opened Door E-Staff at 2026-03-18 02:41:18 and Door MZ-Office at 2026-03-18 02:49:02.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.culprit_linh_tran",
+      "Predicate": "isCulprit",
+      "SubjectId": "person.linh_tran",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_bridge_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "Predicate": "proofBridge_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "SubjectId": "person.linh_tran",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_join_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "Predicate": "forensicJoin_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "SubjectId": "person.linh_tran",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_bridge_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "Predicate": "proofBridge_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "SubjectId": "person.linh_tran",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_join_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "Predicate": "forensicJoin_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "SubjectId": "person.linh_tran",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_bridge_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "Predicate": "proofBridge_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "SubjectId": "person.linh_tran",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_join_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "Predicate": "forensicJoin_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "SubjectId": "person.linh_tran",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_suspicion_maya_kline",
+      "Predicate": "decoySuspicion",
+      "SubjectId": "person.maya_kline",
+      "ObjectId": null,
+      "LiteralValue": "As inventory control lead, Maya\u0027s approval authority could allow her to legitimize an improper cycle-count adjustment.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_verification_maya_kline",
+      "Predicate": "decoyVerification",
+      "SubjectId": "person.maya_kline",
+      "ObjectId": null,
+      "LiteralValue": "Email header on \u0027Re: Cycle Count 3/18 approvals\u0027 shows message-id \u003Ccc0318-approval@warehouse.local\u003E sent from MAYA.K at 2026-03-18 01:22:09 with the attached spreadsheet hash \u0027SHA256 9b1d...e20f\u0027 differing from the shared drive file hash \u0027SHA256 4c7a...19d2\u0027 recorded at 2026-03-18 03:15:02 by the file server audit.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_maya_kline",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.maya_kline",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_suspicion_owen_delgado",
+      "Predicate": "decoySuspicion",
+      "SubjectId": "person.owen_delgado",
+      "ObjectId": null,
+      "LiteralValue": "As shipping supervisor, Owen could alter outbound paperwork or stage pallets to leave through the dock without scrutiny.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_verification_owen_delgado",
+      "Predicate": "decoyVerification",
+      "SubjectId": "person.owen_delgado",
+      "ObjectId": null,
+      "LiteralValue": "BOL packet scan log shows Owen\u0027s supervisor login \u0027ODEL\u0027 recorded at Dock Office kiosk at 2026-03-18 08:14:22 and 08:37:05, with no entries between 01:00 and 06:00.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_owen_delgado",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.owen_delgado",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_suspicion_rafael_ibarra",
+      "Predicate": "decoySuspicion",
+      "SubjectId": "person.rafael_ibarra",
+      "ObjectId": null,
+      "LiteralValue": "As the overnight guard, Rafael could wave through an unauthorized pickup or falsify the gate log.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_verification_rafael_ibarra",
+      "Predicate": "decoyVerification",
+      "SubjectId": "person.rafael_ibarra",
+      "ObjectId": null,
+      "LiteralValue": "Security shift roster shows guard \u0027R. Ibarra\u0027 assigned 22:00\u201306:00 and a separate dock camera motion log lists activity at Gatehouse window at 2026-03-18 04:05\u201304:08 coinciding with the \u0027Peninsula SameDay\u0027 entry.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_rafael_ibarra",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.rafael_ibarra",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    }
+  ],
+  "Events": [],
+  "Sources": [
+    {
+      "Id": "asset.access_log",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.action_file_metadata_access_log",
+        "observation.identity_badge_linh_access_log",
+        "observation.decoy_verification_rafael_ibarra_access_log"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_action_file_metadata",
+        "fact.clue_identity_badge_linh",
+        "fact.decoy_verification_rafael_ibarra"
+      ],
+      "EvidentiaryOriginId": "asset.access_log",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.bank_statement",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.action_wms_batch_bank_statement",
+        "observation.decoy_verification_owen_delgado_bank_statement"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_action_wms_batch",
+        "fact.decoy_verification_owen_delgado"
+      ],
+      "EvidentiaryOriginId": "asset.bank_statement",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.chat_export",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.context_variance_chat_export",
+        "observation.decoy_suspicion_owen_delgado_chat_export"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_context_variance",
+        "fact.decoy_suspicion_owen_delgado"
+      ],
+      "EvidentiaryOriginId": "asset.chat_export",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.email_export",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.context_variance_email_export",
+        "observation.decoy_verification_maya_kline_email_export"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_context_variance",
+        "fact.decoy_verification_maya_kline"
+      ],
+      "EvidentiaryOriginId": "asset.email_export",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.gps_track",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.benefit_courier_pickup_gps_track",
+        "observation.decoy_suspicion_rafael_ibarra_gps_track"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_benefit_courier_pickup",
+        "fact.decoy_suspicion_rafael_ibarra"
+      ],
+      "EvidentiaryOriginId": "asset.gps_track",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.medical_report",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.context_variance_medical_report",
+        "observation.decoy_suspicion_rafael_ibarra_medical_report"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_context_variance",
+        "fact.decoy_suspicion_rafael_ibarra"
+      ],
+      "EvidentiaryOriginId": "asset.medical_report",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.surveillance_still",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.identity_badge_linh_surveillance_still",
+        "observation.decoy_suspicion_owen_delgado_surveillance_still"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_identity_badge_linh",
+        "fact.decoy_suspicion_owen_delgado"
+      ],
+      "EvidentiaryOriginId": "asset.surveillance_still",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.witness_statement",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.context_variance_witness_statement",
+        "observation.decoy_suspicion_maya_kline_witness_statement"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_context_variance",
+        "fact.decoy_suspicion_maya_kline"
+      ],
+      "EvidentiaryOriginId": "asset.witness_statement",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_forensic_session_link"
+      ],
+      "EvidentiaryOriginId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "AvailableAt": "AfterForensic",
+      "RevealPrerequisiteIds": [
+        "action.analysis_medical_report_metadataanalysis"
+      ],
+      "Required": false
+    },
+    {
+      "Id": "email.inventory_mailbox_context",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "email.inventory_mailbox_context",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "email.ops_manager_preservation_notice",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "email.ops_manager_preservation_notice",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "email.security_rounds_context",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "email.security_rounds_context",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "AvailableAt": "AfterForensic",
+      "RevealPrerequisiteIds": [
+        "action.analysis_medical_report_metadataanalysis"
+      ],
+      "Required": false
+    }
+  ],
+  "AssetSpecs": [
+    {
+      "Id": "asset.access_log",
+      "ArchetypeId": "access_log",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.action_file_metadata_access_log",
+        "observation.decoy_verification_rafael_ibarra_access_log",
+        "observation.identity_badge_linh_access_log"
+      ],
+      "ContainedObjectIds": [
+        "document.roseway_access_export_door_e_staff_20260318",
+        "document.roseway_access_export_door_mz_office_20260318"
+      ],
+      "ContainedObjectTypes": {
+        "document.roseway_access_export_door_e_staff_20260318": "AccessRecord",
+        "document.roseway_access_export_door_mz_office_20260318": "AccessRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "AccessLog"
+    },
+    {
+      "Id": "asset.bank_statement",
+      "ArchetypeId": "bank_statement",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.action_wms_batch_bank_statement",
+        "observation.decoy_verification_owen_delgado_bank_statement"
+      ],
+      "ContainedObjectIds": [
+        "document.wms_audit_export_adj_20260318_0312",
+        "account.wms_user_rpt_floor"
+      ],
+      "ContainedObjectTypes": {
+        "document.wms_audit_export_adj_20260318_0312": "FinancialRecord",
+        "account.wms_user_rpt_floor": "FinancialRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "BankStatement"
+    },
+    {
+      "Id": "asset.chat_export",
+      "ArchetypeId": "chat_export",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.context_variance_chat_export",
+        "observation.decoy_suspicion_owen_delgado_chat_export"
+      ],
+      "ContainedObjectIds": [
+        "document.chat_export_ops_ic_channel_20260318_0000_0600"
+      ],
+      "ContainedObjectTypes": {
+        "document.chat_export_ops_ic_channel_20260318_0000_0600": "CommunicationRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "ChatExport"
+    },
+    {
+      "Id": "asset.email_export",
+      "ArchetypeId": "email_export",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.context_variance_email_export",
+        "observation.decoy_verification_maya_kline_email_export"
+      ],
+      "ContainedObjectIds": [
+        "document.email_export_reconciliation_thread_hhs_4102_20260318",
+        "object.attachment_variance_snapshot_20260318_xlsx"
+      ],
+      "ContainedObjectTypes": {
+        "document.email_export_reconciliation_thread_hhs_4102_20260318": "CommunicationRecord",
+        "object.attachment_variance_snapshot_20260318_xlsx": "CommunicationRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "EmailExport"
+    },
+    {
+      "Id": "asset.gps_track",
+      "ArchetypeId": "gps_track",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.benefit_courier_pickup_gps_track",
+        "observation.decoy_suspicion_rafael_ibarra_gps_track"
+      ],
+      "ContainedObjectIds": [
+        "document.gate_log_export_bay2_20260318_0000_0600"
+      ],
+      "ContainedObjectTypes": {
+        "document.gate_log_export_bay2_20260318_0000_0600": "LocationTrack"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "GpsTrack"
+    },
+    {
+      "Id": "asset.medical_report",
+      "ArchetypeId": "medical_report",
+      "AssetType": "document",
+      "ObservationIds": [
+        "observation.context_variance_medical_report",
+        "observation.decoy_suspicion_rafael_ibarra_medical_report"
+      ],
+      "ContainedObjectIds": [
+        "document.medical_report_dock1_spill_eval_20260318",
+        "device.mz_pc_03"
+      ],
+      "ContainedObjectTypes": {
+        "document.medical_report_dock1_spill_eval_20260318": "Document",
+        "device.mz_pc_03": "Document"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "MedicalReport"
+    },
+    {
+      "Id": "asset.surveillance_still",
+      "ArchetypeId": "surveillance_still",
+      "AssetType": "photo",
+      "ObservationIds": [
+        "observation.decoy_suspicion_owen_delgado_surveillance_still",
+        "observation.identity_badge_linh_surveillance_still"
+      ],
+      "ContainedObjectIds": [
+        "object.surveillance_still_mezzanine_corridor_20260318_0249"
+      ],
+      "ContainedObjectTypes": {
+        "object.surveillance_still_mezzanine_corridor_20260318_0249": "Image"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "Photo"
+    },
+    {
+      "Id": "asset.witness_statement",
+      "ArchetypeId": "witness_statement",
+      "AssetType": "document",
+      "ObservationIds": [
+        "observation.context_variance_witness_statement",
+        "observation.decoy_suspicion_maya_kline_witness_statement"
+      ],
+      "ContainedObjectIds": [
+        "document.witness_statement_ops_manager_variance_context_20260319"
+      ],
+      "ContainedObjectTypes": {
+        "document.witness_statement_ops_manager_variance_context_20260319": "Document"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "WitnessStatement"
+    }
+  ],
+  "DecoyArcs": [
+    {
+      "SuspectId": "suspect.maya_kline",
+      "SuspicionObservationIds": [
+        "observation.decoy_suspicion_maya_kline_witness_statement"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_verification_maya_kline_email_export"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_maya_kline",
+      "MustBePlayerReachable": true
+    },
+    {
+      "SuspectId": "suspect.owen_delgado",
+      "SuspicionObservationIds": [
+        "observation.decoy_suspicion_owen_delgado_chat_export",
+        "observation.decoy_suspicion_owen_delgado_surveillance_still"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_verification_owen_delgado_bank_statement"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_owen_delgado",
+      "MustBePlayerReachable": true
+    },
+    {
+      "SuspectId": "suspect.rafael_ibarra",
+      "SuspicionObservationIds": [
+        "observation.decoy_suspicion_rafael_ibarra_gps_track",
+        "observation.decoy_suspicion_rafael_ibarra_medical_report"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_verification_rafael_ibarra_access_log"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_rafael_ibarra",
+      "MustBePlayerReachable": true
+    }
+  ],
+  "ForensicTransforms": [
+    {
+      "Id": "forensic.medical_report_metadataanalysis",
+      "MethodId": "MetadataAnalysis",
+      "InputAssetId": "asset.medical_report",
+      "InputObjectId": "document.medical_report_dock1_spill_eval_20260318",
+      "ReferenceSampleObjectId": null,
+      "ChainOfCustodyObservationId": "observation.context_variance_medical_report",
+      "ProducedObservationIds": [
+        "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      ],
+      "ProducedProperties": [
+        "DeviceCorrelation",
+        "TimestampCorrelation"
+      ],
+      "LimitationKeys": [
+        "operator_not_proven",
+        "metadata_can_be_modified"
+      ],
+      "ResultAssetId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "ResultEmailId": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "ResultLayoutId": "ForensicReport"
+    }
+  ],
+  "Observations": [
+    {
+      "Id": "observation.action_file_metadata_access_log",
+      "FactId": "fact.clue_action_file_metadata",
+      "SourceAssetId": "asset.access_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.action_wms_batch_bank_statement",
+      "FactId": "fact.clue_action_wms_batch",
+      "SourceAssetId": "asset.bank_statement",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.benefit_courier_pickup_gps_track",
+      "FactId": "fact.clue_benefit_courier_pickup",
+      "SourceAssetId": "asset.gps_track",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.context_variance_chat_export",
+      "FactId": "fact.clue_context_variance",
+      "SourceAssetId": "asset.chat_export",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.context_variance_email_export",
+      "FactId": "fact.clue_context_variance",
+      "SourceAssetId": "asset.email_export",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.context_variance_medical_report",
+      "FactId": "fact.clue_context_variance",
+      "SourceAssetId": "asset.medical_report",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.context_variance_witness_statement",
+      "FactId": "fact.clue_context_variance",
+      "SourceAssetId": "asset.witness_statement",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "FactId": "fact.clue_forensic_session_link",
+      "SourceAssetId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": "DeviceCorrelation"
+    },
+    {
+      "Id": "observation.identity_badge_linh_access_log",
+      "FactId": "fact.clue_identity_badge_linh",
+      "SourceAssetId": "asset.access_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.identity_badge_linh_surveillance_still",
+      "FactId": "fact.clue_identity_badge_linh",
+      "SourceAssetId": "asset.surveillance_still",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_maya_kline_witness_statement",
+      "FactId": "fact.decoy_suspicion_maya_kline",
+      "SourceAssetId": "asset.witness_statement",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_verification_maya_kline_email_export",
+      "FactId": "fact.decoy_verification_maya_kline",
+      "SourceAssetId": "asset.email_export",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_owen_delgado_chat_export",
+      "FactId": "fact.decoy_suspicion_owen_delgado",
+      "SourceAssetId": "asset.chat_export",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_owen_delgado_surveillance_still",
+      "FactId": "fact.decoy_suspicion_owen_delgado",
+      "SourceAssetId": "asset.surveillance_still",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_verification_owen_delgado_bank_statement",
+      "FactId": "fact.decoy_verification_owen_delgado",
+      "SourceAssetId": "asset.bank_statement",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_rafael_ibarra_gps_track",
+      "FactId": "fact.decoy_suspicion_rafael_ibarra",
+      "SourceAssetId": "asset.gps_track",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_rafael_ibarra_medical_report",
+      "FactId": "fact.decoy_suspicion_rafael_ibarra",
+      "SourceAssetId": "asset.medical_report",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_verification_rafael_ibarra_access_log",
+      "FactId": "fact.decoy_verification_rafael_ibarra",
+      "SourceAssetId": "asset.access_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    }
+  ],
+  "Derivations": [
+    {
+      "Id": "derivation.proof_bridge_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "PremiseIds": [
+        "observation.action_file_metadata_access_log"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.proof_bridge_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.proof_join_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "PremiseIds": [
+        "derivation.proof_bridge_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      ],
+      "Rule": "CrossSourceCorroboration",
+      "ConclusionFactId": "fact.proof_join_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.culprit_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "PremiseIds": [
+        "derivation.proof_join_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.culprit_linh_tran",
+      "SupportsSuspectId": "suspect.linh_tran",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.proof_bridge_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "PremiseIds": [
+        "observation.identity_badge_linh_access_log"
+      ],
+      "Rule": "IdentityMatch",
+      "ConclusionFactId": "fact.proof_bridge_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.proof_join_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "PremiseIds": [
+        "derivation.proof_bridge_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      ],
+      "Rule": "CrossSourceCorroboration",
+      "ConclusionFactId": "fact.proof_join_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.culprit_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "PremiseIds": [
+        "derivation.proof_join_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.culprit_linh_tran",
+      "SupportsSuspectId": "suspect.linh_tran",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.proof_bridge_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "PremiseIds": [
+        "observation.identity_badge_linh_surveillance_still"
+      ],
+      "Rule": "IdentityMatch",
+      "ConclusionFactId": "fact.proof_bridge_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.proof_join_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "PremiseIds": [
+        "derivation.proof_bridge_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      ],
+      "Rule": "CrossSourceCorroboration",
+      "ConclusionFactId": "fact.proof_join_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.culprit_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "PremiseIds": [
+        "derivation.proof_join_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.culprit_linh_tran",
+      "SupportsSuspectId": "suspect.linh_tran",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.exclude_maya_kline",
+      "PremiseIds": [
+        "observation.decoy_verification_maya_kline_email_export"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_maya_kline",
+      "SupportsSuspectId": "suspect.maya_kline",
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.exclude_owen_delgado",
+      "PremiseIds": [
+        "observation.decoy_verification_owen_delgado_bank_statement"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_owen_delgado",
+      "SupportsSuspectId": "suspect.owen_delgado",
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.exclude_rafael_ibarra",
+      "PremiseIds": [
+        "observation.decoy_verification_rafael_ibarra_access_log"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_rafael_ibarra",
+      "SupportsSuspectId": "suspect.rafael_ibarra",
+      "IsCulpritConclusion": false
+    }
+  ],
+  "EventOrderConstraints": [],
+  "TravelWindows": [],
+  "Actions": [
+    {
+      "Id": "action.analysis_medical_report_metadataanalysis",
+      "Kind": "RequestAnalysis",
+      "CompletesAt": "AfterForensic",
+      "PrerequisiteSourceIds": [
+        "asset.medical_report"
+      ],
+      "PrerequisiteActionIds": [],
+      "RevealsSourceIds": [
+        "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      ],
+      "AnalysisId": "asset.medical_report:MetadataAnalysis",
+      "Required": true
+    }
+  ],
+  "RequiredSourceIds": [
+    "asset.access_log",
+    "asset.bank_statement",
+    "asset.gps_track"
+  ],
+  "RequiredAnalysisIds": [
+    "asset.medical_report:MetadataAnalysis"
+  ]
+}

@@ -25,6 +25,15 @@ public class RedTeamTask
         [JsonPropertyName("area")] public string Area { get; set; } = string.Empty;
         [JsonPropertyName("issue")] public string Issue { get; set; } = string.Empty;
         [JsonPropertyName("suggestion")] public string? Suggestion { get; set; }
+        [JsonPropertyName("affectedPaths")] public List<string> AffectedPaths { get; set; } = new();
+        [JsonPropertyName("factRefs")] public List<string> FactRefs { get; set; } = new();
+        [JsonPropertyName("expected")] public string? Expected { get; set; }
+        [JsonPropertyName("ownerStage")] public string? OwnerStage { get; set; }
+        [JsonPropertyName("repairAction")] public string? RepairAction { get; set; }
+        [JsonPropertyName("invalidateDownstream")] public List<string> InvalidateDownstream { get; set; } = new();
+        [JsonPropertyName("nodeId")] public string? NodeId { get; set; }
+        [JsonPropertyName("constraintId")] public string? ConstraintId { get; set; }
+        [JsonIgnore] public bool Blocking { get; set; }
     }
 
     public class Report
@@ -39,8 +48,19 @@ public class RedTeamTask
       "type":"object","required":["verdict","findings"],
       "properties":{
         "verdict":{"type":"string","enum":["ok","needs_review","reject"]},
-        "findings":{"type":"array","items":{"type":"object","required":["severity","area","issue"],
-          "properties":{"severity":{"type":"string","enum":["low","medium","high"]}}}},
+        "findings":{"type":"array","items":{"type":"object","required":["severity","area","issue","affectedPaths","ownerStage","repairAction"],
+          "properties":{
+            "severity":{"type":"string","enum":["low","medium","high"]},
+            "area":{"type":"string"},
+            "issue":{"type":"string"},
+            "suggestion":{"type":["string","null"]},
+            "affectedPaths":{"type":"array","items":{"type":"string"}},
+            "factRefs":{"type":"array","items":{"type":"string"}},
+            "expected":{"type":["string","null"]},
+            "ownerStage":{"type":["string","null"],"enum":["plotOutline","suspectCards","assetPlan","assetCards","timeline","forensics","emails","rules","solution",null]},
+            "repairAction":{"type":["string","null"]},
+            "invalidateDownstream":{"type":"array","items":{"type":"string"}}
+          }}},
         "notes":{"type":["string","null"]}
       }
     }
@@ -48,35 +68,7 @@ public class RedTeamTask
 
     public async Task<Report> RunAsync(CaseDraft draft, string assembledJson, CancellationToken ct)
     {
-        // Compact view of the case (without re-pasting bodies): the LLM still needs to see
-        // suspects with their motive/alibi/background, the timeline, and the forensic outcomes.
-        var culprit = draft.SuspectFull.FirstOrDefault(s => s.Id == draft.CulpritId);
-        var difficulty = draft.Metadata.Difficulty;
-        var ctxJson = JsonSerializer.Serialize(new
-        {
-            metadata = new
-            {
-                draft.Metadata.Title, draft.Metadata.Location,
-                draft.Metadata.IncidentDate, draft.Metadata.OpenedAt,
-                draft.Metadata.Difficulty, draft.Metadata.RequiredRank
-            },
-            culprit = culprit is null ? null : new { culprit.Id, culprit.Name, culprit.Motive, culprit.Alibi, culprit.AlibiVerified },
-            decoys = draft.SuspectFull.Where(s => s.Id != draft.CulpritId)
-                                       .Select(s => new { s.Id, s.Name, s.Motive, s.Alibi, s.AlibiVerified }),
-            assets = draft.AssetFull.Concat(draft.ResultAssets).Select(a => new { a.Id, a.Type, a.Title, a.Description, a.Visibility }),
-            timeline = draft.Timeline,
-            forensics = draft.ForensicFull.Select(f => new { f.InputAssetId, f.AnalysisType, f.Findings, f.MatchedSuspectId, f.ConclusionText }),
-            rules = draft.Rules.Select(r => new { r.RuleId, trigger = r.Trigger.Type, actionCount = r.Actions.Count }),
-            solution = new
-            {
-                draft.CulpritId,
-                draft.RequiredEvidenceIds,
-                draft.RequiredAnalysisIds,
-                questions = draft.Questions.Select(q => new { q.Id, q.Prompt, options = q.Options.Select(o => o.Label), correct = q.Options.FirstOrDefault(o => o.Id == q.CorrectOptionId)?.Label })
-            }
-        });
-
-        return await ExecuteAsync(ctxJson, "draft", difficulty, ct);
+        return await RunSpecialistsAsync(draft, ct);
     }
 
     /// <summary>
@@ -84,12 +76,56 @@ public class RedTeamTask
     /// (typically produced by RefineCaseTask). Used after refine to verify that
     /// the refined JSON actually addressed the original findings.
     /// </summary>
-    public async Task<Report> RunOnAssembledAsync(string assembledJson, CancellationToken ct)
+    public async Task<Report> RunOnAssembledAsync(string assembledJson, CaseDraft draft, CancellationToken ct)
     {
-        var ctxJson = BuildCompactContextFromJson(assembledJson);
-        var difficulty = TryExtractDifficulty(assembledJson);
-        return await ExecuteAsync(ctxJson, "refined-json", difficulty, ct);
+        return await RunSpecialistsAsync(draft, ct);
     }
+
+    private async Task<Report> RunSpecialistsAsync(CaseDraft draft, CancellationToken ct)
+    {
+        var reports = await new SpecialistReviewCoordinator(_llm, _logger).RunAsync(draft, ct);
+        var findings = reports.SelectMany(report => report.Findings)
+            .Select(finding => new Finding
+            {
+                Severity = finding.Severity.ToString().ToLowerInvariant(),
+                Area = finding.Reviewer.ToString(),
+                Issue = finding.Message,
+                Suggestion = finding.SuggestedRepair,
+                AffectedPaths = { finding.OwningNodeId },
+                FactRefs = { finding.OwningNodeId },
+                Expected = finding.ConstraintId,
+                OwnerStage = OwnerStageFor(finding.OwningNodeId),
+                RepairAction = finding.ConstraintId,
+                NodeId = finding.OwningNodeId,
+                ConstraintId = finding.ConstraintId,
+                Blocking = finding.Deterministic && finding.Severity == ReviewSeverity.High
+            })
+            .ToList();
+        var verdict = findings.Any(finding => finding.Blocking)
+            ? "reject"
+            : findings.Any(finding => finding.Severity == "medium")
+                ? "needs_review"
+                : "ok";
+        return new Report
+        {
+            Verdict = verdict,
+            Findings = findings,
+            Notes = string.Join(", ", reports.Select(report => $"{report.Reviewer}:{report.Verdict}"))
+        };
+    }
+
+    private static string OwnerStageFor(string nodeId) =>
+        nodeId switch
+        {
+            var id when id.StartsWith("asset.", StringComparison.Ordinal) => "assetCards",
+            var id when id.StartsWith("observation.", StringComparison.Ordinal) => "assetCards",
+            var id when id.StartsWith("forensic.", StringComparison.Ordinal) => "forensics",
+            var id when id.StartsWith("question.", StringComparison.Ordinal) => "solution",
+            var id when id.StartsWith("event.", StringComparison.Ordinal) => "timeline",
+            var id when id.StartsWith("locale.", StringComparison.Ordinal) => "plotOutline",
+            var id when id.StartsWith("suspect.", StringComparison.Ordinal) => "suspectCards",
+            _ => "plotOutline"
+        };
 
     private static string? TryExtractDifficulty(string assembledJson)
     {
@@ -104,7 +140,7 @@ public class RedTeamTask
         }
     }
 
-    private static string BuildCompactContextFromJson(string assembledJson)
+    private static string BuildCompactContextFromJson(string assembledJson, CaseDraft? draft = null)
     {
         try
         {
@@ -119,6 +155,7 @@ public class RedTeamTask
             var temporal = node["temporalEvents"];
             var rulesArr = node["rules"] as JsonArray;
             var outcomesArr = node["forensicOutcomes"] as JsonArray;
+            var forensicsDefaults = node["forensicsDefaults"];
             var solution = node["solution"];
 
             string? culpritId = solution?["culpritId"]?.GetValue<string>();
@@ -145,17 +182,29 @@ public class RedTeamTask
             }
 
             var compactAssets = new JsonArray();
+            var draftAssets = draft?.AssetFull.Concat(draft.ResultAssets)
+                .GroupBy(asset => asset.Id, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
             if (assetsArr is not null)
             {
                 foreach (var a in assetsArr)
                 {
                     if (a is null) continue;
+                    EvidenceAsset? draftAsset = null;
+                    draftAssets?.TryGetValue(a["id"]?.GetValue<string>() ?? string.Empty, out draftAsset);
+                    var renderedContent = string.Join("\n", new[]
+                    {
+                        draftAsset?.Body,
+                        draftAsset?.BodyDoc is null ? null : JsonSerializer.Serialize(draftAsset.BodyDoc),
+                        draftAsset?.Description
+                    }.Where(value => !string.IsNullOrWhiteSpace(value)));
                     compactAssets.Add(new JsonObject
                     {
                         ["id"] = a["id"]?.GetValue<string>(),
                         ["type"] = a["type"]?.GetValue<string>(),
                         ["title"] = a["title"]?.GetValue<string>(),
                         ["description"] = a["description"]?.GetValue<string>(),
+                        ["renderedContent"] = renderedContent,
                         ["visibility"] = a["visibility"]?.GetValue<string>()
                     });
                 }
@@ -167,12 +216,30 @@ public class RedTeamTask
                 foreach (var r in rulesArr)
                 {
                     if (r is null) continue;
-                    var actions = r["actions"] as JsonArray;
                     compactRules.Add(new JsonObject
                     {
                         ["ruleId"] = r["ruleId"]?.GetValue<string>(),
-                        ["trigger"] = r["trigger"]?["type"]?.GetValue<string>(),
-                        ["actionCount"] = actions?.Count ?? 0
+                        ["description"] = r["description"]?.GetValue<string>(),
+                        ["trigger"] = r["trigger"]?.DeepClone(),
+                        ["actions"] = r["actions"]?.DeepClone()
+                    });
+                }
+            }
+
+            var compactEmails = new JsonArray();
+            if (emailsArr is not null)
+            {
+                foreach (var e in emailsArr)
+                {
+                    if (e is null) continue;
+                    compactEmails.Add(new JsonObject
+                    {
+                        ["id"] = e["id"]?.GetValue<string>(),
+                        ["from"] = e["from"]?.GetValue<string>(),
+                        ["subject"] = e["subject"]?.GetValue<string>(),
+                        ["body"] = e["body"]?.GetValue<string>(),
+                        ["attachments"] = e["attachments"]?.DeepClone(),
+                        ["visibility"] = e["visibility"]?.GetValue<string>()
                     });
                 }
             }
@@ -200,12 +267,13 @@ public class RedTeamTask
                 ["culprit"] = culprit,
                 ["decoys"] = decoys,
                 ["assets"] = compactAssets,
+                ["emails"] = compactEmails,
                 ["timeline"] = timeline?.DeepClone(),
                 ["temporalEvents"] = temporal?.DeepClone(),
                 ["forensics"] = compactForensics,
+                ["forensicsDefaults"] = forensicsDefaults?.DeepClone(),
                 ["rules"] = compactRules,
-                ["solution"] = solution?.DeepClone(),
-                ["emailCount"] = emailsArr?.Count ?? 0
+                ["solution"] = solution?.DeepClone()
             };
 
             return compact.ToJsonString();
@@ -227,24 +295,43 @@ This is a **Rookie** case — by design it must be SIMPLE, SHORT, and FAIR for n
 Apply the rubric with that in mind:
 - Compact motives (1-2 sentences) are appropriate — do NOT flag brevity or lack of backstory depth.
 - 2-3 decoys (not 4+) is fine; do NOT flag ""too few suspects"" or ""decoys lack richness"".
-- A single-day timeline with a clear smoking gun is the norm — do NOT flag ""timeline could be richer"" or ""more red herrings would help"".
-- Skip check #5 entirely (unlockMode is `all_initial` — every asset/email is visible from the start).
-- Reserve `medium` severity ONLY for problems that would actually make the case unfair or unsolvable for a novice (e.g., the smoking gun does not point at the culprit, a decoy has no plausible alibi, a question relies on hidden info). Otherwise use `low`.
-- Use `high` ONLY for showstoppers (no smoking gun at all, culprit not provable, contradictory timeline).";
+- Rookie MUST have zero forensic analysis types, zero forensic outcomes, zero result assets/emails, and zero requiredAnalysisIds.
+- Initial digital records such as chat exports, access logs, call logs, e-mails, browser history, or transaction exports are ordinary evidence and are fully allowed in Rookie. Do NOT call them a forensic dependency when no later analysis/result is required.
+- Police evidence logs, seizure forms, custody records, scene photographs, and faithful transcripts of a source record are also ordinary initial evidence. They are not a forensic workflow unless the player must request a later analysis or wait for a result.
+- All evidence needed to solve the case must be initial and understandable without a lab workflow.
+- A short timeline with a direct corroboration chain is the norm — do NOT request extra complexity.
+- Two or more consistent initial records that jointly identify the culprit are intentional Rookie design, not truth leakage. Flag only a single asset that explicitly declares guilt/private truth, a contradiction, or reliance on absent evidence.
+- A consolidated evidence log, dispatch record, or access register is valid proof when it contains the exact underlying timestamped entries; do not demand a separate asset merely because several checks share one well-structured document.
+- A faithful player-visible transcription or excerpt with provenance is answerable evidence; do not require the original standalone file unless the case asks the player to inspect visual/physical properties absent from the transcription.
+- `metadata.incidentDate` is an estimated anchor for uncertain-window crimes. It need not equal a discrete timeline event. Flag it only when it falls outside the player-supported opportunity window or is presented elsewhere as an exact observed time.
+- Procedural language about preserving evidence is not a forensic dependency unless the solution, question, required IDs, or reveal graph actually requires a later result.
+- Use `high` for any forensic dependency, private-truth leakage, contradictory chronology, or question requiring unavailable facts.";
 
         var system = @"You are the **red-team reviewer** for an interactive detective case. Audit the supplied case package for semantic flaws that would make the case unsolvable, unfair, or implausible. Be ruthless and concise.
 
 Look specifically for:
-1. Smoking gun strength — does at least one forensic outcome with findings=true credibly tie the culprit beyond reasonable doubt?
+1. Evidence-chain strength — do at least two independent player-visible sources support the culprit? For non-Rookie cases, forensic outcomes may participate but must state limitations.
 2. Decoy quality — do the other suspects have plausible motives AND verifiable-enough alibis so the player can confidently rule them out using the evidence available?
-3. Timeline coherence — every timeline / temporalEvent / forensic conclusion must sit between incidentDate and openedAt (or within the game-time window after openedAt). Spot drift, contradictions, or impossible travel.
+3. Timeline coherence — compare every repeated timestamp across metadata, timeline, assets, emails, questions, and outcomes. Flag hour shifts, future claims, timezone mismatch, contradictions, or impossible travel.
 4. Motive plausibility — culprit's motive must be specific (not ""anger"" or ""greed""), proportional to the crime, and consistent with the briefing.
 5. Reveal chain — every result email/asset linked from a forensic outcome should be reachable via at least one rule when unlockMode is `gated`. (Skip this check for Rookie / all_initial cases.)
+   The runtime itself lets the player request any analysis declared in `forensicsDefaults.analysisTypes`; a matching `forensics_complete` rule is the valid trigger that reveals its result. Do not demand a separate `run_forensics` rule.
+   A hidden required result is intentionally gated. Do NOT flag it merely because the player must choose the declared analysis; flag only when the input/type is unavailable, scientifically incompatible, or the matching reveal rule/result is missing.
 6. Question fairness — every question must be answerable strictly from initial assets + the result emails the rules can reveal. No reliance on hidden information.
 7. Required evidence — requiredEvidenceIds should be revealable; requiredAnalysisIds must be among the forensic outcomes with findings=true.
 8. Tone / content warnings — flag anything gratuitously dark for a Rookie case.
+9. Truth leakage — the public timeline, suspect profiles, briefing, asset descriptions, and notifications must not directly identify the culprit, narrate the hidden crime, or explicitly clear every decoy.
+   A gated forensic result may objectively name a matched account, device, fingerprint, or author when the method supports it; that is evidence, not leakage. It must not declare the matched person guilty.
+10. Locale realism — names, agency, investigator identity, timezone, email domains, and terminology must fit the requested location/language.
+11. Runtime completeness — every temporal event needs a useful payload and every required item must exist in the player-reachable graph.
 
-For each issue emit a Finding with severity (low|medium|high), area (1-2 words), a concise issue statement, and an optional suggestion.
+For each issue emit a Finding with severity, area, concise issue, optional suggestion, exact `affectedPaths`,
+relevant `factRefs`, the expected state, `ownerStage`, a machine-oriented `repairAction`, and
+`invalidateDownstream` listing stages that must rerun after repair.
+`ownerStage` MUST be the earliest stage that owns the defective fact:
+- `plotOutline` for crime mechanism, motive/objective, canonical timestamps, locale, clue wording, or red-herring truth;
+- `suspectCards`, `assetPlan`, `assetCards`, `timeline`, `forensics`, `emails`, `rules`, or `solution` for defects introduced there.
+Do not route canonical-fact defects to a downstream document merely because that is where they became visible.
 
 Verdict:
 - `ok`           — at most low-severity findings.

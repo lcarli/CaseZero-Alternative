@@ -1,0 +1,10 @@
+[
+  "fact.bridge_a|derivation.identity_a|observation.initial_a|derivation.identity_a",
+  "fact.bridge_b|derivation.identity_b|observation.initial_b|derivation.identity_b",
+  "fact.culprit|derivation.culprit_a|observation.forensic_a,observation.initial_a|derivation.culprit_a,derivation.identity_a,derivation.join_a",
+  "fact.culprit|derivation.culprit_b|observation.forensic_b,observation.initial_b|derivation.culprit_b,derivation.identity_b,derivation.join_b",
+  "fact.excluded_one|derivation.exclude_one|observation.decoy_one|derivation.exclude_one",
+  "fact.excluded_two|derivation.exclude_two|observation.decoy_two|derivation.exclude_two",
+  "fact.join_a|derivation.join_a|observation.forensic_a,observation.initial_a|derivation.identity_a,derivation.join_a",
+  "fact.join_b|derivation.join_b|observation.forensic_b,observation.initial_b|derivation.identity_b,derivation.join_b"
+]

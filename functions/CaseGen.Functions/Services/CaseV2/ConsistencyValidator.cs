@@ -54,6 +54,9 @@ public class ConsistencyValidator : IConsistencyValidator
         var suspectIds = draft.SuspectFull.Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
 
         ValidateCulpritExists(draft, suspectIds, report);
+        ValidateEvidencePortfolio(draft, report);
+        ValidateDifficultyContract(draft, report);
+        ValidatePublicTimelineLeakage(draft, report);
         ValidateRequiredEvidence(draft, assetIds, report);
         ValidateRequiredAnalyses(draft, assetIds, report);
         ValidateForensicOutcomes(draft, assetIds, emailIds, suspectIds, report);
@@ -77,6 +80,98 @@ public class ConsistencyValidator : IConsistencyValidator
     {
         if (string.IsNullOrEmpty(d.CulpritId) || !suspectIds.Contains(d.CulpritId))
             r.Findings.Add(new() { Severity = "error", Area = "solution", Message = $"culpritId '{d.CulpritId}' not in suspects" });
+    }
+
+    private void ValidateEvidencePortfolio(CaseDraft d, ConsistencyReport r)
+    {
+        var budget = EvidenceArchetypeCatalog.GetBudget(d);
+        var knownArchetypes = d.AssetStubs
+            .Select(a => EvidenceArchetypeCatalog.Find(a.ArchetypeId))
+            .Where(a => a is not null)
+            .Cast<EvidenceArchetype>()
+            .ToList();
+
+        var familyCount = knownArchetypes.Select(a => a.Family).Distinct(StringComparer.Ordinal).Count();
+        if (familyCount < budget.MinFamilies)
+            r.Findings.Add(new()
+            {
+                Severity = "warning",
+                Area = "evidence",
+                Message = $"evidence portfolio uses only {familyCount} archetype families; {budget.Difficulty} recommends at least {budget.MinFamilies}"
+            });
+
+        if (d.AssetStubs.Count < budget.MinAssets || d.AssetStubs.Count > budget.MaxAssets)
+            r.Findings.Add(new()
+            {
+                Severity = "warning",
+                Area = "evidence",
+                Message = $"evidence portfolio has {d.AssetStubs.Count} initial assets; {budget.Difficulty} expects {budget.MinAssets}-{budget.MaxAssets}"
+            });
+
+        var layoutCount = d.AssetStubs.Select(a => a.LayoutHint)
+            .Where(layout => !string.IsNullOrWhiteSpace(layout))
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+        var minimumLayouts = Math.Min(budget.MinFamilies, 4);
+        if (layoutCount < minimumLayouts)
+            r.Findings.Add(new()
+            {
+                Severity = "warning",
+                Area = "evidence",
+                Message = $"evidence portfolio uses only {layoutCount} distinct layouts; at least {minimumLayouts} are recommended"
+            });
+
+        foreach (var repeated in d.AssetStubs
+                     .Where(a => !string.IsNullOrWhiteSpace(a.LayoutHint))
+                     .GroupBy(a => a.LayoutHint, StringComparer.Ordinal)
+                     .Where(g => g.Count() > 2))
+        {
+            r.Findings.Add(new()
+            {
+                Severity = "warning",
+                Area = "evidence",
+                Message = $"layout '{repeated.Key}' is repeated {repeated.Count()} times"
+            });
+        }
+    }
+
+    private void ValidateDifficultyContract(CaseDraft d, ConsistencyReport r)
+    {
+        var isRookie = string.Equals(d.Metadata.Difficulty, "Rookie", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(d.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase);
+        if (!isRookie) return;
+
+        if (d.AnalysisTypes.Count > 0 || d.ForensicStubs.Count > 0 || d.ForensicFull.Count > 0)
+            r.Findings.Add(new() { Severity = "error", Area = "difficulty", Message = "Rookie case contains forensic analysis configuration or outcomes" });
+        if (d.ResultAssets.Count > 0 || d.ResultEmails.Count > 0)
+            r.Findings.Add(new() { Severity = "error", Area = "difficulty", Message = "Rookie case contains forensic result assets or emails" });
+        if (d.RequiredAnalysisIds.Count > 0)
+            r.Findings.Add(new() { Severity = "error", Area = "difficulty", Message = "Rookie solution contains requiredAnalysisIds" });
+        if (d.Rules.Any(rule => string.Equals(rule.Trigger.Type, "forensics_complete", StringComparison.OrdinalIgnoreCase)))
+            r.Findings.Add(new() { Severity = "error", Area = "difficulty", Message = "Rookie case contains forensics_complete rules" });
+    }
+
+    private void ValidatePublicTimelineLeakage(CaseDraft d, ConsistencyReport r)
+    {
+        var culprit = d.SuspectFull.FirstOrDefault(s => s.Id == d.CulpritId);
+        if (culprit is null || string.IsNullOrWhiteSpace(culprit.Name)) return;
+
+        var forms = culprit.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Append(culprit.Name)
+            .Where(value => value.Length >= 4)
+            .ToList();
+        foreach (var entry in d.Timeline)
+        {
+            if (forms.Any(form => entry.Event.Contains(form, StringComparison.OrdinalIgnoreCase)))
+            {
+                r.Findings.Add(new()
+                {
+                    Severity = "error",
+                    Area = "leakage",
+                    Message = $"public timeline event at '{entry.Time}' names the culprit"
+                });
+            }
+        }
     }
 
     private void ValidateRequiredEvidence(CaseDraft d, HashSet<string> assetIds, ConsistencyReport r)
@@ -292,6 +387,11 @@ public class ConsistencyValidator : IConsistencyValidator
                 r.Findings.Add(new() { Severity = "error", Area = "temporalEvents", Message = $"{te.Id} triggerAtMinutes is negative" });
             if (te.TriggerAtMinutes > 24 * 60)
                 r.Findings.Add(new() { Severity = "warning", Area = "temporalEvents", Message = $"{te.Id} triggerAtMinutes > 24h, may never fire" });
+            if (te.Payload is null ||
+                (string.IsNullOrWhiteSpace(te.Payload.Message)
+                 && string.IsNullOrWhiteSpace(te.Payload.AssetId)
+                 && string.IsNullOrWhiteSpace(te.Payload.EmailId)))
+                r.Findings.Add(new() { Severity = "error", Area = "temporalEvents", Message = $"temporal event '{te.Id}' has no actionable payload" });
         }
     }
 

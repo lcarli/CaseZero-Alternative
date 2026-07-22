@@ -1,0 +1,323 @@
+{
+  "version": "2.0",
+  "caseId": "case_graph_rookie_103",
+  "metadata": {
+    "title": "The Vanishing Laptop",
+    "description": "A company-issued laptop disappears from a locked IT cage after hours, despite clean-looking access logs and a routine inventory check.",
+    "location": "Seattle, Washington, USA",
+    "incidentDate": "2026-05-13T19:18:00-07:00",
+    "openedAt": "2026-05-14T09:12:00-07:00",
+    "difficulty": "Rookie",
+    "requiredRank": "Rookie",
+    "category": "Theft",
+    "briefing": "An employee reports a missing laptop that was last seen in the office IT cage. The building\u2019s badge logs and inventory records don\u2019t immediately agree, and a small timing window is all you have.",
+    "tags": [
+      "office",
+      "theft",
+      "access-logs",
+      "inventory",
+      "after-hours"
+    ],
+    "unlockMode": "all_initial",
+    "estimatedDurationMinutes": 90
+  },
+  "assets": [
+    {
+      "id": "asset.access_log",
+      "type": "digital",
+      "title": "Building Access-Control Log (IT Cage \u0026 Loading Corridor LC-2) \u2014 2026-05-13",
+      "description": "Exported access-control events for the IT Cage badge reader and the LC-2 loading-corridor door contact on 2026-05-13. Shows two IT cage badge grants for badge ID ending 4421 and an after-hours LC-2 door open event at 19:26:03.",
+      "uri": "case://case_graph_rookie_103/assets/access_log.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.evidence_log",
+      "type": "document",
+      "title": "SPD Evidence Inventory \u0026 Chain-of-Custody \u2014 Initial Collection (IT Cage)",
+      "description": "SPD evidence inventory and chain-of-custody record for items collected from the IT cage following the reported theft. Includes a seized printout of the IT inventory row for asset tag AL-77821 showing its model, storage location, and a typed \u201CIssued\u201D sign-out entry.",
+      "uri": "case://case_graph_rookie_103/assets/evidence_log.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.call_log",
+      "type": "digital",
+      "title": "Service Desk System Export \u2014 Asset Tag Search (AL-77821)",
+      "description": "Exported service desk search results for asset tag AL-77821 covering 2026-05-13 through the morning of 2026-05-14. The log shows a query returning zero matching tickets and includes an entry referencing the LC-2 door-open event and the facilities on-call roster for that evening.",
+      "uri": "case://case_graph_rookie_103/assets/call_log.pdf",
+      "visibility": "initial",
+      "category": "Communication"
+    },
+    {
+      "id": "asset.bank_statement",
+      "type": "digital",
+      "title": "Microsoft 365 File Version History \u2014 IT_Assets_Q2_2026.xlsx",
+      "description": "Microsoft 365 version history record for the IT asset inventory spreadsheet. Shows a save event on 2026-05-13 at 19:18:44 by user \u0022rabad\u0022 during the after-hours window relevant to the missing laptop.",
+      "uri": "case://case_graph_rookie_103/assets/bank_statement.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.suspect_interview",
+      "type": "document",
+      "title": "Interview Transcript \u2014 Maya Lin (IT) on Last Verified Sight, Issuance Workflow, and Missing Report",
+      "description": "Transcript of SPD\u2019s interview with IT staffer Maya Lin about the last verified location of asset AL-77821, how laptop issuance is normally documented, and why the inventory entry listing \u201CRecipient: Elena Soto\u201D with a typed pickup time is suspicious. Includes the credential-directory detail tying badge ID ending 4421 to Ryan Abad, and HR onboarding details indicating Elena Soto\u2019s start date is after the incident.",
+      "uri": "case://case_graph_rookie_103/assets/suspect_interview.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    }
+  ],
+  "emails": [
+    {
+      "id": "email.briefing",
+      "from": "Seattle Police Department (SPD), East Precinct",
+      "to": [
+        "Det. Kendra Walsh \u003Ckendra.walsh@seattle.gov\u003E"
+      ],
+      "subject": "Assignment: The Vanishing Laptop (Company IT cage theft)",
+      "body": "Det. Walsh,\n\nSPD East Precinct opened a theft case after a company-issued laptop (asset tag AL-77821; Lenovo ThinkPad T14s Gen 3) was reported missing from a locked IT cage after hours. The inventory record for that asset shows an \u201CIssued\u201D status with \u201CRecipient: Elena Soto\u201D and a pickup time entered as typed text, and the service desk export shows no corresponding ticket activity for the asset during the relevant period.\n\nAccess-control records show an authorized IT-cage badge entry that evening tied to a credential assigned to Ryan Abad (IT Support). Microsoft 365 version history for the IT asset spreadsheet also reflects a save event that night by the user account \u201Crabad,\u201D indicating the inventory record was actively modified around the window of after-hours cage access.\n\nWhat remains uncertain is the precise chain of custody after the laptop left the cage and whether any additional persons or policy gaps facilitated removal. A separate loading-corridor door contact shows an after-hours door opening during the same general period; facilities on-call coverage (Gavin Holt) overlaps that window, but current information does not establish his entry to the cage or handling of the asset.\n\nThis matters now because the report was made the next morning and the documentation trail is already showing potential manipulation (issued entry without workflow support). Immediate investigative objective: lock down and reconcile the access logs, spreadsheet version history, and service desk records to establish an evidentiary timeline for physical access versus administrative changes, and identify the most actionable interview and recovery steps to locate AL-77821 and preserve chain-of-custody.",
+      "sentAt": "2026-05-14T09:12:00-07:00",
+      "priority": "urgent",
+      "attachments": [
+        "asset.access_log",
+        "asset.evidence_log"
+      ],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.maya_lin_missing_report",
+      "from": "Maya Lin \u003Cmaya.lin@company.example\u003E",
+      "to": [
+        "Det. Kendra Walsh \u003Ckendra.walsh@seattle.gov\u003E"
+      ],
+      "subject": "Missing asset AL-77821 reported from IT Cage / Shelf C3 (morning discovery)",
+      "body": "Det. Kendra Walsh,\n\nI\u2019m the IT staffer who reported the missing laptop. At 08:37 on 2026-05-14 I opened the IT cage for morning tasks and noticed the boxed Lenovo ThinkPad T14s Gen 3 with asset tag AL-77821 was not on IT Cage / Shelf C3 where it should have been.\n\nFor context: during an end-of-day spot check the prior afternoon (2026-05-13) I visually verified the boxed unit was present on shelf C3.\n\nAlso noting our normal issuance workflow: we expect a service desk ticket and a handoff record when a device is issued; a typed name and time entered in the spreadsheet without a ticket is not normal.\n\n\u2014Maya Lin",
+      "sentAt": "2026-05-14T09:26:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.facilities_preservation_lc2",
+      "from": "Facilities Duty Desk \u003Cfacilities.duty@company.example\u003E",
+      "to": [
+        "Det. Kendra Walsh \u003Ckendra.walsh@seattle.gov\u003E"
+      ],
+      "subject": "Preservation notice: LC-2 loading corridor door contact \u002B access-control export for 2026-05-13",
+      "body": "Det. Kendra Walsh,\n\nPer your request, we are preserving the building access-control export covering the IT Cage badge reader and the LC-2 loading-corridor door contact for 2026-05-13.\n\nReminder of what\u2019s in that export: IT cage reader shows badge ID ending 4421 granted at 2026-05-13 19:12:18 and again at 19:21:09. The LC-2 door contact shows an OPEN event at 2026-05-13 19:26:03.\n\nWe have not altered any configurations on the reader_it_cage or door_contact_lc2 devices since the report.\n\n\u2014Facilities Duty Desk",
+      "sentAt": "2026-05-14T10:02:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.servicedesk_zero_tickets",
+      "from": "Service Desk Operations \u003Cservicedesk.ops@company.example\u003E",
+      "to": [
+        "Det. Kendra Walsh \u003Ckendra.walsh@seattle.gov\u003E"
+      ],
+      "subject": "Service desk search results for asset tag AL-77821 (no tickets in window)",
+      "body": "Det. Kendra Walsh,\n\nConfirming what we found on the service desk side: a search for asset tag AL-77821 returned zero matching tickets between 2026-05-13 00:00 and 2026-05-14 09:00.\n\nGiven our normal process, an issuance (or replacement) should have generated a ticket tied to the asset tag, so the absence of any record in that timeframe is unusual.\n\n\u2014Service Desk Operations",
+      "sentAt": "2026-05-14T10:18:00-07:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    }
+  ],
+  "suspects": [
+    {
+      "id": "suspect.ryan_abad",
+      "name": "Ryan Abad",
+      "age": 29,
+      "occupation": "IT support technician",
+      "relationship": "Works in the same IT group as Maya Lin and has routine authorized access to the IT cage",
+      "motive": "Ryan knew a quarterly asset audit roster had been posted for the following week and that the specific Lenovo model was being phased out. A boxed unit quietly disappearing while its record looked \u201Cissued\u201D would buy time to resell it before anyone noticed the mismatch.",
+      "alibi": "He says he stayed late to finish after-hours IT cage tasks and then left through the loading corridor because it was closest to the staging area. Badge-reader records can confirm he entered the IT cage at 19:12, but there\u2019s no camera coverage in the loading corridor to independently confirm what he carried out.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Ryan Abad is an IT support technician with routine, authorized access to the locked IT cage and the inventory spreadsheet used for manual asset tracking.\n\nOn 2026-05-13, the building access system recorded his badge ID entering the IT cage after hours.\n\nThe asset inventory file for Q2 shows a save in version history the same evening under the username \u0022rabad\u0022.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.elena_soto",
+      "name": "Elena Soto",
+      "age": 29,
+      "occupation": "Marketing coordinator (new hire)",
+      "relationship": "Listed as the laptop\u2019s recipient in the IT inventory spreadsheet",
+      "motive": "She is starting soon and would need a company laptop to begin work; seeing her name attached to an issued device could be explained as trying to ensure equipment was ready before her first day. If there was confusion about onboarding, she might have tried to expedite pickup through informal channels rather than waiting for the normal Day 1 process.",
+      "alibi": "She states she was not yet an employee onsite and was at home that evening, communicating with her recruiter about pre-start paperwork. Her start date and badge pickup time are independently confirmed by HR\u2019s onboarding schedule email, though it does not track her location minute-by-minute outside the office.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Elena Soto is a marketing new hire scheduled to start on **2026-05-20**, with **badge pickup on Day 1 at 9:00 AM (Lobby)** per the HR onboarding schedule. Her name appears as the typed \u201CRecipient\u201D on the inventory row for asset **AL-77821** with a listed pickup time of **2026-05-13 19:20**. She is not part of IT operations and would normally receive equipment through the standard onboarding issuance process rather than direct access to the IT cage.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.gavin_holt",
+      "name": "Gavin Holt",
+      "age": 41,
+      "occupation": "Facilities/security liaison",
+      "relationship": "Manages after-hours procedures and coordinates with IT on secure-area access issues",
+      "motive": "He\u2019s responsible for keeping after-hours building activity low-friction for staff while still meeting security rules, and a reported loss from a locked cage would reflect poorly on his oversight. He also had a practical incentive to avoid an escalation that could trigger tighter controls and extra workload during the upcoming audit period.",
+      "alibi": "He says he was on call from 18:00\u201322:00 and handled facilities requests remotely, including logging into the duty phone system and responding to messages during the evening. The duty roster and call/message records can confirm he was on duty and active, but they don\u2019t independently prove where he was at 19:26 when the loading-corridor door contact recorded an after-hours opening.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Serves as the facilities/security point person for after-hours procedures and can review building entry-related data as part of his role. The facilities duty roster lists him as on call from 18:00\u201322:00 on 2026-05-13. The loading-corridor door (LC-2) recorded an open event at 19:26:03 that evening, which falls within his on-call window.",
+      "visibility": "initial"
+    }
+  ],
+  "timeline": [
+    {
+      "time": "2026-05-13T16:42:00-07:00",
+      "event": "IT staff report that the missing laptop was present in the cage earlier that afternoon during routine work.",
+      "source": "witness",
+      "verified": false,
+      "importance": "medium"
+    },
+    {
+      "time": "2026-05-13T19:12:18-07:00",
+      "event": "Badge logs show an authorized IT-cage entry at 7:12 PM by an IT staff credential.",
+      "source": "sensor",
+      "verified": true,
+      "importance": "high"
+    },
+    {
+      "time": "2026-05-13T19:26:03-07:00",
+      "event": "A loading-corridor door contact shows an after-hours exit at 7:26 PM.",
+      "source": "sensor",
+      "verified": true,
+      "importance": "medium"
+    },
+    {
+      "time": "2026-05-14T08:37:00-07:00",
+      "event": "At 8:37 AM, IT reported a company laptop missing from the locked IT cage during the prior evening.",
+      "source": "witness",
+      "verified": true,
+      "importance": "critical"
+    }
+  ],
+  "temporalEvents": [],
+  "rules": [],
+  "forensicsDefaults": {
+    "analysisTypes": [],
+    "noFindingsEmail": {
+      "template": "Det. Kendra Walsh,\n\nThe {{analysisType}} analysis of {{assetName}} did not reveal any actionable findings.\n\nSeattle Police Department (SPD), East Precinct",
+      "from": "Seattle Police Department (SPD), East Precinct",
+      "subject": "Analysis result \u2014 {{analysisType}} \u2014 No findings"
+    }
+  },
+  "forensicOutcomes": [],
+  "solution": {
+    "culpritId": "suspect.ryan_abad",
+    "requiredEvidenceIds": [
+      "asset.access_log",
+      "asset.bank_statement",
+      "asset.call_log"
+    ],
+    "requiredAnalysisIds": [],
+    "questions": [
+      {
+        "id": "q.badge_access_times",
+        "prompt": "What after-hours times were logged for the IT Cage badge grants and LC-2 door opening on 2026-05-13?",
+        "options": [
+          {
+            "id": "opt.191218_192109_192603",
+            "label": "IT Cage grants at 19:12:18 and 19:21:09; LC-2 door OPEN at 19:26:03"
+          },
+          {
+            "id": "opt.191109_192118_192603",
+            "label": "IT Cage grants at 19:11:09 and 19:21:18; LC-2 door OPEN at 19:26:03"
+          },
+          {
+            "id": "opt.191218_192603_192109",
+            "label": "IT Cage grants at 19:12:18 and 19:26:03; LC-2 door OPEN at 19:21:09"
+          },
+          {
+            "id": "opt.191203_192109_192618",
+            "label": "IT Cage grants at 19:12:03 and 19:21:09; LC-2 door OPEN at 19:26:18"
+          }
+        ],
+        "correctOptionId": "opt.191218_192109_192603",
+        "weight": 0.35
+      },
+      {
+        "id": "q.spreadsheet_save_actor_time",
+        "prompt": "Which account saved IT_Assets_Q2_2026.xlsx during the incident window, and at what time?",
+        "options": [
+          {
+            "id": "opt.rabad_191844",
+            "label": "Account rabad at 2026-05-13 19:18:44"
+          },
+          {
+            "id": "opt.rabad_192044",
+            "label": "Account rabad at 2026-05-13 19:20:44"
+          },
+          {
+            "id": "opt.m365_admin_191844",
+            "label": "Account m365_admin at 2026-05-13 19:18:44"
+          },
+          {
+            "id": "opt.it_support_shared_191844",
+            "label": "Account it_support_shared at 2026-05-13 19:18:44"
+          }
+        ],
+        "correctOptionId": "opt.rabad_191844",
+        "weight": 0.35
+      },
+      {
+        "id": "q.no_ticket_for_asset",
+        "prompt": "Within the export window, what did the service desk asset-tag search for AL-77821 show?",
+        "options": [
+          {
+            "id": "opt.zero_tickets_found",
+            "label": "Zero tickets found for AL-77821 in the selected time window"
+          },
+          {
+            "id": "opt.one_ticket_found",
+            "label": "One matching ticket found for AL-77821 in the selected time window"
+          },
+          {
+            "id": "opt.multiple_tickets_found",
+            "label": "Multiple matching tickets found for AL-77821 in the selected time window"
+          },
+          {
+            "id": "opt.results_uncertain",
+            "label": "Results were inconclusive due to missing export data"
+          }
+        ],
+        "correctOptionId": "opt.zero_tickets_found",
+        "weight": 0.3
+      }
+    ],
+    "explanation": "Maya last saw AL-77821 on shelf C3, then after hours someone with IT-cage access removed it and tried to make the spreadsheet show a legitimate issuance. The cage reader logged badge 4421 entering at 19:12, and the credential directory ties that badge to Ryan Abad, placing him at the secure storage during the theft window. Independently, Microsoft 365 version history shows the inventory file was saved at 19:18 by user \u201Crabad,\u201D matching the suspicious typed \u201CIssued / Recipient: Elena Soto / 19:20\u201D entry and indicating deliberate concealment rather than a normal handoff. The decisive contradiction is workflow-based: the service desk search shows no ticket for AL-77821 in the relevant period, so a real issuance wasn\u2019t processed even though the spreadsheet claims it was. The forensic limitation is that access logs and file history prove Ryan\u2019s badge and account activity, not that he physically carried the laptop out\u2014but the combined timing and concealment behavior triangulate him as the only consistent actor. The strongest red herrings collapse: Elena Soto is listed as recipient, yet HR shows she hadn\u2019t started and couldn\u2019t have picked it up, and the LC-2 door opening plus Gavin Holt being on call doesn\u2019t connect him to cage entry or the spreadsheet edit.",
+    "minimumScore": 0.7,
+    "maxAttempts": 3,
+    "partialCreditRules": {
+      "culpritWeight": 0.4,
+      "evidenceWeight": 0.2,
+      "analysisWeight": 0.2,
+      "questionsWeight": 0.2
+    }
+  },
+  "gameMetadata": {
+    "schemaVersion": "2.0",
+    "createdAt": "2026-07-22T01:34:01.0038398Z",
+    "tags": [
+      "office",
+      "theft",
+      "access-logs",
+      "inventory",
+      "after-hours"
+    ],
+    "contentWarnings": [],
+    "localizations": [
+      "en-US"
+    ],
+    "generation": {
+      "pipelineVersion": "v2-microtasks",
+      "model": "gpt-5.2",
+      "seed": 103,
+      "bundleChecksum": ""
+    }
+  }
+}

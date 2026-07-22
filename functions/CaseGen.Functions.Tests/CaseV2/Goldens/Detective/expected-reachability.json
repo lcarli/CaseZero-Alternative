@@ -1,0 +1,28 @@
+{
+  "InitialObservationIds": [
+    "observation.decoy_one",
+    "observation.decoy_two",
+    "observation.initial_a",
+    "observation.initial_b"
+  ],
+  "FinalSourceIds": [
+    "asset.decoy_one",
+    "asset.decoy_two",
+    "asset.initial_a",
+    "asset.initial_b",
+    "asset.result_a",
+    "asset.result_b"
+  ],
+  "FinalObservationIds": [
+    "observation.decoy_one",
+    "observation.decoy_two",
+    "observation.forensic_a",
+    "observation.forensic_b",
+    "observation.initial_a",
+    "observation.initial_b"
+  ],
+  "ExecutedActionIds": [
+    "action.analysis_a",
+    "action.analysis_b"
+  ]
+}

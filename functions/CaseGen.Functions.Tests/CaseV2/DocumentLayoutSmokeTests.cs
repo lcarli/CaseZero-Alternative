@@ -24,7 +24,9 @@ public class DocumentLayoutSmokeTests
     {
         "GeneralReport","PoliceReport","WitnessStatement","InterviewTranscript",
         "AudioTranscript",
-        "ForensicReport","MedicalReport","EvidenceLog","Memo","CustodyForm"
+        "ForensicReport","MedicalReport","EvidenceLog","Memo","CustodyForm",
+        "NewspaperClipping","PersonalLetter","Receipt","SearchWarrant",
+        "DispatchLog","CaseMap","Calendar"
     };
 
     private static readonly string[] AllLanguages = { "en-US", "pt-BR", "es-ES", "fr-FR" };
@@ -43,6 +45,13 @@ public class DocumentLayoutSmokeTests
             new EvidenceLogLayout(),
             new MemoLayout(),
             new CustodyFormLayout(),
+            new NewspaperClippingLayout(),
+            new PersonalLetterLayout(),
+            new ReceiptLayout(),
+            new SearchWarrantLayout(),
+            new DispatchLogLayout(),
+            new CaseMapLayout(),
+            new CalendarLayout(),
         };
         return new DocumentLayoutRegistry(layouts, NullLogger<DocumentLayoutRegistry>.Instance);
     }
@@ -89,6 +98,13 @@ public class DocumentLayoutSmokeTests
     [InlineData("EvidenceLog")]
     [InlineData("Memo")]
     [InlineData("CustodyForm")]
+    [InlineData("NewspaperClipping")]
+    [InlineData("PersonalLetter")]
+    [InlineData("Receipt")]
+    [InlineData("SearchWarrant")]
+    [InlineData("DispatchLog")]
+    [InlineData("CaseMap")]
+    [InlineData("Calendar")]
     [InlineData("GeneralReport")]
     public void Renderer_emits_a_PDF_byte_stream_per_layout(string layout)
     {

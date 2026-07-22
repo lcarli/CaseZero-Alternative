@@ -21,13 +21,13 @@ public class PdfRenderingService : IPdfRenderingService
     {
         _configuration = configuration;
         _logger = logger;
-
-        // Configure QuestPDF for realistic document generation
-        QuestPDF.Settings.License = LicenseType.Community;
     }
 
     public Task<byte[]> GenerateTestPdfAsync(string title, string markdownContent, string documentType = "general", CancellationToken cancellationToken = default)
     {
+        // Configure QuestPDF lazily so unsupported local architectures can still
+        // generate case.json; AssetRenderingService isolates native render failures.
+        QuestPDF.Settings.License = LicenseType.Community;
         var actualDocumentType = DetermineDocumentType(title);
         if (!string.IsNullOrEmpty(documentType) && documentType != "general")
         {

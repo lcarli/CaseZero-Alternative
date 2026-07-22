@@ -18,8 +18,9 @@ public class BriefingEmailTask
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
-        var system = @"You are writing ONLY the briefing email from the chief of police, addressed to Detective Alex Morgan.
-4-6 paragraph markdown body. Urge discretion. Reference the victim, location, and the urgency. Do NOT name the culprit.";
+        var system = $@"You are writing ONLY the briefing email from `{draft.Blueprint.Locale.PoliceAgency}`,
+addressed to `{draft.Blueprint.Locale.InvestigatorName}`.
+3-5 short markdown paragraphs. Sound like a concise professional assignment, not a movie trailer. State what is known, what remains uncertain, why the case matters now, and the immediate investigative objective. Do NOT reveal private blueprint facts, name the culprit, overstate unverified claims, invent exact identifiers/timestamps, or reference evidence that is not present in the supplied draft. Use the requested case language and local terminology.";
         var user = $@"CASE DRAFT (read-only):
 {draft.ToSummaryJson()}
 
@@ -49,8 +50,14 @@ public class InitialEmailsTask
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
-        var system = @"You are writing 0-3 OPTIONAL initial-visibility emails from witnesses, partner, or the chief (NOT forensic-lab results).
-All emails are `visibility: initial` — they show up immediately. If the case doesn't naturally need any, emit `emails: []`.";
+        var system = @"You are writing 0-3 OPTIONAL initial-visibility emails from witnesses or operational contacts (NOT forensic-lab results).
+All emails are `visibility: initial` — they show up immediately. Do not duplicate the briefing or create a second assignment email from the chief. Each email must add a distinct observable fact, testimony, or preservation notice. If the case doesn't naturally need any, emit `emails: []`.
+
+FACT DISCIPLINE:
+- Reuse canonical names, identifiers, account details, phone numbers, hostnames, timestamps, and amounts exactly as supplied; never create a conflicting alternative.
+- Do not claim an attachment was sent unless its asset ID exists and is placed in `attachments`.
+- Do not refer to CCTV, calendars, tickets, receipts, logs, screenshots, platform returns, lab work, or other proof unless that evidence exists in the supplied assets.
+- For Rookie, never recommend or imply a forensic/lab request; all solving evidence is already available.";
         var user = $@"CASE DRAFT (read-only):
 {draft.ToSummaryJson()}
 
@@ -81,7 +88,7 @@ public class RulesTask
            "actions":{"type":"array","minItems":1,"maxItems":6,
              "items":{"type":"object","required":["type"],
                "properties":{
-                 "type":{"type":"string","enum":["reveal_email","reveal_asset","reveal_suspect","add_email_attachment","send_notification","update_suspect_status","mark_alibi_verified"]},
+                 "type":{"type":"string","enum":["reveal_email","reveal_asset","reveal_suspect","add_email_attachment","send_notification"]},
                  "status":{"type":["string","null"],"enum":["suspect","cleared","confirmed_culprit",null]},
                  "level":{"type":["string","null"],"enum":["info","warn","critical",null]}
                }}}}}}}}
@@ -125,15 +132,15 @@ ALLOWED trigger.type values (use EXACTLY these strings, no others):
   forensics_complete, attachment_download, asset_viewed, email_opened, time_elapsed, suspect_viewed, multiple_conditions
 
 ALLOWED action.type values:
-  reveal_email, reveal_asset, reveal_suspect, add_email_attachment, send_notification, update_suspect_status, mark_alibi_verified
+  reveal_email, reveal_asset, reveal_suspect, add_email_attachment, send_notification
 
 Sensible narrative rules to consider (emit 0-4 total — quality over quantity):
-- `email_opened` of a key lab-result email → `send_notification` (level info) flagging the matched suspect.
-- `email_opened` of the briefing → `mark_alibi_verified` for a decoy whose alibi was independently verified up-front.
+- `email_opened` of a key lab-result email → a neutral `send_notification` describing the next investigative step without naming or clearing any suspect.
 - `asset_viewed` of a turning-point asset → `send_notification` (level info or warn) nudging the next step.
 - `multiple_conditions` AND/OR composing two earlier triggers when the case naturally needs a delayed reveal.
 
 You may emit ZERO rules if the case doesn't need any extra narrative beats. NEVER duplicate a preBuiltRule.
+Never name the culprit in a notification, mark an alibi as verified, clear a suspect, or declare anyone guilty.
 All referenced IDs MUST exist in the supplied context.";
 
         var user = $@"CONTEXT:

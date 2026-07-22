@@ -1,0 +1,959 @@
+{
+  "Origin": "Generated",
+  "Entities": [
+    {
+      "id": "person.colin_hart",
+      "kind": "Person",
+      "displayName": "Colin Hart",
+      "attributes": {}
+    },
+    {
+      "id": "person.elena_soto",
+      "kind": "Person",
+      "displayName": "Elena Soto",
+      "attributes": {}
+    },
+    {
+      "id": "person.jordan_kim",
+      "kind": "Person",
+      "displayName": "Jordan Kim",
+      "attributes": {}
+    },
+    {
+      "id": "person.maya_reed",
+      "kind": "Person",
+      "displayName": "Maya Reed",
+      "attributes": {}
+    },
+    {
+      "id": "organization.case_context",
+      "kind": "Organization",
+      "displayName": "The Vanishing Receipts",
+      "attributes": {}
+    },
+    {
+      "id": "document.building_access_log_extract_20260312",
+      "kind": "Document",
+      "displayName": "Access Control Logs: Badge Entry \u002B Facilities Change Ticket Audit \u2014 document.building_access_log_extract_20260312",
+      "attributes": {}
+    },
+    {
+      "id": "document.facilities_admin_change_audit_log",
+      "kind": "Document",
+      "displayName": "Access Control Logs: Badge Entry \u002B Facilities Change Ticket Audit \u2014 document.facilities_admin_change_audit_log",
+      "attributes": {}
+    },
+    {
+      "id": "document.jordan_kim_bank_statement_extract",
+      "kind": "Document",
+      "displayName": "Bank Statement Extract: Jordan Kim (Recent Activity) \u2014 document.jordan_kim_bank_statement_extract",
+      "attributes": {}
+    },
+    {
+      "id": "account.bank_jordan_kim_checking_ending_2291",
+      "kind": "Account",
+      "displayName": "Bank Statement Extract: Jordan Kim (Recent Activity) \u2014 account.bank_jordan_kim_checking_ending_2291",
+      "attributes": {}
+    },
+    {
+      "id": "document.vpn_log_extract_mreed_20260312",
+      "kind": "Document",
+      "displayName": "Remote Activity Track: VPN Session Window \u002B File Share Audit View \u2014 document.vpn_log_extract_mreed_20260312",
+      "attributes": {}
+    },
+    {
+      "id": "document.fileserver_audit_view_packet_0312",
+      "kind": "Document",
+      "displayName": "Remote Activity Track: VPN Session Window \u002B File Share Audit View \u2014 document.fileserver_audit_view_packet_0312",
+      "attributes": {}
+    },
+    {
+      "id": "object.fileserver_security_log_bundle_20260312",
+      "kind": "PhysicalObject",
+      "displayName": "Remote Activity Track: VPN Session Window \u002B File Share Audit View \u2014 object.fileserver_security_log_bundle_20260312",
+      "attributes": {}
+    },
+    {
+      "id": "document.preliminary_medical_report",
+      "kind": "Document",
+      "displayName": "Preliminary Medical Examiner Report (Field/Intake) \u2014 document.preliminary_medical_report",
+      "attributes": {}
+    },
+    {
+      "id": "document.it_asset_inventory_memo_fin_ws_03",
+      "kind": "Document",
+      "displayName": "IT Asset Inventory Memo: FIN-WS-03 Assignment \u0026 Hardware ID \u2014 document.it_asset_inventory_memo_fin_ws_03",
+      "attributes": {}
+    },
+    {
+      "id": "document.hotel_receipt_pdf_modified_printout",
+      "kind": "Document",
+      "displayName": "Packet_0312 Receipt: Hotel_Receipt.pdf (Modified Copy Printout) \u2014 document.hotel_receipt_pdf_modified_printout",
+      "attributes": {}
+    },
+    {
+      "id": "document.morning_discovery_witness_statement",
+      "kind": "Document",
+      "displayName": "Witness Statement: Morning Discovery in Copy/Records Room \u2014 document.morning_discovery_witness_statement",
+      "attributes": {}
+    }
+  ],
+  "SuspectReferences": [
+    {
+      "suspectId": "suspect.colin_hart",
+      "personEntityId": "person.colin_hart"
+    },
+    {
+      "suspectId": "suspect.elena_soto",
+      "personEntityId": "person.elena_soto"
+    },
+    {
+      "suspectId": "suspect.jordan_kim",
+      "personEntityId": "person.jordan_kim"
+    },
+    {
+      "suspectId": "suspect.maya_reed",
+      "personEntityId": "person.maya_reed"
+    }
+  ],
+  "Facts": [
+    {
+      "Id": "fact.clue_badge_owner_identity",
+      "Predicate": "identity_badge_owner_identity",
+      "SubjectId": "person.jordan_kim",
+      "ObjectId": null,
+      "LiteralValue": "The access control report lists badge ID \u0022BK-44719\u0022 assigned to \u0022Jordan Kim\u0022 with an entry at \u00222026-03-12 18:57:12\u0022 at \u00223F East Stairwell Reader.\u0022",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_forensic_session_to_device",
+      "Predicate": "forensicAttribution_forensic_session_to_device",
+      "SubjectId": "person.jordan_kim",
+      "ObjectId": null,
+      "LiteralValue": "Forensic review of the file server\u2019s security log bundle shows session token \u0022S-9c2f1\u0022 authenticated from source IP \u002210.44.8.23\u0022 at \u00222026-03-12 19:27:49\u0022, and DHCP maps \u002210.44.8.23\u0022 to MAC ending \u0022:7B:19\u0022 at lease start \u00222026-03-12 18:50:00\u0022.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_nameless_overwrite_session",
+      "Predicate": "action_nameless_overwrite_session",
+      "SubjectId": "organization.case_context",
+      "ObjectId": null,
+      "LiteralValue": "The file server audit log shows user \u0022SYNC-SVC\u0022 recorded overwrite events with session token \u0022S-9c2f1\u0022 for files \u0022Hotel_Receipt.pdf\u0022 and \u0022Mileage_Log.pdf\u0022 at \u00222026-03-12 19:28:11\u0022 and \u002219:29:03.\u0022",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_pdf_properties_author",
+      "Predicate": "action_pdf_properties_author",
+      "SubjectId": "person.jordan_kim",
+      "ObjectId": null,
+      "LiteralValue": "The PDF properties for \u0022Hotel_Receipt.pdf\u0022 (modified copy) list Author as \u0022J.Kim\u0022 and Producer as \u0022Microsoft Print to PDF\u0022 with CreationDate \u00222026-03-12T19:24:58-07:00.\u0022",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_reimbursement_packet_context",
+      "Predicate": "context_reimbursement_packet_context",
+      "SubjectId": "organization.case_context",
+      "ObjectId": null,
+      "LiteralValue": "A shared folder named \u0022Finance\\Reimbursements\\Q1\\Packet_0312\u0022 shows receipt PDFs modified between \u00222026-03-12 19:26\u0022 and \u00222026-03-12 19:31\u0022 in the file server audit view.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_workstation_asset_identity",
+      "Predicate": "identity_workstation_asset_identity",
+      "SubjectId": "organization.case_context",
+      "ObjectId": null,
+      "LiteralValue": "The IT asset inventory lists workstation \u0022FIN-WS-03\u0022 assigned to the finance suite copy/records room, with its wired MAC ending \u0022:7B:19\u0022.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.culprit_jordan_kim",
+      "Predicate": "isCulprit",
+      "SubjectId": "person.jordan_kim",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_bridge_badge_owner_identity_badge_owner_identity_access_log_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "Predicate": "proofBridge_badge_owner_identity_badge_owner_identity_access_log_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "SubjectId": "person.jordan_kim",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_join_badge_owner_identity_badge_owner_identity_access_log_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "Predicate": "forensicJoin_badge_owner_identity_badge_owner_identity_access_log_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "SubjectId": "person.jordan_kim",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_bridge_pdf_properties_author_pdf_properties_author_receipt_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "Predicate": "proofBridge_pdf_properties_author_pdf_properties_author_receipt_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "SubjectId": "person.jordan_kim",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_join_pdf_properties_author_pdf_properties_author_receipt_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "Predicate": "forensicJoin_pdf_properties_author_pdf_properties_author_receipt_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "SubjectId": "person.jordan_kim",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_suspicion_colin_hart",
+      "Predicate": "decoySuspicion",
+      "SubjectId": "person.colin_hart",
+      "ObjectId": null,
+      "LiteralValue": "Facilities could have manipulated badge access to enter after hours and frame someone via access logs.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_verification_colin_hart",
+      "Predicate": "decoyVerification",
+      "SubjectId": "person.colin_hart",
+      "ObjectId": null,
+      "LiteralValue": "The access system admin log shows a change ticket \u0022FAC-11802\u0022 approved at \u00222026-03-11 14:06\u0022 that extended after-hours access for badge \u0022BK-44719\u0022 only; the admin action is recorded under username \u0022chart\u0022 at \u00222026-03-11 14:09:33\u0022.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_colin_hart",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.colin_hart",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_suspicion_elena_soto",
+      "Predicate": "decoySuspicion",
+      "SubjectId": "person.elena_soto",
+      "ObjectId": null,
+      "LiteralValue": "Finance leadership might have wanted the audit stopped and could pressure staff or cover up by altering packet documents.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_verification_elena_soto",
+      "Predicate": "decoyVerification",
+      "SubjectId": "person.elena_soto",
+      "ObjectId": null,
+      "LiteralValue": "Building lobby visitor log shows Elena Soto signed out at \u00222026-03-12 17:52\u0022 and the parking garage exit reader logs her vehicle tag \u0022OR 684-KQJ\u0022 at \u00222026-03-12 17:59:14\u0022.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_elena_soto",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.elena_soto",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_suspicion_maya_reed",
+      "Predicate": "decoySuspicion",
+      "SubjectId": "person.maya_reed",
+      "ObjectId": null,
+      "LiteralValue": "Accounts payable had direct access to reimbursement files and could have altered PDFs to hide mistakes or fraud.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_verification_maya_reed",
+      "Predicate": "decoyVerification",
+      "SubjectId": "person.maya_reed",
+      "ObjectId": null,
+      "LiteralValue": "VPN logs list Maya Reed\u2019s account \u0022mreed\u0022 connected from public IP \u002273.19.204.55\u0022 from \u00222026-03-12 18:10\u0022 to \u002218:46\u0022, while the file server overwrite events for the packet occur at \u002219:28:11\u0022 and \u002219:29:03\u0022.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_maya_reed",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.maya_reed",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    }
+  ],
+  "Events": [],
+  "Sources": [
+    {
+      "Id": "asset.access_log",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.badge_owner_identity_access_log",
+        "observation.decoy_suspicion_colin_hart_access_log",
+        "observation.decoy_verification_colin_hart_access_log",
+        "observation.decoy_verification_elena_soto_access_log"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_badge_owner_identity",
+        "fact.decoy_suspicion_colin_hart",
+        "fact.decoy_verification_colin_hart",
+        "fact.decoy_verification_elena_soto"
+      ],
+      "EvidentiaryOriginId": "asset.access_log",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.bank_statement",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.decoy_suspicion_elena_soto_bank_statement"
+      ],
+      "ClaimedFactIds": [
+        "fact.decoy_suspicion_elena_soto"
+      ],
+      "EvidentiaryOriginId": "asset.bank_statement",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.gps_track",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.nameless_overwrite_session_gps_track",
+        "observation.reimbursement_packet_context_gps_track",
+        "observation.decoy_suspicion_maya_reed_gps_track",
+        "observation.decoy_verification_maya_reed_gps_track"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_nameless_overwrite_session",
+        "fact.clue_reimbursement_packet_context",
+        "fact.decoy_suspicion_maya_reed",
+        "fact.decoy_verification_maya_reed"
+      ],
+      "EvidentiaryOriginId": "asset.gps_track",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.medical_report",
+      "Kind": "Asset",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "asset.medical_report",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.personal_letter",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.workstation_asset_identity_personal_letter"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_workstation_asset_identity"
+      ],
+      "EvidentiaryOriginId": "asset.personal_letter",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.receipt",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.pdf_properties_author_receipt"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_pdf_properties_author"
+      ],
+      "EvidentiaryOriginId": "asset.receipt",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.witness_statement",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.reimbursement_packet_context_witness_statement"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_reimbursement_packet_context"
+      ],
+      "EvidentiaryOriginId": "asset.witness_statement",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_forensic_session_to_device"
+      ],
+      "EvidentiaryOriginId": "asset.report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "AvailableAt": "AfterForensic",
+      "RevealPrerequisiteIds": [
+        "action.analysis_gps_track_timelinecorrelation"
+      ],
+      "Required": false
+    },
+    {
+      "Id": "email.alicia_nguyen_finance_observation",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "email.alicia_nguyen_finance_observation",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "email.colin_hart_fac_ticket_context",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "email.colin_hart_fac_ticket_context",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "email.lena_park_scene_hold",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "email.lena_park_scene_hold",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "email.lab_timeline_correlation_gps_track_vpn_extract_20260312",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "asset.report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "AvailableAt": "AfterForensic",
+      "RevealPrerequisiteIds": [
+        "action.analysis_gps_track_timelinecorrelation"
+      ],
+      "Required": false
+    }
+  ],
+  "AssetSpecs": [
+    {
+      "Id": "asset.access_log",
+      "ArchetypeId": "access_log",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.badge_owner_identity_access_log",
+        "observation.decoy_suspicion_colin_hart_access_log",
+        "observation.decoy_verification_colin_hart_access_log",
+        "observation.decoy_verification_elena_soto_access_log"
+      ],
+      "ContainedObjectIds": [
+        "document.building_access_log_extract_20260312",
+        "document.facilities_admin_change_audit_log"
+      ],
+      "ContainedObjectTypes": {
+        "document.building_access_log_extract_20260312": "AccessRecord",
+        "document.facilities_admin_change_audit_log": "AccessRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "AccessLog"
+    },
+    {
+      "Id": "asset.bank_statement",
+      "ArchetypeId": "bank_statement",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.decoy_suspicion_elena_soto_bank_statement"
+      ],
+      "ContainedObjectIds": [
+        "document.jordan_kim_bank_statement_extract",
+        "account.bank_jordan_kim_checking_ending_2291"
+      ],
+      "ContainedObjectTypes": {
+        "document.jordan_kim_bank_statement_extract": "FinancialRecord",
+        "account.bank_jordan_kim_checking_ending_2291": "FinancialRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "BankStatement"
+    },
+    {
+      "Id": "asset.gps_track",
+      "ArchetypeId": "gps_track",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.decoy_suspicion_maya_reed_gps_track",
+        "observation.decoy_verification_maya_reed_gps_track",
+        "observation.nameless_overwrite_session_gps_track",
+        "observation.reimbursement_packet_context_gps_track"
+      ],
+      "ContainedObjectIds": [
+        "document.vpn_log_extract_mreed_20260312",
+        "document.fileserver_audit_view_packet_0312",
+        "object.fileserver_security_log_bundle_20260312"
+      ],
+      "ContainedObjectTypes": {
+        "document.vpn_log_extract_mreed_20260312": "LocationTrack",
+        "document.fileserver_audit_view_packet_0312": "LocationTrack",
+        "object.fileserver_security_log_bundle_20260312": "LocationTrack"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "GpsTrack"
+    },
+    {
+      "Id": "asset.medical_report",
+      "ArchetypeId": "medical_report",
+      "AssetType": "document",
+      "ObservationIds": [],
+      "ContainedObjectIds": [
+        "document.preliminary_medical_report"
+      ],
+      "ContainedObjectTypes": {
+        "document.preliminary_medical_report": "Document"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "MedicalReport"
+    },
+    {
+      "Id": "asset.personal_letter",
+      "ArchetypeId": "personal_letter",
+      "AssetType": "document",
+      "ObservationIds": [
+        "observation.workstation_asset_identity_personal_letter"
+      ],
+      "ContainedObjectIds": [
+        "document.it_asset_inventory_memo_fin_ws_03"
+      ],
+      "ContainedObjectTypes": {
+        "document.it_asset_inventory_memo_fin_ws_03": "Document"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "PersonalLetter"
+    },
+    {
+      "Id": "asset.receipt",
+      "ArchetypeId": "receipt",
+      "AssetType": "document",
+      "ObservationIds": [
+        "observation.pdf_properties_author_receipt"
+      ],
+      "ContainedObjectIds": [
+        "document.hotel_receipt_pdf_modified_printout"
+      ],
+      "ContainedObjectTypes": {
+        "document.hotel_receipt_pdf_modified_printout": "FinancialRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "Receipt"
+    },
+    {
+      "Id": "asset.witness_statement",
+      "ArchetypeId": "witness_statement",
+      "AssetType": "document",
+      "ObservationIds": [
+        "observation.reimbursement_packet_context_witness_statement"
+      ],
+      "ContainedObjectIds": [
+        "document.morning_discovery_witness_statement"
+      ],
+      "ContainedObjectTypes": {
+        "document.morning_discovery_witness_statement": "Document"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "WitnessStatement"
+    }
+  ],
+  "DecoyArcs": [
+    {
+      "SuspectId": "suspect.colin_hart",
+      "SuspicionObservationIds": [
+        "observation.decoy_suspicion_colin_hart_access_log"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_verification_colin_hart_access_log"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_colin_hart",
+      "MustBePlayerReachable": true
+    },
+    {
+      "SuspectId": "suspect.elena_soto",
+      "SuspicionObservationIds": [
+        "observation.decoy_suspicion_elena_soto_bank_statement"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_verification_elena_soto_access_log"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_elena_soto",
+      "MustBePlayerReachable": true
+    },
+    {
+      "SuspectId": "suspect.maya_reed",
+      "SuspicionObservationIds": [
+        "observation.decoy_suspicion_maya_reed_gps_track"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_verification_maya_reed_gps_track"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_maya_reed",
+      "MustBePlayerReachable": true
+    }
+  ],
+  "ForensicTransforms": [
+    {
+      "Id": "forensic.gps_track_timelinecorrelation",
+      "MethodId": "TimelineCorrelation",
+      "InputAssetId": "asset.gps_track",
+      "InputObjectId": "document.vpn_log_extract_mreed_20260312",
+      "ReferenceSampleObjectId": null,
+      "ChainOfCustodyObservationId": null,
+      "ProducedObservationIds": [
+        "observation.forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312"
+      ],
+      "ProducedProperties": [
+        "SessionTimeline"
+      ],
+      "LimitationKeys": [
+        "clock_sources_may_drift",
+        "correlation_not_identity"
+      ],
+      "ResultAssetId": "asset.report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "ResultEmailId": "email.lab_timeline_correlation_gps_track_vpn_extract_20260312",
+      "ResultLayoutId": "ForensicReport"
+    }
+  ],
+  "Observations": [
+    {
+      "Id": "observation.badge_owner_identity_access_log",
+      "FactId": "fact.clue_badge_owner_identity",
+      "SourceAssetId": "asset.access_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "FactId": "fact.clue_forensic_session_to_device",
+      "SourceAssetId": "asset.report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": "SessionTimeline"
+    },
+    {
+      "Id": "observation.nameless_overwrite_session_gps_track",
+      "FactId": "fact.clue_nameless_overwrite_session",
+      "SourceAssetId": "asset.gps_track",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.pdf_properties_author_receipt",
+      "FactId": "fact.clue_pdf_properties_author",
+      "SourceAssetId": "asset.receipt",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.reimbursement_packet_context_gps_track",
+      "FactId": "fact.clue_reimbursement_packet_context",
+      "SourceAssetId": "asset.gps_track",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.reimbursement_packet_context_witness_statement",
+      "FactId": "fact.clue_reimbursement_packet_context",
+      "SourceAssetId": "asset.witness_statement",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.workstation_asset_identity_personal_letter",
+      "FactId": "fact.clue_workstation_asset_identity",
+      "SourceAssetId": "asset.personal_letter",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_colin_hart_access_log",
+      "FactId": "fact.decoy_suspicion_colin_hart",
+      "SourceAssetId": "asset.access_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_verification_colin_hart_access_log",
+      "FactId": "fact.decoy_verification_colin_hart",
+      "SourceAssetId": "asset.access_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_elena_soto_bank_statement",
+      "FactId": "fact.decoy_suspicion_elena_soto",
+      "SourceAssetId": "asset.bank_statement",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_verification_elena_soto_access_log",
+      "FactId": "fact.decoy_verification_elena_soto",
+      "SourceAssetId": "asset.access_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_maya_reed_gps_track",
+      "FactId": "fact.decoy_suspicion_maya_reed",
+      "SourceAssetId": "asset.gps_track",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_verification_maya_reed_gps_track",
+      "FactId": "fact.decoy_verification_maya_reed",
+      "SourceAssetId": "asset.gps_track",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    }
+  ],
+  "Derivations": [
+    {
+      "Id": "derivation.proof_bridge_badge_owner_identity_badge_owner_identity_access_log_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "PremiseIds": [
+        "observation.badge_owner_identity_access_log"
+      ],
+      "Rule": "IdentityMatch",
+      "ConclusionFactId": "fact.proof_bridge_badge_owner_identity_badge_owner_identity_access_log_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.proof_join_badge_owner_identity_badge_owner_identity_access_log_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "PremiseIds": [
+        "derivation.proof_bridge_badge_owner_identity_badge_owner_identity_access_log_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+        "observation.forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312"
+      ],
+      "Rule": "CrossSourceCorroboration",
+      "ConclusionFactId": "fact.proof_join_badge_owner_identity_badge_owner_identity_access_log_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.culprit_badge_owner_identity_badge_owner_identity_access_log_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "PremiseIds": [
+        "derivation.proof_join_badge_owner_identity_badge_owner_identity_access_log_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.culprit_jordan_kim",
+      "SupportsSuspectId": "suspect.jordan_kim",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.proof_bridge_pdf_properties_author_pdf_properties_author_receipt_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "PremiseIds": [
+        "observation.pdf_properties_author_receipt"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.proof_bridge_pdf_properties_author_pdf_properties_author_receipt_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.proof_join_pdf_properties_author_pdf_properties_author_receipt_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "PremiseIds": [
+        "derivation.proof_bridge_pdf_properties_author_pdf_properties_author_receipt_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+        "observation.forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312"
+      ],
+      "Rule": "CrossSourceCorroboration",
+      "ConclusionFactId": "fact.proof_join_pdf_properties_author_pdf_properties_author_receipt_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.culprit_pdf_properties_author_pdf_properties_author_receipt_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "PremiseIds": [
+        "derivation.proof_join_pdf_properties_author_pdf_properties_author_receipt_forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.culprit_jordan_kim",
+      "SupportsSuspectId": "suspect.jordan_kim",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.exclude_colin_hart",
+      "PremiseIds": [
+        "observation.decoy_verification_colin_hart_access_log"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_colin_hart",
+      "SupportsSuspectId": "suspect.colin_hart",
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.exclude_elena_soto",
+      "PremiseIds": [
+        "observation.decoy_verification_elena_soto_access_log"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_elena_soto",
+      "SupportsSuspectId": "suspect.elena_soto",
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.exclude_maya_reed",
+      "PremiseIds": [
+        "observation.decoy_verification_maya_reed_gps_track"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_maya_reed",
+      "SupportsSuspectId": "suspect.maya_reed",
+      "IsCulpritConclusion": false
+    }
+  ],
+  "EventOrderConstraints": [],
+  "TravelWindows": [],
+  "Actions": [
+    {
+      "Id": "action.analysis_gps_track_timelinecorrelation",
+      "Kind": "RequestAnalysis",
+      "CompletesAt": "AfterForensic",
+      "PrerequisiteSourceIds": [
+        "asset.gps_track"
+      ],
+      "PrerequisiteActionIds": [],
+      "RevealsSourceIds": [
+        "asset.report_timeline_correlation_gps_track_vpn_extract_20260312",
+        "email.lab_timeline_correlation_gps_track_vpn_extract_20260312"
+      ],
+      "AnalysisId": "asset.gps_track:TimelineCorrelation",
+      "Required": false
+    }
+  ],
+  "RequiredSourceIds": [],
+  "RequiredAnalysisIds": []
+}
