@@ -46,7 +46,7 @@ function App() {
                 <Route
                   path="/case-generation"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requiredRole="ADMIN">
                       <CaseGenerationPage />
                     </ProtectedRoute>
                   }

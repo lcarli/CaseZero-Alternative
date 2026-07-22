@@ -564,9 +564,11 @@ const DashboardPage = () => {
           <NewCaseButton onClick={() => navigate('/profile')}>
             <UserIcon size={16} />{t('viewProfile')}
           </NewCaseButton>
-          <NewCaseButton onClick={() => navigate('/case-generation')}>
-            <Plus size={16} />New Case
-          </NewCaseButton>
+          {user?.roles?.includes('ADMIN') && (
+            <NewCaseButton onClick={() => navigate('/case-generation')}>
+              <Plus size={16} />{t('generateNewCase')}
+            </NewCaseButton>
+          )}
           <LogoutButton onClick={handleLogout}>{t('logout')}</LogoutButton>
         </HeaderControls>
       </Header>

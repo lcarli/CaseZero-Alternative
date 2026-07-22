@@ -151,7 +151,10 @@ namespace CaseZeroApi.IntegrationTests
 
         // ===== Helper Methods for Authentication & Security Tests =====
 
-        protected async Task<string> CreateAuthenticatedUserAndGetToken(string email = "test@fic-police.gov", string? userId = null)
+        protected async Task<string> CreateAuthenticatedUserAndGetToken(
+            string email = "test@fic-police.gov",
+            string? userId = null,
+            IEnumerable<string>? roles = null)
         {
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -162,7 +165,7 @@ namespace CaseZeroApi.IntegrationTests
             var existingUser = await context.Users.FirstOrDefaultAsync(u => u.Id == actualUserId);
             if (existingUser != null)
             {
-                return jwtService.GenerateToken(existingUser);
+                return jwtService.GenerateToken(existingUser, roles ?? [UserRoles.Player]);
             }
             
             var user = new User
@@ -180,7 +183,7 @@ namespace CaseZeroApi.IntegrationTests
             context.Users.Add(user);
             await context.SaveChangesAsync();
 
-            return jwtService.GenerateToken(user);
+            return jwtService.GenerateToken(user, roles ?? [UserRoles.Player]);
         }
 
         protected async Task CreateActiveSessionForUser(string userId, string caseId)

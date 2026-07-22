@@ -331,6 +331,7 @@ app.MapHub<CaseZeroApi.Hubs.ForensicsHub>("/hubs/forensics");
 
 // Check if --seed-only argument is provided
 var seedOnly = args.Contains("--seed-only");
+var provisionAdminOnly = args.Contains("--provision-admin-only");
 
 // Initialize database (skip in Testing environment - tests manage their own database)
 var environment = app.Services.GetRequiredService<IHostEnvironment>();
@@ -353,10 +354,12 @@ if (environment.EnvironmentName != "Testing")
             logger.LogInformation("🗄️ Applying SQL Server migrations...");
             context.Database.Migrate();
         }
+
+        await EnsureUserRolesAsync(scope.ServiceProvider);
         
         // Seed test users if none exist
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-        if (!userManager.Users.Any())
+        if (!provisionAdminOnly && !userManager.Users.Any())
         {
             // Primary test user following new pattern
             var testUser1 = new User
@@ -422,6 +425,74 @@ if (environment.EnvironmentName != "Testing")
         
         await context.SaveChangesAsync();
     }
+
+    var adminEmail = builder.Configuration["SeedUsers:LucasAdminEmail"] ?? "lucasadmin@fic-police.gov";
+    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+    if (adminUser is null)
+    {
+        var adminPassword = builder.Configuration["SeedUsers:LucasAdminPassword"];
+        if (string.IsNullOrWhiteSpace(adminPassword))
+        {
+            if (provisionAdminOnly)
+                throw new InvalidOperationException(
+                    "SeedUsers:LucasAdminPassword is required when --provision-admin-only is used.");
+
+            logger.LogWarning(
+                "Admin user {AdminEmail} was not created because SeedUsers:LucasAdminPassword is not configured.",
+                adminEmail);
+        }
+        else
+        {
+            adminUser = new User
+            {
+                UserName = adminEmail,
+                Email = adminEmail,
+                FirstName = "Lucas",
+                LastName = "Admin",
+                PersonalEmail = adminEmail,
+                Department = "ColdCase",
+                Position = "administrator",
+                BadgeNumber = "0001",
+                EmailVerified = true,
+                Rank = DetectiveRank.Rook
+            };
+            var createAdmin = await userManager.CreateAsync(adminUser, adminPassword);
+            if (!createAdmin.Succeeded)
+            {
+                adminUser = await userManager.FindByEmailAsync(adminEmail);
+                if (adminUser is null)
+                    throw new InvalidOperationException(
+                        $"Failed to create admin user: {string.Join("; ", createAdmin.Errors.Select(error => error.Description))}");
+            }
+        }
+    }
+
+    foreach (var player in await userManager.Users.Where(user => user.UserName != "system").ToListAsync())
+    {
+        if (!await userManager.IsInRoleAsync(player, UserRoles.Player))
+        {
+            var addPlayerRole = await userManager.AddToRoleAsync(player, UserRoles.Player);
+            if (!addPlayerRole.Succeeded && !await userManager.IsInRoleAsync(player, UserRoles.Player))
+                throw new InvalidOperationException(
+                    $"Failed to assign {UserRoles.Player} to {player.Email}: "
+                    + string.Join("; ", addPlayerRole.Errors.Select(error => error.Description)));
+        }
+    }
+
+    if (adminUser is not null && !await userManager.IsInRoleAsync(adminUser, UserRoles.Admin))
+    {
+        var addAdminRole = await userManager.AddToRoleAsync(adminUser, UserRoles.Admin);
+        if (!addAdminRole.Succeeded && !await userManager.IsInRoleAsync(adminUser, UserRoles.Admin))
+            throw new InvalidOperationException(
+                $"Failed to assign {UserRoles.Admin} to {adminEmail}: "
+                + string.Join("; ", addAdminRole.Errors.Select(error => error.Description)));
+    }
+
+    if (provisionAdminOnly)
+    {
+        logger.LogInformation("Admin user provisioning completed.");
+        Environment.Exit(0);
+    }
     
     // Seed GDD-specific data
     var seedingService = scope.ServiceProvider.GetRequiredService<DataSeedingService>();
@@ -459,9 +530,26 @@ else
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("🧪 Testing environment - skipping database initialization");
+    using var scope = app.Services.CreateScope();
+    await EnsureUserRolesAsync(scope.ServiceProvider);
 }
 
 app.Run();
+
+static async Task EnsureUserRolesAsync(IServiceProvider services)
+{
+    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+    foreach (var roleName in UserRoles.All)
+    {
+        if (await roleManager.RoleExistsAsync(roleName))
+            continue;
+
+        var roleResult = await roleManager.CreateAsync(new IdentityRole(roleName));
+        if (!roleResult.Succeeded && !await roleManager.RoleExistsAsync(roleName))
+            throw new InvalidOperationException(
+                $"Failed to create role {roleName}: {string.Join("; ", roleResult.Errors.Select(error => error.Description))}");
+    }
+}
 
 // Make the implicit Program class public for testing
 public partial class Program { }
