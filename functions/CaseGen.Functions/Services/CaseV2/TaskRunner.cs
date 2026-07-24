@@ -26,14 +26,26 @@ public static class TaskRunner
         int maxRetries = 1)
     {
         Exception? last = null;
+        var effectiveUserPrompt = userPrompt;
         for (int attempt = 0; attempt <= maxRetries; attempt++)
         {
             try
             {
-                var raw = await llm.GenerateStructuredResponseAsync(systemPrompt, userPrompt, jsonSchema, ct);
+                var raw = await llm.GenerateStructuredResponseAsync(systemPrompt, effectiveUserPrompt, jsonSchema, ct);
                 var parsed = JsonSerializer.Deserialize<T>(raw.Content, JsonOpts);
                 if (parsed is null) throw new InvalidOperationException($"{taskName} produced null after deserialization.");
                 return parsed;
+            }
+            catch (JsonException ex) when (attempt < maxRetries)
+            {
+                logger.LogWarning(ex, "{Task} attempt {Attempt} returned invalid JSON — retrying compactly", taskName, attempt + 1);
+                last = ex;
+                effectiveUserPrompt = string.Join(
+                    Environment.NewLine,
+                    userPrompt,
+                    string.Empty,
+                    "RETRY CORRECTION: The previous JSON was malformed or truncated. "
+                    + "Return the complete object using compact values, no redundant prose, and no optional detail beyond the schema.");
             }
             catch (Exception ex) when (attempt < maxRetries)
             {

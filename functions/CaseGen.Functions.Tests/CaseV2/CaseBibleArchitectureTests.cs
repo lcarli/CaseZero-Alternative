@@ -130,6 +130,26 @@ public class CaseBibleArchitectureTests
     }
 
     [Fact]
+    public async Task TaskRunner_RetriesMalformedJsonWithCompactCorrection()
+    {
+        var provider = new MalformedThenValidProvider();
+
+        var bible = await TaskRunner.RunStructuredAsync<CaseBible>(
+            provider,
+            NullLogger.Instance,
+            "CaseBible",
+            "system",
+            "original request",
+            "{}",
+            CancellationToken.None);
+
+        Assert.Equal("1.0", bible.Version);
+        Assert.Equal(2, provider.UserPrompts.Count);
+        Assert.Contains("RETRY CORRECTION", provider.UserPrompts[1], StringComparison.Ordinal);
+        Assert.Contains("compact values", provider.UserPrompts[1], StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Validator_AllowsExplicitlyDeclaredIntentionalConflict()
     {
         var bible = CaseBibleTestData.ValidRookieBible();
@@ -509,6 +529,39 @@ public class CaseBibleArchitectureTests
         public Task<byte[]> GenerateImageAsync(
             string prompt,
             CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<byte[]> GenerateImageWithReferenceAsync(
+            string prompt,
+            byte[] referenceImage,
+            byte[]? maskImage = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class MalformedThenValidProvider : ILLMProvider
+    {
+        public List<string> UserPrompts { get; } = new();
+
+        public Task<LLMResponse> GenerateTextAsync(
+            string systemPrompt,
+            string userPrompt,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<LLMResponse> GenerateStructuredResponseAsync(
+            string systemPrompt,
+            string userPrompt,
+            string jsonSchema,
+            CancellationToken cancellationToken = default)
+        {
+            UserPrompts.Add(userPrompt);
+            if (UserPrompts.Count == 1)
+                JsonDocument.Parse("{");
+            return Task.FromResult(new LLMResponse { Content = """{"version":"1.0"}""" });
+        }
+
+        public Task<byte[]> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
         public Task<byte[]> GenerateImageWithReferenceAsync(

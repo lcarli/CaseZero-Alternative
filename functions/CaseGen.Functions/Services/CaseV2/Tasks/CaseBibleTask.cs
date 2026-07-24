@@ -61,6 +61,7 @@ public sealed class CaseBibleTask
             ["min_suspects"] = profile.MinSuspects,
             ["max_suspects"] = profile.MaxSuspects,
             ["min_proof_paths"] = profile.Topology.MinIndependentProofPaths,
+            ["min_non_forensic_origins"] = profile.MinIndependentCulpritSources,
             ["required_decoy_arcs"] = profile.Topology.RequiredDecoyArcs,
             ["min_forensic_hops"] = profile.Topology.MinForensicHops,
             ["all_evidence_initial"] = profile.AllEvidenceInitial.ToString().ToLowerInvariant(),

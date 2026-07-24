@@ -627,10 +627,7 @@ public static class CaseBibleNormalizer
             if (fact is not null && !string.IsNullOrWhiteSpace(fact.CanonicalValue))
             {
                 var canonicalMatches = observations
-                    .Where(observation => string.Equals(
-                        observation.ObservedValue,
-                        fact.CanonicalValue,
-                        StringComparison.OrdinalIgnoreCase))
+                    .Where(observation => ObservationMatchesFact(observation, fact))
                     .ToArray();
                 if (canonicalMatches.Length > 0)
                     return canonicalMatches;
@@ -645,6 +642,33 @@ public static class CaseBibleNormalizer
                 .Count() == 1
                 ? best
                 : [];
+        }
+
+        static bool ObservationMatchesFact(CaseBibleObservation observation, CaseBibleFact fact)
+        {
+            var observed = observation.ObservedValue;
+            var canonical = fact.CanonicalValue;
+            if (string.IsNullOrWhiteSpace(observed) || string.IsNullOrWhiteSpace(canonical))
+                return false;
+            if (string.Equals(observed, canonical, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (fact.LiteralType == LiteralValueType.DateTime
+                && DateTimeOffset.TryParse(
+                    observed,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AllowWhiteSpaces,
+                    out var observedAt)
+                && DateTimeOffset.TryParse(
+                    canonical,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AllowWhiteSpaces,
+                    out var canonicalAt))
+            {
+                return observedAt.Equals(canonicalAt);
+            }
+            return fact.LiteralType != LiteralValueType.Boolean
+                   && canonical.Length >= 4
+                   && observed.Contains(canonical, StringComparison.OrdinalIgnoreCase);
         }
 
         static int ReliabilityRank(ObservationReliability reliability) =>

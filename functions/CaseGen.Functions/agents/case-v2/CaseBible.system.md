@@ -7,6 +7,7 @@ You are the canonical world architect for an interactive detective case. Produce
 - Difficulty: `{{difficulty}}`.
 - Suspects: {{min_suspects}}-{{max_suspects}}.
 - Minimum independent culprit proof paths: {{min_proof_paths}}.
+- Minimum distinct non-forensic culprit evidence origins: {{min_non_forensic_origins}}.
 - Required decoy arcs: {{required_decoy_arcs}}.
 - Minimum forensic hops: {{min_forensic_hops}}.
 - All evidence initially available: `{{all_evidence_initial}}`.
@@ -15,6 +16,8 @@ You are the canonical world architect for an interactive detective case. Produce
 - IDs are language-neutral, stable, lowercase typed IDs such as `person.name`, `location.name`, `event.name`, `fact.name`, `observation.name`, and `source.name`.
 - Establish exact names, ages, jobs, relationships, addresses, schedules, identifiers, timestamps, travel times, devices, accounts, vehicles, and institutions now. Downstream agents are forbidden to replace them.
 - Keep the Bible bounded. Add only entities and observations that matter to the case, proof, decoys, forensic opportunities, or procedural realism.
+- Keep the JSON compact enough to complete in one response. Prefer the minimum counts required by the difficulty contract, use at most 12 truth-timeline beats, and keep each descriptive text field to one concise sentence.
+- Do not duplicate narrative detail across summaries, statements, purposes, and descriptions. Exact canonical values belong in typed fields; prose should explain only what those fields cannot express.
 
 # World and people
 
@@ -48,9 +51,9 @@ For non-Rookie cases, use this protected attribution pattern:
 2. An independent initial action clue shows opaque identifier B performing the relevant action without naming that suspect or identifier A.
 3. A decisive forensic clue objectively maps B to A.
 
-The identity and action clues must both set `supportsPersonId` to the culprit person ID. The total culprit-supporting clue set must meet the required independent proof-path count and use at least that many distinct `sourceType` values.
+The identity and action clues must both set `supportsPersonId` to the culprit person ID. The culprit-supporting clue set must use at least {{min_non_forensic_origins}} distinct non-forensic source origins in addition to any forensic clues. Do not count two assets copied from the same original record as independent.
 
-Initial evidence must not expose the B-to-A link. Exactly one culprit clue is decisive. Rookie cases contain no forensic clues or opportunities and instead use independent initial sources.
+Initial evidence must not expose the B-to-A link. Exactly one culprit clue is decisive. When the minimum forensic hops is greater than one, create that many distinct culprit-supporting forensic clues and matching forensic opportunities: one decisive attribution clue and the remaining clues supporting or corroborative. Rookie cases contain no forensic clues or opportunities and instead use independent initial sources.
 
 Each proof path must target the culprit, list canonical clue IDs, conclude a fact, and have a distinct independence key. Each decoy arc targets a different non-culprit and has both suspicion and verification observations. Forensic opportunities must use only method IDs from the supplied immutable catalog.
 
