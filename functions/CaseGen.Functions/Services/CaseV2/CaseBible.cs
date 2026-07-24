@@ -367,6 +367,22 @@ public static class CaseBibleNormalizer
             bible.World.UtcOffset = bible.World.UtcOffset[3..].Trim();
         foreach (var schedule in bible.WorkSchedules)
             schedule.Id = NormalizeTypedId(schedule.Id);
+        var clueIdMap = bible.DifficultyIntent.Clues
+            .Where(clue => !string.IsNullOrWhiteSpace(clue.Id))
+            .ToDictionary(
+                clue => clue.Id,
+                clue => FlattenTypedId(clue.Id, "clue"),
+                StringComparer.Ordinal);
+        foreach (var clue in bible.DifficultyIntent.Clues)
+            clue.Id = clueIdMap.GetValueOrDefault(clue.Id) ?? clue.Id;
+        foreach (var proofPath in bible.DifficultyIntent.ProofPaths)
+        {
+            proofPath.ClueIds = proofPath.ClueIds
+                .Select(id => clueIdMap.GetValueOrDefault(id) ?? id)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+        }
+        NormalizeClueSourceTypes(bible);
         foreach (var person in bible.People.Where(person =>
                      !person.Roles.Contains(CaseBiblePersonRole.Suspect)))
         {
@@ -511,15 +527,20 @@ public static class CaseBibleNormalizer
                          fact.LiteralValue,
                          fact.LiteralType,
                          fact.LiteralUnit,
-                         fact.EventId,
-                         fact.Visibility,
-                         fact.TruthStatus,
-                         fact.IntentionalConflictId),
+                        fact.EventId),
                      StringComparer.Ordinal))
         {
             var ordered = group.OrderBy(fact => fact.Id, StringComparer.Ordinal).ToList();
+            var canonical = ordered[0];
+            canonical.IntentionalConflictId ??= ordered
+                .Select(fact => fact.IntentionalConflictId)
+                .FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
+            if (ordered.Any(fact => fact.Visibility == FactVisibility.Public))
+                canonical.Visibility = FactVisibility.Public;
+            if (ordered.Any(fact => fact.TruthStatus == FactTruthStatus.Confirmed))
+                canonical.TruthStatus = FactTruthStatus.Confirmed;
             foreach (var duplicate in ordered.Skip(1))
-                duplicateFactIds[duplicate.Id] = ordered[0].Id;
+                duplicateFactIds[duplicate.Id] = canonical.Id;
         }
         if (duplicateFactIds.Count > 0)
         {
@@ -539,6 +560,8 @@ public static class CaseBibleNormalizer
                 .ToList();
         }
         AddResolvableObservationConflicts(bible);
+        AddMissingForensicClues(bible);
+        EnsureReliabilityLevels(bible);
 
         bible.Institutions = bible.Institutions.OrderBy(value => value.Id, StringComparer.Ordinal).ToList();
         bible.Locations = bible.Locations.OrderBy(value => value.Id, StringComparer.Ordinal).ToList();
@@ -595,7 +618,7 @@ public static class CaseBibleNormalizer
                 if (resolution.Count == 0)
                     continue;
 
-                var baseId = $"conflict.observation_{NormalizeTypedId(observations.Key)}";
+                var baseId = $"conflict.observation_{NormalizeTypedId(observations.Key).Replace('.', '_')}";
                 var conflictId = baseId;
                 for (var suffix = 2; !usedConflictIds.Add(conflictId); suffix++)
                     conflictId = $"{baseId}_{suffix}";
@@ -668,7 +691,9 @@ public static class CaseBibleNormalizer
             }
             return fact.LiteralType != LiteralValueType.Boolean
                    && canonical.Length >= 4
-                   && observed.Contains(canonical, StringComparison.OrdinalIgnoreCase);
+                   && (observed.Contains(canonical, StringComparison.OrdinalIgnoreCase)
+                       || observed.Length >= 4
+                       && canonical.Contains(observed, StringComparison.OrdinalIgnoreCase));
         }
 
         static int ReliabilityRank(ObservationReliability reliability) =>
@@ -679,6 +704,139 @@ public static class CaseBibleNormalizer
                 ObservationReliability.Unverified => 2,
                 _ => 1
             };
+
+        static void NormalizeClueSourceTypes(CaseBible bible)
+        {
+            var observations = bible.Observations.ToDictionary(observation => observation.Id, StringComparer.Ordinal);
+            var sources = bible.Sources.ToDictionary(source => source.Id, StringComparer.Ordinal);
+            foreach (var clue in bible.DifficultyIntent.Clues)
+            {
+                var kinds = clue.ObservationIds
+                    .Where(observations.ContainsKey)
+                    .Select(id => observations[id].SourceId)
+                    .Where(sources.ContainsKey)
+                    .Select(id => sources[id].Kind)
+                    .Distinct()
+                    .ToArray();
+                if (kinds.Contains(CaseBibleSourceKind.ForensicResult))
+                {
+                    clue.SourceType = "forensic";
+                    continue;
+                }
+                if (kinds.Length != 1)
+                    continue;
+                clue.SourceType = kinds[0] switch
+                {
+                    CaseBibleSourceKind.DigitalRecord => "digital",
+                    CaseBibleSourceKind.Photograph or CaseBibleSourceKind.PhysicalObject => "photo",
+                    CaseBibleSourceKind.Testimony => "witness",
+                    _ => "document"
+                };
+            }
+        }
+
+        static void EnsureReliabilityLevels(CaseBible bible)
+        {
+            var required = DifficultyProfileCatalog.Get(bible.DifficultyIntent.Difficulty)
+                .Topology.MinReliabilityLevels;
+            if (required <= 1)
+                return;
+            var observations = bible.Observations.ToDictionary(observation => observation.Id, StringComparer.Ordinal);
+            foreach (var conflict in bible.DifficultyIntent.IntentionalConflicts)
+            {
+                foreach (var observationId in conflict.ObservationIds.Where(observations.ContainsKey))
+                {
+                    observations[observationId].Reliability =
+                        conflict.ResolutionObservationIds.Contains(observationId, StringComparer.Ordinal)
+                            ? ObservationReliability.Corroborated
+                            : ObservationReliability.Disputed;
+                }
+            }
+
+            if (bible.Observations.Select(observation => observation.Reliability).Distinct().Count() >= required)
+                return;
+            var decoySuspicionIds = bible.DifficultyIntent.DecoyArcs
+                .SelectMany(decoy => decoy.SuspicionObservationIds)
+                .ToHashSet(StringComparer.Ordinal);
+            var decoyVerificationIds = bible.DifficultyIntent.DecoyArcs
+                .SelectMany(decoy => decoy.VerificationObservationIds)
+                .ToHashSet(StringComparer.Ordinal);
+            var assignments = new[]
+            {
+                (Ids: decoySuspicionIds, Reliability: ObservationReliability.Unverified),
+                (Ids: decoyVerificationIds, Reliability: ObservationReliability.Corroborated)
+            };
+            foreach (var assignment in assignments)
+            {
+                var candidate = bible.Observations.FirstOrDefault(observation =>
+                    assignment.Ids.Contains(observation.Id));
+                if (candidate is not null)
+                    candidate.Reliability = assignment.Reliability;
+                if (bible.Observations.Select(observation => observation.Reliability).Distinct().Count() >= required)
+                    break;
+            }
+        }
+
+        static void AddMissingForensicClues(CaseBible bible)
+        {
+            var profile = DifficultyProfileCatalog.Get(bible.DifficultyIntent.Difficulty);
+            if (profile.AllEvidenceInitial)
+                return;
+            var culpritId = bible.Incident.CulpritPersonId;
+            var forensicClues = bible.DifficultyIntent.Clues
+                .Where(clue => clue.SourceType == "forensic" && clue.SupportsPersonId == culpritId)
+                .ToList();
+            var culpritPaths = bible.DifficultyIntent.ProofPaths
+                .Where(path => path.SupportsPersonId == culpritId)
+                .OrderBy(path => path.Id, StringComparer.Ordinal)
+                .ToArray();
+            var pathIndex = 0;
+            foreach (var clue in forensicClues.Where(clue =>
+                         culpritPaths.All(path => !path.ClueIds.Contains(clue.Id, StringComparer.Ordinal))))
+            {
+                if (culpritPaths.Length == 0)
+                    break;
+                culpritPaths[pathIndex % culpritPaths.Length].ClueIds.Add(clue.Id);
+                pathIndex++;
+            }
+            if (forensicClues.Count >= profile.Topology.MinForensicHops)
+                return;
+
+            var usedObservationIds = forensicClues
+                .SelectMany(clue => clue.ObservationIds)
+                .ToHashSet(StringComparer.Ordinal);
+            var clueIds = bible.DifficultyIntent.Clues
+                .Select(clue => clue.Id)
+                .ToHashSet(StringComparer.Ordinal);
+            foreach (var opportunity in bible.DifficultyIntent.ForensicOpportunities
+                         .Where(opportunity => !usedObservationIds.Contains(opportunity.ResultObservationId))
+                         .OrderBy(opportunity => opportunity.Id, StringComparer.Ordinal))
+            {
+                var baseId = FlattenTypedId($"clue.forensic_{opportunity.Id}", "clue");
+                var clueId = baseId;
+                for (var suffix = 2; !clueIds.Add(clueId); suffix++)
+                    clueId = $"{baseId}_{suffix}";
+                bible.DifficultyIntent.Clues.Add(new CaseBibleClueIntent
+                {
+                    Id = clueId,
+                    ObservationIds = { opportunity.ResultObservationId },
+                    SupportsPersonId = culpritId,
+                    Inference = opportunity.Purpose,
+                    Strength = "supporting",
+                    SourceType = "forensic",
+                    Role = "forensicAttribution"
+                });
+                usedObservationIds.Add(opportunity.ResultObservationId);
+                if (culpritPaths.Length > 0)
+                {
+                    culpritPaths[pathIndex % culpritPaths.Length].ClueIds.Add(clueId);
+                    pathIndex++;
+                }
+                forensicClues.Add(bible.DifficultyIntent.Clues[^1]);
+                if (forensicClues.Count >= profile.Topology.MinForensicHops)
+                    break;
+            }
+        }
 
         static string NormalizeTypedId(string id)
         {
@@ -694,6 +852,16 @@ public static class CaseBibleNormalizer
                 normalized.Split('.', StringSplitOptions.RemoveEmptyEntries)
                     .Select(segment => segment.Trim('_'))
                     .Where(segment => segment.Length > 0));
+        }
+
+        static string FlattenTypedId(string id, string expectedPrefix)
+        {
+            var normalized = NormalizeTypedId(id);
+            var prefix = $"{expectedPrefix}.";
+            if (!normalized.StartsWith(prefix, StringComparison.Ordinal))
+                return normalized;
+            var suffix = normalized[prefix.Length..].Replace('.', '_');
+            return $"{prefix}{suffix}";
         }
     }
 

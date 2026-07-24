@@ -130,6 +130,113 @@ public class CaseBibleArchitectureTests
     }
 
     [Fact]
+    public void Normalizer_FlattensNestedClueIdsAndReferences()
+    {
+        var bible = CaseBibleTestData.ValidRookieBible();
+        var clue = bible.DifficultyIntent.Clues[0];
+        var originalId = clue.Id;
+        clue.Id = "clue.action.contractor_badge";
+        foreach (var proofPath in bible.DifficultyIntent.ProofPaths)
+        {
+            proofPath.ClueIds = proofPath.ClueIds
+                .Select(id => id == originalId ? clue.Id : id)
+                .ToList();
+        }
+
+        CaseBibleNormalizer.Normalize(bible);
+
+        Assert.Equal("clue.action_contractor_badge", clue.Id);
+        Assert.DoesNotContain(
+            bible.DifficultyIntent.ProofPaths.SelectMany(path => path.ClueIds),
+            id => id == "clue.action.contractor_badge");
+    }
+
+    [Fact]
+    public void Normalizer_ProjectsMissingForensicOpportunitiesIntoCulpritClues()
+    {
+        var bible = CaseBibleTestData.ValidDetectiveBible();
+        bible.DifficultyIntent.Difficulty = "Commander";
+        foreach (var clue in bible.DifficultyIntent.Clues)
+            clue.SourceType = "document";
+        bible.DifficultyIntent.ForensicOpportunities.Clear();
+        foreach (var (observation, index) in bible.Observations.Take(3).Select((value, index) => (value, index)))
+        {
+            bible.DifficultyIntent.ForensicOpportunities.Add(new CaseBibleForensicOpportunity
+            {
+                Id = $"forensic.coverage_{index}",
+                InputEntityId = "device.laptop",
+                InputSourceId = observation.SourceId,
+                ResultObservationId = observation.Id,
+                MethodHint = "MetadataAnalysis",
+                Purpose = $"Corroborate forensic hop {index + 1}."
+            });
+        }
+
+        CaseBibleNormalizer.Normalize(bible);
+
+        var projected = bible.DifficultyIntent.Clues
+            .Where(clue => clue.SourceType == "forensic"
+                           && clue.SupportsPersonId == bible.Incident.CulpritPersonId)
+            .ToArray();
+        Assert.Equal(3, projected.Length);
+        Assert.All(projected, clue => Assert.Contains(
+            bible.DifficultyIntent.ProofPaths,
+            path => path.ClueIds.Contains(clue.Id, StringComparer.Ordinal)));
+    }
+
+    [Fact]
+    public void Normalizer_MergesDuplicateFactThatOnlyDiffersByConflictMetadata()
+    {
+        var bible = CaseBibleTestData.ValidRookieBible();
+        var original = bible.Facts[0];
+        var duplicateId = $"{original.Id}_duplicate";
+        bible.Facts.Add(new CaseBibleFact
+        {
+            Id = duplicateId,
+            Predicate = original.Predicate,
+            SubjectId = original.SubjectId,
+            ObjectId = original.ObjectId,
+            LiteralValue = original.LiteralValue,
+            LiteralType = original.LiteralType,
+            LiteralUnit = original.LiteralUnit,
+            EventId = original.EventId,
+            Visibility = FactVisibility.Public,
+            TruthStatus = FactTruthStatus.Confirmed,
+            IntentionalConflictId = "conflict.duplicate_value"
+        });
+        var observationId = bible.Observations[0].Id;
+        bible.Observations[0].FactId = duplicateId;
+
+        CaseBibleNormalizer.Normalize(bible);
+
+        Assert.DoesNotContain(bible.Facts, fact => fact.Id == duplicateId);
+        Assert.Equal(original.Id, bible.Observations.Single(value => value.Id == observationId).FactId);
+        Assert.Equal("conflict.duplicate_value", original.IntentionalConflictId);
+        Assert.Equal(FactVisibility.Public, original.Visibility);
+    }
+
+    [Fact]
+    public void Normalizer_DerivesClueTypeFromCanonicalSourceAndReliabilityFromDecoys()
+    {
+        var bible = CaseBibleTestData.ValidDetectiveBible();
+        bible.DifficultyIntent.Difficulty = "Commander";
+        var forensicOpportunity = bible.DifficultyIntent.ForensicOpportunities[0];
+        var forensicObservation = bible.Observations.Single(value =>
+            value.Id == forensicOpportunity.ResultObservationId);
+        var mislabeled = bible.DifficultyIntent.Clues.First(clue =>
+            clue.ObservationIds.Contains(forensicObservation.Id, StringComparer.Ordinal));
+        mislabeled.SourceType = "document";
+        foreach (var observation in bible.Observations)
+            observation.Reliability = ObservationReliability.Verified;
+
+        CaseBibleNormalizer.Normalize(bible);
+
+        Assert.Equal("forensic", mislabeled.SourceType);
+        Assert.True(
+            bible.Observations.Select(observation => observation.Reliability).Distinct().Count() >= 3);
+    }
+
+    [Fact]
     public async Task TaskRunner_RetriesMalformedJsonWithCompactCorrection()
     {
         var provider = new MalformedThenValidProvider();

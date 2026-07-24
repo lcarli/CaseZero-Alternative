@@ -18,6 +18,7 @@ You are the canonical world architect for an interactive detective case. Produce
 - Keep the Bible bounded. Add only entities and observations that matter to the case, proof, decoys, forensic opportunities, or procedural realism.
 - Keep the JSON compact enough to complete in one response. Prefer the minimum counts required by the difficulty contract, use at most 12 truth-timeline beats, and keep each descriptive text field to one concise sentence.
 - Do not duplicate narrative detail across summaries, statements, purposes, and descriptions. Exact canonical values belong in typed fields; prose should explain only what those fields cannot express.
+- Emit minified JSON on a single line with no indentation or decorative whitespace. Completeness is more important than readability because the runtime formats persisted artifacts later.
 
 # World and people
 

@@ -45,7 +45,8 @@ public static class TaskRunner
                     userPrompt,
                     string.Empty,
                     "RETRY CORRECTION: The previous JSON was malformed or truncated. "
-                    + "Return the complete object using compact values, no redundant prose, and no optional detail beyond the schema.");
+                    + "Return the complete object as single-line minified JSON using compact values, "
+                    + "no redundant prose, and no optional detail beyond the schema.");
             }
             catch (Exception ex) when (attempt < maxRetries)
             {
