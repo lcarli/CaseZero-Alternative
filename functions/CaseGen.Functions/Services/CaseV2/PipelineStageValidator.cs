@@ -11,6 +11,13 @@ public sealed class StageValidationReport
 
 public static class PipelineStageValidator
 {
+    public static StageValidationReport ValidateCaseBible(CaseDraft draft, bool required = false)
+    {
+        var report = new StageValidationReport();
+        report.Errors.AddRange(CaseBibleValidator.Validate(draft, required).Errors);
+        return report;
+    }
+
     public static StageValidationReport ValidateLocale(CaseDraft draft) =>
         LocaleProfileCatalog.Validate(draft);
 
@@ -73,7 +80,14 @@ public static class PipelineStageValidator
         var profile = DifficultyProfileCatalog.Get(draft);
         var graph = EvidenceGraphCompiler.Compile(draft);
         if (draft.AssetStubs.Count < profile.MinAssets || draft.AssetStubs.Count > profile.MaxAssets)
-            report.Errors.Add($"{profile.Name} requires {profile.MinAssets}-{profile.MaxAssets} initial assets");
+            report.Errors.Add($"{profile.Name} requires {profile.MinAssets}-{profile.MaxAssets} total dossier assets");
+        var investigativeCount = draft.AssetStubs.Count(asset =>
+            EvidenceRoles.IsInvestigative(asset.EvidenceRole));
+        if (investigativeCount < profile.MinInvestigativeAssets
+            || investigativeCount > profile.MaxInvestigativeAssets)
+        {
+            report.Errors.Add($"{profile.Name} requires {profile.MinInvestigativeAssets}-{profile.MaxInvestigativeAssets} investigative assets");
+        }
         foreach (var claim in graph.Claims.Where(claim =>
                      !string.Equals(claim.SourceType, "forensic", StringComparison.OrdinalIgnoreCase)
                      && claim.AssetIds.Count == 0))

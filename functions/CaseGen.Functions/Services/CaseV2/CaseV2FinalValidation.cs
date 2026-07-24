@@ -9,6 +9,7 @@ namespace CaseGen.Functions.Services.CaseV2;
 public enum FinalValidationGate
 {
     Schema,
+    CaseBible,
     Graph,
     Proof,
     Reachability,
@@ -76,6 +77,11 @@ public sealed class CaseV2FinalValidator
             Difficulty = DifficultyProfileCatalog.Get(draft).Name
         };
         AddSchema(publicCaseJson, report);
+        AddCaseBible(
+            CaseBibleValidator.Validate(
+                draft,
+                required: draft.CaseGraph.Origin == CaseGraphOrigin.Generated),
+            report);
         AddGraph(CaseGraphValidator.Validate(draft.CaseGraph), report);
         AddProof(draft, report);
         AddStage(FinalValidationGate.Forensic, "forensic", ForensicContractValidator.Validate(draft), report);
@@ -90,7 +96,14 @@ public sealed class CaseV2FinalValidator
         else
         {
             if (!solver.LogicalProofPassed)
-                Add(report, FinalValidationGate.Solver, "solver.logical_failed", "solver.trace", "deterministic logical solvability gate failed");
+                Add(
+                    report,
+                    FinalValidationGate.Solver,
+                    "solver.logical_failed",
+                    "solver.trace",
+                    string.IsNullOrWhiteSpace(solver.Notes)
+                        ? "deterministic logical solvability gate failed"
+                        : $"deterministic logical solvability gate failed: {solver.Notes}");
             if (!solver.NarrativeSimulationPassed)
                 Add(report, FinalValidationGate.Solver, "solver.narrative_failed", "solver.trace", "narrative player simulation failed");
             if (!solver.Correct)
@@ -168,6 +181,12 @@ public sealed class CaseV2FinalValidator
     {
         foreach (var error in graph.Errors)
             Add(report, FinalValidationGate.Graph, error.Code, error.NodeId, error.Message);
+    }
+
+    private static void AddCaseBible(CaseBibleValidationReport bible, FinalValidationReport report)
+    {
+        foreach (var issue in bible.Issues)
+            Add(report, FinalValidationGate.CaseBible, issue.Code, issue.NodeId, issue.Message);
     }
 
     private static void AddProof(CaseDraft draft, FinalValidationReport report)

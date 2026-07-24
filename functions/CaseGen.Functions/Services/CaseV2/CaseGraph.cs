@@ -41,6 +41,7 @@ public sealed class CanonicalFact
     public string? EventId { get; set; }
     public FactVisibility Visibility { get; set; } = FactVisibility.Public;
     public FactTruthStatus TruthStatus { get; set; } = FactTruthStatus.Confirmed;
+    public string? IntentionalConflictId { get; set; }
 
     [JsonIgnore]
     public string CanonicalValue => ObjectId ?? LiteralValue ?? string.Empty;
@@ -49,6 +50,7 @@ public sealed class CanonicalFact
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum EventKind
 {
+    Occurred,
     Created,
     Modified,
     Scanned,
@@ -185,6 +187,9 @@ public sealed class EvidenceAssetSpec
     public string Id { get; set; } = string.Empty;
     public string ArchetypeId { get; set; } = string.Empty;
     public string AssetType { get; set; } = string.Empty;
+    public string EvidenceRole { get; set; } = EvidenceRoles.Corroborative;
+    public string? SubjectSuspectId { get; set; }
+    public string? ImagePurpose { get; set; }
     public List<string> ObservationIds { get; set; } = new();
     public List<string> ContainedObjectIds { get; set; } = new();
     public Dictionary<string, ForensicInputObjectType> ContainedObjectTypes { get; set; } =

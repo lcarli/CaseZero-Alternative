@@ -6,6 +6,7 @@ namespace CaseGen.Functions.Tests.CaseV2;
 public class GenerationProgressTests
 {
     [Theory]
+    [InlineData("caseBible", "caseDesign")]
     [InlineData("plotOutline", "caseDesign")]
     [InlineData("assetsAndTimelineAndBriefing", "evidenceProduction")]
     [InlineData("redTeamAndSolver", "solutionWitness")]

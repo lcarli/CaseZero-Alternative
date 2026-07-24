@@ -336,7 +336,8 @@ public static class IndependentProofPathGate
             .SelectMany(transform => transform.ProducedObservationIds)
             .Select(observationId => graph.Observations.FirstOrDefault(observation => observation.Id == observationId))
             .Where(observation => observation is not null)
-            .Select(observation => graph.Sources.FirstOrDefault(source => source.Id == observation!.SourceAssetId)?.EvidentiaryOriginId
+            .Select(observation => observation!.EvidentiaryOriginId
+                                   ?? graph.Sources.FirstOrDefault(source => source.Id == observation.SourceAssetId)?.EvidentiaryOriginId
                                    ?? observation!.SourceAssetId)
             .ToHashSet(StringComparer.Ordinal);
         var candidates = CulpritUniquenessGate.PathsForSuspect(conclusions, culpritId, closure)

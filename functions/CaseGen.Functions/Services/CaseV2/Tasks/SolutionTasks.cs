@@ -51,6 +51,11 @@ public class SolutionSkeletonTask
                 .Select(a => a.Id))
             .ToHashSet(StringComparer.Ordinal);
         var reachableAssets = initialIds.Union(revealedByRules).ToHashSet(StringComparer.Ordinal);
+        var contextualIds = draft.AssetStubs
+            .Where(asset => asset.EvidenceRole == EvidenceRoles.Contextual)
+            .Select(asset => asset.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        reachableAssets.ExceptWith(contextualIds);
 
         var fullAssets = draft.AssetFull.Concat(draft.ResultAssets)
             .GroupBy(asset => asset.Id, StringComparer.Ordinal)
@@ -61,9 +66,11 @@ public class SolutionSkeletonTask
             .ToHashSet(StringComparer.Ordinal);
         var ctxJson = System.Text.Json.JsonSerializer.Serialize(new
         {
+            caseBible = draft.CaseBible,
             culpritId = draft.CulpritId,
             assets = draft.AssetStubs
                 .Concat(draft.ResultAssets.Select(a => new AssetStub { Id = a.Id, Type = a.Type, Title = a.Title, Role = "lab result" }))
+                .Where(a => !contextualIds.Contains(a.Id))
                 .Select(a =>
                 {
                     fullAssets.TryGetValue(a.Id, out var full);
@@ -83,40 +90,70 @@ public class SolutionSkeletonTask
             forensics = draft.ForensicFull.Where(f => f.Findings).Select(f => new { id = $"{f.InputAssetId}:{f.AnalysisType}", f.MatchedSuspectId })
         });
 
-        var system = $@"You are writing the **skeleton** of the case solution.
-
-CRITICAL CONSTRAINT: every id you put in `requiredEvidenceIds` MUST be marked `reachable: true` in the supplied context.
-`reachable` means the asset is either visibility=initial or already gets revealed by a pre-built rule. Picking an
-unreachable asset would make the case unsolvable — DO NOT do it.
-
-Pick:
-- `requiredEvidenceIds` (1-3 reachable assets that are the strongest probative items, including result PDFs when reachable);
-- `requiredAnalysisIds`: {(isRookie ? "MUST be an empty array. Rookie cases have no forensic workflow." : "1-2 entries in the `<assetId>:<analysisType>` form, only for analyses that had `findings: true`")};
-- `questionTopics`: 2-4 entries. Each has `id` (`q.<slug>`), `topic`, `weight`, and `supportingEvidenceIds`.
-  Every supporting evidence id must be reachable and must directly contain the fact needed to answer the future question.
-  Do not select a topic such as exact method, hidden location, or private motive unless an initial/reachable asset explicitly states enough to distinguish the correct option.
-  Never create a suspect-identity / 'who did it' topic. Culprit identification is scored separately; questions must test evidence interpretation, chronology, method, motive, or contradiction.";
-        system += isRookie
-            ? "\nFor Rookie, requiredEvidenceIds must prioritize at least two different reachable assets marked `supportsCulprit: true` when available. Do not require background-only opportunity records when stronger culprit-supporting assets exist."
-            : string.Empty;
-        var user = $@"CONTEXT:
-{ctxJson}
-
-Emit JSON only.";
+        var prompts = AgentPromptCatalog.Default;
+        var system = prompts.RenderSystem("SolutionSkeleton", new Dictionary<string, object?>
+        {
+            ["language"] = ForensicMethodCatalog.NormalizeLanguage(draft.Request.Language),
+            ["is_rookie"] = isRookie.ToString().ToLowerInvariant()
+        });
+        var user = prompts.RenderUser("SolutionSkeleton", new Dictionary<string, object?>
+        {
+            ["context_json"] = ctxJson
+        });
 
         var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "SolutionSkeleton", system, user, Schema, ct);
 
         // Defensive: drop any requiredEvidenceId that ended up unreachable anyway.
-        var ids = o.RequiredEvidenceIds.Where(reachableAssets.Contains).ToList();
+        var ids = o.RequiredEvidenceIds
+            .Where(reachableAssets.Contains)
+            .Where(id => !contextualIds.Contains(id))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
         if (ids.Count == 0 && o.RequiredEvidenceIds.Count > 0)
         {
-            _logger.LogWarning("SolutionSkeleton picked only unreachable evidence — keeping originals so downstream auto-fix can promote them");
-            ids = o.RequiredEvidenceIds;
+            _logger.LogWarning("SolutionSkeleton picked only unreachable or contextual evidence — selecting reachable investigative evidence");
+            ids = draft.AssetStubs
+                .Where(asset => reachableAssets.Contains(asset.Id))
+                .OrderByDescending(asset => asset.SupportsClueIds.Any(culpritClueIds.Contains))
+                .ThenBy(asset => asset.Id, StringComparer.Ordinal)
+                .Take(3)
+                .Select(asset => asset.Id)
+                .ToList();
         }
         draft.RequiredEvidenceIds = ids;
-        draft.RequiredAnalysisIds = isRookie ? new() : o.RequiredAnalysisIds;
+        draft.RequiredAnalysisIds = isRookie
+            ? new()
+            : LimitRequiredAnalyses(draft, o.RequiredAnalysisIds);
         draft.QuestionTopics = o.QuestionTopics
-            .Where(topic => topic.SupportingEvidenceIds.Any(reachableAssets.Contains))
+            .Select(topic =>
+            {
+                topic.SupportingEvidenceIds = topic.SupportingEvidenceIds
+                    .Where(reachableAssets.Contains)
+                    .Where(id => !contextualIds.Contains(id))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                return topic;
+            })
+            .Where(topic => topic.SupportingEvidenceIds.Count > 0)
+            .ToList();
+    }
+
+    private static List<string> LimitRequiredAnalyses(CaseDraft draft, IEnumerable<string> proposedIds)
+    {
+        var availableIds = draft.ForensicFull
+            .Where(outcome => outcome.Findings)
+            .Select(outcome => $"{outcome.InputAssetId}:{outcome.AnalysisType}")
+            .Concat(draft.ForensicStubs
+                .Where(outcome => outcome.Findings)
+                .Select(outcome => $"{outcome.InputAssetId}:{outcome.AnalysisType}"))
+            .Distinct(StringComparer.Ordinal)
+            .ToHashSet(StringComparer.Ordinal);
+        var optionalMinimum = DifficultyProfileCatalog.Get(draft).Topology.MinOptionalAnalyses;
+        var maximumRequired = Math.Max(0, availableIds.Count - optionalMinimum);
+        return proposedIds
+            .Where(availableIds.Contains)
+            .Distinct(StringComparer.Ordinal)
+            .Take(maximumRequired)
             .ToList();
     }
 
@@ -151,23 +188,6 @@ public class QuestionTask
 
     public async Task<SolutionQuestion> RunAsync(CaseDraft draft, QuestionTopic topic, CancellationToken ct)
     {
-        var system = $@"You are writing ONE multiple-choice question for the case solution.
-Topic: ""{topic.Topic}"". Echo id `{topic.Id}` and `weight` {topic.Weight}.
-3-4 options. Each option `id` MUST match the regex `^opt\.[a-z0-9_]+$` — start with the literal prefix `opt.`
-(four characters: o, p, t, dot) followed by lowercase letters/digits/underscores. NEVER use `opt_` or just `opt-`.
-All options must be plausible (no obvious distractors). One is the correct answer (`correctOptionId`), and it
-MUST be one of the `option.id` values you emit.
-Keep the prompt under 25 words.
-The correct answer must be directly supported by these evidence IDs: {string.Join(", ", topic.SupportingEvidenceIds)}.
-If those documents do not support the originally proposed topic, ask a narrower question that they do support.
-
-CRITICAL — NO NAME LEAKAGE:
-- This question is about WHAT happened (the topic above), NEVER about WHO did it.
-- DO NOT name any suspect, victim, or witness in the prompt or in any option label. Suspect
-  identification is captured as a separate field; revealing names here would spoil the case.
-- Refer to people generically (in the same language as the prompt): ""the perpetrator"",
-  ""the victim"", ""an accomplice"", ""the contact"", ""the witness"". Pick whichever generic role
-  fits the topic — never an actual name from the draft.";
         var supportingAssets = draft.AssetFull.Concat(draft.ResultAssets)
             .Where(asset => topic.SupportingEvidenceIds.Contains(asset.Id, StringComparer.Ordinal))
             .Select(asset => new
@@ -177,15 +197,22 @@ CRITICAL — NO NAME LEAKAGE:
                 asset.Description,
                 content = RenderedEvidence(asset)
             });
-        var user = $@"CASE DRAFT (read-only):
-{draft.ToSummaryJson()}
-
-CULPRIT INFO: {draft.SuspectFull.FirstOrDefault(s => s.Id == draft.CulpritId)?.Motive ?? "(see culprit suspect's motive in draft)"}
-
-EXACT PLAYER-VISIBLE CONTENT SUPPORTING THIS QUESTION:
-{System.Text.Json.JsonSerializer.Serialize(supportingAssets)}
-
-Emit JSON only.";
+        var prompts = AgentPromptCatalog.Default;
+        var system = prompts.RenderSystem("Question", new Dictionary<string, object?>
+        {
+            ["language"] = ForensicMethodCatalog.NormalizeLanguage(draft.Request.Language),
+            ["topic"] = topic.Topic,
+            ["question_id"] = topic.Id,
+            ["weight"] = topic.Weight,
+            ["supporting_evidence_ids"] = string.Join(", ", topic.SupportingEvidenceIds)
+        });
+        var user = prompts.RenderUser("Question", new Dictionary<string, object?>
+        {
+            ["case_draft_json"] = draft.ToSummaryJson(),
+            ["culprit_context"] = draft.SuspectFull.FirstOrDefault(s => s.Id == draft.CulpritId)?.Motive
+                                  ?? "(see canonical culprit profile)",
+            ["supporting_assets_json"] = System.Text.Json.JsonSerializer.Serialize(supportingAssets)
+        });
         var q = await TaskRunner.RunStructuredAsync<SolutionQuestion>(_llm, _logger, $"Question:{topic.Id}", system, user, Schema, ct);
         q.Id = topic.Id;
         q.Weight = topic.Weight;
@@ -327,16 +354,18 @@ public class ExplanationTask
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
         var culprit = draft.SuspectFull.FirstOrDefault(s => s.Id == draft.CulpritId);
-        var system = @"You are writing the post-mortem explanation shown to the player when they solve the case (or run out of attempts).
-Write 4-7 concise sentences. Reconstruct the causal sequence, then triangulate the culprit using at least two independent clues and the decisive analysis. State the limitation of the forensic result where relevant, and explain how the strongest red herrings are resolved. Do not merely list evidence IDs.";
-        var user = $@"CASE DRAFT (read-only):
-{draft.ToSummaryJson()}
-
-CULPRIT: {culprit?.Name} — motive: {culprit?.Motive}
-KEY EVIDENCE: {string.Join(", ", draft.RequiredEvidenceIds)}
-KEY ANALYSES: {string.Join(", ", draft.RequiredAnalysisIds)}
-
-Emit JSON only.";
+        var prompts = AgentPromptCatalog.Default;
+        var system = prompts.RenderSystem("Explanation", new Dictionary<string, object?>
+        {
+            ["language"] = ForensicMethodCatalog.NormalizeLanguage(draft.Request.Language)
+        });
+        var user = prompts.RenderUser("Explanation", new Dictionary<string, object?>
+        {
+            ["case_draft_json"] = draft.ToSummaryJson(),
+            ["culprit_context"] = $"{culprit?.Name} — {culprit?.Motive}",
+            ["required_evidence_ids"] = string.Join(", ", draft.RequiredEvidenceIds),
+            ["required_analysis_ids"] = string.Join(", ", draft.RequiredAnalysisIds)
+        });
         var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "Explanation", system, user, Schema, ct);
         draft.Explanation = o.Explanation;
     }

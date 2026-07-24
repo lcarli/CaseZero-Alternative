@@ -54,7 +54,7 @@ public static class GenerationProgressCatalog
     public static string MapInternalPhase(string phase) =>
         phase switch
         {
-            "plotOutline" or "suspectCards" => "caseDesign",
+            "caseBible" or "plotOutline" or "suspectCards" => "caseDesign",
             "assetPlan" => "graphConstruction",
             "assetsAndTimelineAndBriefing" or "rookieInitialEvidence" => "evidenceProduction",
             "forensicsPlan" or "outcomesAndInitialEmails" => "forensicWorkflow",

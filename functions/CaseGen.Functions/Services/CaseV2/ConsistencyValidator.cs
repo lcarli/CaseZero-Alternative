@@ -105,7 +105,16 @@ public class ConsistencyValidator : IConsistencyValidator
             {
                 Severity = "warning",
                 Area = "evidence",
-                Message = $"evidence portfolio has {d.AssetStubs.Count} initial assets; {budget.Difficulty} expects {budget.MinAssets}-{budget.MaxAssets}"
+                Message = $"evidence portfolio has {d.AssetStubs.Count} total assets; {budget.Difficulty} expects {budget.MinAssets}-{budget.MaxAssets}"
+            });
+        var investigativeCount = d.AssetStubs.Count(asset => EvidenceRoles.IsInvestigative(asset.EvidenceRole));
+        if (investigativeCount < budget.MinInvestigativeAssets
+            || investigativeCount > budget.MaxInvestigativeAssets)
+            r.Findings.Add(new()
+            {
+                Severity = "warning",
+                Area = "evidence",
+                Message = $"evidence portfolio has {investigativeCount} investigative assets; {budget.Difficulty} expects {budget.MinInvestigativeAssets}-{budget.MaxInvestigativeAssets}"
             });
 
         var layoutCount = d.AssetStubs.Select(a => a.LayoutHint)
@@ -124,7 +133,8 @@ public class ConsistencyValidator : IConsistencyValidator
         foreach (var repeated in d.AssetStubs
                      .Where(a => !string.IsNullOrWhiteSpace(a.LayoutHint))
                      .GroupBy(a => a.LayoutHint, StringComparer.Ordinal)
-                     .Where(g => g.Count() > 2))
+                     .Where(g => g.Count() > 2
+                                 && g.Key is not "Photo" and not "InterviewTranscript"))
         {
             r.Findings.Add(new()
             {

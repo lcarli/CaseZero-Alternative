@@ -10,6 +10,7 @@ public sealed record RepairIssue(string Stage, string Message)
 }
 
 public sealed record RepairPlan(
+    bool CaseBible,
     bool Blueprint,
     bool Suspects,
     bool AssetPlan,
@@ -54,7 +55,9 @@ public sealed class RepairCoordinator
             !string.Equals(finding.Severity, "low", StringComparison.OrdinalIgnoreCase)
             && string.IsNullOrWhiteSpace(finding.OwnerStage));
 
-        var blueprint = ownerStages.Contains("plotOutline")
+        var caseBible = validationStages.Contains("caseBible");
+        var blueprint = caseBible
+                        || ownerStages.Contains("plotOutline")
                         || validationStages.Contains("blueprint")
                         || validationStages.Contains("locale");
         var suspects = blueprint || ownerStages.Contains("suspectCards");
@@ -98,7 +101,7 @@ public sealed class RepairCoordinator
             || ownerStages.Contains("solution")
             || solverFailed;
 
-        return new(blueprint, suspects, assetPlan, assets, timeline, forensics, emails, rules, solution);
+        return new(caseBible, blueprint, suspects, assetPlan, assets, timeline, forensics, emails, rules, solution);
     }
 
     public static IReadOnlyList<RepairOperation> BuildOperations(
@@ -162,6 +165,12 @@ public sealed class RepairCoordinator
                                      && !plan.Blueprint
                                      && !plan.AssetPlan;
 
+        if (plan.CaseBible)
+        {
+            await new CaseBibleTask(_llm, _logger).RunAsync(draft, ct, guidance);
+            repaired.Add("caseBible");
+        }
+
         if (plan.Blueprint)
         {
             await new PlotOutlineTask(_llm, _logger).RunAsync(draft, ct, guidance);
@@ -171,6 +180,8 @@ public sealed class RepairCoordinator
             draft.Timeline.Clear();
             draft.TemporalEvents.Clear();
             ClearForensics(draft);
+            if (draft.CaseGraph.Origin != CaseGraphOrigin.HandAuthored)
+                draft.CaseGraph = new CaseGraph { Origin = CaseGraphOrigin.TransitionalClueLadder };
             repaired.Add("plotOutline");
         }
 
@@ -271,6 +282,7 @@ public sealed class RepairCoordinator
             repaired.Add("solution");
         }
 
+        CaseGraphProjection.RefreshGeneratedGraph(draft);
         _logger.LogInformation("Targeted repair reran stages: {Stages}", string.Join(", ", repaired));
         return repaired;
     }

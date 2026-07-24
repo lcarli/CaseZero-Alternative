@@ -237,6 +237,14 @@ public static class CaseGraphValidator
             }
             else if (byValue.Count > 1)
             {
+                var intentionalConflictIds = ordered
+                    .Select(fact => fact.IntentionalConflictId)
+                    .Where(id => !string.IsNullOrWhiteSpace(id))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                if (intentionalConflictIds.Count == 1
+                    && ordered.All(fact => fact.IntentionalConflictId == intentionalConflictIds[0]))
+                    continue;
                 foreach (var conflict in ordered)
                 {
                     Add(

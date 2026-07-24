@@ -1,5 +1,24 @@
 namespace CaseGen.Functions.Services.CaseV2;
 
+public static class EvidenceRoles
+{
+    public const string Primary = "primary";
+    public const string Corroborative = "corroborative";
+    public const string Contextual = "contextual";
+
+    public static bool IsInvestigative(string? role) =>
+        string.Equals(role, Primary, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(role, Corroborative, StringComparison.OrdinalIgnoreCase);
+}
+
+public static class ImagePurposes
+{
+    public const string Scene = "scene";
+    public const string SuspectPortrait = "suspect_portrait";
+    public const string Object = "object";
+    public const string Surveillance = "surveillance";
+}
+
 public sealed record EvidenceArchetype(
     string Id,
     string Family,
@@ -9,10 +28,31 @@ public sealed record EvidenceArchetype(
     string Purpose,
     int Rarity);
 
+public sealed record EvidenceDossierSlot(
+    string InstanceId,
+    EvidenceArchetype Archetype,
+    string EvidenceRole,
+    string? SubjectSuspectId = null,
+    string? ImagePurpose = null,
+    string? SuggestedTitle = null)
+{
+    public string Id => Archetype.Id;
+    public string Family => Archetype.Family;
+    public string Type => Archetype.Type;
+    public string Layout => Archetype.Layout;
+    public string DisplayName => Archetype.DisplayName;
+    public string Purpose => Archetype.Purpose;
+    public int Rarity => Archetype.Rarity;
+}
+
 public sealed record EvidencePortfolioBudget(
     string Difficulty,
     int MinAssets,
     int MaxAssets,
+    int MinInvestigativeAssets,
+    int MaxInvestigativeAssets,
+    int MinScenePhotos,
+    int MaxScenePhotos,
     int MinFamilies,
     int MaxRarity);
 
@@ -43,6 +83,7 @@ public static class EvidenceArchetypeCatalog
         new("insurance_or_will", "personal", "document", "PersonalLetter", "Insurance or will extract", "Establish a concrete financial interest without making motive alone decisive.", 3),
 
         new("scene_photo", "visual", "photo", "Photo", "Scene photograph", "Show spatial details, condition, omissions, or an object in context.", 1),
+        new("suspect_portrait", "visual", "photo", "Photo", "Suspect portrait", "Provide a neutral identification portrait for the case dossier.", 1),
         new("case_map", "visual", "document", "CaseMap", "Case map or floor plan", "Support route, access, sightline, distance, and opportunity reasoning.", 1),
         new("surveillance_still", "visual", "photo", "Photo", "Surveillance still", "Provide a bounded visual observation without impossible enhancement.", 2),
 
@@ -58,102 +99,227 @@ public static class EvidenceArchetypeCatalog
         new("access_log", "digital", "digital", "AccessLog", "Access-control log", "Test authorized entry, credential use, and system-side timestamps.", 1)
     ];
 
-    public static IReadOnlyList<EvidenceArchetype> BuildPortfolio(CaseDraft draft)
+    public static IReadOnlyList<EvidenceDossierSlot> BuildPortfolio(CaseDraft draft)
     {
         var key = PositiveKey(draft);
         var budget = GetBudget(draft);
-        var targetCount = ResolveTargetCount(draft, budget, key);
-        var selected = new List<EvidenceArchetype>();
-        var blueprintNeedsDigital = draft.Blueprint.ClueLadder.Any(c =>
-            c.SourceType is "digital" or "forensic");
-
-        AddFromFamily(selected, "testimonial", key, budget.MaxRarity);
-        AddFromFamily(selected, "official", key / 3, budget.MaxRarity);
-        AddSemanticArchetypes(selected, draft, targetCount, budget.MaxRarity);
-        if (blueprintNeedsDigital && selected.Count < targetCount)
-            AddFromFamily(selected, "digital", key / 5, budget.MaxRarity);
-
-        var allFamilies = new[] { "journalistic", "personal", "visual", "digital" };
-        var familyRotation = allFamilies
-            .Skip(key % allFamilies.Length)
-            .Concat(allFamilies.Take(key % allFamilies.Length))
-            .Where(f => !blueprintNeedsDigital || f != "digital")
-            .ToList();
-
-        foreach (var family in familyRotation)
+        var suspects = GetSuspects(draft);
+        var sceneCount = Pick(budget.MinScenePhotos, budget.MaxScenePhotos, key / 3);
+        var mandatoryInvestigativeCount = 1 + suspects.Count + sceneCount;
+        var needsDigitalAsset = draft.Blueprint.ClueLadder.Any(clue =>
+            string.Equals(clue.SourceType, "digital", StringComparison.OrdinalIgnoreCase));
+        var needsSpecializedFiller = needsDigitalAsset || draft.Blueprint.ClueLadder.Any(clue =>
+            string.Equals(clue.SourceType, "forensic", StringComparison.OrdinalIgnoreCase));
+        if (needsSpecializedFiller
+            && mandatoryInvestigativeCount >= budget.MaxInvestigativeAssets
+            && sceneCount > budget.MinScenePhotos)
         {
-            if (selected.Count >= targetCount) break;
-            if (selected.Select(a => a.Family).Distinct(StringComparer.Ordinal).Count() >= budget.MinFamilies) break;
-            AddFromFamily(selected, family, key / (selected.Count + 2), budget.MaxRarity);
+            sceneCount--;
+            mandatoryInvestigativeCount--;
+        }
+        var minimumInvestigative = Math.Max(
+            budget.MinInvestigativeAssets,
+            mandatoryInvestigativeCount + (needsSpecializedFiller ? 1 : 0));
+        minimumInvestigative = Math.Min(minimumInvestigative, budget.MaxInvestigativeAssets);
+        var mandatoryTotal = mandatoryInvestigativeCount + suspects.Count;
+        var minimumFamilyFillers = Math.Max(0, budget.MinFamilies - 3);
+        var minimumTotal = Math.Max(
+            budget.MinAssets,
+            Math.Max(minimumInvestigative + suspects.Count, mandatoryTotal + minimumFamilyFillers));
+        var targetCount = Pick(minimumTotal, budget.MaxAssets, key + draft.Blueprint.ClueLadder.Count);
+        var maximumInvestigative = Math.Min(budget.MaxInvestigativeAssets, targetCount - suspects.Count);
+        var targetInvestigative = Pick(minimumInvestigative, maximumInvestigative, key / 5);
+
+        var slots = new List<EvidenceDossierSlot>();
+        var usedIds = new HashSet<string>(StringComparer.Ordinal);
+        AddSlot(slots, usedIds, "asset.initial_report", Required("incident_report"), EvidenceRoles.Primary,
+            title: Localized(draft, "Initial incident report", "Relatório inicial da ocorrência", "Informe inicial del incidente", "Rapport initial d’incident"));
+
+        for (var index = 1; index <= sceneCount; index++)
+        {
+            AddSlot(slots, usedIds, $"asset.scene_photo_{index}", Required("scene_photo"),
+                index == 1 ? EvidenceRoles.Primary : EvidenceRoles.Corroborative,
+                imagePurpose: ImagePurposes.Scene,
+                title: Localized(draft, $"Scene photograph {index}", $"Fotografia da cena {index}", $"Fotografía de la escena {index}", $"Photographie de la scène {index}"));
         }
 
-        var eligible = All.Where(a => a.Rarity <= budget.MaxRarity).ToList();
-        var cursor = 0;
-        while (selected.Count < targetCount && cursor < eligible.Count * 3)
+        foreach (var suspect in suspects)
         {
-            var candidate = eligible[(key + cursor * 7) % eligible.Count];
-            cursor++;
-            if (selected.Any(a => a.Id == candidate.Id)) continue;
-
-            var hasUniqueLayoutOption = eligible.Any(a =>
-                selected.All(s => s.Id != a.Id && s.Layout != a.Layout));
-            if (hasUniqueLayoutOption && selected.Any(a => a.Layout == candidate.Layout)) continue;
-            selected.Add(candidate);
+            var suffix = IdSuffix(suspect.Id);
+            AddSlot(slots, usedIds, $"asset.portrait_{suffix}", Required("suspect_portrait"), EvidenceRoles.Contextual,
+                suspect.Id, ImagePurposes.SuspectPortrait,
+                Localized(draft, $"Portrait — {suspect.Name}", $"Retrato — {suspect.Name}", $"Retrato — {suspect.Name}", $"Portrait — {suspect.Name}"));
+            AddSlot(slots, usedIds, $"asset.interview_{suffix}", Required("suspect_interview"),
+                suspect.Id == draft.CulpritId ? EvidenceRoles.Primary : EvidenceRoles.Corroborative,
+                suspect.Id, null,
+                Localized(draft, $"Interview — {suspect.Name}", $"Entrevista — {suspect.Name}", $"Entrevista — {suspect.Name}", $"Entretien — {suspect.Name}"));
         }
 
-        foreach (var candidate in eligible)
+        var specializedSlots = 0;
+        if (needsDigitalAsset)
         {
-            if (selected.Count >= targetCount) break;
-            if (selected.Any(item => item.Id == candidate.Id)) continue;
-            selected.Add(candidate);
+            var availableSpecializedSlots = Math.Max(1, targetInvestigative - mandatoryInvestigativeCount);
+            var digitalArchetypes = SemanticArchetypeIds(draft)
+                .Select(Find)
+                .Where(archetype => archetype?.Family == "digital")
+                .Select(archetype => archetype!)
+                .DistinctBy(archetype => archetype.Id, StringComparer.Ordinal)
+                .Take(availableSpecializedSlots)
+                .ToList();
+            if (digitalArchetypes.Count == 0)
+                digitalArchetypes.Add(Required("access_log"));
+            foreach (var digitalArchetype in digitalArchetypes)
+            {
+                AddSlot(
+                    slots,
+                    usedIds,
+                    $"asset.{digitalArchetype.Id}",
+                    digitalArchetype,
+                    EvidenceRoles.Corroborative,
+                    title: digitalArchetype.DisplayName);
+                specializedSlots++;
+            }
         }
 
-        return selected
-            .GroupBy(a => a.Id, StringComparer.Ordinal)
-            .Select(g => g.First())
-            .Take(targetCount)
-            .ToList();
+        AddFillers(
+            slots,
+            usedIds,
+            targetInvestigative - mandatoryInvestigativeCount - specializedSlots,
+            draft,
+            budget,
+            EvidenceRoles.Corroborative,
+            key);
+        AddFillers(
+            slots,
+            usedIds,
+            targetCount - slots.Count,
+            draft,
+            budget,
+            EvidenceRoles.Contextual,
+            key / 7);
+
+        return slots;
     }
 
     public static EvidencePortfolioBudget GetBudget(CaseDraft draft)
     {
         var profile = DifficultyProfileCatalog.Get(draft);
-        return new(profile.Name, profile.MinAssets, profile.MaxAssets, profile.MinFamilies, profile.MaxRarity);
+        return new(
+            profile.Name,
+            profile.MinAssets,
+            profile.MaxAssets,
+            profile.MinInvestigativeAssets,
+            profile.MaxInvestigativeAssets,
+            profile.MinScenePhotos,
+            profile.MaxScenePhotos,
+            profile.MinFamilies,
+            profile.MaxRarity);
     }
 
     public static EvidenceArchetype? Find(string id) =>
         All.FirstOrDefault(a => string.Equals(a.Id, id, StringComparison.Ordinal));
 
-    private static int ResolveTargetCount(CaseDraft draft, EvidencePortfolioBudget budget, int key)
-    {
-        var cluePressure = Math.Max(0, draft.Blueprint.ClueLadder.Count - 4) / 2;
-        var minimumForClues = Math.Min(budget.MaxAssets, budget.MinAssets + cluePressure);
-        var variableRange = budget.MaxAssets - minimumForClues + 1;
-        return minimumForClues + ((key + draft.Blueprint.RedHerrings.Count * 3) % Math.Max(1, variableRange));
-    }
-
-    private static void AddFromFamily(List<EvidenceArchetype> selected, string family, int key, int maxRarity)
-    {
-        var candidates = All.Where(a => a.Family == family && a.Rarity <= maxRarity).ToList();
-        if (candidates.Count == 0) return;
-
-        var weighted = candidates
-            .SelectMany(a => Enumerable.Repeat(a, Math.Max(1, 4 - a.Rarity)))
-            .ToList();
-        var pick = weighted[key % weighted.Count];
-
-        if (selected.Any(a => a.Layout == pick.Layout))
-        {
-            pick = candidates.FirstOrDefault(a => selected.All(s => s.Layout != a.Layout)) ?? pick;
-        }
-        if (selected.All(a => a.Id != pick.Id)) selected.Add(pick);
-    }
-
-    private static void AddSemanticArchetypes(
-        List<EvidenceArchetype> selected,
+    private static void AddFillers(
+        List<EvidenceDossierSlot> slots,
+        HashSet<string> usedIds,
+        int count,
         CaseDraft draft,
-        int targetCount,
-        int maxRarity)
+        EvidencePortfolioBudget budget,
+        string evidenceRole,
+        int key)
+    {
+        if (count <= 0) return;
+
+        var reserved = new HashSet<string>(
+            ["incident_report", "scene_photo", "suspect_portrait", "suspect_interview"],
+            StringComparer.Ordinal);
+        var semantic = SemanticArchetypeIds(draft);
+        var eligible = All
+            .Where(archetype => archetype.Rarity <= budget.MaxRarity && !reserved.Contains(archetype.Id))
+            .ToList();
+        if (eligible.Count == 0) return;
+
+        var semanticCandidates = semantic
+            .Select(id => eligible.FirstOrDefault(archetype => archetype.Id == id))
+            .Where(archetype => archetype is not null)
+            .Cast<EvidenceArchetype>()
+            .DistinctBy(archetype => archetype.Id)
+            .ToList();
+        var remaining = eligible
+            .Where(archetype => semanticCandidates.All(candidate => candidate.Id != archetype.Id))
+            .OrderBy(archetype => archetype.Id, StringComparer.Ordinal)
+            .ToList();
+        var rotatedRemaining = remaining.Count == 0
+            ? []
+            : remaining.Skip(key % remaining.Count).Concat(remaining.Take(key % remaining.Count)).ToList();
+        var rotated = semanticCandidates.Concat(rotatedRemaining).ToList();
+        for (var index = 0; index < count; index++)
+        {
+            var usedFamilies = slots.Select(slot => slot.Family).ToHashSet(StringComparer.Ordinal);
+            var candidate = usedFamilies.Count < budget.MinFamilies
+                ? rotated.FirstOrDefault(archetype => !usedFamilies.Contains(archetype.Family))
+                : null;
+            candidate ??= rotated[index % rotated.Count];
+            rotated.Remove(candidate);
+            rotated.Add(candidate);
+
+            var imagePurpose = candidate.Id == "surveillance_still" ? ImagePurposes.Surveillance : null;
+            AddSlot(
+                slots,
+                usedIds,
+                $"asset.{candidate.Id}",
+                candidate,
+                evidenceRole,
+                imagePurpose: imagePurpose,
+                title: Localized(
+                    draft,
+                    $"{candidate.DisplayName} {index + 1}",
+                    $"Registro de evidência {index + 1}",
+                    $"Registro de evidencia {index + 1}",
+                    $"Pièce du dossier {index + 1}"));
+        }
+    }
+
+    private static void AddSlot(
+        ICollection<EvidenceDossierSlot> slots,
+        ISet<string> usedIds,
+        string preferredId,
+        EvidenceArchetype archetype,
+        string evidenceRole,
+        string? subjectSuspectId = null,
+        string? imagePurpose = null,
+        string? title = null)
+    {
+        var id = preferredId;
+        for (var suffix = 2; !usedIds.Add(id); suffix++)
+            id = $"{preferredId}_{suffix}";
+        slots.Add(new EvidenceDossierSlot(id, archetype, evidenceRole, subjectSuspectId, imagePurpose, title));
+    }
+
+    private static List<(string Id, string Name)> GetSuspects(CaseDraft draft)
+    {
+        var names = draft.SuspectFull
+            .Where(suspect => !string.IsNullOrWhiteSpace(suspect.Id))
+            .ToDictionary(suspect => suspect.Id, suspect => suspect.Name, StringComparer.Ordinal);
+        return draft.SuspectStubs
+            .Select(suspect => (suspect.Id, suspect.Name))
+            .Concat(draft.SuspectFull.Select(suspect => (suspect.Id, suspect.Name)))
+            .Where(suspect => !string.IsNullOrWhiteSpace(suspect.Id))
+            .GroupBy(suspect => suspect.Id, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var id = group.Key;
+                var name = names.GetValueOrDefault(id)
+                           ?? group.Select(item => item.Name).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value))
+                           ?? id;
+                return (id, name);
+            })
+            .OrderBy(suspect => suspect.id, StringComparer.Ordinal)
+            .Select(suspect => (suspect.id, suspect.name))
+            .ToList();
+    }
+
+    private static List<string> SemanticArchetypeIds(CaseDraft draft)
     {
         var discoveries = string.Join(" ",
                 draft.Blueprint.ClueLadder.Select(clue => clue.Discovery)
@@ -170,23 +336,26 @@ public static class EvidenceArchetypeCatalog
             preferredIds.Add("call_log");
         if (ContainsAny(discoveries, "crachá", "acesso", "login", "logon", "porta", "badge", "ponto", "presença", "attendance", "catraca"))
             preferredIds.Add("access_log");
+        if (ContainsAny(discoveries, "camera", "câmera", "cctv", "nvr", "surveillance", "sensor"))
+            preferredIds.Add("sensor_log");
+        if (ContainsAny(discoveries, "vehicle", "veículo", "plate", "placa", "lpr", "transit", "route"))
+            preferredIds.Add("gps_track");
         if (ContainsAny(discoveries, "recibo", "nota fiscal", "invoice", "receipt", "ticket"))
             preferredIds.Add("receipt");
         if (ContainsAny(discoveries, "agenda", "calendário", "calendar", "rendez-vous"))
             preferredIds.Add("calendar");
         if (ContainsAny(discoveries, "cftv", "cctv", "camera", "câmera", "video", "vídeo"))
             preferredIds.Add("surveillance_still");
-        if (ContainsAny(discoveries, "erp", "auditoria", "audit", "vpn", "workstation", "estação"))
-            preferredIds.Add("access_log");
+        return preferredIds.Distinct(StringComparer.Ordinal).ToList();
+    }
 
-        foreach (var id in preferredIds.Distinct(StringComparer.Ordinal))
-        {
-            if (selected.Count >= targetCount) break;
-            var archetype = Find(id);
-            if (archetype is null || archetype.Rarity > maxRarity || selected.Any(item => item.Id == id))
-                continue;
-            selected.Add(archetype);
-        }
+    private static EvidenceArchetype Required(string id) =>
+        Find(id) ?? throw new InvalidOperationException($"Missing required evidence archetype '{id}'.");
+
+    private static int Pick(int minimum, int maximum, int key)
+    {
+        if (maximum <= minimum) return minimum;
+        return minimum + Math.Abs(key % (maximum - minimum + 1));
     }
 
     private static bool ContainsAny(string text, params string[] values) =>
@@ -197,4 +366,26 @@ public static class EvidenceArchetypeCatalog
         var key = draft.Request.Seed ?? draft.CaseId.Aggregate(17, (value, c) => unchecked(value * 31 + c));
         return key == int.MinValue ? int.MaxValue : Math.Abs(key);
     }
+
+    private static string IdSuffix(string id)
+    {
+        var suffix = id.Contains('.') ? id[(id.LastIndexOf('.') + 1)..] : id;
+        var chars = suffix.ToLowerInvariant().Select(character =>
+            char.IsAsciiLetterOrDigit(character) ? character : '_').ToArray();
+        return new string(chars).Trim('_');
+    }
+
+    private static string Localized(
+        CaseDraft draft,
+        string english,
+        string portuguese,
+        string spanish,
+        string french) =>
+        draft.Request.Language?.ToLowerInvariant() switch
+        {
+            "pt-br" => portuguese,
+            "es-es" => spanish,
+            "fr-fr" => french,
+            _ => english
+        };
 }

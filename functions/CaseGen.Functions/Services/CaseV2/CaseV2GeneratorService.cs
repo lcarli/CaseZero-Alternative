@@ -98,8 +98,15 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             await TimeStage(name, stageMs, body);
         }
 
-        // === Phase 1: plot outline (sequential gate)
+        // === Phase 1: canonical Case Bible (sequential blocking gate)
+        await Stage("caseBible", () => new CaseBibleTask(_llm, _logger).RunAsync(draft, ct));
+
+        // === Phase 2: project the Bible into the plot outline
         await Stage("plotOutline", () => new PlotOutlineTask(_llm, _logger).RunAsync(draft, ct));
+        var caseBibleValidation = CaseBibleValidator.Validate(draft, required: true);
+        LogStageValidation("caseBible", PipelineStageValidator.ValidateCaseBible(draft, required: true));
+        if (!caseBibleValidation.IsValid)
+            throw new CaseBibleValidationException(caseBibleValidation);
         var isRookie = string.Equals(draft.Metadata.Difficulty, "Rookie", StringComparison.OrdinalIgnoreCase)
             || string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase);
         var difficultyProfile = DifficultyProfileCatalog.Get(draft);
@@ -194,6 +201,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             await new SolutionSkeletonTask(_llm, _logger).RunAsync(draft, ct);
             if (!isRookie)
                 await new RulesTask(_llm, _logger).RunAsync(draft, ct);
+            CaseGraphProjection.RefreshGeneratedGraph(draft);
         });
 
         // === Phase 9: questions (parallel) + explanation
@@ -235,6 +243,21 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             consistencyReport = _consistency.Validate(draft);
             all.AddRange(consistencyReport.Errors);
             currentRepairIssues.AddRange(consistencyReport.Errors.Select(error => new RepairIssue("consistency", error)));
+            var bibleReport = CaseBibleValidator.Validate(draft, required: true);
+            foreach (var issue in bibleReport.Issues)
+            {
+                var message = $"{issue.Code} [{issue.NodeId}]: {issue.Message}";
+                all.Add(message);
+                currentRepairIssues.Add(new RepairIssue(
+                    issue.Code.StartsWith("projection_", StringComparison.Ordinal)
+                        ? "blueprint"
+                        : "caseBible",
+                    message)
+                {
+                    NodeId = issue.NodeId,
+                    ConstraintId = issue.Code
+                });
+            }
             AddStageIssues("blueprint", PipelineStageValidator.ValidateBlueprint(draft), all, currentRepairIssues);
             AddStageIssues("evidencePlan", PipelineStageValidator.ValidateEvidencePlan(draft), all, currentRepairIssues);
             AddStageIssues("evidenceContent", PipelineStageValidator.ValidateEvidenceContent(draft), all, currentRepairIssues);
@@ -429,7 +452,12 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             errors.Add($"deterministic specialist quality gate rejected the case ({remainingBlockingFindings} blocking finding(s))");
         }
         if (solver?.Correct != true)
-            errors.Add($"blind-solver quality gate rejected the case (score={solver?.Score ?? 0:0.####})");
+        {
+            var diagnostic = string.IsNullOrWhiteSpace(solver?.Notes)
+                ? string.Empty
+                : $": {solver.Notes}";
+            errors.Add($"blind-solver quality gate rejected the case (score={solver?.Score ?? 0:0.####}){diagnostic}");
+        }
         if (repairInfrastructureError is not null)
             errors.Add(repairInfrastructureError);
 
@@ -460,13 +488,6 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         int blobsPublished = 0;
         if (GenerationPersistenceGate.CanPersist(request.WriteToDisk, errors, finalValidation!))
         {
-            outputPath = WriteToDisk(draft.CaseId, json);
-            if (graphModeEnabled)
-            {
-                var caseDirectory = Path.GetDirectoryName(outputPath)
-                                    ?? throw new InvalidOperationException("Could not resolve generated case directory.");
-                PrivateCaseArtifactPersistence.Write(caseDirectory, draft, finalValidation!, solver);
-            }
             // Materialise PDFs / images / sidecars next to case.json
             await Stage("renderAssets", async () =>
             {
@@ -481,16 +502,38 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
                 renderingReport = await _renderer.RenderAllAsync(draft.CaseId, basePath, allAssets, ct);
             });
 
-            // === Phase 13b: publish to Blob Storage so the website (running on a different
-            // host in production) picks the case up via CaseV2StorageService. No-op locally
-            // when Azurite is off and no connection string is set.
-            if (_blobPublisher.IsConfigured)
+            if (renderingReport?.HasMandatoryVisualErrors == true)
             {
-                await Stage("publishToBlob", async () =>
+                errors.AddRange(renderingReport.Errors.Where(error =>
+                    error.StartsWith("Mandatory visual render failed", StringComparison.Ordinal)));
+                errors = errors.Distinct(StringComparer.Ordinal).ToList();
+                _logger.LogWarning(
+                    "Case {CaseId} will not be published because mandatory dossier visuals failed to render",
+                    draft.CaseId);
+                DeleteIncompleteCaseDirectory(draft.CaseId);
+            }
+            else
+            {
+                json = ApplyRenderedAssetUris(json, draft.CaseId, renderingReport);
+                outputPath = WriteToDisk(draft.CaseId, json);
+                if (graphModeEnabled)
                 {
-                    var assetsDir = Path.Combine(ResolveCasesBasePath(), draft.CaseId, "assets");
-                    blobsPublished = await _blobPublisher.PublishAsync(draft.CaseId, outputPath, assetsDir, ct);
-                });
+                    var caseDirectory = Path.GetDirectoryName(outputPath)
+                                        ?? throw new InvalidOperationException("Could not resolve generated case directory.");
+                    PrivateCaseArtifactPersistence.Write(caseDirectory, draft, finalValidation!, solver);
+                }
+
+                // === Phase 13b: publish to Blob Storage so the website (running on a different
+                // host in production) picks the case up via CaseV2StorageService. No-op locally
+                // when Azurite is off and no connection string is set.
+                if (_blobPublisher.IsConfigured)
+                {
+                    await Stage("publishToBlob", async () =>
+                    {
+                        var assetsDir = Path.Combine(ResolveCasesBasePath(), draft.CaseId, "assets");
+                        blobsPublished = await _blobPublisher.PublishAsync(draft.CaseId, outputPath, assetsDir, ct);
+                    });
+                }
             }
         }
         else if (errors.Count > 0)
@@ -643,6 +686,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
     private JsonObject Assemble(CaseDraft d)
     {
+        AssociateSuspectAssets(d);
         var assetsNode = new JsonArray();
         foreach (var a in d.AssetFull) assetsNode.Add(BuildAssetNode(d.CaseId, a));
         foreach (var a in d.ResultAssets) assetsNode.Add(BuildAssetNode(d.CaseId, a));
@@ -654,7 +698,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         var suspectsNode = new JsonArray();
         foreach (var s in d.SuspectFull)
         {
-            suspectsNode.Add(new JsonObject
+            var suspectNode = new JsonObject
             {
                 ["id"] = s.Id,
                 ["name"] = s.Name,
@@ -666,8 +710,12 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
                 ["alibiVerified"] = s.AlibiVerified,
                 ["status"] = "suspect",
                 ["background"] = s.Background,
+                ["relatedAssets"] = JsonSerializer.SerializeToNode(s.RelatedAssets, JsonOpts),
                 ["visibility"] = "initial"
-            });
+            };
+            if (!string.IsNullOrWhiteSpace(s.Photo))
+                suspectNode["photo"] = s.Photo;
+            suspectsNode.Add(suspectNode);
         }
 
         var timeline = JsonSerializer.SerializeToNode(d.Timeline, JsonOpts)!.AsArray();
@@ -726,7 +774,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             }
         };
 
-        return new JsonObject
+        var node = new JsonObject
         {
             ["version"] = "2.0",
             ["caseId"] = d.CaseId,
@@ -742,6 +790,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             ["solution"] = solution,
             ["gameMetadata"] = gameMetadata
         };
+        return node;
     }
 
     private JsonObject AssembleForMode(
@@ -797,6 +846,9 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
                 var description = el.TryGetProperty("description", out var descEl) ? descEl.GetString() : null;
                 var visibility = el.TryGetProperty("visibility", out var visEl) ? visEl.GetString() ?? "initial" : "initial";
                 var category = el.TryGetProperty("category", out var catEl) ? catEl.GetString() : null;
+                var evidenceRole = el.TryGetProperty("evidenceRole", out var roleEl) ? roleEl.GetString() : null;
+                var subjectSuspectId = el.TryGetProperty("subjectSuspectId", out var subjectEl) ? subjectEl.GetString() : null;
+                var imagePurpose = el.TryGetProperty("imagePurpose", out var purposeEl) ? purposeEl.GetString() : null;
 
                 if (draftById.TryGetValue(id, out var draftAsset))
                 {
@@ -807,6 +859,9 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
                     if (!string.IsNullOrEmpty(description)) draftAsset.Description = description;
                     draftAsset.Visibility = visibility;
                     if (!string.IsNullOrEmpty(category)) draftAsset.Category = category;
+                    if (!string.IsNullOrEmpty(evidenceRole)) draftAsset.EvidenceRole = evidenceRole;
+                    if (!string.IsNullOrEmpty(subjectSuspectId)) draftAsset.SubjectSuspectId = subjectSuspectId;
+                    if (!string.IsNullOrEmpty(imagePurpose)) draftAsset.ImagePurpose = imagePurpose;
                     result.Add(draftAsset);
                 }
                 else
@@ -821,7 +876,10 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
                         Title = title,
                         Description = description,
                         Visibility = visibility,
-                        Category = category
+                        Category = category,
+                        EvidenceRole = evidenceRole,
+                        SubjectSuspectId = subjectSuspectId,
+                        ImagePurpose = imagePurpose
                     });
                 }
             }
@@ -863,7 +921,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             "audio" => "Communication",
             _ => "Document"
         };
-        return new JsonObject
+        var node = new JsonObject
         {
             ["id"] = a.Id,
             ["type"] = a.Type,
@@ -873,6 +931,32 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             ["visibility"] = a.Visibility ?? "initial",
             ["category"] = category
         };
+        if (!string.IsNullOrWhiteSpace(a.EvidenceRole))
+            node["evidenceRole"] = a.EvidenceRole;
+        if (!string.IsNullOrWhiteSpace(a.SubjectSuspectId))
+            node["subjectSuspectId"] = a.SubjectSuspectId;
+        if (!string.IsNullOrWhiteSpace(a.ImagePurpose))
+            node["imagePurpose"] = a.ImagePurpose;
+        return node;
+    }
+
+    private static void AssociateSuspectAssets(CaseDraft draft)
+    {
+        foreach (var suspect in draft.SuspectFull)
+        {
+            var related = draft.AssetStubs
+                .Where(asset => asset.SubjectSuspectId == suspect.Id)
+                .Select(asset => asset.Id)
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+                .ToList();
+            suspect.RelatedAssets = related;
+            suspect.Photo = draft.AssetStubs
+                .SingleOrDefault(asset =>
+                    asset.SubjectSuspectId == suspect.Id
+                    && asset.ImagePurpose == ImagePurposes.SuspectPortrait)
+                ?.Id;
+        }
     }
 
     private static JsonNode BuildBriefingNode(CaseDraft d)
@@ -956,6 +1040,37 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         File.WriteAllText(path, json);
         _logger.LogInformation("Wrote case {CaseId} to {Path}", caseId, path);
         return path;
+    }
+
+    private static string ApplyRenderedAssetUris(
+        string json,
+        string caseId,
+        AssetRenderingReport? renderingReport)
+    {
+        if (renderingReport is null || renderingReport.RenderedFileNames.Count == 0)
+            return json;
+
+        var root = JsonNode.Parse(json)?.AsObject()
+                   ?? throw new InvalidOperationException("Generated case JSON could not be parsed.");
+        if (root["assets"] is not JsonArray assets)
+            return json;
+
+        foreach (var asset in assets.OfType<JsonObject>())
+        {
+            var id = asset["id"]?.GetValue<string>();
+            if (id is not null && renderingReport.RenderedFileNames.TryGetValue(id, out var fileName))
+                asset["uri"] = $"case://{caseId}/assets/{fileName}";
+        }
+
+        return root.ToJsonString(JsonOpts);
+    }
+
+    private void DeleteIncompleteCaseDirectory(string caseId)
+    {
+        var caseDirectory = Path.Combine(ResolveCasesBasePath(), caseId);
+        if (!Directory.Exists(caseDirectory)) return;
+
+        Directory.Delete(caseDirectory, recursive: true);
     }
 
     private string ResolveCasesBasePath()

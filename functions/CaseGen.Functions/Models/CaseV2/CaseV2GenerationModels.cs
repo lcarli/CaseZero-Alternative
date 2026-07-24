@@ -95,6 +95,8 @@ public class PlotSuspect
     [JsonPropertyName("alibi")] public string? Alibi { get; set; }
     [JsonPropertyName("alibiVerified")] public bool AlibiVerified { get; set; }
     [JsonPropertyName("background")] public string? Background { get; set; }
+    [JsonPropertyName("photo")] public string? Photo { get; set; }
+    [JsonPropertyName("relatedAssets")] public List<string> RelatedAssets { get; set; } = new();
 }
 
 public class PlotBriefingEmail
@@ -121,6 +123,9 @@ public class EvidenceAsset
     [JsonPropertyName("description")] public string? Description { get; set; }
     [JsonPropertyName("visibility")] public string Visibility { get; set; } = "initial";
     [JsonPropertyName("category")] public string? Category { get; set; }
+    [JsonPropertyName("evidenceRole")] public string? EvidenceRole { get; set; }
+    [JsonPropertyName("subjectSuspectId")] public string? SubjectSuspectId { get; set; }
+    [JsonPropertyName("imagePurpose")] public string? ImagePurpose { get; set; }
 
     /// <summary>Long-form body used by <see cref="Services.CaseV2.AssetRenderingService"/>:
     /// markdown for pdf/document assets (rendered with QuestPDF) or an image prompt for photo/image assets.</summary>

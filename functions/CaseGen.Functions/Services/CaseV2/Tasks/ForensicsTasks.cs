@@ -50,28 +50,10 @@ public class ForensicsPlanTask
     public async Task RunAsync(CaseDraft draft, CancellationToken ct, string? repairGuidance = null)
     {
         var profile = DifficultyProfileCatalog.Get(draft);
-        var system = @"You are planning the **forensics layer** for an in-progress case.
-1. Choose only method IDs from the immutable forensic catalog supplied below. `availableFor` is informational output only and will be discarded; never invent or extend method compatibility.
-2. List only useful outcomes — each is (inputAssetId × analysisType) plus `findings: true`, optional `matchedSuspectId`, a ONE-LINE role, and `supportsClueIds`.
-3. EXACTLY ONE outcome MUST have `findings: true` AND `matchedSuspectId == culpritId` — that is the smoking gun.
-Other outcomes may implicate a decoy with lower confidence or have `matchedSuspectId: null`, but they must still produce a useful result.
-4. Use only asset IDs that exist in the draft. `inputObjectId` MUST be one of that asset spec's `containedObjectIds`. For every supported forensic clue, `inputAssetId` MUST be the unique asset whose `forensicInputClueIds` contains that clue ID. Never analyze an attachment, device, PDF, or record merely mentioned or pictured by the asset.
-5. Every blueprint clue with `sourceType=forensic` MUST be assigned exactly once through `supportsClueIds`. Never assign a non-forensic clue.
-
-SCIENTIFIC COMPATIBILITY:
-- Follow the catalog's accepted asset types, accepted contained-object types, producible properties, reference-sample requirement, chain-of-custody requirement, limitation keys, and result layouts exactly.
-- Every `producedProperties` value and `limitationKeys` value must come from the selected method.
-- Never claim fingerprints, DNA, fibers, chemical traces, toolmarks, or other physical examination unless a future catalog method explicitly permits it.
-- For a `forensicAttribution` clue, materialize the canonical B→A correlation: connect the opaque action/session/file identifier B to endpoint identifier A from the initial identity clue. Do not skip directly from generic timestamps or software names to a person.
-- The matched suspect is an internal scoring reference. The lab conclusion may state an objective account/device/document match, but must not declare guilt.";
         var forensicClues = draft.Blueprint.ClueLadder
             .Where(clue => string.Equals(clue.SourceType, "forensic", StringComparison.OrdinalIgnoreCase))
             .ToList();
-        var desiredOutcomes = Math.Clamp(
-            Math.Max(profile.MinAnalyses, forensicClues.Count),
-            profile.MinAnalyses,
-            profile.MaxAnalyses);
-        system += $"\nEmit exactly {desiredOutcomes} useful outcomes, all with `findings: true`.";
+        var desiredOutcomes = ResolveDesiredOutcomeCount(profile, forensicClues.Count);
         var catalogJson = System.Text.Json.JsonSerializer.Serialize(
             ForensicMethodCatalog.All.Select(method => new
             {
@@ -85,14 +67,18 @@ SCIENTIFIC COMPATIBILITY:
                 validResultLayouts = method.ValidResultLayouts,
                 localization = method.Localize(draft.Request.Language)
             }));
-        var user = $@"CASE DRAFT (read-only):
-{draft.ToSummaryJson()}
-
-IMMUTABLE FORENSIC METHOD CATALOG:
-{catalogJson}
-{(string.IsNullOrWhiteSpace(repairGuidance) ? string.Empty : $"\nREPAIR REQUIREMENTS:\n{repairGuidance}\n")}
-
-Emit JSON only.";
+        var prompts = AgentPromptCatalog.Default;
+        var system = prompts.RenderSystem("ForensicsPlan", new Dictionary<string, object?>
+        {
+            ["language"] = ForensicMethodCatalog.NormalizeLanguage(draft.Request.Language),
+            ["desired_outcomes"] = desiredOutcomes
+        });
+        var user = prompts.RenderUser("ForensicsPlan", new Dictionary<string, object?>
+        {
+            ["case_draft_json"] = draft.ToSummaryJson(),
+            ["method_catalog_json"] = catalogJson,
+            ["repair_guidance"] = string.IsNullOrWhiteSpace(repairGuidance) ? "(none)" : repairGuidance
+        });
         var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "ForensicsPlan", system, user, Schema, ct);
         o.Outcomes = o.Outcomes.Take(desiredOutcomes).ToList();
         foreach (var outcome in o.Outcomes)
@@ -105,6 +91,7 @@ Emit JSON only.";
             outcome.LimitationKeys = outcome.LimitationKeys.Distinct(StringComparer.Ordinal).ToList();
             NormalizeMethodContract(draft, outcome);
         }
+        NormalizeDecisiveAttribution(draft, forensicClues, o.Outcomes);
 
         draft.AnalysisTypes = ForensicMethodCatalog
             .MaterializeAnalysisTypes(
@@ -118,26 +105,70 @@ Emit JSON only.";
         draft.ForensicStubs = o.Outcomes;
     }
 
+    private static void NormalizeDecisiveAttribution(
+        CaseDraft draft,
+        IReadOnlyList<CanonicalClue> forensicClues,
+        IReadOnlyList<ForensicOutcomeStub> outcomes)
+    {
+        var decisiveClue = forensicClues.FirstOrDefault(clue => clue.Strength == "decisive");
+        if (decisiveClue is null || outcomes.Count == 0)
+            return;
+
+        var owner = outcomes.FirstOrDefault(outcome =>
+                        outcome.SupportsClueIds.Contains(decisiveClue.Id, StringComparer.Ordinal))
+                    ?? outcomes[0];
+        foreach (var outcome in outcomes)
+        {
+            if (!ReferenceEquals(outcome, owner))
+                outcome.SupportsClueIds.RemoveAll(id => id == decisiveClue.Id);
+        }
+        if (!owner.SupportsClueIds.Contains(decisiveClue.Id, StringComparer.Ordinal))
+            owner.SupportsClueIds.Add(decisiveClue.Id);
+        owner.Findings = true;
+        owner.MatchedSuspectId = draft.CulpritId;
+    }
+
+    private static int ResolveDesiredOutcomeCount(DifficultyProfile profile, int forensicClueCount) =>
+        Math.Clamp(
+            Math.Max(
+                profile.MinAnalyses,
+                forensicClueCount + profile.Topology.MinOptionalAnalyses),
+            profile.MinAnalyses,
+            profile.MaxAnalyses);
+
     private static void NormalizeMethodContract(CaseDraft draft, ForensicOutcomeStub outcome)
     {
-        var assetSpec = draft.CaseGraph.AssetSpecs.FirstOrDefault(spec => spec.Id == outcome.InputAssetId);
-        if (assetSpec is null)
+        var selectedSpec = draft.CaseGraph.AssetSpecs.FirstOrDefault(spec => spec.Id == outcome.InputAssetId);
+        if (selectedSpec is null)
             return;
-        var compatible = (from pair in assetSpec.ContainedObjectTypes
+        var ownsCanonicalClue = outcome.SupportsClueIds.Count > 0;
+        IEnumerable<EvidenceAssetSpec> candidateSpecs = ownsCanonicalClue
+            ? new[] { selectedSpec }
+            : draft.CaseGraph.AssetSpecs
+                .Where(spec => EvidenceRoles.IsInvestigative(spec.EvidenceRole)
+                               && spec.ContainedObjectIds.Count > 0
+                               && !string.Equals(spec.ArchetypeId, "suspect_interview", StringComparison.Ordinal)
+                               && !string.Equals(spec.ImagePurpose, ImagePurposes.SuspectPortrait, StringComparison.Ordinal))
+                .ToList();
+        var compatible = (from spec in candidateSpecs
+                          from pair in spec.ContainedObjectTypes
                           from method in ForensicMethodCatalog.All
-                          where method.AcceptedAssetTypes.Contains(assetSpec.AssetType)
+                          where method.AcceptedAssetTypes.Contains(spec.AssetType)
                                 && method.AcceptedInputObjectTypes.Contains(pair.Value)
                                 && !method.RequiresReferenceSample
+                                && (!method.RequiresChainOfCustody || spec.ObservationIds.Count > 0)
                           let overlap = outcome.ProducedProperties.Count(method.ProducibleProperties.Contains)
-                          orderby method.Id == outcome.AnalysisType descending,
+                          orderby spec.Id == outcome.InputAssetId descending,
+                              method.Id == outcome.AnalysisType descending,
                               overlap descending,
                               method.RequiresChainOfCustody,
                               method.Id
-                          select (Method: method, ObjectId: pair.Key))
+                          select (Spec: spec, Method: method, ObjectId: pair.Key))
             .FirstOrDefault();
         if (compatible.Method is null)
             return;
 
+        outcome.InputAssetId = compatible.Spec.Id;
         outcome.AnalysisType = compatible.Method.Id;
         outcome.InputObjectId = compatible.ObjectId;
         outcome.ProducedProperties = outcome.ProducedProperties
@@ -151,8 +182,12 @@ Emit JSON only.";
         if (compatible.Method.RequiresChainOfCustody)
         {
             outcome.ChainOfCustodyObservationId = draft.CaseGraph.Sources
-                .FirstOrDefault(source => source.Id == outcome.InputAssetId)?
+                .FirstOrDefault(source => source.Id == compatible.Spec.Id)?
                 .ObservationIds.FirstOrDefault();
+        }
+        else
+        {
+            outcome.ChainOfCustodyObservationId = null;
         }
     }
 }
@@ -192,62 +227,33 @@ public class ForensicOutcomeTask
         var inputObject = draft.CaseGraph.Entities.FirstOrDefault(entity => entity.Id == stub.InputObjectId);
         var method = ForensicMethodCatalog.Find(stub.AnalysisType);
         var localization = method?.Localize(draft.Request.Language);
-        var system = @"You are writing the **detailed forensic outcome** for ONE (inputAssetId × analysisType) pair.
-
-Produce:
-- `conclusionText`: 1-3 sentence neutral lab conclusion. If `findings == false`, keep it dry (no actionable lead).
-- `resultAsset` (ONLY if `findings == true`): a hidden PDF report (`asset.report_<slug>`). MUST include:
-    * `title` — official short report name
-    * `description` — 1-2 sentence summary visible in case-file listing
-    * `bodyDoc` — STRUCTURED EvidenceDocument with `layout: ""ForensicReport""` (preferred) or `MedicalReport` if it is an autopsy / ME finding. Use sections in this order: Items Submitted (keyValue), Methodology (narrative), Findings (narrative + table if applicable), Conclusions (narrative), Limitations (narrative or callout). Include a `signature` block (Examiner). Anchor all dates/times to `incidentDate`/`openedAt`. Leave `body` as empty string.
-- `resultEmail` (ONLY if `findings == true`): a hidden email from the lab (`email.lab_<slug>`). Body is 3-5 paragraph markdown summarising the report.
-If `findings == false`, set `resultAsset` and `resultEmail` to null.
-Every supplied canonical forensic clue must appear as a concrete objective observation in the result report. Preserve exact identifiers, values, timestamps, and limitations. Do not declare guilt.
-The Items Submitted section must identify the exact `inputObjectId`. Use only properties and limitation statements allowed by the immutable method contract. Do not analyze anything merely mentioned or pictured by the input asset.";
-        var user = $@"CASE DRAFT (read-only):
-{draft.ToSummaryJson()}
-
-OUTCOME TO DETAIL:
-inputAssetId={stub.InputAssetId}
-inputObjectId={stub.InputObjectId}
-analysisType={stub.AnalysisType}
-findings={stub.Findings}
-matchedSuspectId={stub.MatchedSuspectId ?? "null"}
-role={stub.Role}
-supportsClueIds={string.Join(", ", stub.SupportsClueIds)}
-producedProperties={string.Join(", ", stub.ProducedProperties)}
-limitationKeys={string.Join(", ", stub.LimitationKeys)}
-referenceSampleObjectId={stub.ReferenceSampleObjectId ?? "null"}
-chainOfCustodyObservationId={stub.ChainOfCustodyObservationId ?? "null"}
-resultLayoutId={stub.ResultLayoutId}
-
-CANONICAL FORENSIC CLUES TO MATERIALIZE:
-{System.Text.Json.JsonSerializer.Serialize(supportedClues)}
-
-ACTUAL INPUT ASSET TO ANALYZE:
-{System.Text.Json.JsonSerializer.Serialize(inputAsset)}
-
-PRIVATE TYPED ASSET SPEC:
-{System.Text.Json.JsonSerializer.Serialize(inputAssetSpec)}
-
-EXACT CONTAINED OBJECT SUBMITTED:
-{System.Text.Json.JsonSerializer.Serialize(inputObject)}
-
-IMMUTABLE METHOD CONTRACT AND LOCALIZED LABELS:
-{System.Text.Json.JsonSerializer.Serialize(method is null ? null : new
-{
-    method.Id,
-    method.AcceptedInputObjectTypes,
-    method.AcceptedAssetTypes,
-    method.ProducibleProperties,
-    method.LimitationKeys,
-    method.RequiresReferenceSample,
-    method.RequiresChainOfCustody,
-    method.ValidResultLayouts,
-    Localization = localization
-})}
-
-Emit JSON only.";
+        var methodContractJson = System.Text.Json.JsonSerializer.Serialize(method is null ? null : new
+        {
+            method.Id,
+            method.AcceptedInputObjectTypes,
+            method.AcceptedAssetTypes,
+            method.ProducibleProperties,
+            method.LimitationKeys,
+            method.RequiresReferenceSample,
+            method.RequiresChainOfCustody,
+            method.ValidResultLayouts,
+            Localization = localization
+        });
+        var prompts = AgentPromptCatalog.Default;
+        var system = prompts.RenderSystem("ForensicOutcome", new Dictionary<string, object?>
+        {
+            ["language"] = ForensicMethodCatalog.NormalizeLanguage(draft.Request.Language)
+        });
+        var user = prompts.RenderUser("ForensicOutcome", new Dictionary<string, object?>
+        {
+            ["case_draft_json"] = draft.ToSummaryJson(),
+            ["outcome_stub_json"] = System.Text.Json.JsonSerializer.Serialize(stub),
+            ["supported_clues_json"] = System.Text.Json.JsonSerializer.Serialize(supportedClues),
+            ["input_asset_json"] = System.Text.Json.JsonSerializer.Serialize(inputAsset),
+            ["input_asset_spec_json"] = System.Text.Json.JsonSerializer.Serialize(inputAssetSpec),
+            ["input_object_json"] = System.Text.Json.JsonSerializer.Serialize(inputObject),
+            ["method_contract_json"] = methodContractJson
+        });
 
         var output = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, $"ForensicOutcome:{stub.InputAssetId}:{stub.AnalysisType}", system, user, Schema, ct);
         output.ConclusionText = NormalizeDuplicateOffsets(output.ConclusionText);

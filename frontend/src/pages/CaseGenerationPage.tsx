@@ -32,7 +32,7 @@ const STAGE_KEYS: Record<string, keyof Translations> = {
 }
 
 const LEGACY_STAGE: Record<string, string> = {
-  plotOutline: 'caseDesign', suspectCards: 'caseDesign',
+  caseBible: 'caseDesign', plotOutline: 'caseDesign', suspectCards: 'caseDesign',
   assetPlan: 'graphConstruction', assetsAndTimelineAndBriefing: 'evidenceProduction',
   rookieInitialEvidence: 'evidenceProduction', forensicsPlan: 'forensicWorkflow',
   outcomesAndInitialEmails: 'forensicWorkflow', mechanicalRules: 'solutionDesign',

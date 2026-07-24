@@ -1,322 +1,331 @@
-> **Canonical v2.** Anything in older docs that contradicts this document is stale and was removed. The case format itself is specified in [`CASE_JSON_V2_SPEC.md`](./CASE_JSON_V2_SPEC.md).
+# API Reference — CaseZero
 
-# API Reference — CaseZero v2
+This document is the canonical HTTP API inventory for the current backend and CaseGen Function App. The case bundle contract is documented separately in [`CASE_JSON_V2_SPEC.md`](./CASE_JSON_V2_SPEC.md), and generation internals in [`CASE_GENERATION_PIPELINE.md`](./CASE_GENERATION_PIPELINE.md).
 
-**Base URL:** `http://localhost:5001/api` (dev) · configured via `VITE_API_URL` in frontend.  
-**Auth:** JWT Bearer. Include `Authorization: Bearer <token>` on all protected endpoints.  
-All endpoints return JSON. Errors use the standard envelope described at the end of this document.
+## Conventions
 
----
+- Frontend API base URL: `VITE_API_URL`, normally `http://localhost:5001/api`.
+- Protected endpoints require `Authorization: Bearer <jwt>`.
+- Registration grants the `PLAYER` role. Case-generation proxy endpoints require `ADMIN`.
+- Case content is returned only in the language selected when the case is generated; the API does not translate a generated case.
+- Error bodies are not yet fully standardized. Depending on the controller, they may use `error`, `message`, `Message`, ASP.NET validation details, or plain text.
 
-## Authentication — `POST /api/auth/*`
+## Authentication
 
-No auth required on any auth endpoint.
+Base route: `/api/auth`. Except for `me`, these endpoints are anonymous.
 
-### `POST /api/auth/register`
-Register a new user. Sends a verification email.
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/auth/register` | Creates a player account, institutional email, badge, and initial rank history. Accounts are currently auto-verified because outbound verification email is disabled. |
+| `POST` | `/api/auth/login` | Authenticates with the institutional email and returns `{ token, user }`. |
+| `GET` | `/api/auth/me` | Returns the current authenticated user and roles. |
+| `POST` | `/api/auth/verify-email` | Validates a verification token. Retained for compatibility while email delivery is disabled. |
+| `POST` | `/api/auth/resend-verification` | Rotates the verification token subject to a five-minute cooldown. Email delivery is currently disabled. |
 
-**Body:**
-```json
-{ "firstName": "Jane", "lastName": "Doe", "personalEmail": "jane@example.com", "password": "P@ssw0rd!" }
-```
-**Response `201`:** `{ token, user: { id, institutionalEmail, firstName, lastName, rank } }`
+Registration body:
 
----
-
-### `POST /api/auth/login`
-**Body:** `{ "email": "jane.doe@fic-police.gov", "password": "P@ssw0rd!" }`  
-**Response `200`:** `{ token, user }`  
-**Response `401`:** email not verified or wrong credentials.
-
----
-
-### `POST /api/auth/verify-email`
-**Body:** `{ "token": "<verification-token>" }`  
-**Response `200`:** `{ message: "Email verified successfully" }`
-
----
-
-### `POST /api/auth/resend-verification`
-**Body:** `{ "email": "jane@example.com" }`  
-**Response `200`:** `{ message }`
-
----
-
-## Cases — `GET/POST /api/cases*`
-
-All case endpoints require auth.
-
-### `GET /api/cases/dashboard`
-Returns dashboard stats + list of available cases (from blob or local `cases/`).
-
-**Response `200`:**
 ```json
 {
-  "stats": { "casesResolved": 0, "casesActive": 1, "successRate": 0.0, "averageRating": 0.0 },
-  "cases": [{ "id", "title", "description", "difficulty", "category", "estimatedDurationMinutes",
-               "briefing", "tags", "requiredRank" }],
-  "recentActivities": []
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "personalEmail": "jane@example.com",
+  "password": "P@ssw0rd!"
 }
 ```
 
----
+Successful registration currently returns `200`:
 
-### `GET /api/cases`
-Returns `CaseV2Metadata2[]` — lightweight list of all known cases.
+```json
+{
+  "message": "Registro realizado com sucesso! Conta ativada automaticamente.",
+  "policeEmail": "jane.doe@fic-police.gov",
+  "personalEmail": "jane@example.com"
+}
+```
 
----
+Login body:
 
-### `GET /api/cases/{caseId}`
-Returns sanitised `CaseV2Sanitized` for the authenticated user (merges session-state revealed entities).
+```json
+{
+  "email": "jane.doe@fic-police.gov",
+  "password": "P@ssw0rd!"
+}
+```
 
-**Response `200`:** `CaseV2Sanitized`  
-**Response `404`:** `{ error: "Case not found: <caseId>" }`
+## Cases
 
----
+Base route: `/api/cases`. All endpoints require authentication.
 
-### `HEAD /api/cases/{caseId}`
-Existence check. `200` if case exists, `404` otherwise.
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/cases/dashboard` | Rank-filtered case catalog, player statistics, difficulty progress, promotion progress, and recent activity. |
+| `GET` | `/api/cases` | Lists lightweight metadata for every stored case. |
+| `GET` | `/api/cases/{caseId}` | Starts/seeds the session when necessary and returns the sanitized case using current visibility state. |
+| `HEAD` | `/api/cases/{caseId}` | Returns `200` when the case exists and `404` otherwise. |
+| `GET` | `/api/cases/{caseId}/raw` | Returns the complete unsanitized case. Requires `ADMIN`. |
+| `POST` | `/api/cases/{caseId}/submit` | Grades a solution attempt and persists submission/progression data. |
 
----
+`GET /api/cases/{caseId}` seeds initially visible assets, emails, and suspects. Rookie cases using `unlockMode: all_initial` expose the complete initial dossier.
 
-### `GET /api/cases/{caseId}/raw` _(Admin role required)_
-Returns the full unstripped `CaseV2` (includes `rules`, `solution`, `forensicOutcomes`).
+Submission body:
 
----
-
-### `GET /api/cases/{caseId}/assets`
-Returns `Asset[]` — visible assets for the user's current session.
-
----
-
-### `GET /api/cases/{caseId}/emails`
-Returns `Email[]` — visible emails for the user's current session.
-
----
-
-### `POST /api/cases/{caseId}/submit`
-Submit a solution attempt.
-
-**Body (`SubmitCaseRequest`):**
 ```json
 {
   "suspectId": "suspect.sarah_chen",
-  "evidenceIds": ["asset.blood_report"],
-  "analysisIds": ["forensic.dna_001"],
-  "answers": [{ "questionId": "q1", "optionId": "opt_b" }]
+  "evidenceIds": ["asset.access_log"],
+  "analysisIds": ["asset.device:MetadataAnalysis"],
+  "answers": [
+    { "questionId": "q.culprit", "optionId": "opt.sarah" }
+  ]
 }
 ```
 
-**Response `200` (`SubmitCaseResult`):**
-```json
-{
-  "correct": true,
-  "score": 87.5,
-  "breakdown": { "culprit": 40, "evidence": 25, "analysis": 12.5, "questions": 10 },
-  "attemptsRemaining": 2,
-  "feedbackText": "Excellent work, Detective.",
-  "explanation": "..."
-}
-```
+The response is the current `SubmitCaseResult`, including correctness, score, partial-credit breakdown, attempt information, feedback, and explanation when allowed.
 
-**Response `409`:** `{ error, maxAttempts }` — attempts exhausted.  
-**Response `400`:** invalid request body.
+## Assets
 
----
-
-## Case Triggers — `POST /api/cases/{caseId}/*`
-
-These endpoints fire the Rules Engine (`EvaluateAndApplyAsync`) for the specified trigger type.  
-All are idempotent per session (rules fire at most once per `ruleId`).
-
-### `POST /api/cases/{caseId}/emails/{emailId}/open`
-Trigger `email_opened`.  
-**Response `200`:** `{ caseId, emailId, trigger: "email_opened" }`
-
----
-
-### `POST /api/cases/{caseId}/assets/{assetId}/view`
-Trigger `asset_viewed`.  
-**Response `200`:** `{ caseId, assetId, trigger: "asset_viewed" }`
-
----
-
-### `POST /api/cases/{caseId}/suspects/{suspectId}/view`
-Trigger `suspect_viewed`.  
-**Response `200`:** `{ caseId, suspectId, trigger: "suspect_viewed" }`
-
----
-
-### `POST /api/cases/{caseId}/emails/{emailId}/attachments/{assetId}/download`
-Trigger `attachment_download`.  
-**Response `200`:** `{ caseId, emailId, assetId, trigger: "attachment_download" }`
-
----
-
-### `POST /api/cases/{caseId}/time`
-Advance in-game clock. Fires `time_elapsed` trigger and processes any `temporalEvents` due at or before `gameTimeMinutes`.
-
-**Body:** `{ "gameTimeMinutes": 45 }`  
-**Response `200`:** `{ caseId, gameTimeMinutes, firedTemporalEventIds: ["te.witness_arrives"] }`
-
----
-
-## Assets — `GET /api/cases/{caseId}/assets`
-
-### `GET /api/cases/{caseId}/assets`
-List visible assets (same as `CasesController` shorthand above, served by `AssetsController`).
-
-### `GET /api/cases/{caseId}/assets/{assetId}/download`
-Stream / redirect to the asset media file from blob storage.
-
----
-
-## Emails — `GET/POST /api/cases/{caseId}/emails`
-
-### `GET /api/cases/{caseId}/emails`
-List visible emails.
-
-### `GET /api/cases/{caseId}/emails/{emailId}`
-Single email detail.
-
-### `POST /api/cases/{caseId}/emails/{emailId}/open`
-Mark email as opened (also fires `email_opened` trigger via `EmailsController`).
-
-### `POST /api/cases/{caseId}/emails/{emailId}/attachments/{assetId}/download`
-Record attachment download (also fires `attachment_download` trigger via `EmailsController`).
-
----
-
-## Notes — `api/notes`
-
-### `GET /api/notes/case/{caseId}`
-All notes for a case by the authenticated user.
-
-### `GET /api/notes/{id}`
-Single note.
-
-### `POST /api/notes`
-**Body:** `{ "caseId", "title", "content" }`  
-**Response `201`:** `NoteDto`
-
-### `PUT /api/notes/{id}`
-**Body:** `{ "title", "content" }`
-
-### `DELETE /api/notes/{id}`
-**Response `204`**
-
----
-
-## Forensic Requests — `api/forensicrequest`
-
-### `GET /api/forensicrequest/{caseId}`
-All forensic requests for a case.
-
-### `GET /api/forensicrequest/{caseId}/pending`
-Only pending requests.
-
-### `GET /api/forensicrequest/{caseId}/{id}`
-Single request by numeric ID.
-
-### `POST /api/forensicrequest`
-Create a new forensic request. `ForensicsBackgroundService` polls these, runs the lab simulation, then pushes `ForensicCompleted` via SignalR.
-
-**Body:** `ForensicRequest` entity (see model).
-
-### `PUT /api/forensicrequest/{caseId}/{id}`
-Update a request.
-
-### `DELETE /api/forensicrequest/{caseId}/{id}`
-Delete a request.
-
----
-
-## Case Sessions — `api/casesession`
-
-### `POST /api/casesession/start`
-Start or resume a session.  
-**Body:** `{ "caseId": "case_001" }`
-
-### `POST /api/casesession/end/{caseId}`
-End the active session.
-
-### `GET /api/casesession/last/{caseId}`
-Most recent session record.
-
-### `GET /api/casesession/{caseId}`
-All sessions for a case.
-
-### `GET /api/cases/{caseId}/session`
-Active session state (current FiredRuleIds, notifications, etc.).
-
-### `POST /api/cases/{caseId}/resume`
-Resume a paused session.
-
-### `DELETE /api/casesession/reset-visibility/{caseId}`
-Dev helper: reset all revealed entities for a case.
-
----
-
-## Dev Cases — `api/dev/cases` _(Development environment only)_
-
-Serves cases directly from the local `cases/` directory. Not available in production.
+Base route: `/api/cases/{caseId}/assets`. Authentication and an active case session are required.
 
 | Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/dev/cases` | List available local cases |
-| `GET` | `/api/dev/cases/{caseId}` | Sanitised case from local filesystem |
-| `GET` | `/api/dev/cases/{caseId}/raw` | Raw (unsanitised) case |
+|---|---|---|
+| `GET` | `/api/cases/{caseId}/assets` | Lists only assets visible to the current player session. |
+| `GET` | `/api/cases/{caseId}/assets/{assetId}/download` | Streams a visible asset from local case storage or Blob Storage and validates its declared checksum when present. |
 
----
+Downloading an unrevealed asset returns `403`. Missing active sessions return `404`.
 
-## SignalR Hub
+## Case emails
 
-**Hub URL:** `/hubs/forensics`  
-Clients connect with JWT access token factory. Each authenticated connection is added to group  
-`user-{userId}` on connect.
+Base route: `/api/cases/{caseId}/emails`. Authentication and case visibility checks apply.
 
-| Event | Direction | Payload | Source |
-|-------|-----------|---------|--------|
-| `ForensicCompleted` | Server → Client | `{ id, caseId, evidenceId, analysisType, completedAt }` | `ForensicsBackgroundService` |
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/cases/{caseId}/emails` | Lists visible case emails with read/open state. |
+| `GET` | `/api/cases/{caseId}/emails/{emailId}` | Returns full content and attachments for a visible email. |
+| `POST` | `/api/cases/{caseId}/emails/{emailId}/open` | Marks an email as read, increments its open count, audits the action, and fires `email_opened` rules. |
+| `POST` | `/api/cases/{caseId}/emails/{emailId}/attachments/{assetId}/download` | Records a valid attachment download, applies visibility/reveal hooks, and fires attachment rules. |
 
----
+## Case triggers and game time
 
-## Error Envelope
+Base route: `/api/cases/{caseId}`. All endpoints require authentication.
 
-All non-2xx responses return a JSON error object:
+| Method | Path | Trigger/behavior |
+|---|---|---|
+| `POST` | `/api/cases/{caseId}/assets/{assetId}/view` | Fires `asset_viewed`. |
+| `POST` | `/api/cases/{caseId}/suspects/{suspectId}/view` | Fires `suspect_viewed`. |
+| `POST` | `/api/cases/{caseId}/time` | Fires `time_elapsed` and reveals temporal-event payloads due by the submitted game time. |
+
+Time body:
 
 ```json
-{ "error": "Human-readable message" }
+{ "gameTimeMinutes": 45 }
 ```
 
-Some conflict responses include additional fields:
+Time response:
+
 ```json
-{ "error": "Maximum attempts reached", "maxAttempts": 3 }
+{
+  "caseId": "case_example",
+  "gameTimeMinutes": 45,
+  "firedTemporalEventIds": ["te.witness_arrives"]
+}
 ```
 
-Standard HTTP codes:
+Rule and temporal-event application is idempotent through persisted fired IDs.
 
-| Code | Meaning |
-|------|---------|
-| `400` | Bad request / validation failure |
+## Case sessions
+
+Controller base route: `/api/casesession`. All endpoints require authentication.
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/casesession/start` | Pauses an existing active session, creates a new active session, and applies initial visibility. |
+| `POST` | `/api/casesession/end/{caseId}` | Pauses the active session and records duration/game time. |
+| `GET` | `/api/casesession/last/{caseId}` | Returns the latest session for the player and case. |
+| `GET` | `/api/casesession/{caseId}` | Returns the player's session history for the case. |
+| `GET` | `/api/cases/{caseId}/session` | Returns the latest session plus visible asset IDs, visible email IDs, and email state. |
+| `POST` | `/api/cases/{caseId}/resume` | Reactivates the most recent paused session. |
+| `DELETE` | `/api/casesession/reset-visibility/{caseId}` | Testing helper that clears player visibility and attachment-download state for the case. |
+
+Start body:
+
+```json
+{
+  "caseId": "case_example",
+  "gameTimeAtStart": 0
+}
+```
+
+End body:
+
+```json
+{ "gameTimeAtEnd": 75 }
+```
+
+## Notes
+
+Base route: `/api/notes`. Notes are always scoped to the authenticated user.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/notes/case/{caseId}` | Lists the player's notes for a case. |
+| `GET` | `/api/notes/{id}` | Returns one owned note. |
+| `POST` | `/api/notes` | Creates `{ caseId, title, content }`; returns `201`. |
+| `PUT` | `/api/notes/{id}` | Updates `{ title, content }` on an owned note. |
+| `DELETE` | `/api/notes/{id}` | Deletes an owned note; returns `204`. |
+
+## Forensic requests
+
+Base route: `/api/forensicrequest`. All endpoints require authentication and are scoped to the current user.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/forensicrequest/{caseId}` | Lists all requests for the case. |
+| `GET` | `/api/forensicrequest/{caseId}/pending` | Lists requests with `pending` or `in-progress` status. |
+| `GET` | `/api/forensicrequest/{caseId}/{id}` | Returns one request. |
+| `POST` | `/api/forensicrequest` | Creates a pending request, audits it, and enqueues asynchronous processing. |
+| `PUT` | `/api/forensicrequest/{caseId}/{id}` | Updates status, completion, result document, and notes. |
+| `DELETE` | `/api/forensicrequest/{caseId}/{id}` | Deletes an owned request. |
+
+The create request must include the case, input asset, and analysis type expected by the case's forensic contract. Completion is pushed through SignalR.
+
+## Global inbox
+
+Base route: `/api/inbox`. This inbox contains user-level messages not tied to a case, such as promotion notices.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/inbox` | Lists global inbox entries newest first. |
+| `GET` | `/api/inbox/unread-count` | Returns `{ unread }`. |
+| `POST` | `/api/inbox/{id}/read` | Marks an owned inbox entry as read; returns `204`. |
+
+## Profile statistics
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/profile/stats` | Returns agent identity, promotion snapshot, case history, score by difficulty, complete submission timeline, rank history, and category breakdown. |
+
+The difficulty ladder is `Rookie`, `Detective`, `Detective2`, `Sergeant`, `Lieutenant`, `Captain`, and `Commander`.
+
+## Case generation
+
+### Authenticated backend proxy
+
+Base route: `/api/casegeneration`. Both endpoints require `ADMIN`.
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/casegeneration/generate` | Proxies a generation request to the Function App and normally returns `202`. |
+| `GET` | `/api/casegeneration/jobs/{jobId}` | Proxies generation status, progress, stage timing, result, or failure. |
+
+Generation request:
+
+```json
+{
+  "caseId": "case_generated_example",
+  "title": "Optional title hint",
+  "theme": "Harbor warehouse homicide",
+  "location": "Optional location override",
+  "difficulty": "Detective",
+  "requiredRank": "Detective",
+  "language": "en-US",
+  "seed": 423,
+  "writeToDisk": true
+}
+```
+
+Supported difficulty values are the complete seven-level ladder listed above. `language` selects the single language used for the generated case.
+
+The first canonical generation phase is `caseBible`, reported under the public `caseDesign` stage. It establishes the fictional world, people, schedules, locations, identifiers, incident truth, facts, observations, proof paths, decoys, forensic opportunities, and intentional conflicts before plot, dossier, graph, forensic, solution, and rendering phases consume them.
+
+Accepted response:
+
+```json
+{
+  "jobId": "casev2-20260723215700-abc123",
+  "status": "queued",
+  "statusUri": "/api/cases/v2/jobs/casev2-20260723215700-abc123"
+}
+```
+
+Job status includes:
+
+```json
+{
+  "jobId": "...",
+  "status": "queued | running | done | failed",
+  "currentPhase": "caseBible",
+  "currentStageId": "caseDesign",
+  "pipelineVersion": "casegraph-v1",
+  "progressPercent": 5,
+  "stages": [],
+  "runtimeStatus": "Running",
+  "createdAt": "...",
+  "lastUpdatedAt": "...",
+  "result": null,
+  "error": null
+}
+```
+
+Only one active generation is allowed best-effort. A concurrent request returns `409` with the running job ID.
+
+### Function App routes
+
+The backend proxy calls these Function routes:
+
+| Method | Path | Function authorization |
+|---|---|---|
+| `POST` | `/api/cases/v2/generate` | `Anonymous`; deployment/network configuration must protect direct access. |
+| `GET` | `/api/cases/v2/jobs/{jobId}` | `Anonymous`; deployment/network configuration must protect direct access. |
+
+The Function key can be forwarded through `CaseGenerator:FunctionKey` if authorization is changed to Function level.
+
+## SignalR
+
+- Hub: `/hubs/forensics`
+- Authentication: JWT access token.
+- Authenticated connections join `user-{userId}`.
+- Server event: `ForensicCompleted`.
+
+Example payload:
+
+```json
+{
+  "id": 42,
+  "caseId": "case_example",
+  "evidenceId": "asset.device",
+  "analysisType": "MetadataAnalysis",
+  "completedAt": "2026-07-23T20:00:00Z"
+}
+```
+
+## Route ID validation
+
+`IdValidationMiddleware` validates recognized route parameters before controllers run.
+
+| Parameter | Accepted format |
+|---|---|
+| `assetId` | `asset.` followed by letters, numbers, `_`, `-`, or `.` |
+| `emailId` | `email.` followed by letters, numbers, `_`, `-`, or `.`; generated `no-findings-<uuid>` is also accepted |
+| `suspectId` | `suspect.` followed by letters, numbers, `_`, `-`, or `.` |
+| `caseId` | `case_<letters/numbers/_/->` or `CASE-YYYYMMDD-<8 lowercase hex>` |
+| attachment ID | `attachment.` followed by letters, numbers, `_`, `-`, or `.` |
+
+Malformed recognized IDs return `400`.
+
+## Common HTTP statuses
+
+| Status | Typical meaning |
+|---|---|
+| `200` | Successful read, update, action, or submission |
+| `201` | Note or forensic request created |
+| `202` | Case-generation job queued |
+| `204` | Successful delete or mark-read action |
+| `400` | Invalid body, ID, or operation |
 | `401` | Missing or invalid JWT |
-| `403` | Insufficient role/rank |
-| `404` | Resource not found |
-| `409` | Conflict (e.g. max attempts exceeded) |
-| `429` | Rate limit exceeded |
-| `500` | Unhandled server error |
-
----
-
-## ID Format Constraints
-
-Route parameters are validated by `IdValidationMiddleware`:
-
-| Parameter | Pattern |
-|-----------|---------|
-| `assetId` | `asset.<alphanum>` |
-| `emailId` | `email.<alphanum>` |
-| `suspectId` | `suspect.<alphanum>` |
-| `caseId` | `case_<alphanum>` or `CASE-YYYYMMDD-<hex8>` |
-
-Invalid formats return `400`.
+| `403` | Role failure, inaccessible case content, or unrevealed entity |
+| `404` | Case, session, note, email, asset, request, or job not found |
+| `409` | Another case-generation job is active |
+| `429` | IP rate limit exceeded |
+| `500` | Unhandled error or integrity failure |
+| `502` | Case generator unreachable through the backend proxy |
+| `503` | Case generator is not configured |

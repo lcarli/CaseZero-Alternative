@@ -65,6 +65,12 @@ public static class ObjectiveQualityValidator
     public static IReadOnlyList<SpecialistFinding> Validate(CaseDraft draft)
     {
         var findings = new List<SpecialistFinding>();
+        Add(
+            SpecialistReviewKind.DocumentFidelity,
+            PipelineStageValidator.ValidateCaseBible(
+                draft,
+                required: draft.CaseGraph.Origin == CaseGraphOrigin.Generated),
+            "caseBible");
         Add(SpecialistReviewKind.LocaleProceduralRealism, LocaleProfileCatalog.Validate(draft), "locale");
         AddGraph(CaseGraphValidator.Validate(draft.CaseGraph));
         Add(SpecialistReviewKind.DocumentFidelity, EvidenceContractValidator.Validate(draft), "evidence");
@@ -184,15 +190,19 @@ public sealed class SpecialistReviewCoordinator
     {
         var report = new SpecialistReport { Reviewer = kind };
         report.Findings.AddRange(deterministicFindings);
-        var system = $@"You are the {kind} specialist for an interactive detective case.
-Review only the supplied narrow input. Objective validation has already checked timestamps, reachability,
-forensic compatibility, required evidence, duplicate origins, question provenance, private leakage, and decoy coverage.
-Do not repeat those checks. Return concise semantic findings with an exact owningNodeId and stable constraintId.
-Do not choose severity; severity is assigned deterministically.";
         try
         {
             var input = BuildNarrowInput(kind, draft);
-            var raw = await _llm.GenerateStructuredResponseAsync(system, JsonSerializer.Serialize(input), Schema, ct);
+            var prompts = AgentPromptCatalog.Default;
+            var system = prompts.RenderSystem("SpecialistReview", new Dictionary<string, object?>
+            {
+                ["specialist_kind"] = kind
+            });
+            var user = prompts.RenderUser("SpecialistReview", new Dictionary<string, object?>
+            {
+                ["input_json"] = JsonSerializer.Serialize(input)
+            });
+            var raw = await _llm.GenerateStructuredResponseAsync(system, user, Schema, ct);
             var parsed = JsonSerializer.Deserialize<DraftReport>(
                 raw.Content,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new DraftReport();
@@ -229,7 +239,13 @@ Do not choose severity; severity is assigned deterministically.";
         return report;
     }
 
-    private static object BuildNarrowInput(SpecialistReviewKind kind, CaseDraft draft) =>
+    private static object BuildNarrowInput(SpecialistReviewKind kind, CaseDraft draft) => new
+    {
+        caseBible = draft.CaseBible,
+        reviewInput = BuildReviewInput(kind, draft)
+    };
+
+    private static object BuildReviewInput(SpecialistReviewKind kind, CaseDraft draft) =>
         kind switch
         {
             SpecialistReviewKind.DocumentFidelity => new
