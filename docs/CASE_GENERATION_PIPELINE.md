@@ -168,8 +168,8 @@ After each response:
 1. Request overrides are applied so the selected language, location, and other explicit inputs win.
 2. `CaseBibleNormalizer` canonicalizes IDs, timestamps, UTC offsets, references, visibility, reciprocal device/account links, literal values, locations, and duplicate facts.
 3. `CaseBibleValidator` performs semantic and referential validation.
-4. On failure, the task retries once with up to 20 actionable validation errors.
-5. If the second normalized result remains invalid, generation stops with `CaseBibleValidationException`.
+4. On failure, the task can make up to three semantic attempts with actionable validation errors and compact-output guidance.
+5. If the final normalized result remains invalid, generation stops with `CaseBibleValidationException`.
 
 Normalization must occur before semantic validation.
 
@@ -575,6 +575,21 @@ Other harness modes:
 
 Real generation is nondeterministic and can take several minutes or longer. Unit and golden tests should be used for fast structural validation; real generation is required before release for each difficulty whose behavior changed.
 
+Run a resumable sequential soak matrix:
+
+```powershell
+scripts\run-casev2-soak.ps1 `
+  -CasesPerDifficulty 3 `
+  -CooldownSeconds 60 `
+  -MaxAttempts 3 `
+  -Language en-US `
+  -ReportPath casev2-soak-report.json
+```
+
+The soak harness uses concurrency `1`, persists progress after every attempt, skips already-passed seeds when resumed, and applies exponential backoff. Successful case directories are removed after metrics are recorded unless `-KeepCases` is supplied.
+
+The July 24, 2026 soak test completed 20 cases and cancelled one. Fourteen passed, six failed after three attempts, and no rate limits were observed. The 70% final pass rate and 40% first-attempt pass rate are not sufficient for unattended production generation. See [`CASE_GENERATION_SOAK_TEST_2026-07-24.md`](./CASE_GENERATION_SOAK_TEST_2026-07-24.md) for the complete results, failed seeds, production-readiness assessment, and prioritized remediation plan.
+
 ## Code map
 
 | Path | Responsibility |
@@ -599,3 +614,4 @@ Real generation is nondeterministic and can take several minutes or longer. Unit
 | `Services/CaseV2/JobPhaseReporter.cs` | Versioned progress document |
 | `Services/CaseV2/AgentPromptCatalog.cs` | External Markdown prompt loading |
 | `agents/case-v2/` | All Case v2 prompt templates |
+| `scripts/run-casev2-soak.ps1` | Resumable sequential real-generation soak matrix |
