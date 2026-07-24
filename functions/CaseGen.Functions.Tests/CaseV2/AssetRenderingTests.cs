@@ -178,6 +178,115 @@ public class AssetRenderingTests
         Assert.Equal("Documentary view of the scene.", asset.Body);
     }
 
+    [Fact]
+    public async Task AssetCard_DigitalAssetCreatesBodyDocumentWhenModelOmitsIt()
+    {
+        var stub = new AssetStub
+        {
+            Id = "asset.bank_statement",
+            ArchetypeId = "bank_statement",
+            Type = "digital",
+            Title = "Bank statement",
+            EvidenceRole = EvidenceRoles.Contextual,
+            LayoutHint = "BankStatement"
+        };
+
+        var asset = await new AssetCardTask(new EmptyDigitalProvider(), NullLogger.Instance)
+            .RunAsync(new CaseDraft
+            {
+                Request = new GenerateCaseV2Request { Language = "en-US" }
+            }, stub, CancellationToken.None);
+
+        Assert.NotNull(asset.BodyDoc);
+        Assert.Equal("BankStatement", asset.BodyDoc.Layout);
+        Assert.Single(asset.BodyDoc.Sections);
+        Assert.Contains("Account activity", EvidenceContentText.ExtractBody(asset), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AssetCard_MaterializesEveryAssignedCanonicalObservation()
+    {
+        var stub = new AssetStub
+        {
+            Id = "asset.access_log",
+            ArchetypeId = "access_log",
+            Type = "digital",
+            Title = "Access log",
+            EvidenceRole = EvidenceRoles.Corroborative,
+            LayoutHint = "AccessLog"
+        };
+        var draft = new CaseDraft
+        {
+            Request = new GenerateCaseV2Request { Language = "en-US" },
+            CaseBible = new CaseBible
+            {
+                Facts =
+                {
+                    new CaseBibleFact
+                    {
+                        Id = "fact.ticket",
+                        Predicate = "records",
+                        SubjectId = "organization.case_context",
+                        LiteralValue = "Facilities ticket CH-FT-22109 closed at 20:05"
+                    }
+                },
+                Observations =
+                {
+                    new CaseBibleObservation
+                    {
+                        Id = "observation.ticket",
+                        FactId = "fact.ticket",
+                        SourceId = "source.access_log",
+                        Statement = "The facilities ticket was closed."
+                    }
+                }
+            },
+            CaseGraph = new CaseGraph
+            {
+                Facts =
+                {
+                    new CanonicalFact
+                    {
+                        Id = "fact.ticket",
+                        Predicate = "records",
+                        SubjectId = "organization.case_context",
+                        LiteralValue = "Facilities ticket CH-FT-22109 closed at 20:05"
+                    }
+                },
+                Observations =
+                {
+                    new EvidenceObservation
+                    {
+                        Id = "observation.ticket",
+                        FactId = "fact.ticket",
+                        SourceAssetId = "asset.access_log"
+                    }
+                },
+                AssetSpecs =
+                {
+                    new EvidenceAssetSpec
+                    {
+                        Id = "asset.access_log",
+                        AssetType = "digital",
+                        LayoutId = "AccessLog",
+                        ObservationIds = { "observation.ticket" }
+                    }
+                }
+            }
+        };
+
+        var asset = await new AssetCardTask(new DigitalAssetCardProvider(), NullLogger.Instance)
+            .RunAsync(draft, stub, CancellationToken.None);
+
+        Assert.Contains(
+            "Facilities ticket CH-FT-22109 closed at 20:05",
+            EvidenceContentText.Extract(asset),
+            StringComparison.Ordinal);
+        draft.AssetStubs.Add(stub);
+        draft.AssetFull.Add(asset);
+        Assert.Empty(EvidenceContractValidator.ValidateContent(draft).Errors);
+    }
+
     private static AssetRenderingService CreateService(ILLMProvider llm) =>
         new(
             new StubPdfRenderer(),
@@ -311,6 +420,92 @@ public class AssetRenderingTests
                             "description": "Documentary view of the scene.",
                             "visibility": "initial",
                             "category": "Document",
+                            "body": "",
+                            "bodyDoc": null
+                          }
+                          """
+            });
+
+        public Task<byte[]> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<byte[]> GenerateImageWithReferenceAsync(
+            string prompt,
+            byte[] referenceImage,
+            byte[]? maskImage = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class DigitalAssetCardProvider : ILLMProvider
+    {
+        public Task<LLMResponse> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<LLMResponse> GenerateStructuredResponseAsync(
+            string systemPrompt,
+            string userPrompt,
+            string jsonSchema,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new LLMResponse
+            {
+                Content = """
+                          {
+                            "id": "asset.access_log",
+                            "type": "digital",
+                            "title": "Access log",
+                            "description": "Facilities access export.",
+                            "visibility": "initial",
+                            "category": "Digital",
+                            "body": "",
+                            "bodyDoc": {
+                              "layout": "AccessLog",
+                              "title": "Access log",
+                              "classification": "Official",
+                              "header": [],
+                              "sections": [
+                                {
+                                  "kind": "narrative",
+                                  "heading": "Summary",
+                                  "text": "Routine facilities records."
+                                }
+                              ]
+                            }
+                          }
+                          """
+            });
+
+        public Task<byte[]> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<byte[]> GenerateImageWithReferenceAsync(
+            string prompt,
+            byte[] referenceImage,
+            byte[]? maskImage = null,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
+
+    private sealed class EmptyDigitalProvider : ILLMProvider
+    {
+        public Task<LLMResponse> GenerateTextAsync(string systemPrompt, string userPrompt, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<LLMResponse> GenerateStructuredResponseAsync(
+            string systemPrompt,
+            string userPrompt,
+            string jsonSchema,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new LLMResponse
+            {
+                Content = """
+                          {
+                            "id": "asset.bank_statement",
+                            "type": "digital",
+                            "title": "Bank statement",
+                            "description": "Account activity for the review period.",
+                            "visibility": "initial",
+                            "category": "Digital",
                             "body": "",
                             "bodyDoc": null
                           }

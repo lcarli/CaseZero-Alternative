@@ -321,6 +321,23 @@ public class AssetCardTask
             })
             .ToArray();
         var assignedObservationsJson = System.Text.Json.JsonSerializer.Serialize(assignedObservations);
+        var graphObservations = draft.CaseGraph.Observations.ToDictionary(
+            observation => observation.Id,
+            StringComparer.Ordinal);
+        var graphFacts = draft.CaseGraph.Facts.ToDictionary(
+            fact => fact.Id,
+            StringComparer.Ordinal);
+        var graphEntities = draft.CaseGraph.Entities.ToDictionary(
+            entity => entity.Id,
+            StringComparer.Ordinal);
+        var assignedCanonicalValues = (assetSpec?.ObservationIds ?? [])
+            .Where(graphObservations.ContainsKey)
+            .Select(id => graphObservations[id])
+            .Where(observation => graphFacts.ContainsKey(observation.FactId))
+            .Select(observation => CanonicalValue(graphFacts[observation.FactId], graphEntities))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
         var mustHaveBodyDoc = stub.Type is "pdf" or "document" or "digital";
         var prompts = AgentPromptCatalog.Default;
         var system = prompts.RenderSystem("AssetCard", new Dictionary<string, object?>
@@ -350,22 +367,12 @@ public class AssetCardTask
         a.ImagePurpose = stub.ImagePurpose;
         if (stub.Type == "photo")
         {
-            var requiredDetails = assignedObservations
-                .Select(observation => observation.canonicalValue)
-                .Where(value => !string.IsNullOrWhiteSpace(value))
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
-            if (requiredDetails.Length > 0)
-                a.Body = $"{a.Body}\nRequired visible details: {string.Join("; ", requiredDetails)}";
+            if (assignedCanonicalValues.Length > 0)
+                a.Body = $"{a.Body}\nRequired visible details: {string.Join("; ", assignedCanonicalValues)}";
         }
         if (mustHaveBodyDoc && a.BodyDoc is not null && !string.IsNullOrWhiteSpace(stub.LayoutHint))
             a.BodyDoc.Layout = stub.LayoutHint;
 
-        // Sanity check: PDF/document/digital MUST have bodyDoc with at least one section.
-        if (mustHaveBodyDoc && (a.BodyDoc is null || a.BodyDoc.Sections.Count == 0))
-        {
-            _logger.LogWarning("AssetCard:{Id} expected a bodyDoc but the LLM omitted it — falling back to body markdown", stub.Id);
-        }
         if (a.BodyDoc is not null)
             a.BodyDoc.Sections = a.BodyDoc.Sections.Where(IsSubstantiveSection).ToList();
 
@@ -375,14 +382,29 @@ public class AssetCardTask
             introducedRedHerrings,
             resolvedRedHerrings,
             draft.Request.Language);
+        MaterializeAssignedCanonicalValues(a, assignedCanonicalValues, draft.Request.Language);
         if (stub.Type == "photo" && string.IsNullOrWhiteSpace(a.Body))
             a.Body = string.IsNullOrWhiteSpace(a.Description) ? a.Title : a.Description;
+        if (mustHaveBodyDoc && a.BodyDoc is null)
+        {
+            _logger.LogWarning(
+                "AssetCard:{Id} expected a bodyDoc but the LLM omitted it; creating a deterministic fallback document",
+                stub.Id);
+            a.BodyDoc = new EvidenceDocument
+            {
+                Layout = string.IsNullOrWhiteSpace(stub.LayoutHint) ? "GeneralReport" : stub.LayoutHint,
+                Language = ForensicMethodCatalog.NormalizeLanguage(draft.Request.Language),
+                Title = a.Title
+            };
+        }
         if (a.BodyDoc is not null && a.BodyDoc.Sections.Count == 0)
         {
             a.BodyDoc.Sections.Add(new EvidenceSection
             {
                 Kind = "narrative",
-                Text = string.IsNullOrWhiteSpace(a.Description) ? a.Title : a.Description
+                Text = !string.IsNullOrWhiteSpace(a.Body)
+                    ? a.Body
+                    : string.IsNullOrWhiteSpace(a.Description) ? a.Title : a.Description
             });
         }
         return a;
@@ -398,6 +420,56 @@ public class AssetCardTask
                 !string.IsNullOrWhiteSpace(item.Label) || !string.IsNullOrWhiteSpace(item.Value)) == true,
             _ => !string.IsNullOrWhiteSpace(section.Text)
         };
+
+    private static string CanonicalValue(
+        CanonicalFact fact,
+        IReadOnlyDictionary<string, CaseEntity> entities)
+    {
+        if (fact.LiteralValue is not null)
+            return fact.LiteralValue;
+        if (fact.ObjectId == "organization.case_context")
+            return string.Empty;
+        if (fact.ObjectId is not null && entities.TryGetValue(fact.ObjectId, out var entity))
+            return string.IsNullOrWhiteSpace(entity.DisplayName) ? entity.Id : entity.DisplayName;
+        return fact.ObjectId ?? string.Empty;
+    }
+
+    private static void MaterializeAssignedCanonicalValues(
+        EvidenceAsset asset,
+        IReadOnlyList<string> assignedCanonicalValues,
+        string? language)
+    {
+        var existing = EvidenceContentText.Extract(asset);
+        var missing = assignedCanonicalValues
+            .Where(value => !existing.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (missing.Length == 0)
+            return;
+
+        var heading = language?.ToLowerInvariant() switch
+        {
+            "pt-br" => "Detalhes registrados na fonte",
+            "es-es" => "Detalles registrados en la fuente",
+            "fr-fr" => "Détails consignés dans la source",
+            _ => "Details recorded in the source"
+        };
+        var text = string.Join("\n", missing.Select(value => $"- {value}"));
+        if (asset.BodyDoc is not null)
+        {
+            asset.BodyDoc.Sections.Add(new EvidenceSection
+            {
+                Kind = "narrative",
+                Heading = heading,
+                Text = text
+            });
+            return;
+        }
+
+        asset.Body = string.Join(
+            "\n\n",
+            new[] { asset.Body ?? string.Empty, $"## {heading}\n{text}" }
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
+    }
 
     private static void MaterializeCanonicalFacts(
         EvidenceAsset asset,
