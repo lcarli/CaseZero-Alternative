@@ -538,6 +538,7 @@ public static class CaseBibleNormalizer
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
         }
+        AddResolvableObservationConflicts(bible);
 
         bible.Institutions = bible.Institutions.OrderBy(value => value.Id, StringComparer.Ordinal).ToList();
         bible.Locations = bible.Locations.OrderBy(value => value.Id, StringComparer.Ordinal).ToList();
@@ -571,6 +572,89 @@ public static class CaseBibleNormalizer
             ?? source.CustodianPersonId
             ?? source.CustodianInstitutionId
             ?? fallback;
+
+        static void AddResolvableObservationConflicts(CaseBible bible)
+        {
+            var facts = bible.Facts.ToDictionary(fact => fact.Id, StringComparer.Ordinal);
+            var usedConflictIds = bible.DifficultyIntent.IntentionalConflicts
+                .Select(conflict => conflict.Id)
+                .ToHashSet(StringComparer.Ordinal);
+            foreach (var observations in bible.Observations
+                         .Where(observation => !string.IsNullOrWhiteSpace(observation.ObservedValue))
+                         .GroupBy(observation => observation.FactId, StringComparer.Ordinal)
+                         .Where(group => group
+                             .Select(observation => observation.ObservedValue)
+                             .Distinct(StringComparer.Ordinal)
+                             .Count() > 1))
+            {
+                var members = observations.ToArray();
+                if (members.Any(observation => !string.IsNullOrWhiteSpace(observation.IntentionalConflictId)))
+                    continue;
+
+                var resolution = ResolveObservationConflict(members, facts.GetValueOrDefault(observations.Key));
+                if (resolution.Count == 0)
+                    continue;
+
+                var baseId = $"conflict.observation_{NormalizeTypedId(observations.Key)}";
+                var conflictId = baseId;
+                for (var suffix = 2; !usedConflictIds.Add(conflictId); suffix++)
+                    conflictId = $"{baseId}_{suffix}";
+                foreach (var observation in members)
+                    observation.IntentionalConflictId = conflictId;
+                if (facts.TryGetValue(observations.Key, out var fact))
+                    fact.IntentionalConflictId = conflictId;
+                bible.DifficultyIntent.IntentionalConflicts.Add(new CaseBibleIntentionalConflict
+                {
+                    Id = conflictId,
+                    FactIds = facts.ContainsKey(observations.Key) ? [observations.Key] : [],
+                    ObservationIds = members.Select(observation => observation.Id).ToList(),
+                    ResolutionObservationIds = resolution.Select(observation => observation.Id).ToList(),
+                    Purpose = bible.World.Language.ToLowerInvariant() switch
+                    {
+                        "pt-br" => "Resolver observações conflitantes usando a fonte canônica mais confiável.",
+                        "es-es" => "Resolver observaciones contradictorias mediante la fuente canónica más fiable.",
+                        "fr-fr" => "Résoudre les observations contradictoires à l’aide de la source canonique la plus fiable.",
+                        _ => "Resolve conflicting observations through the most reliable canonical source."
+                    }
+                });
+            }
+        }
+
+        static IReadOnlyList<CaseBibleObservation> ResolveObservationConflict(
+            IReadOnlyList<CaseBibleObservation> observations,
+            CaseBibleFact? fact)
+        {
+            if (fact is not null && !string.IsNullOrWhiteSpace(fact.CanonicalValue))
+            {
+                var canonicalMatches = observations
+                    .Where(observation => string.Equals(
+                        observation.ObservedValue,
+                        fact.CanonicalValue,
+                        StringComparison.OrdinalIgnoreCase))
+                    .ToArray();
+                if (canonicalMatches.Length > 0)
+                    return canonicalMatches;
+            }
+
+            var bestRank = observations.Max(observation => ReliabilityRank(observation.Reliability));
+            var best = observations
+                .Where(observation => ReliabilityRank(observation.Reliability) == bestRank)
+                .ToArray();
+            return best.Select(observation => observation.ObservedValue)
+                .Distinct(StringComparer.Ordinal)
+                .Count() == 1
+                ? best
+                : [];
+        }
+
+        static int ReliabilityRank(ObservationReliability reliability) =>
+            reliability switch
+            {
+                ObservationReliability.Corroborated => 4,
+                ObservationReliability.Verified => 3,
+                ObservationReliability.Unverified => 2,
+                _ => 1
+            };
 
         static string NormalizeTypedId(string id)
         {

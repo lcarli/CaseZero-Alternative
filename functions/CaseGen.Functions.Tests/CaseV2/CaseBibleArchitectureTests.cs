@@ -100,6 +100,36 @@ public class CaseBibleArchitectureTests
     }
 
     [Fact]
+    public void Normalizer_DeclaresResolvableObservationContradiction()
+    {
+        var bible = CaseBibleTestData.ValidRookieBible();
+        var canonical = bible.Observations.First(observation =>
+            !string.IsNullOrWhiteSpace(bible.Facts.Single(fact => fact.Id == observation.FactId).CanonicalValue));
+        var fact = bible.Facts.Single(value => value.Id == canonical.FactId);
+        canonical.ObservedValue = fact.CanonicalValue;
+        canonical.Reliability = ObservationReliability.Verified;
+        bible.Observations.Add(new CaseBibleObservation
+        {
+            Id = $"{canonical.Id}_conflicting",
+            FactId = canonical.FactId,
+            SourceId = canonical.SourceId,
+            Statement = "A conflicting source records a different value.",
+            ObservedValue = $"not-{fact.CanonicalValue}",
+            Reliability = ObservationReliability.Disputed,
+            Visibility = canonical.Visibility
+        });
+
+        CaseBibleNormalizer.Normalize(bible);
+
+        var conflict = Assert.Single(bible.DifficultyIntent.IntentionalConflicts.Where(value =>
+            value.ObservationIds.Contains(canonical.Id, StringComparer.Ordinal)));
+        Assert.Contains(canonical.Id, conflict.ResolutionObservationIds);
+        Assert.DoesNotContain(
+            CaseBibleValidator.Validate(bible, "Rookie", "en-US", required: true).Errors,
+            error => error.Contains("unmarked_observation_contradiction", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Validator_AllowsExplicitlyDeclaredIntentionalConflict()
     {
         var bible = CaseBibleTestData.ValidRookieBible();
@@ -443,6 +473,22 @@ public class CaseBibleArchitectureTests
         CaseGraphProjection.RefreshGeneratedGraph(draft);
 
         Assert.Equal(["asset.endpoint_record"], draft.CaseGraph.RequiredSourceIds);
+    }
+
+    [Fact]
+    public void GraphProjection_UsesMethodNeutralRuleForDeepDecoyResolution()
+    {
+        var draft = CaseBibleTestData.ProjectedRookieDraft();
+        draft.Metadata.Difficulty = "Sergeant";
+
+        EvidenceGraphCompiler.Compile(draft);
+
+        var depthDerivations = draft.CaseGraph.Derivations
+            .Where(derivation => derivation.Id.StartsWith("derivation.decoy_resolution_", StringComparison.Ordinal))
+            .ToArray();
+        Assert.NotEmpty(depthDerivations);
+        Assert.All(depthDerivations, derivation =>
+            Assert.Equal(DerivationRule.CrossSourceCorroboration, derivation.Rule));
     }
 
     private sealed class StaticStructuredProvider(string content) : ILLMProvider

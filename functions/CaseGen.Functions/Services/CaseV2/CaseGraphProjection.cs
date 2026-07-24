@@ -731,7 +731,7 @@ public static partial class CaseGraphProjection
                 {
                     Id = depthDerivationId,
                     PremiseIds = resolutionPremiseIds,
-                    Rule = DerivationRule.TimelineCorrelation,
+                    Rule = DerivationRule.CrossSourceCorroboration,
                     ConclusionFactId = depthFactId,
                     SupportsSuspectId = redHerring.SuspectId
                 });
@@ -832,7 +832,7 @@ public static partial class CaseGraphProjection
             {
                 Id = depthDerivationId,
                 PremiseIds = resolutionPremiseIds,
-                Rule = DerivationRule.TimelineCorrelation,
+                Rule = DerivationRule.CrossSourceCorroboration,
                 ConclusionFactId = depthFactId,
                 SupportsSuspectId = redHerring.SuspectId
             });

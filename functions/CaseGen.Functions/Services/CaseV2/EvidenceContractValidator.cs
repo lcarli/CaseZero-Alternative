@@ -270,8 +270,11 @@ public static class EvidenceContractValidator
 
             var body = EvidenceContentText.ExtractBody(asset);
             var completeText = EvidenceContentText.Extract(asset);
-            if (IsPlaceholder(asset, body))
-                report.Errors.Add($"evidenceContent asset '{asset.Id}' is empty or contains placeholder content");
+            if (PlaceholderReason(asset, body) is { } placeholderReason)
+            {
+                report.Errors.Add(
+                    $"evidenceContent asset '{asset.Id}' is empty or contains placeholder content: {placeholderReason}");
+            }
             if (asset.BodyDoc is not null
                 && !string.IsNullOrWhiteSpace(spec.LayoutId)
                 && !string.IsNullOrWhiteSpace(asset.BodyDoc.Layout)
@@ -424,18 +427,21 @@ public static class EvidenceContractValidator
         return false;
     }
 
-    private static bool IsPlaceholder(EvidenceAsset asset, string body)
+    private static string? PlaceholderReason(EvidenceAsset asset, string body)
     {
-        if (PlaceholderTerms.Any(term => body.Contains(term, StringComparison.OrdinalIgnoreCase)))
-            return true;
+        var placeholderTerm = PlaceholderTerms.FirstOrDefault(term =>
+            body.Contains(term, StringComparison.OrdinalIgnoreCase));
+        if (placeholderTerm is not null)
+            return $"contains term '{placeholderTerm}'";
         if (asset.Type.Equals("photo", StringComparison.OrdinalIgnoreCase))
-            return string.IsNullOrWhiteSpace(asset.Body);
+            return string.IsNullOrWhiteSpace(asset.Body) ? "photo prompt is empty" : null;
         if (asset.BodyDoc is null || asset.BodyDoc.Sections.Count == 0)
-            return string.IsNullOrWhiteSpace(asset.Body);
-        return asset.BodyDoc.Sections.Any(section =>
+            return string.IsNullOrWhiteSpace(asset.Body) ? "body and structured document are empty" : null;
+        var emptySection = asset.BodyDoc.Sections.FirstOrDefault(section =>
             section.Kind == "table" && (section.Table is null || section.Table.Rows.Count == 0)
             || section.Kind == "transcript" && (section.Transcript is null || section.Transcript.Count == 0)
             || section.Kind == "code" && string.IsNullOrWhiteSpace(section.Code?.Content));
+        return emptySection is null ? null : $"contains empty '{emptySection.Kind}' section";
     }
 
     private static string CanonicalStatement(
