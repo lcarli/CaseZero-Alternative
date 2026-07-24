@@ -960,13 +960,20 @@ public static partial class CaseGraphProjection
 
     private static void AddForensicActions(CaseDraft draft, CaseGraph graph)
     {
+        var actionIds = new HashSet<string>(StringComparer.Ordinal);
+        var transformIds = new HashSet<string>(StringComparer.Ordinal);
+        var generatedFactIds = graph.Facts.Select(fact => fact.Id).ToHashSet(StringComparer.Ordinal);
+        var generatedObservationIds = graph.Observations
+            .Select(observation => observation.Id)
+            .ToHashSet(StringComparer.Ordinal);
         foreach (var outcome in draft.ForensicFull
                      .Where(outcome => !string.IsNullOrWhiteSpace(outcome.ResultAssetId)
                                        || !string.IsNullOrWhiteSpace(outcome.ResultEmailId))
                      .OrderBy(outcome => outcome.InputAssetId, StringComparer.Ordinal)
                      .ThenBy(outcome => outcome.AnalysisType, StringComparer.Ordinal))
         {
-            var actionId = $"action.analysis_{IdSuffix(outcome.InputAssetId)}_{IdSuffix(outcome.AnalysisType)}";
+            var idSuffix = $"{IdSuffix(outcome.InputAssetId)}_{IdSuffix(outcome.AnalysisType)}";
+            var actionId = UniqueId($"action.analysis_{idSuffix}", actionIds);
             var resultIds = new[] { outcome.ResultAssetId, outcome.ResultEmailId }
                 .Where(id => !string.IsNullOrWhiteSpace(id) && graph.Sources.Any(source => source.Id == id))
                 .Select(id => id!)
@@ -1008,9 +1015,13 @@ public static partial class CaseGraphProjection
                 if (!string.IsNullOrWhiteSpace(resultSourceId)
                     && graph.Sources.Any(source => source.Id == resultSourceId))
                 {
-                    var suffix = $"{IdSuffix(outcome.InputAssetId)}_{IdSuffix(outcome.AnalysisType)}";
-                    var factId = $"fact.optional_forensic_{suffix}";
-                    var observationId = $"observation.optional_forensic_{suffix}";
+                    var resultSuffix = IdSuffix(resultSourceId);
+                    var factId = UniqueId(
+                        $"fact.optional_forensic_{idSuffix}_{resultSuffix}",
+                        generatedFactIds);
+                    var observationId = UniqueId(
+                        $"observation.optional_forensic_{idSuffix}_{resultSuffix}",
+                        generatedObservationIds);
                     graph.Facts.Add(new CanonicalFact
                     {
                         Id = factId,
@@ -1038,9 +1049,10 @@ public static partial class CaseGraphProjection
                 if (stub.ProducedProperties.Count > 0)
                     observation.ForensicProperty = stub.ProducedProperties[Math.Min(index, stub.ProducedProperties.Count - 1)];
             }
+            var transformId = UniqueId($"forensic.{idSuffix}", transformIds);
             graph.ForensicTransforms.Add(new ForensicTransform
             {
-                Id = $"forensic.{IdSuffix(outcome.InputAssetId)}_{IdSuffix(outcome.AnalysisType)}",
+                Id = transformId,
                 MethodId = outcome.AnalysisType,
                 InputAssetId = outcome.InputAssetId,
                 InputObjectId = stub.InputObjectId,
@@ -1054,6 +1066,14 @@ public static partial class CaseGraphProjection
                 ResultLayoutId = stub.ResultLayoutId
             });
         }
+    }
+
+    private static string UniqueId(string baseId, ISet<string> usedIds)
+    {
+        var id = baseId;
+        for (var suffix = 2; !usedIds.Add(id); suffix++)
+            id = $"{baseId}_{suffix}";
+        return id;
     }
 
     private static void AddObservationOwnership(CaseGraph graph, string assetId, string observationId, string factId)

@@ -6,6 +6,8 @@ namespace CaseGen.Functions.Services.CaseV2.Tasks;
 /// <summary>Stage 1 — establishes the private, typed source of truth for every downstream task.</summary>
 public sealed class CaseBibleTask
 {
+    private const int MaxSemanticAttempts = 3;
+
     private readonly ILLMProvider _llm;
     private readonly ILogger _logger;
 
@@ -77,7 +79,7 @@ public sealed class CaseBibleTask
         }));
         var effectiveGuidance = repairGuidance;
         CaseBibleValidationReport? lastValidation = null;
-        for (var attempt = 1; attempt <= 2; attempt++)
+        for (var attempt = 1; attempt <= MaxSemanticAttempts; attempt++)
         {
             var user = catalog.RenderUser("CaseBible", new Dictionary<string, object?>
             {
@@ -112,7 +114,7 @@ public sealed class CaseBibleTask
                 draft.CaseBible = bible;
                 return;
             }
-            if (attempt == 1)
+            if (attempt < MaxSemanticAttempts)
             {
                 effectiveGuidance = string.Join(
                     Environment.NewLine,
@@ -120,7 +122,9 @@ public sealed class CaseBibleTask
                         .Where(value => !string.IsNullOrWhiteSpace(value))
                         .Concat(lastValidation.Errors.Take(20)));
                 _logger.LogWarning(
-                    "Case Bible failed semantic validation; retrying once with {Count} actionable errors",
+                    "Case Bible failed semantic validation; retrying attempt {Attempt}/{MaxAttempts} with {Count} actionable errors",
+                    attempt + 1,
+                    MaxSemanticAttempts,
                     lastValidation.Issues.Count);
             }
         }

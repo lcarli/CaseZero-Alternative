@@ -157,6 +157,32 @@ public class CaseGraphKernelTests
     }
 
     [Fact]
+    public void Validator_AllowsMultipleAccessEventsForOneSystem()
+    {
+        var graph = BaseGraph();
+        graph.Facts.Add(new CanonicalFact
+        {
+            Id = "fact.badge_event_one",
+            Predicate = "access.badgeEvent",
+            SubjectId = "person.culprit",
+            LiteralValue = "18:57",
+            LiteralType = LiteralValueType.String
+        });
+        graph.Facts.Add(new CanonicalFact
+        {
+            Id = "fact.badge_event_two",
+            Predicate = "access.badgeEvent",
+            SubjectId = "person.culprit",
+            LiteralValue = "19:16",
+            LiteralType = LiteralValueType.String
+        });
+
+        var report = CaseGraphValidator.Validate(graph);
+
+        Assert.DoesNotContain(report.Errors, error => error.Code == "conflicting_canonical_fact");
+    }
+
+    [Fact]
     public void Validator_RejectsImpossibleOrderingAndTravelWindows()
     {
         var graph = BaseGraph();

@@ -235,7 +235,7 @@ public static class CaseGraphValidator
                         $"remove the duplicate and reference '{ordered[0].Id}'");
                 }
             }
-            else if (byValue.Count > 1)
+            else if (byValue.Count > 1 && !IsPotentiallyMultiValuedPredicate(ordered[0].Predicate))
             {
                 var intentionalConflictIds = ordered
                     .Select(fact => fact.IntentionalConflictId)
@@ -257,6 +257,16 @@ public static class CaseGraphValidator
                         "resolve the canonical value conflict");
                 }
             }
+
+            static bool IsPotentiallyMultiValuedPredicate(string predicate) =>
+                predicate.Contains("event", StringComparison.OrdinalIgnoreCase)
+                || predicate.Contains("access", StringComparison.OrdinalIgnoreCase)
+                || predicate.Contains("entered", StringComparison.OrdinalIgnoreCase)
+                || predicate.Contains("exited", StringComparison.OrdinalIgnoreCase)
+                || predicate.Contains("called", StringComparison.OrdinalIgnoreCase)
+                || predicate.Contains("messaged", StringComparison.OrdinalIgnoreCase)
+                || predicate.Contains("visited", StringComparison.OrdinalIgnoreCase)
+                || predicate.Contains("transaction", StringComparison.OrdinalIgnoreCase);
         }
     }
 

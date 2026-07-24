@@ -164,6 +164,10 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
                 var details = await Task.WhenAll(detailTasks);
                 await emailsTask;
+                ForensicResultIdNormalizer.EnsureUnique(
+                    details,
+                    draft.AssetFull.Select(asset => asset.Id),
+                    draft.FollowUpEmails.Concat(draft.ResultEmails).Select(email => email.Id));
 
                 foreach (var (full, asset, email) in details)
                 {

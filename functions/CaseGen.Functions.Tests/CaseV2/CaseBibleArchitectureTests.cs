@@ -511,6 +511,58 @@ public class CaseBibleArchitectureTests
             Assert.Equal(DerivationRule.CrossSourceCorroboration, derivation.Rule));
     }
 
+    [Fact]
+    public void GraphProjection_AssignsUniqueIdsToRepeatedForensicRequests()
+    {
+        var draft = CaseBibleTestData.ProjectedRookieDraft();
+        draft.AssetStubs.Add(new AssetStub
+        {
+            Id = "asset.initial_report",
+            ArchetypeId = "initial_report",
+            Type = "document",
+            Title = "Initial report",
+            LayoutHint = "PoliceReport",
+            ContainedObjectIds = { "document.initial_report" }
+        });
+        draft.ForensicStubs.Add(new ForensicOutcomeStub
+        {
+            InputAssetId = "asset.initial_report",
+            InputObjectId = "document.initial_report",
+            AnalysisType = "DocumentExamination",
+            Findings = true,
+            ProducedProperties = { ForensicObservationProperty.DocumentAuthenticity },
+            LimitationKeys = { "authenticity_not_authorship", "copy_limits_examination" }
+        });
+        foreach (var resultId in new[] { "asset.forensic_result_1", "asset.forensic_result_2" })
+        {
+            draft.ForensicFull.Add(new ForensicsOutcome
+            {
+                InputAssetId = "asset.initial_report",
+                AnalysisType = "DocumentExamination",
+                Findings = true,
+                ResultAssetId = resultId
+            });
+            draft.ResultAssets.Add(new EvidenceAsset
+            {
+                Id = resultId,
+                Type = "document",
+                Title = resultId,
+                Visibility = "hidden"
+            });
+        }
+
+        EvidenceGraphCompiler.Compile(draft);
+
+        Assert.Equal(2, draft.CaseGraph.Actions.Count(action =>
+            action.AnalysisId == "asset.initial_report:DocumentExamination"));
+        Assert.Equal(
+            draft.CaseGraph.Actions.Count,
+            draft.CaseGraph.Actions.Select(action => action.Id).Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(
+            draft.CaseGraph.ForensicTransforms.Count,
+            draft.CaseGraph.ForensicTransforms.Select(transform => transform.Id).Distinct(StringComparer.Ordinal).Count());
+    }
+
     private sealed class StaticStructuredProvider(string content) : ILLMProvider
     {
         public Task<LLMResponse> GenerateTextAsync(

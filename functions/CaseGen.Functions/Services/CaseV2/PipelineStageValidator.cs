@@ -182,7 +182,15 @@ public static class PipelineStageValidator
                 report.Errors.Add($"analysis '{outcome.AnalysisType}' is incompatible with asset '{outcome.InputAssetId}' ({asset.Type})");
         }
 
-        var resultAssets = draft.ResultAssets.ToDictionary(asset => asset.Id, StringComparer.Ordinal);
+        var resultAssetGroups = draft.ResultAssets
+            .GroupBy(asset => asset.Id, StringComparer.Ordinal)
+            .ToArray();
+        foreach (var duplicate in resultAssetGroups.Where(group => group.Count() > 1))
+            report.Errors.Add($"duplicate forensic result asset id '{duplicate.Key}'");
+        var resultAssets = resultAssetGroups.ToDictionary(
+            group => group.Key,
+            group => group.First(),
+            StringComparer.Ordinal);
         foreach (var clue in draft.Blueprint.ClueLadder.Where(clue =>
                      string.Equals(clue.SourceType, "forensic", StringComparison.OrdinalIgnoreCase)))
         {

@@ -1,5 +1,6 @@
 using CaseGen.Functions.Models.CaseV2;
 using CaseGen.Functions.Services.CaseV2;
+using CaseGen.Functions.Services.CaseV2.Tasks;
 using Xunit;
 
 namespace CaseGen.Functions.Tests.CaseV2;
@@ -33,6 +34,37 @@ public class ForensicEvidenceContractTests
         var changed = metadata.AcceptedAssetTypes.Add("invented");
         Assert.DoesNotContain("invented", metadata.AcceptedAssetTypes);
         Assert.Contains("invented", changed);
+    }
+
+    [Fact]
+    public void ResultIdNormalizer_RenamesDuplicateAssetsEmailsAndAttachments()
+    {
+        var first = ForensicDetail("asset.report_duplicate", "email.lab_duplicate");
+        var second = ForensicDetail("asset.report_duplicate", "email.lab_duplicate");
+
+        ForensicResultIdNormalizer.EnsureUnique(
+            new[] { first, second },
+            Array.Empty<string>(),
+            Array.Empty<string>());
+
+        Assert.Equal("asset.report_duplicate", first.asset!.Id);
+        Assert.Equal("asset.report_duplicate_2", second.asset!.Id);
+        Assert.Equal(second.asset.Id, second.full.ResultAssetId);
+        Assert.Contains(second.asset.Id, second.email!.Attachments);
+        Assert.Equal("email.lab_duplicate_2", second.email.Id);
+        Assert.Equal(second.email.Id, second.full.ResultEmailId);
+
+        static (ForensicsOutcome full, EvidenceAsset? asset, EvidenceEmail? email) ForensicDetail(
+            string assetId,
+            string emailId)
+        {
+            var asset = new EvidenceAsset { Id = assetId };
+            var email = new EvidenceEmail { Id = emailId, Attachments = { assetId } };
+            return (
+                new ForensicsOutcome { ResultAssetId = assetId, ResultEmailId = emailId },
+                asset,
+                email);
+        }
     }
 
     [Fact]

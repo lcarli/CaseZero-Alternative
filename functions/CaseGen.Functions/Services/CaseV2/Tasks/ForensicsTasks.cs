@@ -421,3 +421,46 @@ public class ForensicOutcomeTask
     private static string? ReplaceInternalId(string? value, string internalId, string displayName) =>
         value?.Replace(internalId, displayName, StringComparison.OrdinalIgnoreCase);
 }
+
+public static class ForensicResultIdNormalizer
+{
+    public static void EnsureUnique(
+        IEnumerable<(ForensicsOutcome full, EvidenceAsset? asset, EvidenceEmail? email)> details,
+        IEnumerable<string> reservedAssetIds,
+        IEnumerable<string> reservedEmailIds)
+    {
+        var assetIds = reservedAssetIds.ToHashSet(StringComparer.Ordinal);
+        var emailIds = reservedEmailIds.ToHashSet(StringComparer.Ordinal);
+        foreach (var (full, asset, email) in details)
+        {
+            if (asset is not null)
+            {
+                var previousId = asset.Id;
+                asset.Id = UniqueId(asset.Id, assetIds);
+                full.ResultAssetId = asset.Id;
+                if (email is not null && asset.Id != previousId)
+                {
+                    for (var index = 0; index < email.Attachments.Count; index++)
+                    {
+                        if (email.Attachments[index] == previousId)
+                            email.Attachments[index] = asset.Id;
+                    }
+                }
+            }
+
+            if (email is not null)
+            {
+                email.Id = UniqueId(email.Id, emailIds);
+                full.ResultEmailId = email.Id;
+            }
+        }
+    }
+
+    private static string UniqueId(string baseId, ISet<string> usedIds)
+    {
+        var id = baseId;
+        for (var suffix = 2; !usedIds.Add(id); suffix++)
+            id = $"{baseId}_{suffix}";
+        return id;
+    }
+}

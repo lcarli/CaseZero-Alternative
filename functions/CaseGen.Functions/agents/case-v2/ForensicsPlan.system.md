@@ -5,6 +5,7 @@ Plan the forensic layer for the canonical case in `{{language}}`.
 # Output contract
 
 - Emit exactly {{desired_outcomes}} useful outcomes, all with `findings: true`.
+- Every outcome must use a unique `(inputAssetId, analysisType)` pair. Never request the same method twice for the same asset.
 - Select only method IDs from the supplied immutable forensic catalog.
 - Use only existing initial asset IDs and typed contained-object IDs.
 - Every canonical forensic clue must be assigned exactly once.
