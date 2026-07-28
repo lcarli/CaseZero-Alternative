@@ -17,6 +17,8 @@ This chapter defines the **product roadmap, development timeline, and future vis
 - Feature prioritization framework
 - 3-year strategic vision
 
+> **⚠️ Implementation status:** This chapter is a **forward-looking roadmap**, largely written before implementation began — most checklist items below (`[ ]`) describe **planned/aspirational** work, not the current state of the repository. Where the checklist has clearly been superseded by what is actually built today, a note has been added inline. As of now, the following are **already implemented** (not merely planned): JWT + ASP.NET Identity auth, the case API and EF Core data layer (backend on **.NET 8**), the React/Vite/TypeScript frontend shell, an asynchronous/timer-based forensics system, the canonical **`case.json` v2** format and its validation, a fully automated **Case v2 generation pipeline** (Case Bible → external LLM agent prompts → CaseGraph consistency checks → solver gate at 0.90 → multi-stage validation → ordered Blob publication) running on **CaseGen.Functions (.NET 9, Durable Functions)**, the 7-level Rookie→Commander rank/difficulty system with cumulative-resolve promotion thresholds, and a 4-locale UI (`en-US`, `pt-BR`, `es-ES`, `fr-FR`). Treat those as done; everything else in this roadmap remains a plan.
+
 ---
 
 ## 12.2 Development Phases
@@ -26,7 +28,7 @@ This chapter defines the **product roadmap, development timeline, and future vis
 **Goal:** Build core architecture and systems
 
 **Backend:**
-- [ ] Database schema implementation (PostgreSQL)
+- [x] Database schema implementation (**SQL Server** in production, SQLite for local dev — not PostgreSQL as originally planned)
 - [ ] Entity Framework Core models
 - [ ] Authentication system (JWT)
 - [ ] Core API endpoints (cases, sessions, users)
@@ -291,9 +293,9 @@ This chapter defines the **product roadmap, development timeline, and future vis
 - Begin localization of top 3 cases (French, Spanish)
 
 **Localization:**
-- [ ] i18n infrastructure
-- [ ] UI translation (4 languages)
-- [ ] Case translation (top 3 cases, 2 languages)
+- [x] i18n infrastructure — **already implemented** (`frontend/src/locales/`, `frontend/src/types/i18n.ts`)
+- [x] UI translation (4 languages) — **already implemented and shipped**: `en-US`, `pt-BR`, `es-ES`, `fr-FR`
+- [ ] Case translation (top 3 cases, 2 languages) — the generation pipeline has a locale-validation gate, but translating existing hand-authored case *content* is still planned
 
 **Success Metrics:**
 - Library size: 15-21 cases total
@@ -944,7 +946,7 @@ This chapter defines the **product roadmap, development timeline, and future vis
 
 ---
 
-**Next Chapter:** [13-GLOSSARY.md](13-GLOSSARY.md) - Terms and definitions
+**Next Chapter:** [APPENDIX-A-GLOSSARY.md](APPENDIX-A-GLOSSARY.md) - Terms and definitions
 
 **Related Documents:**
 - [01-CONCEPT.md](01-CONCEPT.md) - Core vision

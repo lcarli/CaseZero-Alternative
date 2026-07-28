@@ -66,6 +66,10 @@ flowchart LR
 
 The database does not contain the canonical authored Case v2 document. The API loads `case.json`, caches it, and combines it with database state for each request.
 
+### Deployed Azure topology
+
+In Azure, the API and Function App use managed identities and VNet integration. The case Storage account is protected by private endpoints and private DNS; public network access is disabled. The API reads published bundles and sends forensic queue messages, while `CaseGen.Functions` publishes complete bundles and writes job progress. Exact resource provisioning and RBAC assignments live under `infrastructure/`.
+
 ## Application composition
 
 `Program.cs` configures the application in this order:
@@ -107,8 +111,8 @@ Security headers include CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Refe
 | `UserCase` | User-to-case association |
 | `CaseProgress` | Relational case progress data |
 | `CaseSession` | Active, paused, or completed play session plus serialized dynamic state |
-| `CaseSessionVisibleAsset` | Asset revealed to one user in one case |
-| `CaseSessionVisibleEmail` | Case email revealed to one user |
+| `CaseSessionVisibleAsset` | Asset revealed for one user and case; despite the legacy name, records are not scoped by an explicit session ID |
+| `CaseSessionVisibleEmail` | Case email revealed for one user and case; records are not scoped by an explicit session ID |
 | `CaseSessionEmailState` | Per-user read/open state for a case email |
 | `EmailAttachmentDownloaded` | Idempotency record for case attachment downloads |
 | `CaseSubmission` | Complete solution attempt, score breakdown, grading status, and submitted payload |
@@ -258,6 +262,8 @@ The relational `ForensicRequest` is the current source of truth. `ForensicsBackg
 
 When a matching Case v2 forensic outcome exists, the hosted service reveals its result asset/email. Otherwise, it can create a synthetic no-findings email from the bundle template. It then applies `forensics_complete` rules and emits `ForensicCompleted` to `user-{userId}`.
 
+Current failure semantics require care: the request is marked `completed` before outcome projection finishes. If projection or rule application throws, the exception is logged but the completion event is still emitted. Hardening this flow so persistence and notification reflect the real outcome remains an implementation task.
+
 ## Solution scoring and career progression
 
 `SolutionService` grades submissions entirely on the server using the private solution contract:
@@ -292,6 +298,7 @@ Promotions create rank-history rows and a localized-by-the-frontend global inbox
 
 - Identity stores accounts and roles in the application database.
 - JWTs validate issuer, audience, signature, and lifetime with zero clock skew.
+- JWT bearer metadata validation currently sets `RequireHttpsMetadata=false`; deployed traffic is still expected to use HTTPS, and production hardening should make this environment-aware.
 - New registrations receive `PLAYER`.
 - Generation proxy and raw case access require `ADMIN`.
 - SignalR requires an authenticated JWT and joins the connection to `user-{userId}`.
@@ -341,9 +348,9 @@ The exact routes and response behavior are maintained in [`API_COMPLETE.md`](./A
 - generation requests to `POST {FunctionBaseUrl}/api/cases/v2/generate`;
 - job polling to `GET {FunctionBaseUrl}/api/cases/v2/jobs/{jobId}`.
 
-The Function App returns immediately with a job ID and runs generation through Durable Functions. The API returns Function responses verbatim and does not participate in Case Bible, graph, repair, rendering, or validation stages.
+The Function App returns immediately with a job ID and runs generation through Durable Functions. Each complete attempt is one activity, with five attempts by default under the same job ID. The API returns Function responses verbatim and does not participate in Case Bible, graph, repair, rendering, or validation stages.
 
-Generated bundles are published to the shared bundles container. `CaseV2StorageService` then discovers them through the normal blob listing/loading path.
+Generated assets are published to the shared bundles container before `case.json`; the JSON is written last as the bundle commit marker. Configured publication failures prevent the generation job from reporting success. `CaseV2StorageService` discovers completed bundles through the normal blob listing/loading path.
 
 ## Configuration
 

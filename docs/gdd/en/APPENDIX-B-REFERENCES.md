@@ -120,15 +120,23 @@ This chapter documents all external resources, inspirations, research materials,
 
 **ASP.NET Core Documentation**
 - Official Docs: https://learn.microsoft.com/en-us/aspnet/core/
-- Version: 9.0
+- Version: **8.0 for the current Web API project**
 - Key References:
   - Web API Tutorial: https://learn.microsoft.com/en-us/aspnet/core/tutorials/first-web-api
   - Authentication & Authorization: https://learn.microsoft.com/en-us/aspnet/core/security/
   - Performance Best Practices: https://learn.microsoft.com/en-us/aspnet/core/performance/performance-best-practices
 
+**Azure Functions Isolated Worker / Durable Functions Documentation**
+- Official Docs: https://learn.microsoft.com/en-us/azure/azure-functions/
+- Current repository note: `functions/CaseGen.Functions` and its tests target **.NET 9**
+- Key References:
+  - Isolated worker guide: https://learn.microsoft.com/en-us/azure/azure-functions/dotnet-isolated-process-guide
+  - Durable Functions overview: https://learn.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-overview
+  - Durable Functions bindings: https://learn.microsoft.com/en-us/azure/azure-functions/durable/durable-functions-bindings
+
 **Entity Framework Core Documentation**
 - Official Docs: https://learn.microsoft.com/en-us/ef/core/
-- Version: 9.0
+- Version: aligned with the .NET 8 backend
 - Key References:
   - Model Configuration: https://learn.microsoft.com/en-us/ef/core/modeling/
   - Querying Data: https://learn.microsoft.com/en-us/ef/core/querying/
@@ -152,14 +160,13 @@ This chapter documents all external resources, inspirations, research materials,
 
 ### 2.3 Database Technologies
 
-**PostgreSQL Documentation**
-- Official Docs: https://www.postgresql.org/docs/
-- Version: 15.x
+**Azure SQL / SQL Server Documentation**
+- Official Docs: https://learn.microsoft.com/en-us/sql/sql-server/
+- Current repository note: the backend uses SQL-backed persistence via EF Core and ASP.NET Identity
 - Key References:
-  - JSON Types: https://www.postgresql.org/docs/15/datatype-json.html
-  - JSONB Indexing: https://www.postgresql.org/docs/15/datatype-json.html#JSON-INDEXING
-  - Performance Tuning: https://www.postgresql.org/docs/15/performance-tips.html
-  - Backup & Recovery: https://www.postgresql.org/docs/15/backup.html
+  - SQL Server on Azure overview: https://learn.microsoft.com/en-us/azure/azure-sql/database/sql-database-paas-overview
+  - ASP.NET Core with SQL Server EF provider: https://learn.microsoft.com/en-us/ef/core/providers/sql-server/
+  - Backup / restore guidance: https://learn.microsoft.com/en-us/azure/azure-sql/database/automated-backups-overview
 
 **JSON Schema Specification**
 - Official Spec: https://json-schema.org/
@@ -169,16 +176,21 @@ This chapter documents all external resources, inspirations, research materials,
   - Validation Keywords: https://json-schema.org/understanding-json-schema/reference/
   - Schema Composition: https://json-schema.org/understanding-json-schema/structuring.html
 
+**CaseZero Canonical Case Format References**
+- Repository Spec: [docs/CASE_JSON_V2_SPEC.md](../../CASE_JSON_V2_SPEC.md)
+- Repository Schema: [schemas/case.schema.json](../../../schemas/case.schema.json)
+- Use: Current canonical case format (`case.json` v2) and validation contract
+
 ### 2.4 Cloud & Infrastructure
 
 **Azure Documentation**
 - Official Docs: https://learn.microsoft.com/en-us/azure/
 - Key References:
-  - Azure App Service: https://learn.microsoft.com/en-us/azure/app-service/
   - Azure Functions: https://learn.microsoft.com/en-us/azure/azure-functions/
   - Azure Blob Storage: https://learn.microsoft.com/en-us/azure/storage/blobs/
-  - Azure CDN: https://learn.microsoft.com/en-us/azure/cdn/
-  - Azure Database for PostgreSQL: https://learn.microsoft.com/en-us/azure/postgresql/
+  - Azure Table Storage: https://learn.microsoft.com/en-us/azure/storage/tables/table-storage-overview
+  - Azure OpenAI: https://learn.microsoft.com/en-us/azure/ai-services/openai/
+  - Azure SQL: https://learn.microsoft.com/en-us/azure/azure-sql/
   - Application Insights: https://learn.microsoft.com/en-us/azure/azure-monitor/app/app-insights-overview
 
 **Azure Bicep Documentation**

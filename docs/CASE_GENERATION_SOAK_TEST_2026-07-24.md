@@ -308,3 +308,52 @@ The harness:
 - removes successful generated directories unless `-KeepCases` is supplied.
 
 Use `-KeepCases` only when the generated artifacts are needed for manual inspection.
+
+---
+
+## Addendum - Post-remediation status (2026-07-28)
+
+*This addendum is appended after the original report and does not alter any measurement above. It records what changed in the codebase since 2026-07-24 in response to the findings, based on commit `e1a4bf9` ("feat(casegen): stabilize retry-aware case generation (#162)", merged 2026-07-27).*
+
+### What shipped against the recommended implementation order
+
+- **Priority 0 - Deterministic normalization**: `CaseBibleNormalizer` (`functions/CaseGen.Functions/Services/CaseV2/CaseBible.cs`) now runs before Case Bible validation and canonicalizes the exact defect classes seen in this soak test:
+  - `NormalizeUtcOffset` / `NormalizeCanonicalTimestamps` rewrite incident, truth-timeline, and schedule timestamps to the world's canonical UTC offset (addresses the Rookie 1102, Detective 2102, Lieutenant 5102, and Commander 7102 offset failures).
+  - `NormalizeInvestigatorEmail` rewrites the investigator's email domain to the neutral `casezero.local` domain (directly addresses the `locale.investigatorEmail uses a non-neutral placeholder domain` failures that ended the Rookie 1102 and Detective 2102 runs).
+  - `CaseBibleValidator` (`functions/CaseGen.Functions/Services/CaseV2/CaseBibleValidator.cs`) enforces typed-ID prefixes, canonical-entity references, and offset/enum consistency across people, institutions, schedules, and the truth timeline.
+- **Priority 1 - Split/staged Case Bible generation with semantic retry**: `CaseBibleTask` (`functions/CaseGen.Functions/Services/CaseV2/Tasks/CaseBibleTask.cs`) generates the Case Bible, applies `CaseBibleNormalizer.Normalize`, then validates; on failure it retries the semantic step (up to `MaxSemanticAttempts = 3`) rather than discarding the whole run immediately.
+- **Priority 2 - Targeted repair instead of full regeneration**: `RepairCoordinator` (`functions/CaseGen.Functions/Services/CaseV2/RepairCoordinator.cs`) re-runs only the flagged sections (e.g. emails, forensics, assets) identified by validation instead of regenerating the entire case.
+- **Regression coverage**: `CaseBibleArchitectureTests.cs` and `AssetRenderingTests.cs` were added under `functions/CaseGen.Functions.Tests/CaseV2/` to cover Case Bible structural/typed-ID/enum defects and asset rendering, and `GenerationProgressTests.cs` covers phase reporting.
+
+### Post-remediation real-generation results
+
+All six seeds that exhausted the original three-attempt budget later produced valid cases within the new five-attempt budget:
+
+| Seed | Successful attempt |
+|---:|---:|
+| 1102 | 1 |
+| 2102 | 2 |
+| 3101 | 2 |
+| 5102 | 4 |
+| 6103 | 2 |
+| 7102 | 3 |
+
+A separate one-seed-per-difficulty matrix also passed:
+
+| Difficulty | Seed | Successful attempt | Solver score |
+|---|---:|---:|---:|
+| Rookie | 1101 | 1 | 1.00 |
+| Detective | 2101 | 1 | 1.00 |
+| Detective2 | 3101 | 1 | 1.00 |
+| Sergeant | 4101 | 2 | 0.95 |
+| Lieutenant | 5101 | 2 | 1.00 |
+| Captain | 6101 | 5 | 0.95 |
+| Commander | 7101 | 2 | 1.00 |
+
+No rate limits occurred, and every attempt emitted phase progress events.
+
+### Remaining validation boundary
+
+The original recommendation called for a new three-seed matrix across every difficulty with at least 90% first-attempt success. The post-remediation matrix above used one seed per difficulty and therefore does not establish that first-attempt reliability target or unattended bulk-generation readiness.
+
+**Conclusion:** the remediated generator satisfies the MVP objective validated here: retries can recover the previously failing seeds while the publication gates accept only valid, solvable cases with solver scores of at least `0.90`. A larger soak is still required before claiming unattended high-volume reliability.

@@ -416,16 +416,17 @@ Como saberemos se CaseZero atinge seus objetivos?
 
 **Tecnologias centrais:**
 - Frontend: React + TypeScript
-- Backend: C# .NET + Azure Functions
+- Backend Web API: C# .NET 8
+- Pipeline de geração de casos: Azure Durable Functions em C# .NET 9
 - Banco de dados: Azure SQL
-- Armazenamento: Azure Blob Storage (PDFs/imagens)
+- Armazenamento: Azure Blob Storage (PDFs/imagens e bundles publicados de casos)
 - Autenticação: Sessões via JWT
 
 **Nível de complexidade:** Médio
 - Sem multiplayer em tempo real
 - Sem física complexa ou renderização 3D
 - Desafio principal é conteúdo, não código
-- Backend é CRUD + lógica baseada em tempo
+- O backend combina CRUD relativamente direto na API com um pipeline mais complexo de geração de casos em Durable Functions
 
 ---
 
@@ -493,8 +494,8 @@ Como saberemos se CaseZero atinge seus objetivos?
 ## 1.14 Visão de Longo Prazo
 
 ### Ano 1: Fundação
-- Lançar com 3 casos (fácil, médio, difícil)
-- Estabelecer pipeline de conteúdo
+- Lançar com 3 casos cobrindo faixas baixa/média/alta das dificuldades implementadas
+- Escalar o pipeline de conteúdo já existente para lançamentos regulares
 - Construir base inicial de jogadores
 - Coletar feedback e iterar
 

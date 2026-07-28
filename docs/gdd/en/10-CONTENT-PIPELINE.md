@@ -10,12 +10,14 @@
 
 This chapter defines the **case creation workflow, content management systems, and production processes** for CaseZero v3.0. It covers the end-to-end pipeline from concept to published case.
 
+> **Current repository status:** case generation is already implemented in `functions/CaseGen.Functions/Services/CaseV2/` as a Durable Functions pipeline that emits canonical `case.json` v2 bundles directly. The editorial workflow below should be read as content-design guidance around that implemented pipeline, not as a claim that generation is still manual-only.
+
 **Key Concepts:**
-- Structured case creation workflow
-- Quality assurance checkpoints
-- Asset management pipeline
+- Structured editorial workflow around the implemented generator
+- Durable case-generation stages with validation gates
+- Asset management and ordered publication
 - Content versioning and approval
-- Localization strategy
+- Implemented and planned localization strategy
 
 ---
 
@@ -248,20 +250,18 @@ This chapter defines the **case creation workflow, content management systems, a
 ### Phase 5: case.json Assembly (1 day)
 
 **Step 5.1: Data Entry**
-- Compile all text content into case.json structure
-- Enter metadata (ID, title, difficulty, etc.)
-- Input victim, crime, suspects data
-- Add evidence, documents, forensics arrays
-- Build timeline array
-- Define solution object
-- **Deliverable:** Draft case.json file
+- Compile approved content into the canonical **case.json v2** structures
+- Enter metadata (ID, title, difficulty/rank tier, locale, etc.)
+- Input victim, crime, suspects, timeline, and solution data according to the v2 spec
+- Avoid deprecated v0/v1 field names such as `documents[]`, `unlockLogic`, or `forensicReports[]` as canonical structures
+- **Deliverable:** Draft `case.json` v2 bundle
 
 **Step 5.2: Validation**
-- Run JSON schema validator
-- Check referential integrity
-- Verify cardinality (2-8 suspects, 8-25 evidence, etc.)
+- Validate against the canonical [CASE JSON v2 spec](../../CASE_JSON_V2_SPEC.md) and [JSON Schema](../../../schemas/case.schema.json)
+- Check referential integrity and cross-entity consistency
+- Verify locale, evidence, forensic-outcome, and proof/logic gates
 - Test file paths to assets
-- **Deliverable:** Validated case.json
+- **Deliverable:** Validated `case.json` v2 bundle
 
 **Step 5.3: Asset Organization**
 ```
@@ -348,10 +348,10 @@ cases/CASE-YYYY-###/
 - Update case library
 
 **Step 7.3: Deployment**
-- Upload assets to Azure Blob Storage
-- Insert case.json into database
-- Generate CDN URLs
-- Update frontend case list
+- Upload all non-`case.json` assets to Azure Blob Storage first
+- Write `case.json` **last** as the bundle commit marker
+- Expose the job in the admin `/case-generation` experience with final stats / retry status
+- Treat the case as live only after the final `case.json` blob exists
 - **Status:** Case live in production
 
 ---
@@ -553,67 +553,44 @@ casezero-content/
 
 ## 10.8 Localization Strategy
 
-### Phase 1: English Primary (Launch)
+### Phase 1: Implemented UI Localization
 
-**Launch Content:**
-- All cases in English
-- UI in English
-- No localization infrastructure yet
+**Current UI Support:**
+- The frontend already ships with **four implemented locales**: `en-US`, `pt-BR`, `es-ES`, `fr-FR`
+- The admin `/case-generation` page includes a locale selector
+- UI strings live in the frontend i18n system rather than in ad-hoc per-page text
 
-### Phase 2: Localization Infrastructure (Post-Launch +6 months)
+### Phase 2: Implemented Case-Generation Locale Pipeline
 
-**Technical Setup:**
-- Implement i18n framework (react-i18next)
-- Extract UI strings to JSON files
-- Create translation pipeline
+**Current Technical Setup:**
+- The Durable Functions generator accepts a target locale
+- Generated case bundles must still conform to the canonical [CASE JSON v2 spec](../../CASE_JSON_V2_SPEC.md)
+- Locale output is validated before publication, alongside schema, logic, solver, and parity gates
 
-**case.json Localization Strategy:**
+**Canonical Bundle Reminder:**
 ```json
 {
-  "schemaVersion": "3.0",
   "locale": "en-US",
-  "metadata": { ... },
-  "translationKey": "CASE-2024-001-en"
+  "caseId": "CASE-2024-001"
 }
 ```
 
-**Separate Localized Files:**
-```
-cases/CASE-2024-001/
-├── case.en.json (English)
-├── case.fr.json (French)
-├── case.es.json (Spanish)
-├── case.pt.json (Portuguese)
-├── documents/
-│   ├── en/
-│   │   ├── police-report-001.pdf
-│   │   └── ...
-│   ├── fr/
-│   │   ├── police-report-001.pdf
-│   │   └── ...
-│   └── ...
-```
+Use the shared [JSON Schema](../../../schemas/case.schema.json) as the authoritative structural contract for every locale.
 
-### Phase 3: First Translations (Post-Launch +12 months)
+### Phase 3: Planned Expansion Beyond the Current 4 Locales
 
-**Target Languages (Priority Order):**
-1. **French (fr-FR):** European market
-2. **Spanish (es-ES):** Spain + Latin America
-3. **Portuguese (pt-BR):** Brazil market
-4. **German (de-DE):** European market
+**Planned:**
+1. Evaluate additional locales beyond `en-US`, `pt-BR`, `es-ES`, and `fr-FR`
+2. Add cultural adaptation guidance where names, institutions, or document conventions must change
+3. Expand native-speaker QA coverage per locale
 
-**Translation Process:**
-1. Export case.json text content
-2. Professional translation service
+**Translation Process (planned expansion):**
+1. Export player-facing case text from the canonical case.json v2 source
+2. Professional translation / review
 3. Cultural adaptation (names, locations if needed)
-4. Recreate documents in target language
-5. QA testing by native speaker
-6. Publish localized version
-
-**Translation Costs:**
-- ~$0.10-0.15 per word
-- Average case: 10,000-15,000 words
-- Cost per case per language: $1,000-2,250
+4. Recreate locale-specific documents or imagery where required
+5. QA testing by a native speaker
+6. Publish the localized bundle through the same validation + publish flow
 
 ---
 
@@ -621,11 +598,14 @@ cases/CASE-2024-001/
 
 ### Case Categorization
 
-**By Difficulty:**
-- Easy (0-45 points)
-- Medium (46-90 points)
-- Hard (91-135 points)
-- Expert (136-180 points)
+**By Difficulty (implemented enum):**
+- Rookie
+- Detective
+- Detective2
+- Sergeant
+- Lieutenant
+- Captain
+- Commander
 
 **By Crime Type:**
 - Homicide
@@ -664,130 +644,18 @@ cases/CASE-2024-001/
 
 ### Case Validator Tool
 
-```javascript
-// case-validator.js
-const Ajv = require('ajv');
-const fs = require('fs');
+**Current implementation:** the repository's live generator does **not** use the legacy v1-style pseudocode that previously appeared here as its source of truth. Instead, the Durable Functions pipeline validates canonical `case.json` v2 output against the shared [CASE JSON v2 spec](../../CASE_JSON_V2_SPEC.md) and [JSON Schema](../../../schemas/case.schema.json), then applies generator-level gates for:
 
-function validateCase(caseJsonPath) {
-  const caseData = JSON.parse(fs.readFileSync(caseJsonPath));
-  const schema = JSON.parse(fs.readFileSync('./case-schema.json'));
-  
-  const ajv = new Ajv();
-  const validate = ajv.compile(schema);
-  const valid = validate(caseData);
-  
-  if (!valid) {
-    console.error('Schema validation failed:');
-    console.error(validate.errors);
-    return false;
-  }
-  
-  // Referential integrity checks
-  const errors = [];
-  
-  // Check solution culprit exists
-  const culpritExists = caseData.suspects.some(s => s.suspectId === caseData.solution.culprit);
-  if (!culpritExists) {
-    errors.push(`Solution culprit ${caseData.solution.culprit} not found in suspects`);
-  }
-  
-  // Check solution evidence references
-  caseData.solution.keyEvidence.forEach(id => {
-    const isEvidence = caseData.evidence.some(e => e.evidenceId === id);
-    const isDocument = caseData.documents.some(d => d.documentId === id);
-    if (!isEvidence && !isDocument) {
-      errors.push(`Solution references unknown item: ${id}`);
-    }
-  });
-  
-  // Check forensic evidence references
-  caseData.forensicAnalyses.forEach(fa => {
-    const evidenceExists = caseData.evidence.some(e => e.evidenceId === fa.evidenceId);
-    if (!evidenceExists) {
-      errors.push(`Forensic analysis ${fa.analysisId} references unknown evidence: ${fa.evidenceId}`);
-    }
-  });
-  
-  // Check file paths exist
-  const basePath = caseJsonPath.replace('/case.json', '');
-  caseData.documents.forEach(doc => {
-    const fullPath = `${basePath}/${doc.filePath}`;
-    if (!fs.existsSync(fullPath)) {
-      errors.push(`Document file not found: ${doc.filePath}`);
-    }
-  });
-  
-  if (errors.length > 0) {
-    console.error('Validation errors:');
-    errors.forEach(err => console.error(`  - ${err}`));
-    return false;
-  }
-  
-  console.log('✅ Case validation passed!');
-  return true;
-}
-
-// Usage: node case-validator.js cases/CASE-2024-001/case.json
-validateCase(process.argv[2]);
-```
+- Case Bible consistency
+- CaseGraph cross-reference consistency
+- Evidence / proof / forensic-outcome validation
+- Difficulty + locale validation
+- Solver score gate (**reject below 0.90**)
+- Specialist/expert review, rookie regression, and parity checks
 
 ### Clue Checker Tool
 
-```python
-# clue-checker.py
-import json
-import sys
-
-def check_clues(case_json_path):
-    with open(case_json_path, 'r') as f:
-        case = json.load(f)
-    
-    solution = case['solution']
-    culprit = solution['culprit']
-    key_evidence = solution['keyEvidence']
-    
-    print(f"\n🔍 Checking case: {case['metadata']['title']}\n")
-    
-    # Find all mentions of culprit
-    culprit_mentions = []
-    for doc in case['documents']:
-        if culprit in str(doc):
-            culprit_mentions.append(doc['documentId'])
-    
-    print(f"Culprit ({culprit}) mentioned in documents: {culprit_mentions}")
-    
-    # Check if key evidence is discoverable
-    discoverable_evidence = []
-    for ev_id in key_evidence:
-        # Check if evidence is in evidence list
-        evidence_item = next((e for e in case['evidence'] if e['evidenceId'] == ev_id), None)
-        if evidence_item:
-            discoverable_evidence.append(ev_id)
-        # Check if it's a document
-        document_item = next((d for d in case['documents'] if d['documentId'] == ev_id), None)
-        if document_item:
-            discoverable_evidence.append(ev_id)
-    
-    print(f"Key evidence discoverable: {len(discoverable_evidence)}/{len(key_evidence)}")
-    
-    # Check forensic analyses
-    forensic_available = [fa['analysisId'] for fa in case['forensicAnalyses']]
-    forensic_in_solution = [ev for ev in key_evidence if ev.startswith('FA-')]
-    
-    print(f"Forensic analyses in solution: {forensic_in_solution}")
-    
-    # Timeline consistency check
-    timeline_dates = [event['dateTime'] for event in case['timeline']]
-    is_chronological = all(timeline_dates[i] <= timeline_dates[i+1] for i in range(len(timeline_dates)-1))
-    
-    print(f"Timeline is chronological: {is_chronological}")
-    
-    print("\n✅ Clue check complete!\n")
-
-# Usage: python clue-checker.py cases/CASE-2024-001/case.json
-check_clues(sys.argv[1])
-```
+**Current implementation:** clue solvability is enforced primarily by the automated **SolverTask** in the generation pipeline, which attempts to solve the case using only player-visible evidence. Treat any older examples that mention deprecated field names (for example `documents[]` as a canonical top-level structure) as historical sketches only, not as the current repository contract.
 
 ---
 
@@ -838,13 +706,18 @@ Refer to [05-NARRATIVE.md](05-NARRATIVE.md) for complete guidelines.
 
 ### Difficulty Scoring Formula
 
+**Current implementation:** the live repository uses the shared seven-level difficulty/rank enum:
+`Rookie`, `Detective`, `Detective2`, `Sergeant`, `Lieutenant`, `Captain`, `Commander`.
+
+**Historical design note (not the live enum):** the four-tier point formula below is preserved as original balancing guidance only.
+
 (From [04-CASE-STRUCTURE.md](04-CASE-STRUCTURE.md))
 
 ```
 Score = (suspects × 5) + (evidence × 3) + (documents × 4) + (forensics × 5) + (red_herrings × 2) + (timeline_complexity × 10)
 ```
 
-**Tiers:**
+**Historical tiers:**
 - Easy: 0-45
 - Medium: 46-90
 - Hard: 91-135
@@ -871,6 +744,8 @@ Score = (suspects × 5) + (evidence × 3) + (documents × 4) + (forensics × 5) 
 ---
 
 ## 10.13 Post-Launch Content Pipeline
+
+> **Historical roadmap note:** this section captures original launch-planning assumptions (for example Easy/Medium/Hard/Expert case mix). It should be read as planning history, not as the current repository's implemented difficulty system.
 
 ### Launch Content (MVP)
 

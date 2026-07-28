@@ -63,7 +63,7 @@ O ciclo fundamental que os jogadores repetem durante toda a investigação:
     │ RECEBER FEEDBACK │  ← Resolução (2-5 min)
     │                  │     - Correto/Incorrreto
     └──────┬───────────┘     - Ver solução oficial
-           │                 - Ganhar XP e patente
+           │                 - Ganhar crédito de promoção e progresso de patente
            │
            ▼
     [Próximo caso ou nova tentativa]
@@ -207,7 +207,7 @@ Como uma sessão típica se desenrola:
 0:35 - Revisa o texto
 0:38 - Clica em Enviar (tensão!)
 0:40 - Tela de feedback: "Correto!" + passo a passo da solução
-0:42 - Recebe XP, patente sobe
+0:42 - Resultado do caso é registrado, progresso de promoção avança
 0:45 - Retorna ao painel, vê próximo caso desbloqueado
 ```
 
@@ -216,6 +216,8 @@ Como uma sessão típica se desenrola:
 ## 2.4 Progressão de Dificuldade
 
 Como o desafio escala ao longo da experiência:
+
+**Nota de implementação:** O jogo em produção usa sete níveis canônicos compartilhados entre dificuldade do caso e patente de detetive: `Rookie`, `Detective`, `Detective2`, `Sergeant`, `Lieutenant`, `Captain`, `Commander`. Os blocos Fácil/Médio/Difícil/Especialista abaixo são apenas um atalho de design, não o enum canônico exibido no jogo.
 
 ### Casos Fáceis
 **Público-alvo:** Jogadores iniciantes, investigadores casuais  
@@ -287,8 +289,8 @@ Como o jogador "vence" um caso?
 4. ✅ Enviar dentro do limite de tentativas (geralmente 3)
 
 **Recompensas:**
-- XP completo do caso (baseado na dificuldade)
-- Progresso de patente rumo ao próximo nível
+- Conta como um caso corretamente resolvido para promoção quando a solução enviada está correta
+- Os limiares de promoção avançam em 3, 8, 16, 28, 44 e 65 casos corretamente resolvidos de forma cumulativa (Rookie começa em 0)
 - Caso marcado como "Resolvido" no histórico
 - Passo a passo da solução liberado
 - Próximo(s) caso(s) desbloqueado(s)
@@ -300,7 +302,7 @@ Como o jogador "vence" um caso?
 - Interpretação das evidências foi lógica (mesmo incorreta)
 
 **Recompensas:**
-- 50% do XP (reconhece o esforço)
+- Nenhum crédito de promoção nas regras atuais de promoção por casos corretamente resolvidos
 - Feedback detalhado sobre o que faltou
 - Pode tentar novamente em nova tentativa
 
@@ -310,7 +312,7 @@ Como o jogador "vence" um caso?
 - Não consegue resolver o caso
 
 **Resultado:**
-- Nenhum XP concedido
+- Nenhum crédito de promoção concedido
 - Solução completa revelada
 - Caso marcado como "Não Resolvido - Revisado"
 - Pode ser tentado de novo depois (após solucionar outros casos)
@@ -332,7 +334,7 @@ O que NÃO faz o jogador falhar:
 ### Falha Suave: Ficar sem Tentativas
 **O que acontece:**
 - Após 3 submissões incorretas, o caso é "travado"
-- Solução é revelada (sem XP)
+- Solução é revelada (não conta como caso corretamente resolvido para promoção)
 - É preciso resolver 2 outros casos antes de tentar novamente
 - Jogador aprende com os erros
 
@@ -406,7 +408,7 @@ O que mantém os jogadores engajados?
 
 ### Ganchos de Longo Prazo (Entre Casos)
 **"Estou virando um detetive melhor..."**
-- Progressão de patentes (Novato → Detetive → Veterano → Mestre)
+- Progressão de patentes (Rookie → Detective → Detective2 → Sergeant → Lieutenant → Captain → Commander)
 - Biblioteca de casos crescente (5, 10, 20 casos solucionados)
 - Taxa de sucesso melhorando ao longo do tempo
 - Desbloqueio de casos mais difíceis e interessantes
@@ -692,7 +694,7 @@ Como lidamos com cenários incomuns:
 
 **Resposta do sistema:**
 - ✅ Solução ainda é aceita
-- ✅ XP total concedido
+- ✅ Ainda conta como caso corretamente resolvido para promoção se a submissão final estiver correta
 - 🎖️ Bônus: reconhecimento "Intuição de Detetive"
 - Observação: raro, mas deve ser recompensado
 
@@ -766,7 +768,7 @@ Como a jogabilidade pode evoluir pós-lançamento:
 ### Fase 4 (Longo prazo): Recursos Avançados
 - **Modo coop:** Dois detetives compartilham o caso (colaboração assíncrona)
 - **Casos personalizados:** Casos criados pela comunidade (curados)
-- **Gerador de casos:** Criação procedural (muito longo prazo)
+- **Gerador de Casos para Jogadores:** Criação procedural/UGC (muito longo prazo)
 
 **Importante:** O loop central permanece intocado. Adições são melhorias, não substituições.
 
@@ -786,7 +788,7 @@ Como a jogabilidade pode evoluir pós-lançamento:
 **Experiência do jogador:**
 - Sessões duram 30-90 minutos
 - Casos levam 3-5 sessões para concluir
-- Dificuldade escala de Fácil (2-4h) a Especialista (8-12h)
+- A dificuldade escala pelos sete níveis implementados, de Rookie a Commander
 - Autonomia e investigação guiada pelo jogador o tempo todo
 
 **Métricas de sucesso:**

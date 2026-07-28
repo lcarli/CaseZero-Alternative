@@ -27,7 +27,7 @@ The central invariant is:
 flowchart TD
     POST[POST /api/cases/v2/generate] --> START[StartCaseV2Generation]
     START --> ORCH[Durable orchestrator]
-    ORCH --> ACT[Single generation activity]
+    ORCH -->|five complete attempts by default| ACT[Generation activity per attempt]
     ACT --> GEN[CaseV2GeneratorService]
     GEN --> LLM[Azure Foundry text/image models]
     GEN --> DISK[Local case directory]
@@ -36,7 +36,7 @@ flowchart TD
     STATUS --> PROGRESS[Per-job progress blob]
 ```
 
-The Durable orchestrator currently wraps generation in one long-running activity. Durable Functions persists orchestration state and reports terminal failures, but it cannot resume from an individual internal generation phase after an activity crash.
+The Durable orchestrator runs each complete generation attempt as one long-running activity. By default it can invoke up to five complete attempts under the same job ID, with exponential backoff between attempts. Durable Functions persists orchestration state and reports terminal failures, but an individual attempt cannot resume from an internal generation phase after an activity crash; the next retry starts a fresh complete attempt.
 
 `JobPhaseReporter` writes best-effort progress independently of the activity result. Reporter failures never stop generation.
 
@@ -98,6 +98,11 @@ The public progress model is versioned as `casegraph-v2`. It preserves complete-
 Each public stage records status, attempt count, start/completion timestamps, and duration. The status endpoint also returns the exact internal `currentPhase`.
 
 The job-level progress payload also returns `currentAttempt`, `maxAttempts`, `nextRetryAt`, `retryReason`, and `attempts`. Every attempt contains its own stage history, timestamps, status, and terminal error. Starting a new complete attempt does not erase earlier phases.
+
+Retries exist at two distinct levels:
+
+1. `CaseBibleTask` can perform up to three semantic retries inside one complete attempt. These retries reuse actionable validation feedback to repair the canonical world before downstream generation begins.
+2. The Durable orchestrator can restart the complete pipeline under the same job ID, using five attempts by default. Complete retries cover validation failures and retryable infrastructure failures that could not be resolved inside the current attempt.
 
 ## Canonical data layers
 
@@ -326,7 +331,7 @@ It:
 7. answers generated questions;
 8. grades the attempt using the same scoring model as the backend.
 
-A case fails if the logical proof, narrative simulation, accusation citations, or final score does not pass.
+A case fails if the logical proof, narrative simulation, accusation citations, or final score does not pass. The blocking MVP quality threshold requires a solver score of at least `0.90`.
 
 ### 12. Specialist advisory review
 
@@ -460,7 +465,9 @@ to the configured bundles container.
 
 The backend's `CaseV2StorageService` reads this same layout.
 
-Blob publication is best-effort. If upload fails, generation logs the failure and leaves the validated case on the local filesystem; `BlobsPublished` remains zero. A successful local generation is therefore not proof that the case reached production storage.
+Assets are uploaded first and `<caseId>/case.json` is uploaded last. The final JSON is the bundle commit marker: the backend cannot discover a newly generated case until every referenced asset has been uploaded.
+
+When Blob publication is configured, upload failures are surfaced to the generation activity. The job cannot report success for an incomplete or unpublished production bundle. When publication is explicitly disabled or no storage configuration exists, generation can still complete as a local-only operation.
 
 ## Difficulty contracts
 
@@ -536,6 +543,7 @@ Large generated content and asset bytes are not stored in Durable orchestration 
 | `CaseGenV2:CaseGraphEnabled` | Emit graph-compiled public contract; defaults to `false` |
 | `CaseGenV2:CasesBasePath` | Local output root |
 | `CaseGenV2:DisableBlobPublishing` | Disable publication |
+| `CaseGenV2:JobMaxAttempts` | Complete Durable attempts per job; defaults to `5` and is capped at `10` |
 | `CaseGenV2:RepairMaxIterations` | Override difficulty repair limit |
 | `CaseGenV2:RookieMaxMediumFindings` | Rookie advisory verdict tolerance |
 | `CaseGeneratorStorage:AccountName` | Managed-identity storage account |
@@ -583,14 +591,39 @@ Run a resumable sequential soak matrix:
 scripts\run-casev2-soak.ps1 `
   -CasesPerDifficulty 3 `
   -CooldownSeconds 60 `
-  -MaxAttempts 3 `
+  -MaxAttempts 5 `
   -Language en-US `
   -ReportPath casev2-soak-report.json
 ```
 
 The soak harness uses concurrency `1`, persists progress after every attempt, skips already-passed seeds when resumed, and applies exponential backoff. Successful case directories are removed after metrics are recorded unless `-KeepCases` is supplied.
 
-The July 24, 2026 soak test completed 20 cases and cancelled one. Fourteen passed, six failed after three attempts, and no rate limits were observed. The 70% final pass rate and 40% first-attempt pass rate are not sufficient for unattended production generation. See [`CASE_GENERATION_SOAK_TEST_2026-07-24.md`](./CASE_GENERATION_SOAK_TEST_2026-07-24.md) for the complete results, failed seeds, production-readiness assessment, and prioritized remediation plan.
+The July 24, 2026 soak test is the historical pre-remediation baseline. It completed 20 cases and cancelled one: fourteen passed, six failed after three attempts, and no rate limits were observed. Its 70% final pass rate and 40% first-attempt pass rate justified the normalization, solver gate, retry, progress, and publication changes described in this document. See [`CASE_GENERATION_SOAK_TEST_2026-07-24.md`](./CASE_GENERATION_SOAK_TEST_2026-07-24.md) for the original results and failed seeds.
+
+After remediation, all six previously failing seeds produced valid cases within five attempts:
+
+| Seed | Successful attempt |
+|---:|---:|
+| 1102 | 1 |
+| 2102 | 2 |
+| 3101 | 2 |
+| 5102 | 4 |
+| 6103 | 2 |
+| 7102 | 3 |
+
+A separate seven-difficulty matrix also passed:
+
+| Difficulty | Seed | Successful attempt | Solver score |
+|---|---:|---:|---:|
+| Rookie | 1101 | 1 | 1.00 |
+| Detective | 2101 | 1 | 1.00 |
+| Detective2 | 3101 | 1 | 1.00 |
+| Sergeant | 4101 | 2 | 0.95 |
+| Lieutenant | 5101 | 2 | 1.00 |
+| Captain | 6101 | 5 | 0.95 |
+| Commander | 7101 | 2 | 1.00 |
+
+No rate limits occurred, and every complete attempt emitted phase progress events. These results validate retry-assisted MVP generation; they do not imply that first-attempt reliability is perfect.
 
 ## Code map
 

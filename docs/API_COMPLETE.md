@@ -235,7 +235,15 @@ Generation request:
 
 Supported difficulty values are the complete seven-level ladder listed above. `language` selects the single language used for the generated case.
 
-The first canonical generation phase is `caseBible`, reported under the public `caseDesign` stage. It establishes the fictional world, people, schedules, locations, identifiers, incident truth, facts, observations, proof paths, decoys, forensic opportunities, and intentional conflicts before plot, dossier, graph, forensic, solution, and rendering phases consume them.
+The public `caseDesign` stage is divided into three visible internal phases:
+
+1. `caseBible` establishes the fictional world, people, schedules, locations, identifiers, incident truth, facts, observations, proof paths, decoys, forensic opportunities, and intentional conflicts.
+2. `plotOutline` projects that canonical truth into the case metadata and investigation blueprint.
+3. `suspectCards` creates the player-facing suspect profiles from canonical people.
+
+The complete job can retry from the beginning under the same `jobId`. Five attempts are used by default, with backoff and complete per-attempt stage history.
+
+`writeToDisk` is a generator persistence control rather than a gameplay option. Browser clients should normally leave it at the server-selected value.
 
 Accepted response:
 
@@ -279,10 +287,12 @@ The backend proxy calls these Function routes:
 
 | Method | Path | Function authorization |
 |---|---|---|
-| `POST` | `/api/cases/v2/generate` | `Anonymous`; deployment/network configuration must protect direct access. |
-| `GET` | `/api/cases/v2/jobs/{jobId}` | `Anonymous`; deployment/network configuration must protect direct access. |
+| `POST` | `/api/cases/v2/generate` | `Anonymous`; direct access must be protected by deployment/network configuration. |
+| `GET` | `/api/cases/v2/jobs/{jobId}` | `Anonymous`; direct access must be protected by deployment/network configuration. |
 
 The Function key can be forwarded through `CaseGenerator:FunctionKey` if authorization is changed to Function level.
+
+The supported browser path is the authenticated `ADMIN` backend proxy. The Function routes must not be treated as public client APIs while their code-level authorization remains `Anonymous`.
 
 ## SignalR
 

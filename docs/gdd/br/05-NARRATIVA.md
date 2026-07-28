@@ -1190,7 +1190,7 @@ com a vítima.
 
 ---
 
-**Próximo capítulo:** [06-PROGRESSAO.md](06-PROGRESSAO.md) – Patentes de detetive e progressão
+**Próximo capítulo:** [06-PROGRESSAO.md](06-PROGRESSAO.md) – Patentes de detetive, limiares implementados e progressão
 
 **Documentos relacionados:**
 

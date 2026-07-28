@@ -67,18 +67,18 @@
 
 | Chapter | Status | Last Updated | Author |
 |---------|--------|--------------|--------|
-| 01-CONCEPT | ⏳ Pending | - | - |
-| 02-GAMEPLAY | ⏳ Pending | - | - |
-| 03-MECHANICS | ⏳ Pending | - | - |
-| 04-CASE-STRUCTURE | ⏳ Pending | - | - |
-| 05-NARRATIVE | ⏳ Pending | - | - |
-| 06-PROGRESSION | ⏳ Pending | - | - |
-| 07-USER-INTERFACE | ⏳ Pending | - | - |
-| 08-TECHNICAL | ⏳ Pending | - | - |
-| 09-DATA-SCHEMA | ⏳ Pending | - | - |
-| 10-CONTENT-PIPELINE | ⏳ Pending | - | - |
-| 11-TESTING | ⏳ Pending | - | - |
-| 12-ROADMAP | ⏳ Pending | - | - |
+| 01-CONCEPT | ✅ Complete | 2025-11-13 | AI Assistant |
+| 02-GAMEPLAY | ✅ Complete | 2025-11-13 | AI Assistant |
+| 03-MECHANICS | ✅ Complete | 2025-11-13 | AI Assistant |
+| 04-CASE-STRUCTURE | ✅ Complete | 2025-11-13 | AI Assistant |
+| 05-NARRATIVE | ✅ Complete | 2025-11-13 | AI Assistant |
+| 06-PROGRESSION | ✅ Complete | 2025-11-13 | AI Assistant |
+| 07-USER-INTERFACE | ✅ Complete | 2025-11-13 | AI Assistant |
+| 08-TECHNICAL | ✅ Complete | 2025-11-13 | AI Assistant |
+| 09-DATA-SCHEMA | ✅ Complete | 2025-11-14 | AI Assistant |
+| 10-CONTENT-PIPELINE | ✅ Complete | 2025-11-14 | AI Assistant |
+| 11-TESTING | ✅ Complete | 2025-11-14 | AI Assistant |
+| 12-ROADMAP | ✅ Complete | 2025-11-14 | AI Assistant |
 
 **Legend:**
 - ⏳ Pending - Not started
@@ -127,24 +127,30 @@
 
 ## 🎮 Current Build Status
 
-**Version:** 3.0-alpha  
-**Branch:** EmailEngine (to be renamed)  
-**Status:** Design Phase
+**Version:** 3.0 (in active development)
+**Branch:** main
+**Status:** Design complete; core systems implemented and evolving
+
+> **⚠️ Note:** This GDD was originally written during the design phase. Since then, substantial parts of the game have been **implemented** and now differ in specifics from the original design chapters (most notably progression/ranks and the case-generation pipeline). Each chapter has been reviewed and annotated where its content is aspirational/roadmap rather than current behavior. For a quick, verified snapshot of what's actually live today, see below.
+
+**Implemented today:**
+- ✅ Canonical **`case.json` v2** format (`docs/CASE_JSON_V2_SPEC.md`, `schemas/case.schema.json`) — server-only fields sanitized before reaching the client
+- ✅ ASP.NET Core Web API backend (**.NET 8**) with JWT + ASP.NET Identity, EF Core (SQL Server / SQLite)
+- ✅ Automated **Case v2 generation pipeline** on Azure Durable Functions (**CaseGen.Functions, .NET 9**): Case Bible → external LLM agent prompts → CaseGraph consistency checks → retries with backoff → phase progress reporting → solver gate (score ≥ 0.90) → multi-stage validation → ordered Blob publication (assets first, `case.json` written last as the commit marker)
+- ✅ 7-level `Rookie → Detective → Detective2 → Sergeant → Lieutenant → Captain → Commander` difficulty/rank system, with promotion based on cumulative graded-correct case resolves (see Chapter 06 for exact thresholds)
+- ✅ React/TypeScript frontend with an admin-only case-generation UI (`/case-generation`) and a 4-locale UI (`en-US`, `pt-BR`, `es-ES`, `fr-FR`)
+
+**In progress / design-only (see individual chapters for details):** the original 8-rank/XP progression model, most of the long-term product roadmap (Chapter 12), and several UI/mechanics ideas remain aspirational.
 
 **Completed:**
 - ✅ Initial concept and vision defined
 - ✅ PLAN-V3 documentation created
 - ✅ BRAINSTORM initial analysis
 
-**In Progress:**
-- 🚧 GDD structure setup
-- 🚧 Chapter drafting
-
 **Next Steps:**
-1. Complete Chapter 01-CONCEPT
-2. Complete Chapter 02-GAMEPLAY
-3. Complete Chapter 04-CASE-STRUCTURE
-4. Begin technical implementation
+1. Keep GDD chapters in sync with implementation as new systems ship
+2. Continue expanding case content and locales
+3. Revisit aspirational chapters (progression, roadmap) as those systems evolve
 
 ---
 
