@@ -500,6 +500,9 @@ export const enUS: Translations = {
   stageTargetedRepair: 'Targeted repair',
   stageFinalValidation: 'Final validation',
   stageFinalization: 'Finalization and publishing',
+  phaseCaseBible: 'Building the world and case truth',
+  phasePlotOutline: 'Projecting the plot and investigation',
+  phaseSuspectCards: 'Creating suspect profiles',
   
   // Pinboard
   pinboard: 'Pinboard',

@@ -509,6 +509,9 @@ export interface Translations {
   stageTargetedRepair: string;
   stageFinalValidation: string;
   stageFinalization: string;
+  phaseCaseBible: string;
+  phasePlotOutline: string;
+  phaseSuspectCards: string;
   
   // Pinboard
   pinboard: string;

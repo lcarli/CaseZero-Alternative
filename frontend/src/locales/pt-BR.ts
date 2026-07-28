@@ -500,6 +500,9 @@ export const ptBR: Translations = {
   stageTargetedRepair: 'Reparo direcionado',
   stageFinalValidation: 'Validação final',
   stageFinalization: 'Finalização e publicação',
+  phaseCaseBible: 'Construindo o mundo e a verdade do caso',
+  phasePlotOutline: 'Projetando o enredo e a investigação',
+  phaseSuspectCards: 'Criando os perfis dos suspeitos',
   
   // Pinboard
   pinboard: 'Quadro de Investigação',

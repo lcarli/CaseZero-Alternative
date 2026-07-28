@@ -500,6 +500,9 @@ export const frFR: Translations = {
   stageTargetedRepair: 'Réparation ciblée',
   stageFinalValidation: 'Validation finale',
   stageFinalization: 'Finalisation et publication',
+  phaseCaseBible: 'Construction du monde et de la vérité de l\'affaire',
+  phasePlotOutline: 'Projection de l\'intrigue et de l\'enquête',
+  phaseSuspectCards: 'Création des profils des suspects',
   
   // Pinboard
   pinboard: 'Tableau d\'Enquête',
