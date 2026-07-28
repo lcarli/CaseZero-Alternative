@@ -1,0 +1,3 @@
+# Canonical surveillance subject
+
+{{subject}}

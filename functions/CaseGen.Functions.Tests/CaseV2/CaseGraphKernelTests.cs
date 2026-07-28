@@ -1,6 +1,7 @@
 using System.Text.Json;
 using CaseGen.Functions.Models.CaseV2;
 using CaseGen.Functions.Services.CaseV2;
+using CaseGen.Functions.Services.CaseV2.Tasks;
 using Xunit;
 
 namespace CaseGen.Functions.Tests.CaseV2;
@@ -125,6 +126,60 @@ public class CaseGraphKernelTests
         Assert.Contains(report.Errors, error => error.Code == "duplicate_canonical_event");
         Assert.Contains(report.Errors, error => error.Code == "observation_not_owned_by_source");
         Assert.Contains(report.Errors, error => error.Code == "unobserved_source_claim");
+    }
+
+    [Fact]
+    public void Validator_AllowsFactsInOneDeclaredIntentionalConflict()
+    {
+        var graph = BaseGraph();
+        graph.Facts.Add(new CanonicalFact
+        {
+            Id = "fact.reported_one",
+            Predicate = "reportedTime",
+            SubjectId = "person.culprit",
+            LiteralValue = "20:10",
+            LiteralType = LiteralValueType.String,
+            IntentionalConflictId = "conflict.reported_time"
+        });
+        graph.Facts.Add(new CanonicalFact
+        {
+            Id = "fact.reported_two",
+            Predicate = "reportedTime",
+            SubjectId = "person.culprit",
+            LiteralValue = "20:15",
+            LiteralType = LiteralValueType.String,
+            IntentionalConflictId = "conflict.reported_time"
+        });
+
+        var report = CaseGraphValidator.Validate(graph);
+
+        Assert.DoesNotContain(report.Errors, error => error.Code == "conflicting_canonical_fact");
+    }
+
+    [Fact]
+    public void Validator_AllowsMultipleAccessEventsForOneSystem()
+    {
+        var graph = BaseGraph();
+        graph.Facts.Add(new CanonicalFact
+        {
+            Id = "fact.badge_event_one",
+            Predicate = "access.badgeEvent",
+            SubjectId = "person.culprit",
+            LiteralValue = "18:57",
+            LiteralType = LiteralValueType.String
+        });
+        graph.Facts.Add(new CanonicalFact
+        {
+            Id = "fact.badge_event_two",
+            Predicate = "access.badgeEvent",
+            SubjectId = "person.culprit",
+            LiteralValue = "19:16",
+            LiteralType = LiteralValueType.String
+        });
+
+        var report = CaseGraphValidator.Validate(graph);
+
+        Assert.DoesNotContain(report.Errors, error => error.Code == "conflicting_canonical_fact");
     }
 
     [Fact]
@@ -325,6 +380,51 @@ public class CaseGraphKernelTests
         Assert.True(independent.Paths.Count >= 2);
     }
 
+    [Fact]
+    public void TransitionalProjection_MaterializesDetective2AdvancedTopology()
+    {
+        var draft = TransitionalTopologyDraft("Detective2", initialClues: 2, forensicClues: 1, decoys: 3);
+
+        EvidenceGraphCompiler.Compile(draft);
+        var report = DifficultyTopologyValidator.Validate(draft);
+        var evidenceReport = EvidenceContractValidator.ValidatePlan(draft);
+
+        Assert.Empty(report.Errors);
+        Assert.DoesNotContain(evidenceReport.Errors, error =>
+            error.Contains("excluded without positive verification evidence", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TransitionalProjection_MaterializesCommanderSeniorTopology()
+    {
+        var draft = TransitionalTopologyDraft("Commander", initialClues: 3, forensicClues: 3, decoys: 4);
+
+        EvidenceGraphCompiler.Compile(draft);
+        var report = DifficultyTopologyValidator.Validate(draft);
+
+        Assert.Empty(report.Errors);
+    }
+
+    [Fact]
+    public void CaseBibleNormalization_SortsTruthTimelineChronologically()
+    {
+        var bible = new CaseBible
+        {
+            TruthTimeline =
+            {
+                new CaseBibleTruthBeat { Id = "event.third", Time = "2026-07-21T22:00:00Z" },
+                new CaseBibleTruthBeat { Id = "event.first", Time = "2026-07-21T20:00:00Z" },
+                new CaseBibleTruthBeat { Id = "event.second", Time = "2026-07-21T21:00:00Z" }
+            }
+        };
+
+        CaseBibleNormalizer.Normalize(bible);
+
+        Assert.Equal(
+            ["event.first", "event.second", "event.third"],
+            bible.TruthTimeline.Select(beat => beat.Id));
+    }
+
     private static CaseGraph BaseGraph() => new()
     {
         Entities =
@@ -336,6 +436,122 @@ public class CaseGraphKernelTests
             new SuspectEntityReference { SuspectId = "suspect.culprit", PersonEntityId = "person.culprit" }
         }
     };
+
+    private static CaseDraft TransitionalTopologyDraft(
+        string difficulty,
+        int initialClues,
+        int forensicClues,
+        int decoys)
+    {
+        var draft = new CaseDraft
+        {
+            CulpritId = "suspect.culprit",
+            Request = new GenerateCaseV2Request { Difficulty = difficulty, RequiredRank = difficulty },
+            Metadata = new PlotMetadata { Difficulty = difficulty, RequiredRank = difficulty }
+        };
+        draft.SuspectStubs.Add(new SuspectStub
+        {
+            Id = draft.CulpritId,
+            Name = "Culprit",
+            IsCulprit = true
+        });
+
+        var initialRoles = new[] { "identity", "action", "benefit" };
+        var initialSources = new[] { "document", "digital", "witness" };
+        for (var index = 0; index < initialClues; index++)
+        {
+            var suffix = index + 1;
+            var clueId = $"clue.initial_{suffix}";
+            draft.Blueprint.ClueLadder.Add(new CanonicalClue
+            {
+                Id = clueId,
+                Role = initialRoles[Math.Min(index, initialRoles.Length - 1)],
+                SourceType = initialSources[Math.Min(index, initialSources.Length - 1)],
+                Strength = "supporting",
+                Discovery = $"Initial culprit observation {suffix}.",
+                SupportsSuspectId = draft.CulpritId
+            });
+            draft.AssetStubs.Add(new AssetStub
+            {
+                Id = $"asset.initial_{suffix}",
+                Type = initialSources[Math.Min(index, initialSources.Length - 1)] == "digital"
+                    ? "digital"
+                    : "document",
+                SupportsClueIds = { clueId },
+                ContainedObjectIds = { $"document.initial_{suffix}" }
+            });
+        }
+
+        for (var index = 0; index < forensicClues; index++)
+        {
+            var suffix = index + 1;
+            var clueId = $"clue.forensic_{suffix}";
+            var inputAssetId = $"asset.forensic_input_{suffix}";
+            var resultAssetId = $"asset.forensic_result_{suffix}";
+            var analysisType = $"MetadataAnalysis{suffix}";
+            draft.Blueprint.ClueLadder.Add(new CanonicalClue
+            {
+                Id = clueId,
+                Role = "forensicAttribution",
+                SourceType = "forensic",
+                Strength = index == forensicClues - 1 ? "decisive" : "supporting",
+                Discovery = $"Forensic culprit observation {suffix}.",
+                SupportsSuspectId = draft.CulpritId
+            });
+            draft.AssetStubs.Add(new AssetStub
+            {
+                Id = inputAssetId,
+                Type = "document",
+                ForensicInputClueIds = { clueId },
+                ContainedObjectIds = { $"document.forensic_input_{suffix}" }
+            });
+            draft.ForensicStubs.Add(new ForensicOutcomeStub
+            {
+                InputAssetId = inputAssetId,
+                InputObjectId = $"document.forensic_input_{suffix}",
+                AnalysisType = analysisType,
+                Findings = true,
+                SupportsClueIds = { clueId }
+            });
+            draft.ForensicFull.Add(new ForensicsOutcome
+            {
+                InputAssetId = inputAssetId,
+                AnalysisType = analysisType,
+                Findings = true,
+                ResultAssetId = resultAssetId
+            });
+            draft.ResultAssets.Add(new EvidenceAsset
+            {
+                Id = resultAssetId,
+                Type = "document",
+                Title = $"Forensic result {suffix}"
+            });
+        }
+
+        for (var index = 0; index < decoys; index++)
+        {
+            var suffix = index + 1;
+            var suspectId = $"suspect.decoy_{suffix}";
+            draft.SuspectStubs.Add(new SuspectStub { Id = suspectId, Name = $"Decoy {suffix}" });
+            draft.Blueprint.RedHerrings.Add(new CanonicalRedHerring
+            {
+                SuspectId = suspectId,
+                Suspicion = $"Suspicious observation {suffix}.",
+                Verification = $"Verification record {suffix}.",
+                Resolution = $"Explanation {suffix}."
+            });
+            draft.AssetStubs.Add(new AssetStub
+            {
+                Id = $"asset.decoy_{suffix}",
+                Type = "document",
+                IntroducesRedHerringSuspectIds = { suspectId },
+                ResolvesRedHerringSuspectIds = { suspectId },
+                ContainedObjectIds = { $"document.decoy_{suffix}" }
+            });
+        }
+
+        return draft;
+    }
 
     private static CanonicalFact Fact(
         string id,

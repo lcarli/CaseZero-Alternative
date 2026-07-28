@@ -66,12 +66,17 @@ public sealed class NodeDependencyIndex
     public static NodeDependencyIndex Build(CaseDraft draft)
     {
         var units = new Dictionary<string, MutableRecord>(StringComparer.Ordinal);
+        var canonicalOwner = draft.CaseBible is null ? "plotOutline" : "caseBible";
         foreach (var entity in draft.CaseGraph.Entities)
-            Add(entity.Id, "plotOutline", [], entity);
+            Add(entity.Id, canonicalOwner, [], entity);
         foreach (var fact in draft.CaseGraph.Facts)
-            Add(fact.Id, "plotOutline", References(fact.SubjectId, fact.ObjectId, fact.EventId), fact);
+            Add(fact.Id, canonicalOwner, References(fact.SubjectId, fact.ObjectId, fact.EventId), fact);
         foreach (var graphEvent in draft.CaseGraph.Events)
-            Add(graphEvent.Id, "timeline", graphEvent.ParticipantIds.Concat(graphEvent.FactIds), graphEvent);
+            Add(
+                graphEvent.Id,
+                draft.CaseBible is null ? "timeline" : "caseBible",
+                graphEvent.ParticipantIds.Concat(graphEvent.FactIds),
+                graphEvent);
         foreach (var source in draft.CaseGraph.Sources)
             Add(source.Id, source.AvailableAt == ReachabilityState.AfterForensic ? "forensics" : "assetPlan",
                 source.ObservationIds.Concat(source.RevealPrerequisiteIds), source);

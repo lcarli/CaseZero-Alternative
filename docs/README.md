@@ -13,6 +13,7 @@ Esta pasta contém toda a documentação técnica detalhada do projeto CaseZero-
 - **[BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md)** - Arquitetura do backend .NET (CaseZeroApi + CaseGen.Functions)
 - **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** - Schema e estrutura do banco de dados
 - **[CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md)** - Pipeline de geração automática de casos com AI
+- **[CASE_GENERATION_SOAK_TEST_2026-07-24.md](CASE_GENERATION_SOAK_TEST_2026-07-24.md)** - Resultado do batch real por dificuldade, falhas encontradas e critérios de prontidão
 - **[PDF_DOCUMENT_TEMPLATES.md](PDF_DOCUMENT_TEMPLATES.md)** - Templates profissionais de documentos PDF (7 tipos implementados)
 
 ### 🔧 APIs e Integrações

@@ -57,7 +57,7 @@ public class RedTeamTask
             "affectedPaths":{"type":"array","items":{"type":"string"}},
             "factRefs":{"type":"array","items":{"type":"string"}},
             "expected":{"type":["string","null"]},
-            "ownerStage":{"type":["string","null"],"enum":["plotOutline","suspectCards","assetPlan","assetCards","timeline","forensics","emails","rules","solution",null]},
+            "ownerStage":{"type":["string","null"],"enum":["caseBible","plotOutline","suspectCards","assetPlan","assetCards","timeline","forensics","emails","rules","solution",null]},
             "repairAction":{"type":["string","null"]},
             "invalidateDownstream":{"type":"array","items":{"type":"string"}}
           }}},
@@ -121,10 +121,14 @@ public class RedTeamTask
             var id when id.StartsWith("observation.", StringComparison.Ordinal) => "assetCards",
             var id when id.StartsWith("forensic.", StringComparison.Ordinal) => "forensics",
             var id when id.StartsWith("question.", StringComparison.Ordinal) => "solution",
-            var id when id.StartsWith("event.", StringComparison.Ordinal) => "timeline",
-            var id when id.StartsWith("locale.", StringComparison.Ordinal) => "plotOutline",
+            var id when id.StartsWith("event.", StringComparison.Ordinal) => "caseBible",
+            var id when id.StartsWith("fact.", StringComparison.Ordinal) => "caseBible",
+            var id when id.StartsWith("person.", StringComparison.Ordinal) => "caseBible",
+            var id when id.StartsWith("location.", StringComparison.Ordinal) => "caseBible",
+            var id when id.StartsWith("locale.", StringComparison.Ordinal) => "caseBible",
+            var id when id.StartsWith("caseBible", StringComparison.Ordinal) => "caseBible",
             var id when id.StartsWith("suspect.", StringComparison.Ordinal) => "suspectCards",
-            _ => "plotOutline"
+            _ => "caseBible"
         };
 
     private static string? TryExtractDifficulty(string assembledJson)
@@ -288,60 +292,15 @@ public class RedTeamTask
     private async Task<Report> ExecuteAsync(string ctxJson, string source, string? difficulty, CancellationToken ct)
     {
         var isRookie = string.Equals(difficulty, "Rookie", StringComparison.OrdinalIgnoreCase);
-
-        var rookieGuidance = @"
-
-This is a **Rookie** case — by design it must be SIMPLE, SHORT, and FAIR for novice players.
-Apply the rubric with that in mind:
-- Compact motives (1-2 sentences) are appropriate — do NOT flag brevity or lack of backstory depth.
-- 2-3 decoys (not 4+) is fine; do NOT flag ""too few suspects"" or ""decoys lack richness"".
-- Rookie MUST have zero forensic analysis types, zero forensic outcomes, zero result assets/emails, and zero requiredAnalysisIds.
-- Initial digital records such as chat exports, access logs, call logs, e-mails, browser history, or transaction exports are ordinary evidence and are fully allowed in Rookie. Do NOT call them a forensic dependency when no later analysis/result is required.
-- Police evidence logs, seizure forms, custody records, scene photographs, and faithful transcripts of a source record are also ordinary initial evidence. They are not a forensic workflow unless the player must request a later analysis or wait for a result.
-- All evidence needed to solve the case must be initial and understandable without a lab workflow.
-- A short timeline with a direct corroboration chain is the norm — do NOT request extra complexity.
-- Two or more consistent initial records that jointly identify the culprit are intentional Rookie design, not truth leakage. Flag only a single asset that explicitly declares guilt/private truth, a contradiction, or reliance on absent evidence.
-- A consolidated evidence log, dispatch record, or access register is valid proof when it contains the exact underlying timestamped entries; do not demand a separate asset merely because several checks share one well-structured document.
-- A faithful player-visible transcription or excerpt with provenance is answerable evidence; do not require the original standalone file unless the case asks the player to inspect visual/physical properties absent from the transcription.
-- `metadata.incidentDate` is an estimated anchor for uncertain-window crimes. It need not equal a discrete timeline event. Flag it only when it falls outside the player-supported opportunity window or is presented elsewhere as an exact observed time.
-- Procedural language about preserving evidence is not a forensic dependency unless the solution, question, required IDs, or reveal graph actually requires a later result.
-- Use `high` for any forensic dependency, private-truth leakage, contradictory chronology, or question requiring unavailable facts.";
-
-        var system = @"You are the **red-team reviewer** for an interactive detective case. Audit the supplied case package for semantic flaws that would make the case unsolvable, unfair, or implausible. Be ruthless and concise.
-
-Look specifically for:
-1. Evidence-chain strength — do at least two independent player-visible sources support the culprit? For non-Rookie cases, forensic outcomes may participate but must state limitations.
-2. Decoy quality — do the other suspects have plausible motives AND verifiable-enough alibis so the player can confidently rule them out using the evidence available?
-3. Timeline coherence — compare every repeated timestamp across metadata, timeline, assets, emails, questions, and outcomes. Flag hour shifts, future claims, timezone mismatch, contradictions, or impossible travel.
-4. Motive plausibility — culprit's motive must be specific (not ""anger"" or ""greed""), proportional to the crime, and consistent with the briefing.
-5. Reveal chain — every result email/asset linked from a forensic outcome should be reachable via at least one rule when unlockMode is `gated`. (Skip this check for Rookie / all_initial cases.)
-   The runtime itself lets the player request any analysis declared in `forensicsDefaults.analysisTypes`; a matching `forensics_complete` rule is the valid trigger that reveals its result. Do not demand a separate `run_forensics` rule.
-   A hidden required result is intentionally gated. Do NOT flag it merely because the player must choose the declared analysis; flag only when the input/type is unavailable, scientifically incompatible, or the matching reveal rule/result is missing.
-6. Question fairness — every question must be answerable strictly from initial assets + the result emails the rules can reveal. No reliance on hidden information.
-7. Required evidence — requiredEvidenceIds should be revealable; requiredAnalysisIds must be among the forensic outcomes with findings=true.
-8. Tone / content warnings — flag anything gratuitously dark for a Rookie case.
-9. Truth leakage — the public timeline, suspect profiles, briefing, asset descriptions, and notifications must not directly identify the culprit, narrate the hidden crime, or explicitly clear every decoy.
-   A gated forensic result may objectively name a matched account, device, fingerprint, or author when the method supports it; that is evidence, not leakage. It must not declare the matched person guilty.
-10. Locale realism — names, agency, investigator identity, timezone, email domains, and terminology must fit the requested location/language.
-11. Runtime completeness — every temporal event needs a useful payload and every required item must exist in the player-reachable graph.
-
-For each issue emit a Finding with severity, area, concise issue, optional suggestion, exact `affectedPaths`,
-relevant `factRefs`, the expected state, `ownerStage`, a machine-oriented `repairAction`, and
-`invalidateDownstream` listing stages that must rerun after repair.
-`ownerStage` MUST be the earliest stage that owns the defective fact:
-- `plotOutline` for crime mechanism, motive/objective, canonical timestamps, locale, clue wording, or red-herring truth;
-- `suspectCards`, `assetPlan`, `assetCards`, `timeline`, `forensics`, `emails`, `rules`, or `solution` for defects introduced there.
-Do not route canonical-fact defects to a downstream document merely because that is where they became visible.
-
-Verdict:
-- `ok`           — at most low-severity findings.
-- `needs_review` — at least one medium-severity finding.
-- `reject`       — any high-severity finding that prevents the player from solving fairly." + (isRookie ? rookieGuidance : string.Empty);
-
-        var user = $@"CASE PACKAGE:
-{ctxJson}
-
-Emit JSON only.";
+        var prompts = AgentPromptCatalog.Default;
+        var system = prompts.RenderSystem("RedTeam", new Dictionary<string, object?>
+        {
+            ["is_rookie"] = isRookie.ToString().ToLowerInvariant()
+        });
+        var user = prompts.RenderUser("RedTeam", new Dictionary<string, object?>
+        {
+            ["case_package_json"] = ctxJson
+        });
 
         try
         {

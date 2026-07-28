@@ -397,6 +397,15 @@ export interface GenerationStageProgress {
   durationMs?: number | null
 }
 
+export interface GenerationAttemptProgress {
+  number: number
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  startedAt?: string | null
+  completedAt?: string | null
+  error?: string | null
+  stages: GenerationStageProgress[]
+}
+
 export interface GenerateCaseStatus {
   jobId: string
   status: 'queued' | 'running' | 'done' | 'failed'
@@ -405,6 +414,11 @@ export interface GenerateCaseStatus {
   pipelineVersion?: string | null
   progressPercent?: number | null
   stages?: GenerationStageProgress[] | null
+  attempts?: GenerationAttemptProgress[] | null
+  currentAttempt?: number | null
+  maxAttempts?: number | null
+  nextRetryAt?: string | null
+  retryReason?: string | null
   runtimeStatus?: string
   createdAt?: string
   lastUpdatedAt?: string
@@ -441,6 +455,9 @@ export interface GenerateCaseStatus {
     RedTeamVerdictInitial?: string | null
     RedTeamVerdictTrajectory?: string[] | null
     RedTeamRerun?: boolean
+    AttemptCount?: number
+    MaxAttempts?: number
+    SolverScore?: number
   } | null
 }
 

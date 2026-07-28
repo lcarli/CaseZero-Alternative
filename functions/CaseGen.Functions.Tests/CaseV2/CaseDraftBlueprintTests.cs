@@ -12,6 +12,10 @@ public class CaseDraftBlueprintTests
         {
             CaseId = "case_test",
             CulpritId = "suspect.culprit",
+            CaseBible = new CaseBible
+            {
+                World = new CaseBibleWorld { City = "Test City" }
+            },
             Blueprint = new InvestigationBlueprint
             {
                 CrimeMechanism = "Legitimate access was used to alter a delivery handoff.",
@@ -36,5 +40,7 @@ public class CaseDraftBlueprintTests
 
         Assert.Contains("\"investigationBlueprint\"", summary);
         Assert.Contains("\"clue.sensor_gap\"", summary);
+        Assert.Contains("\"caseBible\"", summary);
+        Assert.Contains("\"city\":\"Test City\"", summary);
     }
 }

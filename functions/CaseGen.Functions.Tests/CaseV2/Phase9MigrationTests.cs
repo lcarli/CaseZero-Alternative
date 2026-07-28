@@ -90,6 +90,21 @@ public class Phase9MigrationTests
     }
 
     [Fact]
+    public void FinalValidator_BlocksSolverScoresBelowMvpThreshold()
+    {
+        var draft = ValidRookieDraft();
+        var solver = SuccessfulSolver(draft);
+        solver.Score = 0.89;
+
+        var report = CaseV2FinalValidator.CreateDefault().Validate(draft, PublicRookieJson(), solver);
+
+        Assert.Contains(report.Issues, issue =>
+            issue.Gate == FinalValidationGate.Solver
+            && issue.Code == "solver.quality_threshold"
+            && issue.Blocking);
+    }
+
+    [Fact]
     public void Mutation_RemoveDecisiveObservation_FailsMissingPremiseGate()
     {
         var draft = ValidDetectiveDraft();

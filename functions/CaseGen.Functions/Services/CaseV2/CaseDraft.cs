@@ -12,6 +12,7 @@ public class CaseDraft
 {
     public string CaseId { get; set; } = string.Empty;
     public GenerateCaseV2Request Request { get; set; } = new();
+    public CaseBible? CaseBible { get; set; }
 
     public PlotMetadata Metadata { get; set; } = new();
     public string CulpritId { get; set; } = string.Empty;
@@ -51,6 +52,7 @@ public class CaseDraft
     public string ToSummaryJson() => System.Text.Json.JsonSerializer.Serialize(new
     {
         caseId = CaseId,
+        caseBible = CaseBible,
         metadata = new
         {
             title = Metadata.Title,
@@ -123,10 +125,12 @@ public class CaseDraft
         assets = (AssetFull.Count > 0 ? AssetFull.Select(a => new
         {
             a.Id, a.Type, a.Title, a.Description, a.Visibility, a.Category,
+            a.EvidenceRole, a.SubjectSuspectId, a.ImagePurpose,
             forensicInputClueIds = AssetStubs.FirstOrDefault(stub => stub.Id == a.Id)?.ForensicInputClueIds
         }).Cast<object>().ToList() : AssetStubs.Select(a => new
         {
-            a.Id, a.Type, a.Title, role = a.Role, a.Visibility, a.ForensicInputClueIds
+            a.Id, a.Type, a.Title, role = a.Role, a.Visibility, a.EvidenceRole,
+            a.SubjectSuspectId, a.ImagePurpose, a.ForensicInputClueIds
         }).Cast<object>().ToList()),
         // Result PDFs (forensics output)
         resultAssets = ResultAssets.Select(a => new { a.Id, a.Type, a.Title, a.Description }),
@@ -168,6 +172,9 @@ public class AssetStub
     [JsonPropertyName("type")] public string Type { get; set; } = "pdf";
     [JsonPropertyName("title")] public string Title { get; set; } = string.Empty;
     [JsonPropertyName("role")] public string Role { get; set; } = string.Empty;
+    [JsonPropertyName("evidenceRole")] public string? EvidenceRole { get; set; }
+    [JsonPropertyName("subjectSuspectId")] public string? SubjectSuspectId { get; set; }
+    [JsonPropertyName("imagePurpose")] public string? ImagePurpose { get; set; }
     [JsonPropertyName("visibility")] public string Visibility { get; set; } = "initial";
     [JsonPropertyName("layoutHint")] public string LayoutHint { get; set; } = string.Empty;
     [JsonPropertyName("supportsClueIds")] public List<string> SupportsClueIds { get; set; } = new();
@@ -223,14 +230,18 @@ public class CanonicalClue
     [JsonPropertyName("strength")] public string Strength { get; set; } = "supporting";
     [JsonPropertyName("sourceType")] public string SourceType { get; set; } = "document";
     [JsonPropertyName("role")] public string Role { get; set; } = "context";
+    [JsonPropertyName("observationIds")] public List<string> ObservationIds { get; set; } = new();
 }
 
 public class CanonicalRedHerring
 {
+    [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("suspectId")] public string SuspectId { get; set; } = string.Empty;
     [JsonPropertyName("suspicion")] public string Suspicion { get; set; } = string.Empty;
     [JsonPropertyName("verification")] public string Verification { get; set; } = string.Empty;
     [JsonPropertyName("resolution")] public string Resolution { get; set; } = string.Empty;
+    [JsonPropertyName("suspicionObservationIds")] public List<string> SuspicionObservationIds { get; set; } = new();
+    [JsonPropertyName("verificationObservationIds")] public List<string> VerificationObservationIds { get; set; } = new();
 }
 
 public class ForensicOutcomeStub

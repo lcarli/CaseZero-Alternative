@@ -10,7 +10,7 @@ public enum FactVisibility
     Private
 }
 
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(CaseV2EnumConverter<FactTruthStatus>))]
 public enum FactTruthStatus
 {
     Confirmed,
@@ -41,6 +41,7 @@ public sealed class CanonicalFact
     public string? EventId { get; set; }
     public FactVisibility Visibility { get; set; } = FactVisibility.Public;
     public FactTruthStatus TruthStatus { get; set; } = FactTruthStatus.Confirmed;
+    public string? IntentionalConflictId { get; set; }
 
     [JsonIgnore]
     public string CanonicalValue => ObjectId ?? LiteralValue ?? string.Empty;
@@ -49,6 +50,7 @@ public sealed class CanonicalFact
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum EventKind
 {
+    Occurred,
     Created,
     Modified,
     Scanned,
@@ -88,7 +90,7 @@ public sealed class CanonicalEvent
     public FactVisibility Visibility { get; set; } = FactVisibility.Public;
 }
 
-[JsonConverter(typeof(JsonStringEnumConverter))]
+[JsonConverter(typeof(CaseV2EnumConverter<ObservationFidelity>))]
 public enum ObservationFidelity
 {
     DirectRecord,
@@ -104,6 +106,65 @@ public enum ObservationReliability
     Corroborated,
     Unverified,
     Disputed
+}
+
+public sealed class CaseV2EnumConverter<TEnum> : JsonConverter<TEnum>
+    where TEnum : struct, Enum
+{
+    public override TEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType != JsonTokenType.String)
+            throw new JsonException($"{typeof(TEnum).Name} must be a string.");
+
+        var raw = reader.GetString() ?? string.Empty;
+        if (Enum.TryParse<TEnum>(raw, ignoreCase: true, out var exact))
+            return exact;
+
+        var normalized = Normalize(raw);
+        foreach (var name in Enum.GetNames<TEnum>())
+        {
+            if (Normalize(name) == normalized)
+                return Enum.Parse<TEnum>(name);
+        }
+
+        if (TryAlias(normalized, out var alias))
+            return alias;
+
+        throw new JsonException($"Unsupported {typeof(TEnum).Name} value '{raw}'.");
+    }
+
+    public override void Write(Utf8JsonWriter writer, TEnum value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(value.ToString());
+
+    private static bool TryAlias(string value, out TEnum result)
+    {
+        string? canonical = typeof(TEnum) == typeof(FactTruthStatus)
+            ? value switch
+            {
+                "true" or "verified" or "established" => nameof(FactTruthStatus.Confirmed),
+                "contested" or "uncertain" => nameof(FactTruthStatus.Disputed),
+                "disproven" or "incorrect" => nameof(FactTruthStatus.False),
+                _ => null
+            }
+            : typeof(TEnum) == typeof(ObservationFidelity)
+                ? value switch
+                {
+                    "direct" or "record" or "documentary" or "directevidence" => nameof(ObservationFidelity.DirectRecord),
+                    "witness" or "witnessstatement" or "testimonial" => nameof(ObservationFidelity.Testimony),
+                    "secondhand" => nameof(ObservationFidelity.Hearsay),
+                    "indirect" => nameof(ObservationFidelity.Circumstantial),
+                    _ => null
+                }
+                : null;
+
+        if (canonical is not null && Enum.TryParse(canonical, out result))
+            return true;
+        result = default;
+        return false;
+    }
+
+    private static string Normalize(string value) =>
+        new(value.Where(char.IsAsciiLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
 }
 
 public sealed class EvidenceObservation
@@ -185,6 +246,9 @@ public sealed class EvidenceAssetSpec
     public string Id { get; set; } = string.Empty;
     public string ArchetypeId { get; set; } = string.Empty;
     public string AssetType { get; set; } = string.Empty;
+    public string EvidenceRole { get; set; } = EvidenceRoles.Corroborative;
+    public string? SubjectSuspectId { get; set; }
+    public string? ImagePurpose { get; set; }
     public List<string> ObservationIds { get; set; } = new();
     public List<string> ContainedObjectIds { get; set; } = new();
     public Dictionary<string, ForensicInputObjectType> ContainedObjectTypes { get; set; } =

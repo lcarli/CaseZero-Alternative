@@ -481,6 +481,9 @@ export interface Translations {
   generationQueued: string;
   generationSkipped: string;
   generationAttempt: string;
+  generationAttemptHistory: string;
+  generationRetryScheduled: string;
+  generationSolverScore: string;
   generationUnknownError: string;
   generationPollError: string;
   generationStartError: string;

@@ -124,6 +124,9 @@
         "checksum": { "type": "string", "pattern": "^(sha256:)?[a-f0-9]{64}$" },
         "visibility": { "$ref": "#/$defs/Visibility" },
         "category": { "type": "string" },
+        "evidenceRole": { "type": "string", "enum": ["primary", "corroborative", "contextual"] },
+        "subjectSuspectId": { "$ref": "#/$defs/SuspectIdRef" },
+        "imagePurpose": { "type": "string", "enum": ["scene", "suspect_portrait", "object", "surveillance"] },
         "tags": { "type": "array", "items": { "type": "string" } },
         "metadata": { "type": "object", "additionalProperties": true }
       }

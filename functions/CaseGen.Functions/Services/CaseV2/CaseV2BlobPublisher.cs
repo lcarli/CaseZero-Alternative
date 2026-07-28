@@ -23,8 +23,8 @@ public interface ICaseV2BlobPublisher
 /// Mirrors the freshly-generated case (case.json + assets/*) to Azure Blob Storage so the
 /// site's CaseV2StorageService (running on a different host in production) can pick it up
 /// from the shared `bundles` container. In local dev it can be disabled by leaving the
-/// connection string empty or pointing it at `UseDevelopmentStorage=true` while Azurite
-/// is off — the publisher returns 0 and logs a warning instead of failing the pipeline.
+/// connection string empty. When publishing is configured, upload failures are surfaced so
+/// the generation job cannot report success for an incomplete bundle.
 /// </summary>
 public class CaseV2BlobPublisher : ICaseV2BlobPublisher
 {
@@ -66,14 +66,8 @@ public class CaseV2BlobPublisher : ICaseV2BlobPublisher
 
             var uploaded = 0;
 
-            // 1) case.json
-            if (File.Exists(caseJsonLocalPath))
-            {
-                await UploadFileAsync(container, $"{caseId}/case.json", caseJsonLocalPath, "application/json", ct);
-                uploaded++;
-            }
-
-            // 2) every asset under assets/*
+            // Upload assets first. case.json is the bundle commit marker and is written last,
+            // so a new case cannot become discoverable before all referenced files exist.
             if (Directory.Exists(assetsLocalDir))
             {
                 foreach (var file in Directory.EnumerateFiles(assetsLocalDir, "*", SearchOption.TopDirectoryOnly))
@@ -86,13 +80,18 @@ public class CaseV2BlobPublisher : ICaseV2BlobPublisher
                 }
             }
 
+            if (!File.Exists(caseJsonLocalPath))
+                throw new FileNotFoundException("Generated case.json was not found for publication.", caseJsonLocalPath);
+            await UploadFileAsync(container, $"{caseId}/case.json", caseJsonLocalPath, "application/json", ct);
+            uploaded++;
+
             _logger.LogInformation("Published case {CaseId} to blob container {Container} ({N} blobs)", caseId, _container, uploaded);
             return uploaded;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to publish case {CaseId} to blob storage — case stays in local filesystem only", caseId);
-            return 0;
+            _logger.LogError(ex, "Failed to publish complete case {CaseId} to blob storage", caseId);
+            throw;
         }
     }
 

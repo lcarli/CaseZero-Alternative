@@ -18,6 +18,10 @@ public class AssetRenderingReport
     public int ImagesWritten { get; set; }
     public int Skipped { get; set; }
     public List<string> Errors { get; set; } = new();
+    public Dictionary<string, string> RenderedFileNames { get; set; } = new(StringComparer.Ordinal);
+
+    public bool HasMandatoryVisualErrors =>
+        Errors.Any(error => error.StartsWith("Mandatory visual render failed", StringComparison.Ordinal));
 }
 
 /// <summary>
@@ -30,6 +34,8 @@ public class AssetRenderingReport
 /// </summary>
 public class AssetRenderingService : IAssetRenderingService
 {
+    private const int MaxConcurrentImages = 3;
+    private const int MaxImageAttempts = 2;
     private readonly IPdfRenderingService _pdf;
     private readonly ILLMProvider _llm;
     private readonly IEvidenceDocumentRenderer _docRenderer;
@@ -62,6 +68,7 @@ public class AssetRenderingService : IAssetRenderingService
         var report = new AssetRenderingReport();
         var pdfTasks = new List<Task>();
         var imageTasks = new List<Task>();
+        using var imageGate = new SemaphoreSlim(MaxConcurrentImages, MaxConcurrentImages);
 
         foreach (var a in assets)
         {
@@ -77,7 +84,7 @@ public class AssetRenderingService : IAssetRenderingService
                     break;
                 case "photo":
                 case "image":
-                    imageTasks.Add(RenderImageAsync(caseId, assetsDir, a, report, ct));
+                    imageTasks.Add(RenderImageBoundedAsync(caseId, assetsDir, a, report, imageGate, ct));
                     break;
                 case "audio":
                     // Audio is no longer planned; if the LLM ignores the prompt
@@ -128,7 +135,11 @@ public class AssetRenderingService : IAssetRenderingService
             }
             var path = Path.Combine(dir, $"{a.Id.Replace("asset.", "")}.pdf");
             await File.WriteAllBytesAsync(path, bytes, ct);
-            lock (report) report.PdfsWritten++;
+            lock (report)
+            {
+                report.PdfsWritten++;
+                report.RenderedFileNames[a.Id] = Path.GetFileName(path);
+            }
             _logger.LogDebug("PDF rendered: {Path}", path);
         }
         catch (Exception ex)
@@ -139,34 +150,90 @@ public class AssetRenderingService : IAssetRenderingService
         }
     }
 
-    private async Task RenderImageAsync(string caseId, string dir, EvidenceAsset a, AssetRenderingReport report, CancellationToken ct)
+    private async Task RenderImageBoundedAsync(
+        string caseId,
+        string dir,
+        EvidenceAsset asset,
+        AssetRenderingReport report,
+        SemaphoreSlim gate,
+        CancellationToken ct)
     {
+        await gate.WaitAsync(ct);
         try
         {
-            // Compose a prompt. If body is set we treat it as the prompt; otherwise fall back to description.
-            var prompt = !string.IsNullOrWhiteSpace(a.Body) ? a.Body! :
-                         !string.IsNullOrWhiteSpace(a.Description) ? a.Description! :
-                         a.Title;
-
-            // Light safety prefix so we don't get NSFW or graphic content by accident.
-            prompt = $"Photorealistic crime-scene evidence photograph for a fictional investigation game. " +
-                     $"No graphic gore. Subject: {prompt}. Composition: documentary, neutral lighting, evidence-style.";
-
-            var bytes = await _llm.GenerateImageAsync(prompt, ct);
-            // GPT-image returns PNG (the SDK doesn't expose the response content-type easily here).
-            // Inspect the magic bytes so we don't mislabel the file with the wrong extension.
-            var ext = SniffImageExtension(bytes);
-            var path = Path.Combine(dir, $"{a.Id.Replace("asset.", "")}.{ext}");
-            await File.WriteAllBytesAsync(path, bytes, ct);
-            lock (report) report.ImagesWritten++;
-            _logger.LogDebug("Image rendered: {Path}", path);
+            await RenderImageAsync(caseId, dir, asset, report, ct);
         }
-        catch (Exception ex)
+        finally
         {
-            var msg = $"Image render failed for {a.Id}: {ex.Message}";
-            _logger.LogWarning(ex, msg);
-            lock (report) report.Errors.Add(msg);
+            gate.Release();
         }
+    }
+
+    private async Task RenderImageAsync(string caseId, string dir, EvidenceAsset asset, AssetRenderingReport report, CancellationToken ct)
+    {
+        Exception? lastError = null;
+        for (var attempt = 1; attempt <= MaxImageAttempts; attempt++)
+        {
+            try
+            {
+                var prompt = BuildImagePrompt(asset);
+                var bytes = await _llm.GenerateImageAsync(prompt, ct);
+                var ext = SniffImageExtension(bytes);
+                var path = Path.Combine(dir, $"{asset.Id.Replace("asset.", "")}.{ext}");
+                await File.WriteAllBytesAsync(path, bytes, ct);
+                lock (report)
+                {
+                    report.ImagesWritten++;
+                    report.RenderedFileNames[asset.Id] = Path.GetFileName(path);
+                }
+                _logger.LogDebug("Image rendered: {Path}", path);
+                return;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                lastError = ex;
+                _logger.LogWarning(ex, "Image render attempt {Attempt}/{MaxAttempts} failed for {Id}",
+                    attempt, MaxImageAttempts, asset.Id);
+            }
+        }
+
+        var mandatory = asset.ImagePurpose is ImagePurposes.Scene or ImagePurposes.SuspectPortrait;
+        var prefix = mandatory ? "Mandatory visual render failed" : "Image render failed";
+        var msg = $"{prefix} for {asset.Id} after {MaxImageAttempts} attempts: {lastError?.Message}";
+        lock (report) report.Errors.Add(msg);
+    }
+
+    public static string BuildImagePrompt(EvidenceAsset asset)
+    {
+        var subject = !string.IsNullOrWhiteSpace(asset.Body) ? asset.Body! :
+            !string.IsNullOrWhiteSpace(asset.Description) ? asset.Description! :
+            asset.Title;
+        if (asset.ImagePurpose == ImagePurposes.SuspectPortrait)
+        {
+            subject = subject
+                .Replace("crime-scene", "case dossier", StringComparison.OrdinalIgnoreCase)
+                .Replace("crime scene", "case dossier", StringComparison.OrdinalIgnoreCase);
+        }
+        var prompts = AgentPromptCatalog.Default;
+        var agentName = asset.ImagePurpose switch
+        {
+            ImagePurposes.SuspectPortrait => "ImageRenderPortrait",
+            ImagePurposes.Scene => "ImageRenderScene",
+            ImagePurposes.Surveillance => "ImageRenderSurveillance",
+            ImagePurposes.Object => "ImageRenderObject",
+            _ => "ImageRender"
+        };
+        var variables = new Dictionary<string, object?>
+        {
+            ["subject"] = subject
+        };
+        var system = prompts.RenderSystem(agentName, new Dictionary<string, object?>());
+        var user = prompts.RenderUser(agentName, variables);
+        return system + Environment.NewLine + Environment.NewLine + user;
     }
 
     private static void RenderSidecar(string dir, EvidenceAsset a)

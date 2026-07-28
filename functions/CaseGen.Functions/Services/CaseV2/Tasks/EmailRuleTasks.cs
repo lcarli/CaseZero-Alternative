@@ -18,13 +18,17 @@ public class BriefingEmailTask
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
-        var system = $@"You are writing ONLY the briefing email from `{draft.Blueprint.Locale.PoliceAgency}`,
-addressed to `{draft.Blueprint.Locale.InvestigatorName}`.
-3-5 short markdown paragraphs. Sound like a concise professional assignment, not a movie trailer. State what is known, what remains uncertain, why the case matters now, and the immediate investigative objective. Do NOT reveal private blueprint facts, name the culprit, overstate unverified claims, invent exact identifiers/timestamps, or reference evidence that is not present in the supplied draft. Use the requested case language and local terminology.";
-        var user = $@"CASE DRAFT (read-only):
-{draft.ToSummaryJson()}
-
-Emit JSON only with from / subject / body.";
+        var prompts = AgentPromptCatalog.Default;
+        var system = prompts.RenderSystem("BriefingEmail", new Dictionary<string, object?>
+        {
+            ["police_agency"] = draft.Blueprint.Locale.PoliceAgency,
+            ["investigator_name"] = draft.Blueprint.Locale.InvestigatorName,
+            ["language"] = ForensicMethodCatalog.NormalizeLanguage(draft.Request.Language)
+        });
+        var user = prompts.RenderUser("BriefingEmail", new Dictionary<string, object?>
+        {
+            ["case_draft_json"] = draft.ToSummaryJson()
+        });
         var b = await TaskRunner.RunStructuredAsync<PlotBriefingEmail>(_llm, _logger, "BriefingEmail", system, user, Schema, ct);
         draft.Briefing = b;
     }
@@ -50,18 +54,16 @@ public class InitialEmailsTask
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
-        var system = @"You are writing 0-3 OPTIONAL initial-visibility emails from witnesses or operational contacts (NOT forensic-lab results).
-All emails are `visibility: initial` — they show up immediately. Do not duplicate the briefing or create a second assignment email from the chief. Each email must add a distinct observable fact, testimony, or preservation notice. If the case doesn't naturally need any, emit `emails: []`.
-
-FACT DISCIPLINE:
-- Reuse canonical names, identifiers, account details, phone numbers, hostnames, timestamps, and amounts exactly as supplied; never create a conflicting alternative.
-- Do not claim an attachment was sent unless its asset ID exists and is placed in `attachments`.
-- Do not refer to CCTV, calendars, tickets, receipts, logs, screenshots, platform returns, lab work, or other proof unless that evidence exists in the supplied assets.
-- For Rookie, never recommend or imply a forensic/lab request; all solving evidence is already available.";
-        var user = $@"CASE DRAFT (read-only):
-{draft.ToSummaryJson()}
-
-Emit JSON only.";
+        var prompts = AgentPromptCatalog.Default;
+        var system = prompts.RenderSystem("InitialEmails", new Dictionary<string, object?>
+        {
+            ["language"] = ForensicMethodCatalog.NormalizeLanguage(draft.Request.Language),
+            ["is_rookie"] = DifficultyProfileCatalog.Get(draft).AllEvidenceInitial.ToString().ToLowerInvariant()
+        });
+        var user = prompts.RenderUser("InitialEmails", new Dictionary<string, object?>
+        {
+            ["case_draft_json"] = draft.ToSummaryJson()
+        });
         var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "InitialEmails", system, user, Schema, ct);
         foreach (var e in o.Emails) e.Visibility = "initial";
         draft.FollowUpEmails = o.Emails;
@@ -113,6 +115,7 @@ public class RulesTask
 
         var ctxJson = System.Text.Json.JsonSerializer.Serialize(new
         {
+            caseBible = draft.CaseBible,
             culpritId = draft.CulpritId,
             unlockMode,
             assets = draft.AssetStubs.Select(a => a.Id),
@@ -124,29 +127,16 @@ public class RulesTask
             preBuiltRules = existingRulesSummary
         });
 
-        var system = @"You are writing ONLY the narrative `rules` for the case runtime.
-Mechanical reveal rules (forensics_complete → reveal_email / reveal_asset) ALREADY EXIST in the case
-(see `preBuiltRules` in the context). DO NOT re-emit them — emit ONLY new rules that add narrative beats.
-
-ALLOWED trigger.type values (use EXACTLY these strings, no others):
-  forensics_complete, attachment_download, asset_viewed, email_opened, time_elapsed, suspect_viewed, multiple_conditions
-
-ALLOWED action.type values:
-  reveal_email, reveal_asset, reveal_suspect, add_email_attachment, send_notification
-
-Sensible narrative rules to consider (emit 0-4 total — quality over quantity):
-- `email_opened` of a key lab-result email → a neutral `send_notification` describing the next investigative step without naming or clearing any suspect.
-- `asset_viewed` of a turning-point asset → `send_notification` (level info or warn) nudging the next step.
-- `multiple_conditions` AND/OR composing two earlier triggers when the case naturally needs a delayed reveal.
-
-You may emit ZERO rules if the case doesn't need any extra narrative beats. NEVER duplicate a preBuiltRule.
-Never name the culprit in a notification, mark an alibi as verified, clear a suspect, or declare anyone guilty.
-All referenced IDs MUST exist in the supplied context.";
-
-        var user = $@"CONTEXT:
-{ctxJson}
-
-Emit JSON only. The `rules` array contains ONLY new narrative rules (do not echo preBuiltRules).";
+        var prompts = AgentPromptCatalog.Default;
+        var system = prompts.RenderSystem("Rules", new Dictionary<string, object?>
+        {
+            ["language"] = ForensicMethodCatalog.NormalizeLanguage(draft.Request.Language),
+            ["unlock_mode"] = unlockMode
+        });
+        var user = prompts.RenderUser("Rules", new Dictionary<string, object?>
+        {
+            ["context_json"] = ctxJson
+        });
 
         var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "Rules", system, user, Schema, ct);
 

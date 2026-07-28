@@ -92,6 +92,7 @@ public static class EvidenceContractValidator
         IEvidenceSemanticReviewer? semanticReviewer = null)
     {
         var report = new StageValidationReport();
+        ValidateDossierStructure(draft, report);
         ValidateAssetSpecs(draft.CaseGraph, report);
         ValidateAssetContent(draft, report, semanticReviewer);
         ValidateDecoyArcs(draft, report);
@@ -101,6 +102,7 @@ public static class EvidenceContractValidator
     public static StageValidationReport ValidatePlan(CaseDraft draft)
     {
         var report = new StageValidationReport();
+        ValidateDossierStructure(draft, report);
         ValidateAssetSpecs(draft.CaseGraph, report);
         ValidateDecoyArcs(draft, report);
         return report;
@@ -127,6 +129,15 @@ public static class EvidenceContractValidator
                 report.Errors.Add($"evidencePlan asset spec '{spec.Id}' has no graph source");
             if (string.IsNullOrWhiteSpace(spec.ArchetypeId))
                 report.Errors.Add($"evidencePlan asset spec '{spec.Id}' has no archetypeId");
+            if (!EvidenceRoles.IsInvestigative(spec.EvidenceRole)
+                && !string.Equals(spec.EvidenceRole, EvidenceRoles.Contextual, StringComparison.OrdinalIgnoreCase))
+                report.Errors.Add($"evidencePlan asset spec '{spec.Id}' has invalid evidenceRole '{spec.EvidenceRole}'");
+            if (string.Equals(spec.EvidenceRole, EvidenceRoles.Contextual, StringComparison.OrdinalIgnoreCase)
+                && spec.ObservationIds.Count > 0)
+                report.Errors.Add($"evidencePlan contextual asset '{spec.Id}' cannot own proof observations");
+            if (string.Equals(spec.EvidenceRole, EvidenceRoles.Contextual, StringComparison.OrdinalIgnoreCase)
+                && graph.RequiredSourceIds.Contains(spec.Id, StringComparer.Ordinal))
+                report.Errors.Add($"evidencePlan contextual asset '{spec.Id}' cannot be required evidence");
             if (spec.ObservationIds.Count == 0 && spec.ContainedObjectIds.Count == 0)
                 report.Errors.Add($"evidencePlan asset spec '{spec.Id}' is an empty placeholder");
             if (!EvidenceAssetContract.IsLayoutCompatible(spec.AssetType, spec.LayoutId))
@@ -148,6 +159,93 @@ public static class EvidenceContractValidator
                     report.Errors.Add($"evidencePlan asset spec '{spec.Id}' has no forensic object type for '{objectId}'");
             }
         }
+    }
+
+    private static void ValidateDossierStructure(CaseDraft draft, StageValidationReport report)
+        {
+            var profile = DifficultyProfileCatalog.Get(draft);
+            var stubs = draft.AssetStubs;
+            if (stubs.Count == 0 || stubs.All(asset => string.IsNullOrWhiteSpace(asset.EvidenceRole)))
+                return;
+            if (stubs.Count < profile.MinAssets || stubs.Count > profile.MaxAssets)
+                report.Errors.Add($"{profile.Name} requires {profile.MinAssets}-{profile.MaxAssets} total dossier assets");
+
+            var investigative = stubs.Where(asset => EvidenceRoles.IsInvestigative(asset.EvidenceRole)).ToList();
+            if (investigative.Count < profile.MinInvestigativeAssets
+                || investigative.Count > profile.MaxInvestigativeAssets)
+            {
+                report.Errors.Add($"{profile.Name} requires {profile.MinInvestigativeAssets}-{profile.MaxInvestigativeAssets} investigative assets");
+            }
+
+            var scenePhotos = stubs.Count(asset =>
+                string.Equals(asset.ImagePurpose, ImagePurposes.Scene, StringComparison.OrdinalIgnoreCase));
+            if (scenePhotos < profile.MinScenePhotos || scenePhotos > profile.MaxScenePhotos)
+                report.Errors.Add($"{profile.Name} requires {profile.MinScenePhotos}-{profile.MaxScenePhotos} scene photographs");
+            if (!stubs.Any(asset => asset.ArchetypeId == "incident_report"))
+                report.Errors.Add("dossier requires an initial incident report");
+
+            var suspectIds = draft.SuspectStubs.Select(suspect => suspect.Id)
+                .Concat(draft.SuspectFull.Select(suspect => suspect.Id))
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.Ordinal);
+            foreach (var suspectId in suspectIds)
+            {
+                var portraits = stubs.Count(asset =>
+                    asset.SubjectSuspectId == suspectId
+                    && asset.ImagePurpose == ImagePurposes.SuspectPortrait);
+                if (portraits != 1)
+                    report.Errors.Add($"suspect '{suspectId}' requires exactly one portrait asset");
+
+                var interviews = stubs.Count(asset =>
+                    asset.SubjectSuspectId == suspectId
+                    && (asset.ArchetypeId == "suspect_interview" || asset.LayoutHint == "InterviewTranscript"));
+                if (interviews != 1)
+                    report.Errors.Add($"suspect '{suspectId}' requires exactly one interview/transcript asset");
+            }
+
+            foreach (var asset in stubs)
+            {
+                var contextual = string.Equals(
+                    asset.EvidenceRole,
+                    EvidenceRoles.Contextual,
+                    StringComparison.OrdinalIgnoreCase);
+                if (contextual
+                    && (asset.SupportsClueIds.Count > 0
+                        || asset.ForensicInputClueIds.Count > 0
+                        || asset.IntroducesRedHerringSuspectIds.Count > 0
+                        || asset.ResolvesRedHerringSuspectIds.Count > 0))
+                {
+                    report.Errors.Add($"contextual asset '{asset.Id}' cannot own clues, forensic inputs, or red-herring observations");
+                }
+                if (!contextual
+                    && asset.SupportsClueIds.Count == 0
+                    && asset.ForensicInputClueIds.Count == 0
+                    && asset.IntroducesRedHerringSuspectIds.Count == 0
+                    && asset.ResolvesRedHerringSuspectIds.Count == 0
+                    && asset.ContainedObjectIds.Count == 0)
+                {
+                    report.Errors.Add($"investigative asset '{asset.Id}' has no clue, red-herring ownership, or contained object");
+                }
+            }
+
+            var contextualIds = stubs
+                .Where(asset => asset.EvidenceRole == EvidenceRoles.Contextual)
+                .Select(asset => asset.Id)
+                .ToHashSet(StringComparer.Ordinal);
+            foreach (var id in draft.RequiredEvidenceIds.Where(contextualIds.Contains))
+                report.Errors.Add($"solution requiredEvidenceIds cannot include contextual asset '{id}'");
+
+            var fullById = draft.AssetFull.ToDictionary(asset => asset.Id, StringComparer.Ordinal);
+            foreach (var stub in stubs)
+            {
+                if (!fullById.TryGetValue(stub.Id, out var asset)) continue;
+                if (asset.EvidenceRole != stub.EvidenceRole
+                    || asset.SubjectSuspectId != stub.SubjectSuspectId
+                    || asset.ImagePurpose != stub.ImagePurpose)
+                {
+                    report.Errors.Add($"generated asset '{stub.Id}' did not retain dossier classification metadata");
+                }
+            }
     }
 
     private static void ValidateAssetContent(
@@ -172,8 +270,11 @@ public static class EvidenceContractValidator
 
             var body = EvidenceContentText.ExtractBody(asset);
             var completeText = EvidenceContentText.Extract(asset);
-            if (IsPlaceholder(asset, body))
-                report.Errors.Add($"evidenceContent asset '{asset.Id}' is empty or contains placeholder content");
+            if (PlaceholderReason(asset, body) is { } placeholderReason)
+            {
+                report.Errors.Add(
+                    $"evidenceContent asset '{asset.Id}' is empty or contains placeholder content: {placeholderReason}");
+            }
             if (asset.BodyDoc is not null
                 && !string.IsNullOrWhiteSpace(spec.LayoutId)
                 && !string.IsNullOrWhiteSpace(asset.BodyDoc.Layout)
@@ -195,7 +296,7 @@ public static class EvidenceContractValidator
                 if (!string.IsNullOrWhiteSpace(expected))
                 {
                     allowedStatements.Add(expected);
-                    if (!completeText.Contains(expected, StringComparison.OrdinalIgnoreCase))
+                    if (!ContainsCanonicalValue(completeText, fact, expected))
                         report.Errors.Add($"evidenceContent asset '{asset.Id}' does not materialize observation '{observationId}' value '{expected}'");
                 }
             }
@@ -207,6 +308,9 @@ public static class EvidenceContractValidator
                     && observation.FactId == privateFact.Id);
                 var privateValue = CanonicalStatement(privateFact, entities);
                 if (!assigned
+                    && privateFact.ObjectId is null
+                    && privateFact.LiteralType != LiteralValueType.Boolean
+                    && privateValue is not "true" and not "false"
                     && privateValue.Length >= 4
                     && completeText.Contains(privateValue, StringComparison.OrdinalIgnoreCase))
                 {
@@ -259,41 +363,34 @@ public static class EvidenceContractValidator
             .GroupBy(asset => asset.Id, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
 
-        var nonCulprits = graph.SuspectReferences
-            .Select(reference => reference.SuspectId)
-            .Where(id => id != draft.CulpritId)
-            .Distinct(StringComparer.Ordinal);
-        foreach (var suspectId in nonCulprits)
+        foreach (var arc in graph.DecoyArcs)
         {
-            var arc = graph.DecoyArcs.SingleOrDefault(candidate => candidate.SuspectId == suspectId);
-            if (arc is null)
-            {
-                report.Errors.Add($"evidencePlan decoy suspect '{suspectId}' has no typed DecoyArc");
-                continue;
-            }
-
             if (arc.SuspicionObservationIds.Count == 0)
-                report.Errors.Add($"evidencePlan decoy arc '{suspectId}' has no plausible suspicion observation");
+                report.Errors.Add($"evidencePlan decoy arc '{arc.SuspectId}' has no plausible suspicion observation");
             if (arc.VerificationObservationIds.Count == 0)
-                report.Errors.Add($"evidencePlan decoy arc '{suspectId}' has no verification observation");
+                report.Errors.Add($"evidencePlan decoy arc '{arc.SuspectId}' has no verification observation");
             foreach (var observationId in arc.SuspicionObservationIds.Concat(arc.VerificationObservationIds))
             {
                 if (!observations.ContainsKey(observationId))
-                    report.Errors.Add($"evidencePlan decoy arc '{suspectId}' references missing observation '{observationId}'");
+                    report.Errors.Add($"evidencePlan decoy arc '{arc.SuspectId}' references missing observation '{observationId}'");
             }
             if (arc.MustBePlayerReachable
                 && arc.VerificationObservationIds.Any(id => !reachable.Contains(id)))
             {
-                report.Errors.Add($"evidencePlan decoy arc '{suspectId}' has an unreachable verification observation");
+                report.Errors.Add($"evidencePlan decoy arc '{arc.SuspectId}' has an unreachable verification observation");
             }
             if (!derivations.TryGetValue(arc.ResolutionDerivationId, out var resolution)
                 || resolution.Rule != DerivationRule.Exclusion)
             {
-                report.Errors.Add($"evidencePlan decoy arc '{suspectId}' has no valid exclusion derivation '{arc.ResolutionDerivationId}'");
+                report.Errors.Add($"evidencePlan decoy arc '{arc.SuspectId}' has no valid exclusion derivation '{arc.ResolutionDerivationId}'");
             }
-            else if (!resolution.PremiseIds.Any(arc.VerificationObservationIds.Contains))
+            else if (!DependsOnAnyPremise(
+                         resolution,
+                         arc.VerificationObservationIds.ToHashSet(StringComparer.Ordinal),
+                         derivations,
+                         new HashSet<string>(StringComparer.Ordinal)))
             {
-                report.Errors.Add($"evidencePlan decoy arc '{suspectId}' is excluded without positive verification evidence");
+                report.Errors.Add($"evidencePlan decoy arc '{arc.SuspectId}' is excluded without positive verification evidence");
             }
 
             foreach (var observation in arc.SuspicionObservationIds
@@ -305,24 +402,46 @@ public static class EvidenceContractValidator
                     && InnocenceLabels.Any(term =>
                         EvidenceContentText.Extract(asset).Contains(term, StringComparison.OrdinalIgnoreCase)))
                 {
-                    report.Errors.Add($"evidenceContent decoy source '{asset.Id}' explicitly labels '{suspectId}' innocent");
+                    report.Errors.Add($"evidenceContent decoy source '{asset.Id}' explicitly labels '{arc.SuspectId}' innocent");
                 }
             }
         }
     }
 
-    private static bool IsPlaceholder(EvidenceAsset asset, string body)
+    private static bool DependsOnAnyPremise(
+        ProofDerivation derivation,
+        IReadOnlySet<string> targetPremiseIds,
+        IReadOnlyDictionary<string, ProofDerivation> derivations,
+        ISet<string> visited)
     {
-        if (PlaceholderTerms.Any(term => body.Contains(term, StringComparison.OrdinalIgnoreCase)))
-            return true;
+        if (!visited.Add(derivation.Id)) return false;
+        foreach (var premiseId in derivation.PremiseIds)
+        {
+            if (targetPremiseIds.Contains(premiseId)) return true;
+            if (derivations.TryGetValue(premiseId, out var nested)
+                && DependsOnAnyPremise(nested, targetPremiseIds, derivations, visited))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static string? PlaceholderReason(EvidenceAsset asset, string body)
+    {
+        var placeholderTerm = PlaceholderTerms.FirstOrDefault(term =>
+            body.Contains(term, StringComparison.OrdinalIgnoreCase));
+        if (placeholderTerm is not null)
+            return $"contains term '{placeholderTerm}'";
         if (asset.Type.Equals("photo", StringComparison.OrdinalIgnoreCase))
-            return string.IsNullOrWhiteSpace(asset.Body);
+            return string.IsNullOrWhiteSpace(asset.Body) ? "photo prompt is empty" : null;
         if (asset.BodyDoc is null || asset.BodyDoc.Sections.Count == 0)
-            return string.IsNullOrWhiteSpace(asset.Body);
-        return asset.BodyDoc.Sections.Any(section =>
+            return string.IsNullOrWhiteSpace(asset.Body) ? "body and structured document are empty" : null;
+        var emptySection = asset.BodyDoc.Sections.FirstOrDefault(section =>
             section.Kind == "table" && (section.Table is null || section.Table.Rows.Count == 0)
             || section.Kind == "transcript" && (section.Transcript is null || section.Transcript.Count == 0)
             || section.Kind == "code" && string.IsNullOrWhiteSpace(section.Code?.Content));
+        return emptySection is null ? null : $"contains empty '{emptySection.Kind}' section";
     }
 
     private static string CanonicalStatement(
@@ -331,9 +450,43 @@ public static class EvidenceContractValidator
     {
         if (fact.LiteralValue is not null)
             return fact.LiteralValue;
+        if (fact.ObjectId == "organization.case_context")
+            return string.Empty;
         if (fact.ObjectId is not null && entities.TryGetValue(fact.ObjectId, out var entity))
             return string.IsNullOrWhiteSpace(entity.DisplayName) ? entity.Id : entity.DisplayName;
         return fact.ObjectId ?? string.Empty;
+    }
+
+    private static bool ContainsCanonicalValue(string text, CanonicalFact fact, string expected)
+    {
+        if (text.Contains(expected, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (fact.LiteralType != LiteralValueType.DateTime
+            || !DateTimeOffset.TryParse(
+                expected,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind,
+                out var timestamp))
+        {
+            return false;
+        }
+
+        var dateVariants = new[]
+        {
+            timestamp.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            timestamp.ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture),
+            timestamp.ToString("M/d/yyyy", System.Globalization.CultureInfo.InvariantCulture),
+            timestamp.ToString("MMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture),
+            timestamp.ToString("MMMM d, yyyy", System.Globalization.CultureInfo.InvariantCulture)
+        };
+        var timeVariants = new[]
+        {
+            timestamp.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture),
+            timestamp.ToString("H:mm", System.Globalization.CultureInfo.InvariantCulture),
+            timestamp.ToString("h:mm tt", System.Globalization.CultureInfo.InvariantCulture)
+        };
+        return dateVariants.Any(value => text.Contains(value, StringComparison.OrdinalIgnoreCase))
+               && timeVariants.Any(value => text.Contains(value, StringComparison.OrdinalIgnoreCase));
     }
 }
 

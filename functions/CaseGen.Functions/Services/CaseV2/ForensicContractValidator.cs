@@ -159,6 +159,7 @@ public static class ForensicContractValidator
                      derivation.PremiseIds.Any(produced.Contains)))
         {
             if (derivation.Rule != DerivationRule.CrossSourceCorroboration
+                && derivation.Rule != DerivationRule.Exclusion
                 && !method.AllowedDerivationRules.Contains(derivation.Rule))
             {
                 report.Errors.Add($"forensics derivation '{derivation.Id}' overclaims '{method.Id}' observation with rule '{derivation.Rule}'");

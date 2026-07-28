@@ -32,7 +32,7 @@ const STAGE_KEYS: Record<string, keyof Translations> = {
 }
 
 const LEGACY_STAGE: Record<string, string> = {
-  plotOutline: 'caseDesign', suspectCards: 'caseDesign',
+  caseBible: 'caseDesign', plotOutline: 'caseDesign', suspectCards: 'caseDesign',
   assetPlan: 'graphConstruction', assetsAndTimelineAndBriefing: 'evidenceProduction',
   rookieInitialEvidence: 'evidenceProduction', forensicsPlan: 'forensicWorkflow',
   outcomesAndInitialEmails: 'forensicWorkflow', mechanicalRules: 'solutionDesign',
@@ -252,6 +252,16 @@ const ErrorBox = styled.div`
   gap: 0.5rem;
 `
 
+const RetryBox = styled.div`
+  margin-top: 1rem;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  font-size: 0.85rem;
+  color: #fcd34d;
+`
+
 const DIFFICULTIES = ['Rookie', 'Detective', 'Detective2', 'Sergeant', 'Lieutenant', 'Captain', 'Commander']
 
 const POLL_INTERVAL_MS = 2500
@@ -337,6 +347,9 @@ const CaseGenerationPage = () => {
   const pct = status?.progressPercent
     ?? (stages.filter(stage => stage.status === 'completed' || stage.status === 'skipped').length / stages.length) * 100
   const stageLabel = (id: string) => STAGE_KEYS[id] ? t(STAGE_KEYS[id]) : id
+  const currentAttempt = status?.currentAttempt ?? status?.result?.AttemptCount ?? 1
+  const maxAttempts = status?.maxAttempts ?? status?.result?.MaxAttempts ?? 1
+  const previousAttempts = status?.attempts?.filter(attempt => attempt.number < currentAttempt) ?? []
   const statusLabel = (value: GenerateCaseStatus['status'] | 'skipped') => ({
     queued: t('generationQueued'),
     running: t('running'),
@@ -431,6 +444,39 @@ const CaseGenerationPage = () => {
 
           <ProgressBar><ProgressFill $pct={pct} /></ProgressBar>
 
+          <div style={{ marginTop: '0.75rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+            {t('generationAttempt')} {currentAttempt} / {maxAttempts}
+          </div>
+
+          {status?.nextRetryAt && (
+            <RetryBox>
+              <div style={{ fontWeight: 600 }}>{t('generationRetryScheduled')}</div>
+              <div>{new Date(status.nextRetryAt).toLocaleTimeString()}</div>
+              {status.retryReason && <div style={{ marginTop: '0.35rem' }}>{status.retryReason}</div>}
+            </RetryBox>
+          )}
+
+          {previousAttempts.length > 0 && (
+            <div style={{ marginTop: '1rem' }}>
+              <div style={{ color: '#94a3b8', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {t('generationAttemptHistory')}
+              </div>
+              <PhaseList>
+                {previousAttempts.map(attempt => (
+                  <PhaseRow key={attempt.number} $state={attempt.status === 'completed' ? 'done' : 'failed'}>
+                    {attempt.status === 'completed'
+                      ? <CheckCircle2 size={16} color="#22c55e" />
+                      : <AlertCircle size={16} color="#ef4444" />}
+                    <span>{t('generationAttempt')} {attempt.number} · {attempt.status === 'completed' ? t('completed') : t('failed')}</span>
+                    {attempt.startedAt && attempt.completedAt && (
+                      <Mono>{((new Date(attempt.completedAt).getTime() - new Date(attempt.startedAt).getTime()) / 1000).toFixed(1)}s</Mono>
+                    )}
+                  </PhaseRow>
+                ))}
+              </PhaseList>
+            </div>
+          )}
+
           <PhaseList>
             {stages.map(stage => {
               const state =
@@ -464,6 +510,8 @@ const CaseGenerationPage = () => {
                 <Stat><StatLbl>{t('generationSolutionWitness')}</StatLbl><StatVal>{status.result.SolverSucceeded ? t('generationPassed') : t('generationNotPassed')}</StatVal></Stat>
                 <Stat><StatLbl>{t('generationRepairOperations')}</StatLbl><StatVal>{status.result.RepairOperationCount ?? 0}</StatVal></Stat>
                 <Stat><StatLbl>{t('generationFirstPass')}</StatLbl><StatVal>{status.result.FirstPassSuccess ? t('generationYes') : t('generationNo')}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationAttempt')}</StatLbl><StatVal>{status.result.AttemptCount ?? currentAttempt} / {status.result.MaxAttempts ?? maxAttempts}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationSolverScore')}</StatLbl><StatVal>{(status.result.SolverScore ?? 0).toFixed(2)}</StatVal></Stat>
                 <Stat><StatLbl>{t('generationAdvisoryFindings')}</StatLbl><StatVal>{Object.values(status.result.SpecialistFindingsByCategory ?? {}).reduce((sum, count) => sum + count, 0)}</StatVal></Stat>
               </SummaryGrid>
               <Button style={{ marginTop: '1rem' }} onClick={() => navigate('/dashboard')}>

@@ -4,6 +4,10 @@ public sealed record DifficultyProfile(
     string Name,
     int MinAssets,
     int MaxAssets,
+    int MinInvestigativeAssets,
+    int MaxInvestigativeAssets,
+    int MinScenePhotos,
+    int MaxScenePhotos,
     int MinFamilies,
     int MaxRarity,
     int MinSuspects,
@@ -45,7 +49,7 @@ public static class DifficultyProfileCatalog
     public static DifficultyProfile Get(string? difficulty) =>
         difficulty?.Trim().ToLowerInvariant() switch
         {
-            "rookie" => Profile("Rookie", 3, 5, 3, 1, 3, 4, 0, 0, 2, 3, true,
+            "rookie" => Profile("Rookie", 10, 14, 5, 7, 1, 2, 3, 1, 3, 4, 0, 0, 2, 3, true,
                 new DifficultyTopology
                 {
                     MinDerivationDepth = 1, MaxDerivationDepth = 2,
@@ -53,7 +57,7 @@ public static class DifficultyProfileCatalog
                     MinForensicHops = 0, RedHerringResolutionDepth = 1,
                     InitialSolutionAllowed = true
                 }),
-            "detective" => Profile("Detective", 6, 8, 5, 2, 3, 4, 1, 2, 2, 3, false,
+            "detective" => Profile("Detective", 12, 16, 6, 8, 1, 2, 5, 2, 3, 4, 1, 2, 2, 3, false,
                 new DifficultyTopology
                 {
                     MinDerivationDepth = 3, MaxDerivationDepth = 4,
@@ -62,17 +66,17 @@ public static class DifficultyProfileCatalog
                     RequiredCrossSourceCorrelations = 1,
                     RequiresMeaningfulInvestigationOrder = true
                 }),
-            "detective2" => Profile("Detective2", 7, 9, 5, 2, 4, 5, 1, 2, 2, 3, false,
+            "detective2" => Profile("Detective2", 13, 17, 7, 9, 1, 2, 5, 2, 4, 5, 1, 2, 2, 3, false,
                 Advanced(4, 5, 2, 3, 1)),
-            "sergeant" => Profile("Sergeant", 8, 10, 6, 3, 4, 5, 1, 3, 2, 3, false,
+            "sergeant" => Profile("Sergeant", 14, 18, 8, 10, 2, 3, 6, 3, 4, 5, 1, 3, 2, 3, false,
                 Advanced(4, 6, 2, 3, 1)),
-            "lieutenant" => Profile("Lieutenant", 8, 10, 6, 3, 4, 6, 2, 3, 3, 3, false,
+            "lieutenant" => Profile("Lieutenant", 15, 19, 8, 11, 2, 3, 6, 3, 4, 6, 2, 3, 3, 3, false,
                 Senior(5, 7, 3, 3, 2)),
-            "captain" => Profile("Captain", 9, 10, 6, 3, 5, 6, 2, 4, 3, 3, false,
+            "captain" => Profile("Captain", 16, 20, 9, 12, 2, 3, 6, 3, 5, 6, 2, 4, 3, 3, false,
                 Senior(5, 8, 3, 4, 2)),
-            "commander" => Profile("Commander", 9, 10, 6, 3, 5, 6, 2, 4, 3, 3, false,
+            "commander" => Profile("Commander", 17, 22, 10, 13, 2, 4, 6, 3, 5, 6, 2, 4, 3, 3, false,
                 Senior(6, 9, 3, 4, 3)),
-            _ => Profile("Detective", 6, 8, 5, 2, 3, 4, 1, 2, 2, 3, false,
+            _ => Profile("Detective", 12, 16, 6, 8, 1, 2, 5, 2, 3, 4, 1, 2, 2, 3, false,
                 new DifficultyTopology
                 {
                     MinDerivationDepth = 3, MaxDerivationDepth = 4,
@@ -87,6 +91,10 @@ public static class DifficultyProfileCatalog
         string name,
         int minAssets,
         int maxAssets,
+        int minInvestigativeAssets,
+        int maxInvestigativeAssets,
+        int minScenePhotos,
+        int maxScenePhotos,
         int minFamilies,
         int maxRarity,
         int minSuspects,
@@ -97,7 +105,8 @@ public static class DifficultyProfileCatalog
         int maxRepairs,
         bool allInitial,
         DifficultyTopology topology) =>
-        new(name, minAssets, maxAssets, minFamilies, maxRarity, minSuspects, maxSuspects,
+        new(name, minAssets, maxAssets, minInvestigativeAssets, maxInvestigativeAssets,
+            minScenePhotos, maxScenePhotos, minFamilies, maxRarity, minSuspects, maxSuspects,
             minAnalyses, maxAnalyses, minSources, maxRepairs, allInitial)
         {
             Topology = topology
