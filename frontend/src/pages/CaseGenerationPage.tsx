@@ -31,6 +31,14 @@ const STAGE_KEYS: Record<string, keyof Translations> = {
   finalization: 'stageFinalization'
 }
 
+const CASE_DESIGN_SUBPHASES = ['caseBible', 'plotOutline', 'suspectCards'] as const
+
+const PHASE_KEYS: Record<string, keyof Translations> = {
+  caseBible: 'phaseCaseBible',
+  plotOutline: 'phasePlotOutline',
+  suspectCards: 'phaseSuspectCards'
+}
+
 const LEGACY_STAGE: Record<string, string> = {
   caseBible: 'caseDesign', plotOutline: 'caseDesign', suspectCards: 'caseDesign',
   assetPlan: 'graphConstruction', assetsAndTimelineAndBriefing: 'evidenceProduction',
@@ -209,6 +217,28 @@ const PhaseRow = styled.li<{ $state: 'done' | 'current' | 'pending' | 'skipped' 
                              'transparent'};
   color: ${p => p.$state === 'pending' || p.$state === 'skipped' ? '#64748b' : '#cbd5e1'};
 `
+const SubphaseList = styled.ul`
+  grid-column: 2 / -1;
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0 0 0 0.25rem;
+  display: grid;
+  gap: 0.3rem;
+`
+const SubphaseRow = styled.li<{ $state: 'done' | 'current' | 'pending' | 'skipped' | 'failed' }>`
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-left: 2px solid ${p =>
+    p.$state === 'current' ? '#38bdf8' :
+    p.$state === 'done' ? '#22c55e' :
+    p.$state === 'failed' ? '#ef4444' :
+    'rgba(100, 116, 139, 0.35)'};
+  color: ${p => p.$state === 'pending' || p.$state === 'skipped' ? '#64748b' : '#cbd5e1'};
+  font-size: 0.8rem;
+`
 const Mono = styled.code`
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.78rem;
@@ -347,6 +377,23 @@ const CaseGenerationPage = () => {
   const pct = status?.progressPercent
     ?? (stages.filter(stage => stage.status === 'completed' || stage.status === 'skipped').length / stages.length) * 100
   const stageLabel = (id: string) => STAGE_KEYS[id] ? t(STAGE_KEYS[id]) : id
+  const phaseLabel = (id: string) => PHASE_KEYS[id] ? t(PHASE_KEYS[id]) : stageLabel(LEGACY_STAGE[id] ?? id)
+  const caseDesignSubphaseState = (
+    phase: typeof CASE_DESIGN_SUBPHASES[number],
+    stageStatus: GenerationStageProgress['status']
+  ): 'done' | 'current' | 'pending' | 'skipped' | 'failed' => {
+    if (stageStatus === 'completed') return 'done'
+    if (stageStatus === 'skipped') return 'skipped'
+    if (stageStatus === 'pending') return 'pending'
+
+    const currentIndex = status?.currentPhase
+      ? CASE_DESIGN_SUBPHASES.indexOf(status.currentPhase as typeof CASE_DESIGN_SUBPHASES[number])
+      : -1
+    const phaseIndex = CASE_DESIGN_SUBPHASES.indexOf(phase)
+    if (stageStatus === 'failed') return phaseIndex === currentIndex ? 'failed' : phaseIndex < currentIndex ? 'done' : 'pending'
+    if (currentIndex < 0) return 'pending'
+    return phaseIndex < currentIndex ? 'done' : phaseIndex === currentIndex ? 'current' : 'pending'
+  }
   const currentAttempt = status?.currentAttempt ?? status?.result?.AttemptCount ?? 1
   const maxAttempts = status?.maxAttempts ?? status?.result?.MaxAttempts ?? 1
   const previousAttempts = status?.attempts?.filter(attempt => attempt.number < currentAttempt) ?? []
@@ -437,7 +484,7 @@ const CaseGenerationPage = () => {
               {(status?.status === 'running' || !status) && <Spin size={14} />}
               {statusLabel(status?.status ?? 'queued')}
               {(status?.currentStageId || status?.currentPhase)
-                ? ` · ${stageLabel(status.currentStageId ?? LEGACY_STAGE[status.currentPhase!] ?? status.currentPhase!)}`
+                ? ` · ${status.currentPhase ? phaseLabel(status.currentPhase) : stageLabel(status.currentStageId!)}`
                 : ''}
             </StatusBadge>
           </div>
@@ -496,6 +543,22 @@ const CaseGenerationPage = () => {
                     {stage.attempt > 1 && ` · ${t('generationAttempt')} ${stage.attempt}`}
                   </span>
                   {ms != null && <Mono>{(ms / 1000).toFixed(1)}s</Mono>}
+                  {stage.id === 'caseDesign' && (
+                    <SubphaseList>
+                      {CASE_DESIGN_SUBPHASES.map(phase => {
+                        const subphaseState = caseDesignSubphaseState(phase, stage.status)
+                        return (
+                          <SubphaseRow key={phase} $state={subphaseState}>
+                            {subphaseState === 'done' && <CheckCircle2 size={13} color="#22c55e" />}
+                            {subphaseState === 'current' && <Spin size={13} color="#38bdf8" />}
+                            {subphaseState === 'failed' && <AlertCircle size={13} color="#ef4444" />}
+                            {(subphaseState === 'pending' || subphaseState === 'skipped') && <span />}
+                            <span>{phaseLabel(phase)}</span>
+                          </SubphaseRow>
+                        )
+                      })}
+                    </SubphaseList>
+                  )}
                 </PhaseRow>
               )
             })}
