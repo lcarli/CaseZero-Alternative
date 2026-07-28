@@ -135,9 +135,20 @@
 
 ## 🎮 Status Atual da Build
 
-**Versão:** 3.0-alpha  
-**Branch:** EmailEngine (a renomear)  
-**Status:** Fase de Design
+**Versão:** 3.0 (em desenvolvimento ativo)
+**Branch:** main
+**Status:** Design completo; sistemas centrais implementados e em evolução
+
+> **⚠️ Nota:** Este GDD foi originalmente escrito durante a fase de design. Desde então, partes substanciais do jogo foram **implementadas** e hoje diferem em detalhes específicos dos capítulos de design originais (principalmente progressão/patentes e a pipeline de geração de casos). Cada capítulo foi revisado e recebeu anotações onde o conteúdo é aspiracional/roadmap em vez de comportamento atual. Para um retrato rápido e verificado do que está realmente em produção hoje, veja abaixo.
+
+**Implementado hoje:**
+- ✅ Formato canônico **`case.json` v2** (`docs/CASE_JSON_V2_SPEC.md`, `schemas/case.schema.json`) — campos server-only são sanitizados antes de chegar ao cliente
+- ✅ Backend Web API em ASP.NET Core (**.NET 8**) com JWT + ASP.NET Identity, EF Core (SQL Server / SQLite)
+- ✅ **Pipeline de geração Case v2** automatizada em Azure Durable Functions (**CaseGen.Functions, .NET 9**): Case Bible → prompts de agentes LLM externos → verificações de consistência via CaseGraph → retries com backoff → relato de progresso por fase → portão de solver (pontuação ≥ 0.90) → validação em múltiplos estágios → publicação ordenada no Blob (assets primeiro, `case.json` escrito por último como marcador de commit)
+- ✅ Sistema de 7 níveis `Rookie → Detective → Detective2 → Sergeant → Lieutenant → Captain → Commander` de dificuldade/patente, com promoção baseada em casos resolvidos com avaliação correta de forma cumulativa (ver Capítulo 06 para os limiares exatos)
+- ✅ Frontend em React/TypeScript com UI de geração de casos restrita a administradores (`/case-generation`) e UI com 4 idiomas (`en-US`, `pt-BR`, `es-ES`, `fr-FR`)
+
+**Em andamento / apenas design (ver capítulos individuais para detalhes):** o modelo original de progressão de 8 patentes/XP, a maior parte do roadmap de produto de longo prazo (Capítulo 12) e diversas ideias de UI/mecânicas permanecem aspiracionais.
 
 **Concluído:**
 
@@ -145,14 +156,10 @@
 - ✅ Documentação PLAN-V3 criada
 - ✅ BRAINSTORM com análise inicial
 
-**Em andamento:**
-
-- 🚧 Estrutura do GDD
-- 🚧 Redação dos capítulos
-
 **Próximos Passos:**
 
-1. Revisar com stakeholders o conjunto completo de traduções
-2. Priorizar próximos entregáveis de implementação técnica
+1. Manter os capítulos do GDD sincronizados com a implementação à medida que novos sistemas entram em produção
+2. Continuar expandindo o conteúdo de casos e os idiomas
+3. Revisitar os capítulos aspiracionais (progressão, roadmap) conforme esses sistemas evoluem
 
 ---

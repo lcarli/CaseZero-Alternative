@@ -256,7 +256,7 @@ If we need to highlight a detail, it appears inside the supporting documents (e.
 
 ## 3.4 Forensic Request System
 
-The core time-based mechanic that creates pacing and anticipation.
+The core time-based mechanic that creates pacing and anticipation. In the current backend this is implemented as asynchronous, elapsed-time requests rather than live-streaming lab work.
 
 ### Forensic Analysis Types
 
@@ -872,66 +872,56 @@ Long-term advancement through ranks.
 
 ### Rank Structure
 
-**Official ranks (8 tiers):** same ladder already shown on in-game profiles – we are only redefining how promotions trigger.
+**Official rank / difficulty ladder (7 tiers):** the live codebase uses the same seven-level ladder for both case difficulty and detective rank. Promotions are based on **cumulative graded-correct case resolves** — not XP, and not per-difficulty quotas.
 
 1. **Rookie**
   - Starting rank
-  - Access to Easy cases
-  - **Requirement:** 0 solved cases (tutorial completion only)
+  - Entry-level case difficulty
+  - **Promotion threshold:** 0 graded-correct resolves
 
-2. **Detective III**
-  - First real step in the career
-  - Unlocks Medium cases
-  - **Requirement:** 1 archived case solved with a correct verdict
+2. **Detective**
+  - First promoted rank
+  - **Promotion threshold:** 3 graded-correct resolves
 
-3. **Detective II**
-  - Shows consistency
-  - Medium cases feel routine
-  - **Requirement:** 3 solved cases (at least 1 Medium)
+3. **Senior Detective** (`Detective2`)
+  - Established investigator
+  - **Promotion threshold:** 8 graded-correct resolves
 
-4. **Detective I**
-  - Experienced investigator
-  - Gains access to Hard cases
-  - **Requirement:** 6 solved cases (at least 2 Medium/Hard)
+4. **Sergeant**
+  - Senior field investigator
+  - **Promotion threshold:** 16 graded-correct resolves
 
-5. **Senior Detective**
-  - Master of fundamentals
-  - Hard cases become common
-  - **Requirement:** 10 solved cases (at least 3 Hard)
+5. **Lieutenant**
+  - Advanced case access
+  - **Promotion threshold:** 28 graded-correct resolves
 
-6. **Lead Detective**
-  - Technical reference point
-  - Invited to Expert cases
-  - **Requirement:** 15 solved cases (at least 2 Expert)
+6. **Captain**
+  - High-complexity case access
+  - **Promotion threshold:** 44 graded-correct resolves
 
-7. **Veteran Detective**
-  - Elite status
-  - Expert dossiers feel attainable
-  - **Requirement:** 21 solved cases (at least 3 Expert)
-
-8. **Master Detective**
-  - Highest badge in the ranking
-  - All archived content unlocked
-  - **Requirement:** 28 solved cases (at least 5 Expert)
+7. **Commander**
+  - Highest implemented rank
+  - **Promotion threshold:** 65 graded-correct resolves
 
 ### Case Logging & Timekeeping
 
-- No XP, no score multipliers—**progression equals solved cases**.
-- When the player submits the final report and gets the verdict right we only persist:
+- No XP, no score multipliers—**progression follows cumulative graded-correct resolves**.
+- When the player submits the final report, the backend records the case outcome plus:
   - `caseId`
   - `difficulty`
   - `resolvedAt`
   - `elapsedMinutes` (total time spent on that case)
-- `elapsedMinutes` feeds the internal leaderboard (“best time in the department”) and post-case emails.
-- The server stores one row per solved case; there is no cumulative XP counter.
+- Promotions are computed from graded-correct resolves; incorrect or ungraded outcomes do not advance rank.
+- `elapsedMinutes` still feeds internal timing comparisons and post-case summaries.
+- The server stores one row per resolved case; there is no cumulative XP counter.
 
 ### Promotion Flow
 
-1. Player solves a cold case.
-2. System stores the elapsed time and increments the `casesSolved` counter.
-3. Promotion service checks whether rank requirements (total solved + difficulty quota) are met.
-4. If yes, the profile rank updates immediately and new case categories unlock.
-5. Only solve count + per-case time remain in the save; no other numeric grind is persisted.
+1. Player resolves a cold case.
+2. System stores the elapsed time and records whether the resolution counted as graded-correct.
+3. Promotion service compares the cumulative graded-correct total against the live thresholds (3 / 8 / 16 / 28 / 44 / 65).
+4. If a threshold is crossed, the profile rank updates immediately and higher-rank case access can unlock.
+5. Only per-case history + timing remain in the save; no XP ledger or per-difficulty quota bookkeeping is persisted.
 
 ### Rank Benefits
 
@@ -992,10 +982,12 @@ How suspects are presented and investigated.
 
 ### Suspect Count Guidelines
 
-- **Easy Cases:** 2-3 suspects
-- **Medium Cases:** 4-5 suspects
-- **Hard Cases:** 6-7 suspects
-- **Expert Cases:** 8+ suspects
+Broad design guideline across the current seven-rank difficulty ladder:
+
+- **Rookie:** 2-3 suspects
+- **Detective / Senior Detective:** 4-5 suspects
+- **Sergeant / Lieutenant:** 6-7 suspects
+- **Captain / Commander:** 8+ suspects
 
 ### Red Herrings
 

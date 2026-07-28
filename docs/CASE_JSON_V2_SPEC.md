@@ -1,167 +1,231 @@
 # Case JSON v2 — Specification (Canonical)
 
-> **Canonical v2.** This is the **only** canonical case format used by the CaseZero site. Versions v0 and v1 have been removed from the codebase. Any document that references `evidences[]`, `unlockLogic`, `documents[]`, `forensicReports[]`, or `version` other than `"2.0"` is stale and must be ignored.
+> **Canonical raw contract:** this document describes the stored `case.json` payload produced by the v2 generator and validated in-repo. The repo-level schema is `schemas/case.schema.json`. The generator mirror is `functions/CaseGen.Functions/Schemas/case.v2.schema.json`.
 
-This document is the source of truth for the `case.json` shape consumed by the website (`CaseZeroApi` + frontend). The case generator (`functions/CaseGen.Functions`) must emit files conforming to this spec.
+## 1. Source-of-truth files
+
+There are two active schema files for v2:
+
+- `schemas/case.schema.json` — public repo schema.
+
+- `functions/CaseGen.Functions/Schemas/case.v2.schema.json` — generator/runtime mirror used by final validation.
+
+They are currently identical **except** that the generator mirror also allows three optional asset classification fields:
+
+- `assets[].evidenceRole`
+
+- `assets[].subjectSuspectId`
+
+- `assets[].imagePurpose`
+
+The generator can emit those fields in raw `case.json` (`CaseV2GeneratorService.BuildAssetNode`), but the backend `CaseV2Asset` model does not surface them to clients.
 
 ---
 
-## 1. Root shape
+## 2. Root shape
 
 ```jsonc
 {
   "version": "2.0",
   "caseId": "case_001",
-  "metadata":   { /* see §2 */ },
-  "assets":     [ /* §3 */ ],
-  "emails":     [ /* §4 */ ],
-  "suspects":   [ /* §5 */ ],
-  "timeline":   [ /* §6 */ ],
-  "temporalEvents":   [ /* §7  — server-side only */ ],
-  "rules":            [ /* §8  — server-side only */ ],
-  "forensicsDefaults":{ /* §9 */ },
-  "forensicOutcomes": [ /* §10 — server-side only */ ],
-  "solution":         { /* §11 — server-side only */ },
-  "gameMetadata":     { /* §12 */ }
+  "metadata": { /* §3 */ },
+  "assets": [ /* §4 */ ],
+  "emails": [ /* §5 */ ],
+  "suspects": [ /* §6 */ ],
+  "timeline": [ /* §7 */ ],             // optional in schema
+  "temporalEvents": [ /* §8 */ ],       // optional in schema; server-side
+  "rules": [ /* §9 */ ],                // required at root; may be []
+  "forensicsDefaults": { /* §10 */ },   // required at root
+  "forensicOutcomes": [ /* §11 */ ],    // required at root; may be []
+  "solution": { /* §12 */ },            // required at root
+  "gameMetadata": { /* §13 */ }         // required at root
 }
 ```
 
-`version` MUST be the literal string `"2.0"`. `caseId` MUST match the folder name in storage.
+### Root requirements
+
+- `version` is a literal `"2.0"`.
+
+- `caseId` must match `^case_[a-z0-9_]+$`.
+
+- Required root properties: `version`, `caseId`, `metadata`, `assets`, `emails`, `suspects`, `rules`, `forensicsDefaults`, `forensicOutcomes`, `solution`, `gameMetadata`.
+
+- `timeline` and `temporalEvents` are optional in schema, although the generator normally writes arrays for both.
+
+- Root `additionalProperties` is `false`.
 
 ---
 
-## 2. `metadata`
+## 3. `metadata`
 
 ```jsonc
 {
-  "title": "string",                     // required
-  "description": "string",               // required
-  "location": "string",                  // required
-  "incidentDate": "ISO-8601",            // required
-  "openedAt": "ISO-8601",                // required — case opening time
+  "title": "string",                  // required, minLength 3
+  "description": "string",            // required, minLength 10
+  "location": "string",               // required
+  "incidentDate": "ISO-8601",         // required, date-time
+  "openedAt": "ISO-8601",             // required, date-time
   "difficulty": "Rookie | Detective | Detective2 | Sergeant | Lieutenant | Captain | Commander",
   "requiredRank": "Rookie | Detective | Detective2 | Sergeant | Lieutenant | Captain | Commander",
-  "unlockMode": "gated | all_initial",   // optional; defaults to "gated"
-  "estimatedDurationMinutes": 60,        // optional
-  "category": "string",                  // optional — Missing Person, Homicide, etc.
-  "briefing": "markdown string",         // optional — short pitch shown in dashboard
-  "tags": ["string"]                     // optional
-}
-```
-
-**Auto rule:** if `requiredRank == "Rookie"`, the backend forces `unlockMode = "all_initial"` regardless of the JSON value.
-
-`difficulty` and `requiredRank` are **enum strings**. Numeric difficulty (e.g. `5`) from v1 is rejected.
-
----
-
-## 3. `assets[]`
-
-```jsonc
-{
-  "id": "asset.<slug>",                  // required; pattern ^asset\.[a-z0-9_]+$
-  "type": "photo | pdf | audio | video | document | image | digital",
-  "title": "string",                     // required — display name
-  "description": "string",               // optional
-  "uri": "case://<caseId>/<file>",       // required — case://… for local, blob://… for cloud
-  "checksum": "sha256:<hex>",            // optional
-  "visibility": "initial | hidden",      // required
-  "category": "string",                  // optional — Document, Digital, Physical
-  "tags": ["string"],                    // optional
-  "metadata": { /* free-form, server-side hints (pages, resolution, etc.) */ }
-}
-```
-
----
-
-## 4. `emails[]`
-
-```jsonc
-{
-  "id": "email.<slug>",                  // required
-  "from": "string",                      // required — "Name <addr@host>"
-  "to": ["string"],                      // required
-  "subject": "string",                   // required
-  "body": "markdown string",             // required
-  "sentAt": "ISO-8601",                  // required
-  "priority": "normal | high | urgent",  // optional, default "normal"
-  "attachments": ["asset.<slug>"],       // optional
-  "visibility": "initial | hidden",      // required
-  "metadata": { /* free-form */ }
-}
-```
-
-The first email with `visibility: "initial"` (or `id == "email.briefing"`) is the case-opening email from the chief.
-
----
-
-## 5. `suspects[]`
-
-```jsonc
-{
-  "id": "suspect.<slug>",                // required
-  "name": "string",                      // required
-  "alias": "string",                     // optional
-  "age": 35,                             // optional
-  "occupation": "string",                // optional
-  "relationship": "string",              // optional — to victim
-  "description": "string",               // optional
-  "motive": "string",                    // optional
-  "alibi": "string",                     // optional
-  "alibiVerified": false,                // optional, default false
-  "status": "suspect | cleared | confirmed_culprit",  // optional, default "suspect"
-  "background": "markdown string",       // optional
-  "relatedAssets": ["asset.<slug>"],     // optional
-  "photo": "asset.<slug>",               // optional
-  "visibility": "initial | hidden"       // required
-}
-```
-
-`status` and `alibiVerified` may be mutated server-side via `update_suspect_status` and `mark_alibi_verified` actions.
-
----
-
-## 6. `timeline[]`
-
-Static, narrative timeline of known events. Cliente vê.
-
-```jsonc
-{
-  "time": "ISO-8601",                    // required
-  "event": "string",                     // required
-  "source": "investigation | witness | sensor | forensic",
-  "sourceAssetId": "asset.<slug>",       // optional
-  "verified": true,                      // optional, default false
-  "importance": "low | medium | high | critical"
-}
-```
-
----
-
-## 7. `temporalEvents[]` (server-side)
-
-Time-driven scripted events keyed off **game time** (minutes since `metadata.openedAt`).
-
-```jsonc
-{
-  "id": "tevt.<slug>",                   // required
-  "triggerAtMinutes": 30,                // required
-  "type": "memo | witness | alert | email",
-  "payload": {
-    "emailId": "email.<slug>",           // when type == "email"
-    "assetId": "asset.<slug>",           // when type == "memo" or "alert"
-    "message": "string"                  // free-text fallback
+  "unlockMode": "gated | all_initial",    // optional
+  "estimatedDurationMinutes": 90,           // optional, integer 5..600
+  "category": "string",                    // optional
+  "briefing": "string",                    // optional
+  "tags": ["string"],                      // optional
+  "victim": {                               // optional
+    "name": "string",
+    "age": 28,
+    "occupation": "string",
+    "lastSeen": "ISO-8601"
   }
 }
 ```
 
-Idempotent: backend marks each `tevt.*` as fired in session state and never replays.
+Notes:
+
+- `victim` is allowed by both schemas and by the backend model.
+
+- `victim` permits extra properties (`additionalProperties: true`).
+
+- The generator forces `unlockMode = "all_initial"` when `requiredRank == "Rookie"`; otherwise it defaults missing values to `"gated"`.
+
+- Backend listing/availability gates cases by `requiredRank`, not by `difficulty`.
 
 ---
 
-## 8. `rules[]` (server-side)
+## 4. `assets[]`
 
-Canonical rule shape. **Any other shape that appeared in older code (e.g. `rules.forensics`) is invalid.**
+Canonical schema shape:
+
+```jsonc
+{
+  "id": "asset.<slug>",               // required, ^asset\.[a-z0-9_]+$
+  "type": "photo | pdf | audio | video | document | image | digital | physical",
+  "title": "string",                  // required
+  "description": "string",            // optional
+  "uri": "string",                    // required
+  "checksum": "sha256:<hex> | <hex>", // optional, 64 lowercase hex chars with optional prefix
+  "visibility": "initial | hidden",   // required
+  "category": "string",               // optional
+  "tags": ["string"],                 // optional
+  "metadata": { /* free-form */ }      // optional, additionalProperties true
+}
+```
+
+### Generator-side raw extensions
+
+`functions/CaseGen.Functions/Schemas/case.v2.schema.json` also permits these optional fields, and `CaseV2GeneratorService` writes them when present:
+
+```jsonc
+{
+  "evidenceRole": "primary | corroborative | contextual",
+  "subjectSuspectId": "suspect.<slug>",
+  "imagePurpose": "scene | suspect_portrait | object | surveillance"
+}
+```
+
+These are meaningful to the generator/validators (`EvidenceContractValidator`, `AssetRenderingService`, `SolutionSkeletonTask`) but are not part of the backend `CaseV2Asset` model returned to the client.
+
+---
+
+## 5. `emails[]`
+
+```jsonc
+{
+  "id": "email.<slug>",               // required
+  "from": "string",                   // required
+  "to": "string | string[]",          // required by schema; generator writes string[]
+  "subject": "string",                // required
+  "body": "string",                   // required
+  "sentAt": "ISO-8601",               // required
+  "priority": "normal | high | urgent", // optional
+  "visibility": "initial | hidden",   // required
+  "attachments": ["asset.<slug>"],    // optional
+  "metadata": { /* free-form */ }       // optional
+}
+```
+
+Notes:
+
+- The backend deserializer accepts either a single string or an array for `to`.
+
+- The generator always emits `email.briefing` with `visibility: "initial"`, `priority: "urgent"`, and array-form `to`.
+
+---
+
+## 6. `suspects[]`
+
+```jsonc
+{
+  "id": "suspect.<slug>",
+  "name": "string",
+  "alias": "string",
+  "age": 35,
+  "occupation": "string",
+  "relationship": "string",
+  "description": "string",
+  "motive": "string",
+  "alibi": "string",
+  "alibiVerified": false,
+  "status": "suspect | cleared | confirmed_culprit",
+  "background": "string",
+  "relatedAssets": ["asset.<slug>"],
+  "photo": "asset.<slug>",
+  "visibility": "initial | hidden"
+}
+```
+
+Required fields are only `id`, `name`, and `visibility`.
+
+Runtime notes:
+
+- `status` and `alibiVerified` can be overridden per user session by rule actions.
+
+- The backend sanitizer returns initial suspects plus any suspects revealed in session state.
+
+---
+
+## 7. `timeline[]`
+
+```jsonc
+{
+  "time": "ISO-8601",                 // required
+  "event": "string",                  // required
+  "source": "investigation | witness | sensor | forensic",
+  "sourceAssetId": "asset.<slug>",
+  "verified": true,
+  "importance": "low | medium | high | critical"
+}
+```
+
+`timeline` is optional at the root, but each item requires `time` and `event`.
+
+---
+
+## 8. `temporalEvents[]` (server-side)
+
+```jsonc
+{
+  "id": "tevt.<slug>",
+  "triggerAtMinutes": 30,
+  "type": "memo | witness | alert | email",
+  "payload": {
+    "emailId": "email.<slug>",
+    "assetId": "asset.<slug>",
+    "message": "string"
+  }
+}
+```
+
+Notes:
+
+- `temporalEvents` is optional at the root.
+
+- Backend processing is driven from `CaseTriggersController`; the sanitized client contract does not expose this array.
+
+---
+
+## 9. `rules[]` (server-side)
 
 ```jsonc
 {
@@ -169,210 +233,303 @@ Canonical rule shape. **Any other shape that appeared in older code (e.g. `rules
   "description": "string",
   "trigger": {
     "type": "forensics_complete | attachment_download | asset_viewed | email_opened | time_elapsed | suspect_viewed | multiple_conditions",
-    "inputAssetId": "asset.<slug>",   // forensics_complete, attachment_download, asset_viewed
-    "analysisType": "string",         // forensics_complete
-    "emailId":   "email.<slug>",      // email_opened, attachment_download
-    "suspectId": "suspect.<slug>",    // suspect_viewed
-    "assetId":   "asset.<slug>",      // attachment_download, asset_viewed
-    "atMinutes": 45,                  // time_elapsed
-    "operator":  "AND | OR",          // multiple_conditions
+    "inputAssetId": "asset.<slug>",
+    "analysisType": "string",
+    "emailId": "email.<slug>",
+    "assetId": "asset.<slug>",
+    "suspectId": "suspect.<slug>",
+    "atMinutes": 45,
+    "operator": "AND | OR",
     "conditions": [ /* nested trigger objects */ ]
   },
   "actions": [
-    { "type": "reveal_email",          "emailId":   "email.<slug>" },
-    { "type": "reveal_asset",          "assetId":   "asset.<slug>" },
-    { "type": "reveal_suspect",        "suspectId": "suspect.<slug>" },
-    { "type": "add_email_attachment",  "emailId":   "email.<slug>", "assetId": "asset.<slug>" },
-    { "type": "send_notification",     "level": "info | warn | critical", "message": "string" },
+    { "type": "reveal_email", "emailId": "email.<slug>" },
+    { "type": "reveal_asset", "assetId": "asset.<slug>" },
+    { "type": "reveal_suspect", "suspectId": "suspect.<slug>" },
+    { "type": "add_email_attachment", "emailId": "email.<slug>", "assetId": "asset.<slug>" },
+    { "type": "send_notification", "level": "info | warn | critical", "message": "string" },
     { "type": "update_suspect_status", "suspectId": "suspect.<slug>", "status": "suspect | cleared | confirmed_culprit" },
-    { "type": "mark_alibi_verified",   "suspectId": "suspect.<slug>", "verified": true }
+    { "type": "mark_alibi_verified", "suspectId": "suspect.<slug>", "verified": true }
   ]
 }
 ```
 
-Each rule fires **at most once per session** (idempotent per `(ruleId, sessionId)`).
+Notes:
+
+- `rules` is required at the root, but the array may be empty.
+
+- The generator pre-builds mechanical reveal rules, then may append narrative rules.
+
+- Rookie finalization strips `forensics_complete` rules.
 
 ---
 
-## 9. `forensicsDefaults`
+## 10. `forensicsDefaults`
 
 ```jsonc
 {
   "analysisTypes": [
-    { "type": "Fingerprint",      "durationMinutes": 150, "availableFor": ["print","surface","object","photo","document"] },
-    { "type": "DNA",              "durationMinutes": 300, "availableFor": ["blood","hair","saliva","tissue","photo"] },
-    { "type": "DigitalForensics", "durationMinutes": 360, "availableFor": ["phone","computer","hard_drive","usb","digital"] },
-    { "type": "Ballistics",       "durationMinutes": 240, "availableFor": ["bullet","casing","firearm"] }
+    { "type": "string", "durationMinutes": 60, "availableFor": ["string"] }
   ],
   "noFindingsEmail": {
-    "template": "markdown with {{analysisType}} and {{assetName}} placeholders",
-    "from": "Forensics Lab <lab@citypolice.gov>",
-    "subject": "Analysis Results - {{analysisType}} - No Findings"
+    "template": "string",
+    "from": "string",
+    "subject": "string"
   }
 }
 ```
 
-The backend matches `analysisType` against `Asset.type` (or `Asset.metadata.physicalType`) via `availableFor`.
+Notes:
+
+- `forensicsDefaults` is required at the root.
+
+- `analysisTypes` may be empty (`minItems: 0`), which is the expected Rookie shape.
+
+- `noFindingsEmail` is required in raw `case.json`, but the backend sanitizer exposes only `analysisTypes` to clients.
 
 ---
 
-## 10. `forensicOutcomes[]` (server-side)
-
-Canonical outcome of `(inputAssetId, analysisType)` pairs.
+## 11. `forensicOutcomes[]` (server-side)
 
 ```jsonc
 {
-  "inputAssetId": "asset.<slug>",        // required
-  "analysisType": "string",              // required — must match a forensicsDefaults.analysisTypes[].type
-  "findings": true,                      // required
-  "matchedSuspectId": "suspect.<slug>",  // optional
-  "matchedAssetId":   "asset.<slug>",    // optional
-  "conclusionText": "string",            // optional
-  "resultAssetId":  "asset.<slug>",      // optional — asset to reveal on findings
-  "resultEmailId":  "email.<slug>"       // optional — email to reveal on findings
+  "inputAssetId": "asset.<slug>",
+  "analysisType": "string",
+  "findings": true,
+  "matchedSuspectId": "suspect.<slug>",
+  "matchedAssetId": "asset.<slug>",
+  "conclusionText": "string",
+  "resultAssetId": "asset.<slug>",
+  "resultEmailId": "email.<slug>"
 }
 ```
 
-Behaviour:
-- If `findings == true` and `resultAssetId`/`resultEmailId` set → reveal them via session state.
-- If `findings == false` (or no outcome) → backend sends `forensicsDefaults.noFindingsEmail`.
-- In **all** cases, `rules[]` with trigger `forensics_complete` matching `(inputAssetId, analysisType)` are evaluated independently.
+Required fields: `inputAssetId`, `analysisType`, `findings`.
+
+Notes:
+
+- `forensicOutcomes` is required at the root, but may be `[]`.
+
+- Rookie finalization forces this array to `[]`.
+
+- Backend forensics processing uses this array to reveal result assets/emails or generate the no-findings email.
 
 ---
 
-## 11. `solution{}` (server-side)
+## 12. `solution`
 
 ```jsonc
 {
-  "culpritId": "suspect.<slug>",                                     // required
-  "requiredEvidenceIds": ["asset.<slug>"],                           // required
-  "requiredAnalysisIds": ["<inputAssetId>:<analysisType>"],          // required
+  "culpritId": "suspect.<slug>",
+  "requiredEvidenceIds": ["asset.<slug>"],
+  "requiredAnalysisIds": ["asset.<slug>:AnalysisType"],
   "questions": [
     {
-      "id": "q.<slug>",                                              // required
-      "prompt": "string",                                            // required
+      "id": "q.<slug>",
+      "prompt": "string",
       "options": [
         { "id": "opt.<slug>", "label": "string" }
       ],
-      "correctOptionId": "opt.<slug>",                               // required, server-only
-      "weight": 0.2                                                  // optional, default 1 — relative
+      "correctOptionId": "opt.<slug>",
+      "weight": 1.0
     }
   ],
-  "explanation": "markdown",                                         // shown only after resolved or attempts exhausted
-  "minimumScore": 0.7,                                               // required, 0..1
-  "maxAttempts": 3,                                                  // required
+  "explanation": "string",
+  "minimumScore": 0.7,
+  "maxAttempts": 3,
   "partialCreditRules": {
-    "culpritWeight":   0.4,
-    "evidenceWeight":  0.2,
-    "analysisWeight":  0.2,
-    "questionsWeight": 0.2                                           // weights MUST sum to 1.0
+    "culpritWeight": 0.4,
+    "evidenceWeight": 0.2,
+    "analysisWeight": 0.2,
+    "questionsWeight": 0.2
   }
 }
 ```
 
-Sanitised before reaching the client:
-- `culpritId`, `requiredEvidenceIds`, `requiredAnalysisIds` → removed.
-- `solution.questions[].correctOptionId` → removed.
-- `explanation` → removed (sent back only with the final result if `correct == true` or `attemptsRemaining == 0`).
-- `partialCreditRules` → removed.
+Schema notes:
 
-Client receives only: `questions[] { id, prompt, options[] { id, label }, weight }`, `minimumScore`, `maxAttempts`.
+- `solution` is required at the root.
 
-### Scoring
+- Required fields are `culpritId`, `requiredEvidenceIds`, `requiredAnalysisIds`, `questions`, `minimumScore`, `maxAttempts`, `partialCreditRules`.
 
+- `explanation` is optional in schema, but the generator writes it.
+
+- Each question requires `id`, `prompt`, `options`, `correctOptionId`.
+
+- Each question needs at least 2 options in schema; generator tasks usually emit 3-4.
+
+- `weight` is optional and must be `>= 0` when present.
+
+- `requiredAnalysisIds` must match `^asset\.[a-z0-9_]+:[A-Za-z0-9_]+$`.
+
+- Schema constrains each partial-credit weight to `0..1`, but does **not** enforce “sum to 1”; the generator normalizes the default weights before assembly.
+
+### Runtime scoring (`SolutionService`)
+
+```text
+culpritScore   = culpritWeight   if suspectId == culpritId else 0
+if requiredEvidenceIds is empty:
+  evidenceScore = evidenceWeight
+else:
+  evidenceScore = evidenceWeight * hits / requiredEvidenceIds.Count
+if case is Rookie OR requiredAnalysisIds is empty:
+  analysisScore = analysisWeight
+else:
+  analysisScore = analysisWeight * hits / requiredAnalysisIds.Count
+questionsScore = questionsWeight * gainedQuestionWeight / totalQuestionWeight
+total   = culpritScore + evidenceScore + analysisScore + questionsScore
+correct = total >= minimumScore
 ```
-culpritScore   = partialCreditRules.culpritWeight   if suspectId == culpritId        else 0
-evidenceScore  = partialCreditRules.evidenceWeight  * |evidenceIds ∩ requiredEvidenceIds| / |requiredEvidenceIds|
-analysisScore  = partialCreditRules.analysisWeight  * |analysisIds ∩ requiredAnalysisIds| / |requiredAnalysisIds|
-questionsScore = partialCreditRules.questionsWeight * Σ(weight_i * correct_i) / Σ(weight_i)
-total          = culpritScore + evidenceScore + analysisScore + questionsScore
-correct        = total >= minimumScore
-```
 
-Empty `requiredEvidenceIds` or `requiredAnalysisIds` → that component scores 1.0 (no requirement).
+### Attempts behavior
+
+`maxAttempts` now caps **graded** attempts only. Extra submissions after the limit are still accepted and stored, but they are marked `Graded = false` and do not affect promotion progress.
 
 ---
 
-## 12. `gameMetadata{}`
+## 13. `gameMetadata`
 
 ```jsonc
 {
-  "schemaVersion": "2.0",                // required
-  "createdAt": "ISO-8601",               // required
-  "tags": ["string"],                    // optional
-  "contentWarnings": ["violence"],       // optional
-  "localizations": ["en-US","pt-BR"],    // optional
-  "generation": {                        // server-side only
+  "schemaVersion": "2.0",             // required const
+  "createdAt": "ISO-8601",            // required
+  "tags": ["string"],                 // optional
+  "contentWarnings": ["string"],      // optional
+  "localizations": ["en-US"],         // optional
+  "generation": {                      // optional
     "pipelineVersion": "string",
     "model": "string",
-    "seed": 12345,
-    "bundleChecksum": "sha256:<hex>"
+    "seed": 123,
+    "bundleChecksum": "string"
   }
 }
 ```
 
----
+Notes:
 
-## 13. Sensitivity matrix
+- `gameMetadata` is required at the root.
 
-| Field                         | Required | Client sees? |
-|-------------------------------|----------|--------------|
-| `metadata.*`                  | yes      | yes |
-| `assets[]` (visibility=initial) | yes    | yes |
-| `assets[]` (visibility=hidden)  | yes    | only after revealed |
-| `emails[]` (visibility=initial) | yes    | yes |
-| `emails[]` (visibility=hidden)  | yes    | only after revealed |
-| `suspects[]` (visibility=initial) | yes  | yes |
-| `suspects[]` (visibility=hidden)  | yes  | only after revealed |
-| `timeline[]`                  | optional | yes |
-| `temporalEvents[]`            | yes      | **no** |
-| `rules[]`                     | yes      | **no** |
-| `forensicsDefaults`           | yes      | partial (only `analysisTypes`) |
-| `forensicOutcomes[]`          | yes      | **no** |
-| `solution.questions[].id/prompt/options[].id/label` | yes | yes |
-| `solution.culpritId / required* / correctOptionId / explanation / partialCreditRules` | yes | **no** |
-| `gameMetadata.generation`     | optional | **no** |
-| `gameMetadata.*` (rest)       | yes      | yes |
+- Only `schemaVersion` and `createdAt` are required.
 
-The backend sanitiser (`CaseV2SanitizerService`) is the single source of truth for this matrix and has dedicated unit tests.
+- `generation` allows additional properties and is removed from the sanitized client contract.
 
 ---
 
-## 14. Validation checklist
+## 14. Raw `case.json` vs sanitized client response
 
-A valid v2 `case.json` MUST:
+`GET /api/cases/{caseId}` does **not** return raw `case.json`. It returns `CaseV2Sanitized`, which currently contains:
 
-- [ ] `version == "2.0"` and `caseId` matches the storage folder.
-- [ ] At least one email with `visibility: "initial"`.
-- [ ] All `assets[]`, `emails[]`, `suspects[]` IDs unique and use the correct prefix.
-- [ ] All `attachments`, `relatedAssets`, `linkedAssets`, `rules.*.trigger.*`, `rules.*.actions.*`, `forensicOutcomes[].*`, `solution.*` reference IDs that exist.
-- [ ] `metadata.difficulty` and `metadata.requiredRank` are valid enum strings.
-- [ ] `solution.partialCreditRules` weights sum to exactly 1.0.
-- [ ] Every `solution.questions[].correctOptionId` belongs to that question's `options`.
-- [ ] Every `solution.requiredAnalysisIds` entry has the form `<assetId>:<analysisType>`.
+```jsonc
+{
+  "version": "2.0",
+  "caseId": "case_001",
+  "metadata": { ... },
+  "assets": [ /* visible only */ ],
+  "emails": [ /* visible only */ ],
+  "suspects": [ /* initial + revealed only */ ],
+  "timeline": [ ... ],
+  "forensicsDefaults": {
+    "analysisTypes": [ ... ]
+  },
+  "solution": {
+    "questions": [
+      { "id": "q...", "prompt": "...", "options": [ ... ], "weight": 1.0 }
+    ],
+    "minimumScore": 0.7,
+    "maxAttempts": 3
+  },
+  "gameMetadata": {
+    "schemaVersion": "2.0",
+    "createdAt": "...",
+    "tags": [ ... ],
+    "contentWarnings": [ ... ],
+    "localizations": [ ... ]
+  }
+}
+```
 
-The backend rejects (HTTP 422) cases that fail any of the above when uploaded.
+Hidden from the client response:
+
+- `temporalEvents`
+
+- `rules`
+
+- `forensicOutcomes`
+
+- `forensicsDefaults.noFindingsEmail`
+
+- `solution.culpritId`
+
+- `solution.requiredEvidenceIds`
+
+- `solution.requiredAnalysisIds`
+
+- `solution.questions[].correctOptionId`
+
+- `solution.explanation`
+
+- `solution.partialCreditRules`
+
+- `gameMetadata.generation`
+
+Visibility behavior is session-aware:
+
+- assets: `visibility == "initial"` or unlocked in `CaseSessionVisibleAssets`
+
+- emails: `visibility == "initial"` or unlocked in `CaseSessionVisibleEmails`, plus attachment overrides/synthetic emails
+
+- suspects: `visibility == "initial"` or revealed in session state
 
 ---
 
-## 15. Triggers & actions cheat sheet
+## 15. Validation checklist
 
-| Trigger                | Fired by                                                  | Idempotency |
-|------------------------|-----------------------------------------------------------|-------------|
-| `forensics_complete`   | `ForensicsBackgroundService` when a request completes     | per `(caseId,inputAssetId,analysisType,sessionId)` |
-| `attachment_download`  | `POST /api/cases/{c}/emails/{e}/attachments/{a}/download` | per `(emailId,assetId,sessionId)` |
-| `asset_viewed`         | `POST /api/cases/{c}/assets/{a}/view`                     | per `(assetId,sessionId)` |
-| `email_opened`         | `POST /api/cases/{c}/emails/{e}/open`                     | per `(emailId,sessionId)` |
-| `suspect_viewed`       | `POST /api/cases/{c}/suspects/{s}/view`                   | per `(suspectId,sessionId)` |
-| `time_elapsed`         | `POST /api/cases/{c}/time` (gameTimeMinutes)              | per `(ruleId,sessionId)` |
-| `multiple_conditions`  | composite; satisfied when sub-conditions satisfied        | per `(ruleId,sessionId)` |
+A current v2 payload should satisfy the following:
 
-| Action                 | Effect                                              |
-|------------------------|-----------------------------------------------------|
-| `reveal_email`         | Adds emailId to `CaseSessionState.RevealedEmailIds`, SignalR `case.entity.revealed` |
-| `reveal_asset`         | Adds assetId to `RevealedAssetIds`                  |
-| `reveal_suspect`       | Adds suspectId to `RevealedSuspectIds`              |
-| `add_email_attachment` | `EmailAttachmentOverrides[emailId] += assetId`      |
-| `send_notification`    | Pushes a notification (level/message)               |
-| `update_suspect_status`| `SuspectStatusOverrides[suspectId] = status`        |
-| `mark_alibi_verified`  | `SuspectAlibiVerified[suspectId] = verified`        |
+### JSON Schema enforced
+
+- [ ] `version == "2.0"`
+
+- [ ] `caseId` matches `^case_[a-z0-9_]+$`
+
+- [ ] `assets`, `emails`, and `suspects` each have at least 1 item
+
+- [ ] `metadata` contains all required fields
+
+- [ ] `gameMetadata.schemaVersion == "2.0"`
+
+- [ ] `solution.questions[].options` has at least 2 items
+
+- [ ] `requiredAnalysisIds` entries match `<assetId>:<analysisType>` format
+
+### Generator / backend enforced beyond schema
+
+- [ ] `caseId` should also match the storage folder name
+
+- [ ] Rookie cases must have `metadata.unlockMode == "all_initial"`
+
+- [ ] Rookie cases must not contain active forensic workflow content
+
+- [ ] culprit-supporting proof must satisfy the selected difficulty topology
+
+- [ ] result assets/emails referenced by forensic outcomes and rules must exist
+
+- [ ] contextual assets must not become required solution evidence
+
+- [ ] partial-credit weights should sum to `1.0` even though schema alone does not require it
+
+---
+
+## 16. Known schema/runtime nuance
+
+The only current schema-file drift is this:
+
+- `schemas/case.schema.json` does **not** list `assets[].evidenceRole`, `assets[].subjectSuspectId`, or `assets[].imagePurpose`
+
+- `functions/CaseGen.Functions/Schemas/case.v2.schema.json` **does** list them
+
+- generator/runtime code understands them
+
+- backend client models currently ignore them
+
+Treat the repo schema as the canonical public contract, and the generator schema as the runtime superset used during generation/final validation.

@@ -1,6 +1,6 @@
 # 09 — Data Schema
 
-> **Canonical v2.** This page is a **design summary**. The authoritative technical spec is [`docs/CASE_JSON_V2_SPEC.md`](../docs/CASE_JSON_V2_SPEC.md) (accompanied by the JSON Schema in `schemas/case.schema.json`).
+> **Canonical v2.** This page is a **design summary**. The authoritative technical spec is [`docs/CASE_JSON_V2_SPEC.md`](../../CASE_JSON_V2_SPEC.md) (accompanied by the JSON Schema in `schemas/case.schema.json`).
 
 ## 9.1 Principles
 

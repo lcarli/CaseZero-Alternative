@@ -1,45 +1,122 @@
 # Running CaseGen.Functions locally (Mac + Windows)
 
-This guide covers running the **CaseZero case generator** locally to produce a `case.json` v2 that the site can consume. The full Plan→Expand→Design→Documents→Media→Normalize pipeline is preserved, but the canonical flow for now is the **5-stage v2 pipeline** exposed at `POST /api/cases/v2/generate`.
+This guide reflects the **current** `CaseGen.Functions` project and local scripts in this repository.
 
-> Functions stay on **.NET 9** (per project policy). The site stays on .NET 8.
+> `functions/CaseGen.Functions` and `functions/CaseGen.Functions.Tests` stay on **.NET 9**. The backend remains on **.NET 8**.
 
-## 1. Prereqs
+## 1. What actually runs locally
 
-Same on Mac and Windows:
+Current triggers in [`../functions/CaseGen.Functions/Functions/CaseV2/CaseV2GenerationOrchestrator.cs`](../functions/CaseGen.Functions/Functions/CaseV2/CaseV2GenerationOrchestrator.cs):
 
-- **Node 20+** — for Azurite + Azure Functions Core Tools.
-- **.NET 9 SDK** — https://dotnet.microsoft.com/download
-- An **Azure Foundry / Azure OpenAI** endpoint + key (the LLM provider). Default reads from `functions/CaseGen.Functions/local.settings.json`.
+- `POST /api/cases/v2/generate` — HTTP starter
+- `GET /api/cases/v2/jobs/{jobId}` — HTTP status endpoint
+- `CaseV2GenerationOrchestrator` — Durable orchestrator
+- `CaseV2GenerateActivity` — Durable activity
 
-If anything is missing the run scripts install Azurite + Functions Core Tools automatically via `npm`.
+There are **no timer triggers** and **no queue-triggered functions** in this project today. Azurite is still required because Durable Functions and job-status blobs rely on storage.
 
-## 2. One-command bring-up
+## 2. Prerequisites
 
-**Mac / Linux:**
+- **.NET 9 SDK**
+- **Node.js 20+**
+- **Azure Functions Core Tools v4**
+- **Azurite**
+- An **Azure Foundry / Azure OpenAI-compatible** endpoint, model names, and API key
+
+The repo scripts install **Functions Core Tools v4** and **Azurite** automatically if missing:
+- [`../scripts/run-functions.ps1`](../scripts/run-functions.ps1)
+- [`../scripts/run-functions.sh`](../scripts/run-functions.sh)
+
+## 3. Required local settings (keys only)
+
+Crie `functions/CaseGen.Functions/local.settings.json` com estas chaves. Esse arquivo é local, contém segredos e não deve ser versionado:
+
+```json
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "CaseGeneratorStorage__ConnectionString": "UseDevelopmentStorage=true",
+    "CaseGeneratorStorage__BundlesContainer": "bundles",
+    "LLM__UseAzureFoundry": "true",
+    "AzureFoundry__Endpoint": "https://<your-foundry-endpoint>",
+    "AzureFoundry__ModelName": "<your-text-model-deployment>",
+    "AzureFoundry__ImageDeploymentName": "<your-image-model-deployment>",
+    "AzureFoundry__ApiKey": "<YOUR_OPENAI_KEY>",
+    "CaseGenV2__JobMaxAttempts": "5",
+    "ASPNETCORE_ENVIRONMENT": "Development"
+  }
+}
+```
+
+Notes:
+- Do **not** commit real keys.
+- `Program.cs` loads both `local.settings.json` and environment variables, so env vars are also valid.
+- The Azure Foundry provider requires:
+  - `AzureFoundry:Endpoint`
+  - `AzureFoundry:ModelName`
+  - `AzureFoundry:ImageDeploymentName`
+  - `AzureFoundry:ApiKey`
+- Storage can come from managed identity (`CaseGeneratorStorage:AccountName`) or a connection string, but local dev in this repo is designed around **Azurite**.
+
+## 4. One-command bring-up
+
+### Windows (PowerShell)
+
+```powershell
+.\scripts\run-functions.ps1
+```
+
+### Mac / Linux
+
 ```bash
 ./scripts/run-functions.sh
 ```
 
-**Windows (PowerShell):**
+What the scripts do today:
+1. verify `dotnet` and `node`
+2. install `azure-functions-core-tools@4` globally if missing
+3. install `azurite` globally if missing
+4. start Azurite in the background using **`AzuriteConfig`**
+5. write Azurite logs to `AzuriteConfig/azurite.log`
+6. store the Azurite PID in `AzuriteConfig/azurite.pid`
+7. copy `schemas/case.schema.json` to `functions/CaseGen.Functions/Schemas/case.v2.schema.json`
+8. build `CaseGen.Functions.csproj`
+9. start the Functions host on `http://localhost:7071`
+
+`host.json` currently sets:
+- Durable hub name: `CaseGenHub`
+- Durable storage provider: `AzureStorage`
+- `functionTimeout`: `01:00:00`
+
+## 5. Manual bring-up (if you do not use the scripts)
+
+### Windows
+
 ```powershell
-./scripts/run-functions.ps1
+azurite --silent --location .\AzuriteConfig --debug .\AzuriteConfig\azurite.log
+Copy-Item .\schemas\case.schema.json .\functions\CaseGen.Functions\Schemas\case.v2.schema.json -Force
+Set-Location .\functions\CaseGen.Functions
+dotnet build CaseGen.Functions.csproj
+func start --csharp
 ```
 
-The script:
-1. Verifies `dotnet`, `node`.
-2. Installs Azurite and `azure-functions-core-tools@4` globally if missing.
-3. Spins up Azurite in the background (logs in `AzuriteConfig/azurite.log`, PID in `AzuriteConfig/azurite.pid`).
-4. Copies the canonical schema to `functions/CaseGen.Functions/Schemas/case.v2.schema.json`.
-5. Builds + starts the Functions host on `http://localhost:7071`.
+### Mac / Linux
 
-Stop the host with `Ctrl+C`. Azurite keeps running — kill it with `kill $(cat AzuriteConfig/azurite.pid)` or `Stop-Process` on Windows.
+```bash
+azurite --silent --location ./AzuriteConfig --debug ./AzuriteConfig/azurite.log
+cp ./schemas/case.schema.json ./functions/CaseGen.Functions/Schemas/case.v2.schema.json
+cd ./functions/CaseGen.Functions
+dotnet build CaseGen.Functions.csproj
+func start --csharp
+```
 
-## 3. Generate a case (v2 — async job)
+## 6. Generate a case locally
 
-Since v0.9 the v2 endpoint is **asynchronous**: `POST /api/cases/v2/generate` returns `202 Accepted + jobId` immediately, and you poll `GET /api/cases/v2/jobs/{jobId}` until `status == "done"` (or `"failed"`). Generation takes 8–12 minutes — well past the 230s HTTP limit, which is why we run it as a Durable Functions orchestration.
+The current API is asynchronous.
 
-### Start the job
+### Start a job
 
 ```bash
 curl -sS -X POST http://localhost:7071/api/cases/v2/generate \
@@ -54,138 +131,107 @@ curl -sS -X POST http://localhost:7071/api/cases/v2/generate \
     "language": "en-US",
     "seed": 42,
     "writeToDisk": true
-  }' | jq
+  }'
 ```
 
-Response:
+Typical response:
 
 ```json
 {
-  "jobId": "casev2-20260515081234-a1b2c3",
+  "jobId": "casev2-20260728073000-a1b2c3",
   "status": "queued",
-  "statusUri": "/api/cases/v2/jobs/casev2-20260515081234-a1b2c3"
+  "statusUri": "/api/cases/v2/jobs/casev2-20260728073000-a1b2c3"
 }
 ```
-
-> **Single-instance**: if another v2 generation is already running, the endpoint returns **409 Conflict** with the running `jobId`. Wait for it, or query its status first.
 
 ### Poll the job
 
 ```bash
-curl -sS http://localhost:7071/api/cases/v2/jobs/casev2-20260515081234-a1b2c3 | jq
+curl -sS http://localhost:7071/api/cases/v2/jobs/casev2-20260728073000-a1b2c3
 ```
 
-While running:
+Status values are currently:
+- `queued`
+- `running`
+- `done`
+- `failed`
 
-```json
-{
-  "jobId": "casev2-20260515081234-a1b2c3",
-  "status": "running",
-  "currentPhase": "outcomesAndInitialEmails",
-  "runtimeStatus": "Running",
-  "createdAt": "2026-05-15T08:12:34Z",
-  "lastUpdatedAt": "2026-05-15T08:18:11Z",
-  "result": null,
-  "error": null
-}
+The status document also tracks attempts/stages and is written to:
+- `jobs/<jobId>/status.json`
+
+## 7. Supported request fields
+
+| Field | Current behavior |
+|---|---|
+| `caseId` | Optional; if omitted, the generator creates one |
+| `title` | Optional override |
+| `theme` | Optional prompt hint |
+| `location` | Optional prompt hint |
+| `difficulty` | Optional |
+| `requiredRank` | Optional |
+| `language` | Defaults to `en-US`; repo tooling also recognizes `pt-BR`, `es-ES`, `fr-FR` |
+| `seed` | Optional deterministic seed |
+| `writeToDisk` | Defaults to `true` |
+
+## 8. What gets written where
+
+### Local filesystem
+
+When `writeToDisk=true`, the generator writes into the repo `cases` directory when it can resolve the repository root:
+
+- `cases/<caseId>/case.json`
+- `cases/<caseId>/assets/*`
+
+### Blob storage / Azurite
+
+The current code uses storage for two separate concerns:
+
+- `bundles/<caseId>/case.json` + `bundles/<caseId>/assets/*` — published bundle consumed by the backend/site
+- `jobs/<jobId>/status.json` — per-job progress document
+
+Current defaults:
+- bundles container: `bundles`
+- job-status container: `jobs`
+
+## 9. Useful validation command
+
+The existing helper script can generate and/or validate artifacts:
+
+- [`../scripts/validate-casev2.ps1`](../scripts/validate-casev2.ps1)
+
+Examples:
+
+```powershell
+.\scripts\validate-casev2.ps1 -Mode Generate -Difficulty Rookie -Theme "office theft" -Seed 1
+.\scripts\validate-casev2.ps1 -Mode Artifact -CaseDirectory .\cases\case_002
 ```
 
-When done:
+## 10. Troubleshooting
 
-```json
-{
-  "jobId": "casev2-20260515081234-a1b2c3",
-  "status": "done",
-  "currentPhase": null,
-  "runtimeStatus": "Completed",
-  "result": {
-    "caseId": "case_002",
-    "outputPath": "/Users/.../cases/case_002/case.json",
-    "validationErrorsCount": 0,
-    "assetsRenderedPdfs": 3,
-    "assetsRenderedImages": 2,
-    "blobsPublished": 9,
-    "hasErrors": false,
-    "errorMessage": null,
-    "stageLatencyMs": { "plotOutline": 4321, "suspectCards": 6532, "...": 0 }
-  },
-  "error": null
-}
-```
+- **`AzureFoundry:ApiKey not configured` / `AzureFoundry:Endpoint not configured`**
 
-Status values: `queued | running | done | failed`. While `running`, the optional `currentPhase` field shows the current pipeline stage (best-effort, written to `jobs/{jobId}/status.json` in blob storage).
+  Fill in the local settings with placeholders replaced by your own values, or export equivalent environment variables.
 
-### What's persisted
+- **`AzureFoundry:Endpoint must be a valid absolute HTTPS URI`**
 
-- `cases/<caseId>/case.json` + `cases/<caseId>/assets/*` — written to local disk when `writeToDisk=true`.
-- `bundles/<caseId>/case.json` + `bundles/<caseId>/assets/*` — uploaded to blob storage so the website sees the new case (`CaseV2StorageService`).
-- `jobs/<jobId>/status.json` — per-job phase doc (read by the GET endpoint).
+  The endpoint must be a full `https://...` URL.
 
-The file is idempotent — re-running with the same `caseId` overwrites.
+- **`Could not locate case.v2 schema`**
 
-### Body fields (all optional)
+  Re-run the repo script. It copies `schemas/case.schema.json` into the Functions project before startup.
 
-| Field | Default | Notes |
-|-------|---------|-------|
-| `caseId` | `case_yyyymmdd_hhmmss` | Forced to lower-case and prefixed `case_` if missing |
-| `title` | model picks | Overrides whatever the plot stage produced |
-| `theme` | model picks | A short hint to anchor the plot |
-| `location` | model picks | City, state |
-| `difficulty` | `Detective` | One of: `Rookie · Detective · Detective2 · Sergeant · Lieutenant · Captain · Commander` |
-| `requiredRank` | `difficulty` | Same enum |
-| `language` | `en-US` | Future use — story strings still come out in EN by default |
-| `seed` | none | Forwarded into `gameMetadata.generation.seed` |
-| `writeToDisk` | `true` | Set to `false` if you only want the JSON in the response |
+- **Job returns `409 Conflict` on POST**
 
-## 4. Pipeline overview (micro-tasks, parallel, with context continuity)
+  The HTTP starter enforces best-effort single-instance execution. Poll the existing `jobId` first.
 
-Every LLM call receives a slim summary of the **case so far** via `CaseDraft.ToSummaryJson()` — full suspect motives/alibis, asset descriptions, timeline, forensic conclusions, dates and times. Tasks never see only IDs; they see real prior content so the writing stays coherent (suspect created in Phase 2 keeps the same motive when referenced in Phase 8 question generation, dates stay anchored to `incidentDate`/`openedAt`, etc.).
+- **Status never advances / blob progress missing**
 
-After all LLM stages finish and the JSON validates, the **AssetRenderingService** materialises every asset to disk:
+  Check Azurite first. The Functions app writes progress to the `jobs` container, and local blob publishing also depends on storage.
 
-- **PDF / document** → real PDF rendered with QuestPDF (`IPdfRenderingService.GenerateTestPdfAsync(title, body, category)`). The model produces the markdown body in the `AssetCardTask` (or in `ForensicOutcomeTask` for lab reports).
-- **photo / image** → real image generated by the configured image model (`ILLMProvider.GenerateImageAsync(prompt)`). Prompt = `body` if present, otherwise the description.
-- **audio / video / digital** → placeholder sidecar `.txt` with the body so the asset still loads in the FileViewer.
+- **Cases do not appear in the site locally**
 
-### Phases
+  Confirm `cases/<caseId>/case.json` was written. The backend prefers the local `cases` directory in dev before blob storage.
 
-| # | Phase | LLM calls | Parallel? | Purpose |
-|---|-------|-----------|-----------|---------|
-| 1 | **Plot Outline** | 1 | — | `metadata` + victim + 3-6 suspect stubs + culprit pick |
-| 2 | **Suspect Cards** | N | ✅ | Full profile: motive, alibi, alibiVerified, background — kept in the draft for every downstream stage |
-| 3 | **Asset Plan** | 1 | — | List of 4-10 asset stubs (id + type + title + role) |
-| 4 | **Asset Cards · Timeline · Briefing** | M+2 | ✅ | Per-asset: description + **body** (markdown for PDFs, image prompt for photos, transcript for audio); narrative timeline + temporal events anchored to `incidentDate`; chief-of-police email |
-| 5 | **Forensics Plan** | 1 | — | `analysisTypes` + outcome stubs (smoking-gun pinned to culprit) |
-| 6 | **Forensic Outcomes · Initial Emails** | K+1 | ✅ | Per-outcome conclusion + (if findings) hidden PDF (Chain-of-Custody / Methodology / Findings / Conclusion) + hidden lab email; 0-3 follow-up emails |
-| 7 | **Rules · Solution Skeleton** | 2 | ✅ | Rules wiring + required evidence/analysis IDs + question topics |
-| 8 | **Questions · Explanation** | Q+1 | ✅ | One MCQ per topic + final markdown explanation |
-| 9 | **Assemble + Validate** | 0 | — | C# deterministic JSON + `JSchema.IsValid` against `schemas/case.schema.json` |
-| 10 | **Render Assets** | I per image | ✅ images run in parallel | PDFs via QuestPDF + images via the LLM image model; sidecars for audio/video/digital |
+- **Need to stop Azurite**
 
-For a typical 4-suspect, 6-asset (3 pdf + 2 photo + 1 digital), 2-outcome, 3-question case that's roughly:
-
-- ~20 LLM text calls (most inside parallel batches)
-- ~3 PDF renders (QuestPDF, fast)
-- ~2 LLM image calls (in parallel)
-
-### Why micro-tasks instead of one big call?
-
-- **Token budget:** large cases used to choke a one-shot prompt. Each micro-task fits comfortably.
-- **Quality per scope:** the model focuses on ONE suspect / ONE asset / ONE question.
-- **Failure isolation:** if `SuspectCard:suspect.eva_blackwood` fails, only that one retries (built-in 1-shot retry inside `TaskRunner`).
-- **Parallelism:** independent steps inside a phase run via `Task.WhenAll`.
-- **Context continuity:** the orchestrator passes the growing `CaseDraft` (real motives, descriptions, timeline, dates) so a suspect's alibi from Phase 2 is consistently referenced in the Phase 8 question, and the timeline never drifts off `incidentDate`/`openedAt`.
-
-## 5. Feeding the site
-
-The site's `CaseV2StorageService` prefers the local `cases/` directory before falling back to blob, so a freshly generated `case_002` immediately shows up in `GET /api/cases/dashboard` after a backend restart (or `force-reload` of the dashboard if storage cache is empty).
-
-To regenerate the same id with tweaks, just POST again with `caseId: "case_002"` — the file is overwritten.
-
-## 6. Troubleshooting
-
-- **`AzureFoundry:ApiKey not configured`** — fill in `functions/CaseGen.Functions/local.settings.json` (do not commit secrets) or export `AzureFoundry__ApiKey` in your shell.
-- **`Could not locate case.v2 schema`** — re-run the script; it copies the schema at start. Or copy `schemas/case.schema.json` → `functions/CaseGen.Functions/Schemas/case.v2.schema.json` manually.
-- **`502 / 504` from the LLM** — re-run; transient. The pipeline is idempotent per `caseId`.
-- **Validation errors in the response** — the model violated the v2 schema. Re-run; if persistent, narrow the prompt by setting `theme` more explicitly or lowering `difficulty`.
-- **Mac M-series + Azurite EACCES on tcp 10000/10001/10002** — kill any stale Azurite process: `kill $(cat AzuriteConfig/azurite.pid)`.
+  Use the PID in `AzuriteConfig/azurite.pid`, or stop the saved process directly.

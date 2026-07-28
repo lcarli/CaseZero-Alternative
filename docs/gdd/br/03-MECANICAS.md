@@ -258,7 +258,7 @@ Se o caso precisar mostrar um detalhe, ele aparece em um **recorte dentro do pr�
 
 ## 3.4 Sistema de Solicitação de Perícias
 
-A mecânica central baseada em tempo que cria ritmo e antecipação.
+A mecânica central baseada em tempo que cria ritmo e antecipação. No backend atual, isso é implementado como solicitações assíncronas baseadas em tempo decorrido, e não como trabalho laboratorial em streaming ao vivo.
 
 ### Tipos de análise forense
 
@@ -871,66 +871,56 @@ Avanço de longo prazo por meio de patentes.
 
 ### Estrutura de patentes
 
-**Patentes oficiais (8 níveis):** seguimos a hierarquia já usada pelo departamento – mesma nomenclatura de ranking exibida no perfil do jogador.
+**Escada oficial de patente / dificuldade (7 níveis):** a base viva do produto usa a mesma progressão de sete níveis tanto para dificuldade dos casos quanto para patente do detetive. As promoções dependem de **resoluções corretas e avaliadas de forma cumulativa** — não de XP, nem de cotas por dificuldade.
 
-1. **Novato**
+1. **Rookie**
   - Patente inicial
-  - Acesso a casos fáceis
-  - **Requisito:** 0 casos concluídos (apenas terminar o tutorial)
+  - Dificuldade de entrada
+  - **Marco de promoção:** 0 resoluções corretas avaliadas
 
-2. **Detetive III**
-  - Primeiro degrau real da carreira
-  - Desbloqueia casos médios
-  - **Requisito:** 1 caso arquivado resolvido com veredito correto
+2. **Detetive**
+  - Primeira promoção
+  - **Marco de promoção:** 3 resoluções corretas avaliadas
 
-3. **Detetive II**
-  - Demonstra consistência
-  - Casos médios passam a ser rotina
-  - **Requisito:** 3 casos concluídos (pelo menos 1 de dificuldade média)
+3. **Detetive Sênior** (`Detective2`)
+  - Investigador já consistente
+  - **Marco de promoção:** 8 resoluções corretas avaliadas
 
-4. **Detetive I**
-  - Investigador experiente
-  - Ganha acesso aos casos difíceis
-  - **Requisito:** 6 casos concluídos (mínimo 2 entre médio/difícil)
+4. **Sargento**
+  - Investigador sênior de campo
+  - **Marco de promoção:** 16 resoluções corretas avaliadas
 
-5. **Detetive Sênior**
-  - Domina os fundamentos
-  - Torna-se elegível para casos difíceis recorrentes
-  - **Requisito:** 10 casos concluídos (mínimo 3 difíceis)
+5. **Tenente**
+  - Acesso a casos avançados
+  - **Marco de promoção:** 28 resoluções corretas avaliadas
 
-6. **Detetive Líder**
-  - Referência técnica
-  - Recebe convites para casos de especialista
-  - **Requisito:** 15 casos concluídos (mínimo 2 especialistas)
+6. **Capitão**
+  - Acesso a casos de alta complexidade
+  - **Marco de promoção:** 44 resoluções corretas avaliadas
 
-7. **Detetive Veterano**
-  - Status de elite
-  - Casos de especialista parecem alcançáveis
-  - **Requisito:** 21 casos concluídos (mínimo 3 especialistas)
-
-8. **Detetive Mestre**
-  - Patente máxima do ranking
-  - Todo o conteúdo arquivado liberado
-  - **Requisito:** 28 casos concluídos (mínimo 5 especialistas)
+7. **Comandante**
+  - Patente máxima atualmente implementada
+  - **Marco de promoção:** 65 resoluções corretas avaliadas
 
 ### Registro de casos e tempo
 
-- Progressão não usa XP ou grind artificial: **cada caso resolvido = 1 avanço real**.
-- Ao enviar o dossiê final correto, salvamos somente:
+- Progressão não usa XP nem multiplicadores: **ela segue resoluções corretas avaliadas de forma cumulativa**.
+- Ao enviar o relatório final, o backend registra o resultado do caso junto com:
   - `caseId`
   - `difficulty`
   - `resolvedAt`
   - `elapsedMinutes` (tempo total gasto naquele caso)
-- O `elapsedMinutes` alimenta o ranking interno e placares opcionais (“melhor tempo do departamento”).
-- O servidor mantém histórico por caso para validar promoções; não somamos XP nem pontos extras.
+- Promoções são calculadas a partir das resoluções corretas avaliadas; resultados incorretos ou não avaliados não avançam a patente.
+- O `elapsedMinutes` continua alimentando comparativos internos de tempo e resumos pós-caso.
+- O servidor mantém um histórico por caso resolvido; não existe contador acumulado de XP.
 
 ### Fluxo de promoção
 
-1. Jogador resolve um caso arquivado.
-2. Gravamos o tempo total (cronômetro do caso) e acrescentamos +1 ao contador de casos concluídos.
-3. Checamos os requisitos da próxima patente (quantidade total + quotas por dificuldade).
-4. Ao atender aos critérios, o perfil sobe automaticamente e desbloqueia o próximo conjunto de casos.
-5. Histórico de tempo permanece disponível para replays, mas **nenhuma outra estatística é persistida**.
+1. O jogador resolve um caso arquivado.
+2. O sistema grava o tempo total e registra se aquela resolução contou como correta e avaliada.
+3. O serviço de promoção compara o total cumulativo correto com os marcos ativos (3 / 8 / 16 / 28 / 44 / 65).
+4. Se um marco for alcançado, a patente do perfil sobe imediatamente e o acesso a casos de patente superior pode ser liberado.
+5. Apenas o histórico por caso + o tempo total permanecem salvos; não persistimos ledger de XP nem cotas por dificuldade.
 
 ### Benefícios das patentes
 
@@ -991,10 +981,12 @@ Como suspeitos são apresentados e investigados.
 
 ### Diretrizes de quantidade de suspeitos
 
-- **Casos fáceis:** 2-3 suspeitos
-- **Casos médios:** 4-5 suspeitos
-- **Casos difíceis:** 6-7 suspeitos
-- **Casos de especialista:** 8+ suspeitos
+Diretriz ampla de design na escada atual de sete níveis de dificuldade:
+
+- **Rookie:** 2-3 suspeitos
+- **Detetive / Detetive Sênior:** 4-5 suspeitos
+- **Sargento / Tenente:** 6-7 suspeitos
+- **Capitão / Comandante:** 8+ suspeitos
 
 ### Pistas falsas
 

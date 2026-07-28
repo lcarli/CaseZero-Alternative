@@ -10,17 +10,23 @@ Esta pasta contém toda a documentação técnica detalhada do projeto CaseZero-
 
 ### 🏗️ Arquitetura e Design
 - **[FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md)** - Arquitetura do frontend React
-- **[BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md)** - Arquitetura do backend .NET (CaseZeroApi + CaseGen.Functions)
+- **[BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md)** - Arquitetura da API de gameplay e contas (`CaseZeroApi`)
 - **[DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)** - Schema e estrutura do banco de dados
-- **[CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md)** - Pipeline de geração automática de casos com AI
+- **[CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md)** - Arquitetura e pipeline do gerador de casos (`CaseGen.Functions`)
+- **[DIFFICULTY_PROFILE_SYSTEM.md](DIFFICULTY_PROFILE_SYSTEM.md)** - Contratos de volume e topologia das sete dificuldades
+- **[GAME_TIME_ENGINE.md](GAME_TIME_ENGINE.md)** - Relógio do jogo, eventos temporais e integração com sessões
 - **[CASE_GENERATION_SOAK_TEST_2026-07-24.md](CASE_GENERATION_SOAK_TEST_2026-07-24.md)** - Resultado do batch real por dificuldade, falhas encontradas e critérios de prontidão
-- **[PDF_DOCUMENT_TEMPLATES.md](PDF_DOCUMENT_TEMPLATES.md)** - Templates profissionais de documentos PDF (7 tipos implementados)
+- **[PDF_DOCUMENT_TEMPLATES.md](PDF_DOCUMENT_TEMPLATES.md)** - Renderização e layouts profissionais de evidências
 
 ### 🔧 APIs e Integrações
 - **[API_COMPLETE.md](API_COMPLETE.md)** - Documentação completa da REST API
 - **[CASE_JSON_V2_SPEC.md](CASE_JSON_V2_SPEC.md)** - Especificação do `case.json` v2 (contrato único de casos)
+- **[EMAIL_SYSTEM_IMPLEMENTATION.md](EMAIL_SYSTEM_IMPLEMENTATION.md)** - Geração, visibilidade e consumo de emails de caso
 - **[CASE_GENERATOR_SETUP.md](CASE_GENERATOR_SETUP.md)** - Setup do gerador de casos com AI
 - **[RUNNING_FUNCTIONS_LOCALLY.md](RUNNING_FUNCTIONS_LOCALLY.md)** - Rodar a Function App localmente (gerar caso em dev)
+
+### 🧪 Testes e Validação
+- **[MANUAL_SMOKE_v2.md](MANUAL_SMOKE_v2.md)** - Roteiro de smoke test manual do contrato e gameplay v2
 
 ### 🎮 Game Design Document (GDD)
 - **[gdd/en/](gdd/en/)** - GDD em inglês (source of truth)
@@ -32,6 +38,7 @@ Esta pasta contém toda a documentação técnica detalhada do projeto CaseZero-
 ### 🚀 Deploy e Operações
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Guia de deployment para diferentes ambientes
 - **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Soluções para problemas comuns
+- **[cicd/README.md](cicd/README.md)** - Workflows, infraestrutura e operação de CI/CD
 
 ---
 
@@ -41,14 +48,16 @@ Esta pasta contém toda a documentação técnica detalhada do projeto CaseZero-
 Se você vai contribuir com código ou entender o sistema:
 1. Comece com [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)
 2. Leia [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md) ou [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md) dependendo da sua área
-3. Consulte [API_COMPLETE.md](API_COMPLETE.md) para integração entre sistemas
+3. Para trabalhar no gerador, consulte [CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md)
+4. Consulte [API_COMPLETE.md](API_COMPLETE.md) para integração entre sistemas
 
 ### 🔧 DevOps/SysAdmins
 Se você vai fazer deploy ou manter o sistema:
 1. Leia [DEPLOYMENT.md](DEPLOYMENT.md)
-2. Consulte [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) para entender o banco
-3. Use [API_COMPLETE.md](API_COMPLETE.md) para health checks e monitoramento
-4. Tenha [TROUBLESHOOTING.md](TROUBLESHOOTING.md) como referência para problemas
+2. Consulte [cicd/README.md](cicd/README.md) para workflows e infraestrutura
+3. Consulte [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) para entender o banco
+4. Use [API_COMPLETE.md](API_COMPLETE.md) para rotas e health checks disponíveis
+5. Tenha [TROUBLESHOOTING.md](TROUBLESHOOTING.md) como referência para problemas
 
 ### 🎮 Game Designers / Content Creators
 Se você vai criar novos casos investigativos:
@@ -61,7 +70,8 @@ Se você vai criar novos casos investigativos:
 Se você quer entender o sistema tecnicamente:
 1. Comece com [README Principal](../README.md)
 2. Leia [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md) e [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md) para visão geral
-3. Consulte [API_COMPLETE.md](API_COMPLETE.md) para funcionalidades disponíveis
+3. Consulte [CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md) para entender o gerador de casos
+4. Consulte [API_COMPLETE.md](API_COMPLETE.md) para funcionalidades disponíveis
 
 ---
 
@@ -73,7 +83,7 @@ Se você quer entender o sistema tecnicamente:
 | **Backend API** | ASP.NET Core | 8.0 | [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md) |
 | **Functions** | Azure Functions (.NET) | 9.0 | [CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md) |
 | **PDF Generation** | QuestPDF | 2025.7.1 | [PDF_DOCUMENT_TEMPLATES.md](PDF_DOCUMENT_TEMPLATES.md) |
-| **Banco** | SQLite + EF Core | 8.0 | [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) |
+| **Banco** | Azure SQL/SQL Server ou SQLite + EF Core | 9.x | [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) |
 | **API** | REST + JWT | - | [API_COMPLETE.md](API_COMPLETE.md) |
 | **Storage** | Azure Blob + Azurite | - | [CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md) |
 
@@ -82,7 +92,7 @@ Se você quer entender o sistema tecnicamente:
 ## 🎮 Funcionalidades Principais
 
 ### Sistema de Investigação
-- **Casos Modulares**: Sistema completo de casos investigativos ([OBJETO_CASO.md](OBJETO_CASO.md))
+- **Casos Modulares**: Sistema completo de casos investigativos ([CASE_JSON_V2_SPEC.md](CASE_JSON_V2_SPEC.md))
 - **Evidências Interativas**: Documentos, fotos, vídeos, análises forenses
 - **Progressão Controlada**: Desbloqueio baseado em evidências e tempo
 - **Timeline Dinâmica**: Reconstrução cronológica dos eventos
@@ -105,14 +115,17 @@ Procurando informações sobre:
 
 - **Como rodar o projeto?** → [README Principal](../README.md) seção "Como Executar"
 - **Como fazer deploy?** → [DEPLOYMENT.md](DEPLOYMENT.md)
+- **Como funciona o CI/CD?** → [cicd/README.md](cicd/README.md)
 - **Problema no sistema?** → [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 - **Endpoints da API?** → [API_COMPLETE.md](API_COMPLETE.md)
-- **Como criar um novo caso?** → [OBJETO_CASO.md](OBJETO_CASO.md)
+- **Como criar um novo caso?** → [CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md)
 - **Futuras funcionalidades?** → [FUTURE_FEATURES.md](FUTURE_FEATURES.md)
 - **Estrutura do banco?** → [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)
 - **Como contribuir?** → [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)
 - **Arquitetura React?** → [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md)
-- **Arquitetura .NET?** → [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md)
+- **Arquitetura da API .NET?** → [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md)
+- **Arquitetura do gerador de casos?** → [CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md)
+- **Como validar manualmente um caso?** → [MANUAL_SMOKE_v2.md](MANUAL_SMOKE_v2.md)
 
 ---
 
@@ -136,7 +149,8 @@ Procurando informações sobre:
 ## 🔄 Versionamento da Documentação
 
 A documentação acompanha as mudanças significativas do projeto. A versão atual
-reflete o estado do site e do gerador após a migração para o contrato
-`case.json` **v2** (PRs A–F mergeados em maio/2026).
+reflete o estado do site, da infraestrutura e do gerador em julho de 2026,
+incluindo o contrato `case.json` **v2**, retries completos, progresso por fases,
+solver bloqueante e publicação validada no Blob.
 
 Para versões anteriores da documentação, consulte as tags do repositório.

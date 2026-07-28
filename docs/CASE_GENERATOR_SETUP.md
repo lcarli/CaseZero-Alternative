@@ -1,481 +1,372 @@
-# 🤖 CaseZero Case Generator AI
+# Case Generator Setup
 
-> **📌 INFRAESTRUTURA INDEPENDENTE**: Para implantar APENAS a infraestrutura do Case Generator (sem o resto da aplicação), consulte [../infrastructure/case-generator-infrastructure-README.md](../infrastructure/case-generator-infrastructure-README.md).
-> 
-> **📌 INDEPENDENT INFRASTRUCTURE**: To deploy ONLY the Case Generator infrastructure (without the rest of the application), see [../infrastructure/case-generator-infrastructure-README.md](../infrastructure/case-generator-infrastructure-README.md).
-> 
-> **📌 INFRAESTRUCTURA INDEPENDIENTE**: Para implementar SOLO la infraestructura del Generador de Casos (sin el resto de la aplicación), consulte [../infrastructure/case-generator-infrastructure-README.md](../infrastructure/case-generator-infrastructure-README.md).
-> 
-> **📌 INFRASTRUCTURE INDÉPENDANTE**: Pour déployer UNIQUEMENT l'infrastructure du Générateur de Cas (sans le reste de l'application), consultez [../infrastructure/case-generator-infrastructure-README.md](../infrastructure/case-generator-infrastructure-README.md).
+Este guia descreve como configurar, validar e implantar o gerador Case v2 em
+`functions/CaseGen.Functions`.
 
-## Visão Geral
+Documentos relacionados:
 
-O CaseZero Case Generator AI é um sistema abrangente baseado em Azure Durable Functions que gera automaticamente casos de investigação detetivesca realistas usando inteligência artificial. O sistema fornece rastreamento de progresso em tempo real e produz pacotes de casos completos com documentos, evidências e materiais de investigação.
+- [`CASE_GENERATION_PIPELINE.md`](CASE_GENERATION_PIPELINE.md): arquitetura, fases, agentes, retries e gates de qualidade;
+- [`RUNNING_FUNCTIONS_LOCALLY.md`](RUNNING_FUNCTIONS_LOCALLY.md): execução local detalhada;
+- [`API_COMPLETE.md`](API_COMPLETE.md): contratos HTTP;
+- [`CASE_JSON_V2_SPEC.md`](CASE_JSON_V2_SPEC.md): contrato público de `case.json`;
+- [`DEPLOYMENT.md`](DEPLOYMENT.md): deploy do sistema completo.
 
-## 🏗️ Arquitetura
+## Arquitetura operacional
 
-### Componentes Principais
+`CaseGen.Functions` é uma Azure Function isolada em .NET 9 com Durable
+Functions. O fluxo publicado é:
 
-- **Azure Durable Functions**: Orquestra o pipeline de geração de casos
-- **Azure Storage Account**: Armazena casos gerados e pacotes
-- **Azure Key Vault**: Gerencia segredos e configuração
-- **Interface Frontend**: Rastreamento de progresso em tempo real e gerenciamento de casos
-- **LLM Service**: Geração de conteúdo alimentada por IA
-
-### Pipeline de Geração
-
-O sistema segue um pipeline de 10 etapas para geração de casos:
-
-1. **Plan** - Estrutura inicial e framework do caso
-2. **Expand** - Suspeitos detalhados, evidências e cronologia
-3. **Design** - Fluxo de investigação e mecânicas do jogo
-4. **GenDocs** - Gerar documentos de investigação
-5. **GenMedia** - Criar assets de mídia e prompts de imagem
-6. **Normalize** - Padronizar conteúdo e formato
-7. **Index** - Criar metadados pesquisáveis
-8. **RuleValidate** - Verificações de garantia de qualidade
-9. **RedTeam** - Validação de segurança e conteúdo
-10. **Package** - Montagem final e armazenamento
-
-## 🚀 Início Rápido
-
-### Pré-requisitos
-
-- Assinatura Azure com permissões apropriadas
-- .NET 8 SDK
-- Azure CLI
-- Azure Functions Core Tools
-- Visual Studio Code (recomendado)
-
-### 1. Implantar Infraestrutura
-
-Primeiro, implante a infraestrutura Azure necessária:
-
-```bash
-# Login no Azure
-az login
-
-# Definir sua assinatura
-az account set --subscription "your-subscription-id"
-
-# Implantar infraestrutura usando GitHub Actions
-# Vá para: https://github.com/lcarli/CaseZero-Alternative/actions/workflows/infrastructure.yml
-# Clique em "Run workflow" e selecione ambiente "development"
+```text
+Frontend
+  → CaseZeroApi autenticada (ADMIN)
+  → POST /api/casegeneration/generate
+  → POST /api/cases/v2/generate na Function App
+  → Durable orchestration
+  → até cinco tentativas completas por padrão
+  → validação, solver, renderização e publicação
+  → container bundles
 ```
 
-### 2. Configurar Segredos
+O frontend não deve conhecer chaves nem chamar a Function App diretamente. Em
+produção, ele usa `VITE_API_URL` e os endpoints autenticados do `CaseZeroApi`.
 
-Após a implantação da infraestrutura, configure os segredos necessários no Azure Key Vault:
+As rotas HTTP da Function App usam autorização `Anonymous` no código. O acesso
+direto deve ser protegido pela topologia de rede e nunca tratado como uma API
+pública para clientes.
 
-```bash
-# Obter nome do Key Vault da saída da implantação
-KV_NAME="your-keyvault-name"
+## Pré-requisitos
 
-# Adicionar segredos necessários
-az keyvault secret set --vault-name $KV_NAME --name "OpenAI-ApiKey" --value "your-openai-key"
-az keyvault secret set --vault-name $KV_NAME --name "OpenAI-Endpoint" --value "your-openai-endpoint"
-```
+| Ferramenta | Versão/uso |
+|---|---|
+| .NET SDK | 9.x para `CaseGen.Functions` e `CaseGen.Functions.Tests` |
+| Node.js | 20.x ou superior |
+| Azure Functions Core Tools | v4 |
+| Azurite | Storage local para Functions e Durable Task |
+| Azure CLI | autenticação, infraestrutura e diagnóstico |
+| Azure Foundry | endpoint, deployment de texto, deployment de imagem e chave |
 
-### 3. Implantar Functions
+O backend principal continua em .NET 8. Não altere o target framework dos
+projetos da Function e dos testes para uma versão diferente de .NET 9.
 
-Implante as Case Generator Functions:
+## Configuração local
 
-```bash
-# Opção 1: Usando GitHub Actions (Recomendado)
-# Vá para: https://github.com/lcarli/CaseZero-Alternative/actions/workflows/functions-deploy.yml
-# Clique em "Run workflow" e selecione ambiente "development"
+Crie `functions/CaseGen.Functions/local.settings.json`. O arquivo contém
+segredos e não deve ser commitado.
 
-# Opção 2: Implantação manual
-cd functions/CaseGen.Functions
-func azure functionapp publish casezero-func-dev
-```
+Exemplo mínimo:
 
-### 4. Configurar Segredos do GitHub
-
-Configure os seguintes segredos no seu repositório GitHub:
-
-- `AZURE_CREDENTIALS`: Credenciais do service principal (formato JSON)
-- `AZURE_FUNCTIONAPP_PUBLISH_PROFILE_DEV`: Perfil de publicação do Function app para dev
-- `AZURE_FUNCTIONAPP_PUBLISH_PROFILE_PROD`: Perfil de publicação do Function app para prod
-
-## 📋 Guia de Configuração Passo a Passo
-
-### Fase 1: Configuração de Recursos Azure
-
-1. **Criar Grupos de Recursos**
-   ```bash
-   az group create --name casezero-dev-rg --location "East US 2"
-   az group create --name casezero-prod-rg --location "East US 2"
-   ```
-
-2. **Implantar Infraestrutura**
-   - Use o workflow do GitHub Actions: `🏗️ Deploy Infrastructure`
-   - Selecione ambiente: `development` para testes
-   - Verifique se os recursos foram criados corretamente
-
-3. **Verificar Recursos Implantados**
-   ```bash
-   # Listar recursos implantados
-   az resource list --resource-group casezero-dev-rg --output table
-   ```
-
-### Fase 2: Configurar Serviços Azure
-
-1. **Configuração do Key Vault**
-   ```bash
-   # Definir o nome do seu Key Vault (da saída da implantação)
-   KV_NAME=$(az resource list --resource-group casezero-dev-rg --resource-type "Microsoft.KeyVault/vaults" --query "[0].name" -o tsv)
-   
-   # Configurar segredos
-   az keyvault secret set --vault-name $KV_NAME --name "OpenAI-ApiKey" --value "your-api-key"
-   az keyvault secret set --vault-name $KV_NAME --name "OpenAI-Endpoint" --value "https://your-endpoint.openai.azure.com/"
-   az keyvault secret set --vault-name $KV_NAME --name "OpenAI-DeploymentName" --value "gpt-4"
-   ```
-
-2. **Configuração da Conta de Armazenamento**
-   ```bash
-   # Obter nome da conta de armazenamento
-   STORAGE_NAME=$(az resource list --resource-group casezero-dev-rg --resource-type "Microsoft.Storage/storageAccounts" --query "[?contains(name, 'genstr')].name" -o tsv)
-   
-   # Verificar se os contêineres foram criados
-   az storage container list --account-name $STORAGE_NAME --auth-mode login
-   ```
-
-3. **Configuração do Function App**
-   ```bash
-   # Obter nome do Function App
-   FUNC_NAME=$(az resource list --resource-group casezero-dev-rg --resource-type "Microsoft.Web/sites" --query "[?contains(name, 'func')].name" -o tsv)
-   
-   # Verificar se o Function App está executando
-   az functionapp show --name $FUNC_NAME --resource-group casezero-dev-rg --query "state" -o tsv
-   ```
-
-### Fase 3: Implantar Functions
-
-1. **Construir Functions Localmente**
-   ```bash
-   cd functions/CaseGen.Functions
-   dotnet restore
-   dotnet build --configuration Release
-   dotnet publish --configuration Release --output ./publish
-   ```
-
-2. **Implantar no Azure**
-   ```bash
-   # Usando Azure Functions Core Tools
-   func azure functionapp publish $FUNC_NAME --dotnet-isolated
-   
-   # Ou use o workflow do GitHub Actions
-   # Navegue para Actions > 🚀 Deploy Case Generator Functions
-   ```
-
-3. **Verificar Implantação**
-   ```bash
-   # Listar functions implantadas
-   az functionapp function list --name $FUNC_NAME --resource-group casezero-dev-rg --output table
-   
-   # Testar o endpoint de health
-   curl "https://$FUNC_NAME.azurewebsites.net/api/status"
-   ```
-
-### Fase 4: Configurar Frontend
-
-1. **Atualizar Variáveis de Ambiente**
-   ```bash
-   # No seu arquivo frontend/.env
-   echo "VITE_FUNCTIONS_BASE_URL=https://$FUNC_NAME.azurewebsites.net" >> frontend/.env
-   ```
-
-2. **Construir e Implantar Frontend**
-   ```bash
-   cd frontend
-   npm install
-   npm run build
-   
-   # Implantar usando o pipeline CI/CD existente
-   ```
-
-## 🔧 Configuração
-
-### Variáveis de Ambiente
-
-#### Configurações do Function App
-```
-FUNCTIONS_EXTENSION_VERSION=~4
-FUNCTIONS_WORKER_RUNTIME=dotnet-isolated
-AzureWebJobsStorage=<storage-connection-string>
-CaseGeneratorStorage__ConnectionString=<storage-connection-string>
-CaseGeneratorStorage__CasesContainer=cases
-CaseGeneratorStorage__BundlesContainer=bundles
-KeyVault__VaultUri=<keyvault-uri>
-TaskHub=CaseGeneratorHub
-APPLICATIONINSIGHTS_CONNECTION_STRING=<app-insights-connection>
-```
-
-#### Segredos do Key Vault
-- `OpenAI-ApiKey`: Sua chave da API OpenAI
-- `OpenAI-Endpoint`: Endpoint do serviço OpenAI
-- `OpenAI-DeploymentName`: Nome da implantação do modelo
-
-### Configuração CORS
-
-Se acessar de uma aplicação web, configure CORS no Function App:
-
-```bash
-az functionapp cors add --name $FUNC_NAME --resource-group casezero-dev-rg --allowed-origins "https://your-domain.com"
-```
-
-## 🔌 Referência da API
-
-### Iniciar Geração de Caso
-
-**Endpoint v2 (via backend proxy)**: `POST /api/casegeneration/generate`
-
-**Corpo da Requisição**:
 ```json
 {
-  "title": "Roubo em Empresa de Tecnologia",
-  "location": "São Paulo, SP",
-  "difficulty": "Rookie",
-  "requiredRank": "Rookie",
-  "language": "pt-BR",
-  "writeToDisk": true
-}
-```
-
-> **Imagens no pipeline v2:** não existe o campo `generateImages`. O gerador
-> produz imagens somente quando o portfólio do caso inclui evidências do tipo
-> `photo` ou `image`. Um caso com apenas PDFs/documentos pode terminar
-> corretamente com `AssetsRenderedImages = 0` e sem erros de renderização.
-
-**Resposta**:
-```json
-{
-  "jobId": "casev2-...",
-  "status": "queued",
-  "statusUri": "/api/casegeneration/jobs/casev2-..."
-}
-```
-
-### Obter Status da Geração
-
-**Endpoint**: `GET /api/status/{instanceId}`
-
-**Resposta**:
-```json
-{
-  "instanceId": "abc123...",
-  "runtimeStatus": "Running",
-  "createdAt": "2024-01-01T10:00:00Z",
-  "lastUpdatedAt": "2024-01-01T10:05:00Z",
-  "customStatus": {
-    "caseId": "CASE-20240101-1000",
-    "status": "Running",
-    "currentStep": "GenDocs",
-    "completedSteps": ["Plan", "Expand", "Design"],
-    "progress": 40.0
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
+    "CaseGeneratorStorage__ConnectionString": "UseDevelopmentStorage=true",
+    "CaseGeneratorStorage__BundlesContainer": "bundles",
+    "AzureFoundry__Endpoint": "https://<resource>.openai.azure.com/openai/v1",
+    "AzureFoundry__ModelName": "<text-deployment>",
+    "AzureFoundry__ImageDeploymentName": "<image-deployment>",
+    "AzureFoundry__ApiKey": "<secret>",
+    "CaseGenV2__DisableBlobPublishing": "false",
+    "CaseGenV2__JobMaxAttempts": "5"
   }
 }
 ```
 
-## 🧪 Testes
+As chaves com `__` são carregadas como seções .NET. Por exemplo,
+`AzureFoundry__ModelName` corresponde a `AzureFoundry:ModelName`.
 
-### Testes Unitários
+### Configurações principais
 
-```bash
-cd functions/CaseGen.Functions
-dotnet test
+| Chave | Finalidade |
+|---|---|
+| `AzureFoundry__Endpoint` | Endpoint HTTPS compatível com a API OpenAI v1 |
+| `AzureFoundry__ModelName` | Deployment do modelo de texto estruturado |
+| `AzureFoundry__ImageDeploymentName` | Deployment do modelo de imagem |
+| `AzureFoundry__ApiKey` | Credencial do Foundry |
+| `CaseGeneratorStorage__AccountName` | Conta usada com identidade gerenciada no Azure |
+| `CaseGeneratorStorage__ConnectionString` | Storage local ou fallback |
+| `CaseGeneratorStorage__BundlesContainer` | Container publicado; padrão `bundles` |
+| `CaseGenV2__CasesBasePath` | Diretório local de saída |
+| `CaseGenV2__DisableBlobPublishing` | Desabilita publicação no Blob |
+| `CaseGenV2__CaseGraphEnabled` | Seleciona o contrato público compilado pelo grafo |
+| `CaseGenV2__JobMaxAttempts` | Tentativas completas; padrão `5`, máximo `10` |
+| `CaseGenV2__RepairMaxIterations` | Sobrescreve o limite de reparos da dificuldade |
+| `CaseGenV2__RookieMaxMediumFindings` | Tolerância de achados médios para Rookie |
+
+## Executar localmente
+
+Os scripts preparam Azurite, schema, build e Functions host.
+
+Windows:
+
+```powershell
+.\scripts\run-functions.ps1
 ```
 
-### Testes de Integração
+macOS/Linux:
 
 ```bash
-# Testar functions individuais
-curl -X POST "https://$FUNC_NAME.azurewebsites.net/api/StartCaseGeneration" \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Caso de Teste","location":"Local de Teste","difficulty":"Iniciante"}'
+./scripts/run-functions.sh
 ```
 
-### Testes de Carga
+O host fica disponível em `http://localhost:7071`.
 
-Para ambientes de produção, execute testes de carga:
+Para detalhes sobre processos, arquivos persistidos e troubleshooting local,
+consulte [`RUNNING_FUNCTIONS_LOCALLY.md`](RUNNING_FUNCTIONS_LOCALLY.md).
 
-```bash
-# Instalar Artillery
-npm install -g artillery
+## Gerar um caso local
 
-# Executar teste de carga
-artillery run load-test-config.yml
+Inicie o job:
+
+```powershell
+$body = @{
+  caseId = "case_setup_example"
+  theme = "Homicídio em um armazém portuário"
+  location = "Santos, SP"
+  difficulty = "Detective"
+  requiredRank = "Detective"
+  language = "pt-BR"
+  seed = 423
+  writeToDisk = $true
+} | ConvertTo-Json
+
+$job = Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://localhost:7071/api/cases/v2/generate" `
+  -ContentType "application/json" `
+  -Body $body
 ```
 
-## 📊 Monitoramento
+Consulte o progresso:
 
-### Application Insights
-
-Monitore suas Functions usando Application Insights:
-
-1. **Visualizar no Portal Azure**
-   - Navegue para seu Function App
-   - Clique em "Application Insights"
-   - Monitore performance, falhas e dependências
-
-2. **Métricas Chave para Monitorar**
-   - Contagem de execução de functions
-   - Duração de execução de functions
-   - Falhas de functions
-   - Operações de storage
-   - Acesso ao Key Vault
-
-### Alertas
-
-Configure alertas para cenários críticos:
-
-```bash
-# Criar alerta para falhas de function
-az monitor metrics alert create \
-  --name "CaseGenerator-Failures" \
-  --resource-group casezero-dev-rg \
-  --scopes "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/casezero-dev-rg/providers/Microsoft.Web/sites/$FUNC_NAME" \
-  --condition "count Microsoft.Web/sites/functions/requests" \
-  --threshold 10
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:7071/api/cases/v2/jobs/$($job.jobId)"
 ```
 
-## 🚨 Solução de Problemas
+O status retorna a tentativa atual, retries, fase interna e estágio público. Os
+valores terminais são `done` e `failed`.
 
-### Problemas Comuns
+Em uma aplicação cliente, use o proxy da API:
 
-1. **Function App Não Inicia**
-   ```bash
-   # Verificar logs
-   az functionapp log tail --name $FUNC_NAME --resource-group casezero-dev-rg
-   
-   # Reiniciar o app
-   az functionapp restart --name $FUNC_NAME --resource-group casezero-dev-rg
-   ```
-
-2. **Problemas de Conexão com Storage**
-   ```bash
-   # Verificar acesso à conta de storage
-   az storage account show --name $STORAGE_NAME --resource-group casezero-dev-rg
-   
-   # Verificar connection string
-   az functionapp config appsettings list --name $FUNC_NAME --resource-group casezero-dev-rg
-   ```
-
-3. **Problemas de Acesso ao Key Vault**
-   ```bash
-   # Verificar identidade do Function App
-   az functionapp identity show --name $FUNC_NAME --resource-group casezero-dev-rg
-   
-   # Verificar políticas de acesso do Key Vault
-   az keyvault show --name $KV_NAME --resource-group casezero-dev-rg
-   ```
-
-### Modo de Debug
-
-Habilitar logging de debug:
-
-```bash
-az functionapp config appsettings set \
-  --name $FUNC_NAME \
-  --resource-group casezero-dev-rg \
-  --settings "AZURE_FUNCTIONS_ENVIRONMENT=Development"
+```text
+POST /api/casegeneration/generate
+GET  /api/casegeneration/jobs/{jobId}
 ```
 
-## 🔄 Pipeline CI/CD
+Esses endpoints exigem JWT com papel `ADMIN`.
 
-### Implantação Automatizada
+## Persistência e publicação
 
-O sistema inclui pipelines CI/CD abrangentes:
+Quando `writeToDisk=true` e todos os gates passam:
 
-1. **Pipeline de Infraestrutura**: `infrastructure.yml`
-   - Implanta todos os recursos Azure
-   - Valida templates BICEP
-   - Suporta múltiplos ambientes
-
-2. **Pipeline de Functions**: `functions-deploy.yml`
-   - Constrói e testa Functions
-   - Implanta em ambientes dev/prod
-   - Inclui verificações de saúde
-
-3. **Pipeline Frontend**: `cd-dev.yml` / `cd-prod.yml`
-   - Constrói e implanta frontend
-   - Atualiza endpoints da API
-
-### Implantação Manual
-
-Para implantações de emergência:
-
-```bash
-# Implantação rápida de function
-cd functions/CaseGen.Functions
-func azure functionapp publish $FUNC_NAME --force
+```text
+cases/<caseId>/case.json
+cases/<caseId>/assets/*
 ```
 
-## 📈 Escalabilidade
+Quando o publisher está configurado:
 
-### Otimização de Performance
+```text
+bundles/<caseId>/assets/*
+bundles/<caseId>/case.json
+```
 
-1. **Escalabilidade do Function App**
-   ```bash
-   # Configurar plano premium para produção
-   az functionapp plan update \
-     --name casezero-func-asp-prod \
-     --resource-group casezero-prod-rg \
-     --max-burst 20
-   ```
+Os assets são enviados primeiro. `case.json` é enviado por último e funciona
+como marcador de commit do bundle. Uma falha de publicação configurada é
+propagada; o job não pode reportar sucesso com um bundle incompleto.
 
-2. **Otimização de Storage**
-   - Usar storage premium para alto IOPS
-   - Habilitar CDN para conteúdo gerado
-   - Implementar políticas de ciclo de vida do blob
+Somente casos com validação bloqueante zerada, solver aprovado com score mínimo
+de `0.90` e renderização visual obrigatória concluída podem ser persistidos.
 
-### Otimização de Custos
+## Validação
 
-1. **Ambiente de Desenvolvimento**
-   - Usar plano de consumo
-   - Implementar políticas de pausa automática
-   - Limpeza regular de dados de teste
+Build e testes da Function:
 
-2. **Ambiente de Produção**
-   - Monitorar padrões de uso
-   - Implementar alertas de custo
-   - Usar instâncias reservadas para cargas previsíveis
+```powershell
+dotnet build functions\CaseGen.Functions\CaseGen.Functions.csproj -c Release
+dotnet test functions\CaseGen.Functions.Tests\CaseGen.Functions.Tests.csproj -c Release
+```
 
-## 🔒 Segurança
+Teste direcionado do Case v2:
 
-### Melhores Práticas
+```powershell
+dotnet test functions\CaseGen.Functions.Tests\CaseGen.Functions.Tests.csproj `
+  -c Release `
+  --filter "FullyQualifiedName~CaseGen.Functions.Tests.CaseV2"
+```
 
-1. **Controle de Acesso**
-   - Usar identidades gerenciadas
-   - Implementar RBAC adequadamente
-   - Revisões regulares de acesso
+Geração real direta:
 
-2. **Proteção de Dados**
-   - Criptografar dados em repouso
-   - Usar HTTPS para todas as comunicações
-   - Implementar políticas de retenção de dados
+```powershell
+.\scripts\validate-casev2.ps1 `
+  -Mode DirectGenerate `
+  -Difficulty Detective `
+  -Seed 423 `
+  -Theme "harbor warehouse homicide" `
+  -Language en-US `
+  -CaseId case_setup_validation_423
+```
 
-3. **Monitoramento**
-   - Habilitar Azure Security Center
-   - Monitorar atividades suspeitas
-   - Avaliações regulares de segurança
+Soak sequencial:
 
-## 📚 Recursos Adicionais
+```powershell
+.\scripts\run-casev2-soak.ps1 `
+  -CasesPerDifficulty 3 `
+  -CooldownSeconds 60 `
+  -MaxAttempts 5 `
+  -Language en-US `
+  -ReportPath casev2-soak-report.json
+```
 
-- [Documentação Azure Durable Functions](https://docs.microsoft.com/en-us/azure/azure-functions/durable/)
-- [Guia Azure Functions .NET Isolated](https://docs.microsoft.com/en-us/azure/azure-functions/dotnet-isolated-process-guide)
-- [Integração Azure Key Vault](https://docs.microsoft.com/en-us/azure/azure-functions/functions-bindings-key-vault)
-- [Application Insights para Functions](https://docs.microsoft.com/en-us/azure/azure-functions/functions-monitoring)
+Gerações reais são lentas e não determinísticas. Testes unitários e goldens
+validam estrutura rapidamente; mudanças de comportamento do gerador devem ser
+confirmadas com geração real.
 
-## 🤝 Contribuindo
+## Infraestrutura Azure
 
-1. Faça fork do repositório
-2. Crie uma branch de feature
-3. Faça suas alterações
-4. Adicione testes se aplicável
-5. Submeta um pull request
+A infraestrutura completa é definida por `infrastructure/main.bicep` e
+implantada pelo workflow:
 
-## 📄 Licença
+```text
+.github/workflows/infrastructure-3tier.yml
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+O workflow suporta `validate`, `deploy` e `destroy` para `dev` e `prod`. Ele usa
+os arquivos `infrastructure/parameters.<environment>.json` e executa a
+implantação em `canadacentral`.
+
+O ambiente da Function inclui:
+
+- Function App Linux com runtime .NET 9 isolated;
+- Durable Functions e Storage de runtime;
+- Application Insights;
+- identidade gerenciada;
+- integração com VNet;
+- Storage com acesso público desabilitado e private endpoints;
+- containers `cases`, `bundles`, `case-context` e `logs`;
+- referências do Azure Foundry resolvidas pelo Key Vault.
+
+No ambiente DEV, os nomes operacionais usados pelo pipeline são:
+
+| Recurso | Nome |
+|---|---|
+| Function App | `casegen-func-dev` |
+| Resource group | `casezero-func-dev-rg` |
+| API Web App | `casezero-api-dev` |
+
+Não dependa de nomes derivados da conta de Storage ou do Key Vault. Obtenha-os
+pelos outputs da implantação ou pelo Azure Resource Graph.
+
+### Segredos do Key Vault
+
+A infraestrutura referencia:
+
+- `azure-foundry-endpoint`;
+- `azure-foundry-api-key`;
+- `azure-foundry-model-name`;
+- `azure-foundry-image-deployment-name`.
+
+A identidade gerenciada da Function App precisa ler esses segredos. O acesso ao
+Storage deve usar RBAC e conectividade privada conforme definido pela
+infraestrutura.
+
+## Deploy da aplicação
+
+O build, os testes e o deploy de DEV são feitos por:
+
+```text
+.github/workflows/cd-dev.yml
+```
+
+O workflow:
+
+1. instala .NET 8 para a API e .NET 9 para Functions;
+2. constrói frontend, API e Function;
+3. executa os testes dos três projetos de backend e do frontend;
+4. valida os casos versionados contra o schema;
+5. publica os artefatos;
+6. implanta API, Function App e Static Web App.
+
+O deploy usa `AZURE_CREDENTIALS_DEV`. A Function é publicada com
+`Azure/functions-action`, preservando o diretório `.azurefunctions` necessário
+ao pacote de runtime.
+
+Alterações somente em Markdown ou `docs/` são ignoradas no gatilho automático
+de push do workflow. Execute o workflow manualmente apenas quando for necessário
+reimplantar a aplicação sem uma mudança de código.
+
+## Monitoramento
+
+Use o Application Insights para acompanhar:
+
+- falhas por tentativa e erro terminal;
+- duração de fases e do job;
+- dependências do Azure Foundry;
+- respostas `408`, `429` e `5xx`;
+- consumo de tokens;
+- falhas de renderização;
+- quantidade de blobs publicados;
+- retries e score do solver.
+
+O endpoint de status também expõe `currentAttempt`, `maxAttempts`,
+`nextRetryAt`, `retryReason`, `currentPhase`, `currentStageId`, histórico de
+estágios e resultado final.
+
+## Troubleshooting
+
+### Foundry não configurado
+
+Erros como `AzureFoundry:Endpoint not configured` indicam variável ausente. No
+Azure, confira também se as referências do Key Vault estão com status
+`Resolved`.
+
+### Endpoint inválido
+
+`AzureFoundry:Endpoint` deve ser uma URI HTTPS absoluta. Não use o nome do
+recurso isoladamente.
+
+### Storage inacessível
+
+No Azure, confirme:
+
+1. integração da Function com a VNet;
+2. resolução DNS do private endpoint;
+3. RBAC da identidade gerenciada;
+4. existência do container `bundles`;
+5. configuração `CaseGeneratorStorage__AccountName`.
+
+Em desenvolvimento local, confirme que o Azurite está ativo e que
+`AzureWebJobsStorage` usa `UseDevelopmentStorage=true`.
+
+### Job retorna `409`
+
+Existe outra geração ativa. Consulte o `jobId` retornado e aguarde o término. O
+controle de concorrência é best-effort e permite somente uma geração ativa.
+
+### Job faz retry
+
+Retries são esperados no MVP. O objetivo é publicar somente casos válidos e
+jogáveis, não garantir sucesso na primeira tentativa. Consulte `retryReason`,
+`nextRetryAt` e o histórico de tentativas.
+
+### Caso não aparece no site
+
+Confirme que:
+
+1. o job terminou com `status=done`;
+2. `blobsPublished` é maior que zero;
+3. existe `bundles/<caseId>/case.json`;
+4. todos os assets referenciados existem;
+5. a API possui acesso de leitura ao Storage;
+6. o cache da API já expirou ou foi renovado.
+
+## Regras de segurança
+
+- Nunca commite `local.settings.json`, chaves, connection strings ou tokens.
+- Nunca envie credenciais do Foundry ao frontend.
+- Use o proxy `ADMIN` do backend para geração iniciada pela interface.
+- Mantenha o Storage privado e prefira identidade gerenciada.
+- Trate `case.json` como marcador de publicação e não o envie antes dos assets.
+- Não considere um diretório local válido como prova de publicação no Azure.

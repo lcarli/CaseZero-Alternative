@@ -10,6 +10,8 @@
 
 This chapter defines the **visual interface, interaction patterns, and user experience** of CaseZero. The UI is built around a **Desktop OS metaphor** - players navigate a simulated detective's workstation with familiar windows, icons, and applications.
 
+> **Current implementation note:** the live frontend already includes an admin-only `/case-generation` route with difficulty/language selectors, optional title/location/theme/caseId/seed inputs, job polling, retry visibility, and final run stats. The shipped UI localization system currently supports `en-US`, `pt-BR`, `es-ES`, and `fr-FR`.
+
 **Key Concepts:**
 - Desktop OS metaphor (Windows/macOS inspired)
 - Application-based organization (Email, Case Files, Forensics Lab)
@@ -784,13 +786,13 @@ Please explain the motive (minimum 50 words)
 FORENSICS TIMING
 
 Time Mode:
-◉ Real-Time (Default)
-  DNA: 24 hours, Ballistics: 12 hours, etc.
-  Progress continues when game is closed.
+◉ Accelerated (Default)
+  1 in-world hour = 1 real minute.
+  Progress continues when the game is closed.
 
-○ Accelerated (1 hour = 1 minute)
-  DNA: 24 minutes, Ballistics: 12 minutes
-  For faster-paced gameplay.
+○ Real-Time
+  Original hour-scale timers.
+  Same async server-side countdowns, slower pacing.
 
 ○ Instant (Story Mode)
   All analyses complete immediately.
@@ -925,19 +927,19 @@ Your solution is missing required information:
 │                                                  │
 │ Welcome back, Detective!                         │
 │                                                  │
-│ Rank: Lead Detective ⭐                          │
-│ XP: 9,450 / 12,000  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 79%    │
+│ Rank: Senior Detective ⭐                        │
+│ Promotion: 8 / 16 graded resolves ▓▓▓▓▓▓▓▓░░░░  │
 │                                                  │
 │ ────────────────────────────────────────────────│
 │                                                  │
 │ ACTIVE CASES (2)                                 │
 │                                                  │
 │ CASE-2024-015: The Harbor Conspiracy             │
-│ Difficulty: Expert • 6.2 hours • 45% complete    │
+│ Difficulty: Lieutenant • 6.2 hours • 45% complete│
 │ [Continue]                                       │
 │                                                  │
 │ CASE-2024-014: The Museum Theft                  │
-│ Difficulty: Hard • 2.1 hours • 20% complete      │
+│ Difficulty: Sergeant • 2.1 hours • 20% complete  │
 │ [Continue]                                       │
 │                                                  │
 │ ────────────────────────────────────────────────│
@@ -954,24 +956,25 @@ Your solution is missing required information:
 ┌──────────────────────────────────────────────────┐
 │ Browse Cases                                     │
 ├──────────────────────────────────────────────────┤
-│ Filter: [All ▼] [Easy] [Medium] [Hard] [Expert] │
+│ Filter: [All ▼] [Rookie] [Detective] [Senior]   │
+│         [Sergeant] [Lieutenant] [Captain] [Cmdr]│
 │ Sort: [Newest ▼]                                 │
 ├──────────────────────────────────────────────────┤
 │                                                  │
 │ CASE-2024-016: The Poisoned Chalice             │
-│ Difficulty: Expert • Est. 10-12 hours            │
+│ Difficulty: Commander • Est. 10-12 hours         │
 │ Suspects: 9 • Documents: 28 • Evidence: 14       │
 │ "A wine collector dies mysteriously at a dinner  │
 │ party. Was it murder or tragic accident?"        │
 │ [Start Case]                                     │
 │                                                  │
 │ CASE-2024-015: The Harbor Conspiracy             │
-│ Difficulty: Expert • Est. 8-10 hours             │
+│ Difficulty: Captain • Est. 8-10 hours            │
 │ Suspects: 8 • Documents: 24 • Evidence: 12       │
 │ [Continue] (In Progress)                         │
 │                                                  │
 │ CASE-2024-014: The Museum Theft                  │
-│ Difficulty: Hard • Est. 6-8 hours                │
+│ Difficulty: Sergeant • Est. 6-8 hours            │
 │ Suspects: 6 • Documents: 18 • Evidence: 10       │
 │ [Continue] (In Progress)                         │
 │                                                  │
@@ -1098,6 +1101,7 @@ Your solution is missing required information:
 2. **Case Files** - Documents, evidence, notes, timeline
 3. **Forensics Lab** - Request analyses, view results
 4. **Submit Solution** - Final case submission
+5. **Case Generation (Admin)** - Launch and monitor AI case jobs at `/case-generation`
 
 **Visual Design:**
 - Dark theme (#1a1a1a background, #4a9eff accent)
@@ -1108,8 +1112,9 @@ Your solution is missing required information:
 **User Experience:**
 - Window management (minimize, maximize, close)
 - Keyboard shortcuts throughout
-- Real-time forensics progress
+- Timed forensics progress (async countdowns)
 - Clear feedback and notifications
+- Four shipped UI locales: `en-US`, `pt-BR`, `es-ES`, `fr-FR`
 - Responsive performance
 
 ---

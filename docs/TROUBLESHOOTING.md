@@ -2,7 +2,7 @@
 
 ## Overview
 
-Este guia fornece soluções para problemas comuns que podem ocorrer durante desenvolvimento, deployment e operação do sistema CaseZero.
+Este guia foi revisado contra o código atual do repositório. Ele cobre apenas os fluxos, portas, chaves de configuração e comandos que realmente existem hoje em `backend\CaseZeroApi`, `functions\CaseGen.Functions`, `frontend`, `scripts` e `.github\workflows`.
 
 ---
 
@@ -10,142 +10,111 @@ Este guia fornece soluções para problemas comuns que podem ocorrer durante des
 
 ### Backend (.NET) não inicia
 
-**Sintoma:** Erro ao executar `dotnet run`
+**Sintoma:** erro ao executar `dotnet run` em `backend\CaseZeroApi`.
 
-**Possíveis Causas e Soluções:**
+**Possíveis causas e soluções:**
 
-1. **SDK .NET não instalado ou versão incorreta**
-   ```bash
-   # Verificar versão
-   dotnet --version
-   
-   # Deve retornar 8.x ou superior
-   # Se não, instalar .NET 8 SDK
+1. **SDK .NET incorreto**
+   ```powershell
+   dotnet --list-sdks
    ```
+   O backend atual roda em **.NET 8**. Use um SDK 8.x instalado localmente.
 
 2. **Dependências não restauradas**
-   ```bash
-   cd backend/CaseZeroApi
-   dotnet restore
-   dotnet build
+   ```powershell
+   dotnet restore .\CaseZero-Alternative.sln
+   dotnet build .\CaseZero-Alternative.sln
    ```
 
-3. **Banco de dados não configurado**
-   ```bash
-   # Criar/atualizar banco
-   dotnet ef database update
-   
-   # Se der erro, verificar connection string em appsettings.json
+3. **Connection string ausente ou com placeholder**
+   O `Program.cs` falha explicitamente quando `ConnectionStrings:DefaultConnection` não está configurada ou ainda contém placeholders.
+
+   Mensagens atuais esperadas:
+   - `Database connection string 'DefaultConnection' is not configured.`
+   - `Database connection string contains placeholder values.`
+
+   Ajuste a connection string em um arquivo local como `backend\CaseZeroApi\appsettings.Local.json` ou por variável de ambiente. **Nunca copie segredos reais para a documentação**; use placeholders como:
+   ```json
+   {
+     "ConnectionStrings": {
+       "DefaultConnection": "Server=tcp:<server>.database.windows.net,1433;Database=<db>;User ID=<user>;Password=<password>;Encrypt=True;"
+     }
+   }
    ```
 
-4. **Porta 5000 ocupada**
-   ```bash
-   # Verificar que está usando a porta
-   netstat -ano | findstr :5000  # Windows
-   lsof -i :5000                 # Linux/Mac
-   
-   # Matar processo ou alterar porta em launchSettings.json
+4. **Porta local divergente**
+   Este projeto **não possui** `backend\CaseZeroApi\Properties\launchSettings.json`, então a porta da API não fica fixa no repositório.
+
+   O frontend de desenvolvimento aponta para `http://localhost:5001/api`, então o caminho mais simples é subir a API nessa porta:
+   ```powershell
+   cd .\backend\CaseZeroApi
+   dotnet run --urls http://localhost:5001
    ```
 
-### Testes do Backend falham
+5. **SQLite local x Azure SQL**
+   O código atual aceita desenvolvimento local com SQLite quando `UseSqlite=true` **ou** quando a connection string começa com `Data Source=`. Nesse modo, a API usa `EnsureCreated()`; fora dele, aplica `Migrate()` para SQL Server.
 
-**Sintoma:** Erros durante `dotnet test` no projeto CaseZeroApi.Tests
+### Testes do Backend/Functions falham
 
-**Possíveis Causas e Soluções:**
+**Sintoma:** falhas em `dotnet test`.
 
-1. **Erro Entity Framework async em testes**
-   ```bash
-   # Sintoma: "The provider for the source 'IQueryable' doesn't implement 'IAsyncQueryProvider'"
-   # Solução: Verificar se testes unitários estão usando InMemory database corretamente
-   
-   # No test setup, garantir configuração correta:
-   services.AddDbContext<ApiContext>(options =>
-       options.UseInMemoryDatabase(databaseName: "TestDatabase"));
+**Comandos reais do repositório:**
+```powershell
+dotnet test .\backend\CaseZeroApi.Tests\CaseZeroApi.Tests.csproj --no-build --configuration Release
+dotnet test .\backend\CaseZeroApi.IntegrationTests\CaseZeroApi.IntegrationTests.csproj --no-build --configuration Release
+dotnet test .\functions\CaseGen.Functions.Tests\CaseGen.Functions.Tests.csproj --no-build --configuration Release
+```
+
+**Possíveis causas e soluções:**
+
+1. **Build não foi executado antes do `--no-build`**
+   ```powershell
+   dotnet restore .\CaseZero-Alternative.sln
+   dotnet build .\CaseZero-Alternative.sln --configuration Release
    ```
 
-2. **Mock incorreto do UserManager**
-   ```bash
-   # Sintoma: Testes de autenticação falhando
-   # Solução: Verificar mocks do Identity no AuthControllerTests
+2. **SDK das Functions incorreto**
+   `functions\CaseGen.Functions` e `functions\CaseGen.Functions.Tests` devem continuar em **.NET 9**. Se os testes das Functions falharem por toolset, confira:
+   ```powershell
+   dotnet --list-sdks
    ```
 
-3. **Estado de teste não limpo**
-   ```bash
-   # Limpar antes de executar testes
-   cd backend/CaseZeroApi.Tests
-   dotnet clean
-   dotnet test
-   ```
+3. **Suposição errada sobre dependências externas**
+   Os testes de integração atuais usam ambiente `Testing`, banco em memória e desabilitam o uso de blob storage real. Se falharem, investigue a asserção específica do teste; não parta do pressuposto de que é falta de SQL Server ou Azurite.
 
-**Nota:** Se alguns testes estão falhando no desenvolvimento, isso é normal durante refatoração. Os testes devem ser corrigidos para refletir as mudanças no código.
+### Frontend (React/Vite) não compila
 
-### Frontend (React) não compila
+**Sintoma:** erro em `npm run dev`, `npm run build` ou `npm run test:run`.
 
-**Sintoma:** Erro durante `npm run dev` ou `npm run build`
+**Possíveis causas e soluções:**
 
-**Possíveis Causas e Soluções:**
-
-1. **Node.js versão incompatível**
-   ```bash
-   # Verificar versão (deve ser 18+)
+1. **Node.js fora do baseline da equipe/CI**
+   O workflow atual usa **Node 20**. Verifique:
+   ```powershell
    node --version
-   
-   # Usar nvm para instalar versão correta
-   nvm install 18
-   nvm use 18
    ```
 
-2. **Dependências não instaladas**
-   ```bash
-   cd frontend
-   rm -rf node_modules package-lock.json
-   npm install
+2. **Dependências não instaladas corretamente**
+   ```powershell
+   cd .\frontend
+   npm ci
    ```
 
-3. **Erro de TypeScript em testes**
-   ```bash
-   # Se houver erro "Cannot find name 'global'" nos testes
-   # Verificar se vitest.config.ts existe separado do vite.config.ts
-   ls frontend/vitest.config.ts
-   
-   # Usar globalThis ao invés de global nos testes
-   Object.defineProperty(globalThis, 'fetch', { value: mockFetch })
-   ```
+3. **Scripts incorretos**
+   Os scripts válidos hoje são:
+   - `npm run dev`
+   - `npm run build`
+   - `npm run lint`
+   - `npm run preview`
+   - `npm run test`
+   - `npm run test:ui`
+   - `npm run test:run`
 
-4. **Erro de configuração Vite/Vitest**
-   ```bash
-   # Verificar se existe vitest.config.ts separado para testes
-   # vite.config.ts deve ser usado apenas para build
-   # vitest.config.ts deve incluir configurações de teste
-   ```
+4. **Variável de ambiente errada**
+   O frontend atual usa **`VITE_API_URL`**. Não use `VITE_API_BASE_URL`.
 
-5. **Vulnerabilidades npm**
-   ```bash
-   # Verificar vulnerabilidades (comum ter algumas moderadas)
-   npm audit
-   
-   # Corrigir apenas quebras críticas automaticamente
-   npm audit fix
-   
-   # Para vulnerabilidades moderadas, avaliar se vale a pena
-   # atualizar dependências que podem quebrar funcionalidades
-   ```
-
-6. **Erro de TypeScript**
-   ```bash
-   # Verificar erros de tipos
-   npx tsc --noEmit
-   
-   # Instalar tipos em falta
-   npm install @types/nome-do-pacote
-   ```
-
-7. **Erro de linting**
-   ```bash
-   # Verificar e corrigir automaticamente
-   npm run lint
-   npm run lint -- --fix
-   ```
+5. **Configuração de teste desatualizada**
+   O repositório atual **não depende de `vitest.config.ts` separado**. A configuração de teste fica dentro de `frontend\vite.config.ts`.
 
 ---
 
@@ -153,552 +122,275 @@ Este guia fornece soluções para problemas comuns que podem ocorrer durante des
 
 ### Frontend não consegue conectar com Backend
 
-**Sintoma:** Errors de CORS ou 404 nas chamadas de API
+**Sintoma:** 401, 404, CORS ou `Failed to fetch` no navegador.
 
 **Diagnóstico:**
-```bash
-# Verificar se backend está rodando
-curl http://localhost:5000/health
+```powershell
+Get-Content .\frontend\.env.development
+```
 
-# Verificar se frontend está configurado corretamente
-cat frontend/.env.development
+Verifique se `VITE_API_URL` aponta para a mesma porta em que a API está rodando. O valor versionado hoje é:
+```env
+VITE_API_URL=http://localhost:5001/api
 ```
 
 **Soluções:**
 
-1. **CORS mal configurado**
-   ```csharp
-   // backend/Program.cs - verificar configuração CORS
-   builder.Services.AddCors(options =>
-   {
-       options.AddPolicy("AllowFrontend",
-           policy =>
-           {
-               policy.WithOrigins("http://localhost:5173") // Verificar porta
-                     .AllowAnyHeader()
-                     .AllowAnyMethod()
-                     .AllowCredentials();
-           });
-   });
-   ```
+1. **A API não está na porta esperada pelo frontend**
+   Como não há `launchSettings.json`, faça a API subir em `5001` ou ajuste `frontend\.env.development` para a porta real.
 
-2. **URL da API incorreta**
-   ```env
-   # frontend/.env.development
-   VITE_API_BASE_URL=http://localhost:5000/api
-   ```
+2. **CORS mal configurado por ambiente**
+   O backend lê `Cors:AllowedOrigins` da configuração. Se nada for informado, o fallback atual é:
+   - `http://localhost:5173`
+   - `https://localhost:5173`
 
-3. **Proxy do Vite mal configurado**
-   ```typescript
-   // frontend/vite.config.ts
-   export default defineConfig({
-     server: {
-       proxy: {
-         '/api': {
-           target: 'http://localhost:5000',
-           changeOrigin: true
-         }
-       }
-     }
-   });
-   ```
+   Em Azure/App Settings, use chaves como:
+   - `Cors__AllowedOrigins__0=https://<frontend-host>`
+   - `Cors__AllowedOrigins__1=http://localhost:5173`
 
-### Problemas de Autenticação JWT
+3. **Diagnóstico usando endpoint inexistente**
+   O repositório atual **não expõe um health check real em `/api/health`**. Para validar que a API respondeu em desenvolvimento, prefira:
+   - `http://localhost:5001/swagger/index.html`
+   - ou um endpoint real da API, como `POST /api/auth/login`
 
-**Sintoma:** 401 Unauthorized em endpoints protegidos
+4. **Suposição errada sobre proxy do Vite**
+   `frontend\vite.config.ts` atual não define proxy. As chamadas são diretas para `VITE_API_URL`.
 
-**Diagnóstico:**
-```bash
-# Verificar se token está sendo enviado
-# No browser DevTools > Network > Headers
+### Backend não consegue acionar o Case Generator
 
-# Verificar se token é válido
-curl -H "Authorization: Bearer $TOKEN" http://localhost:5000/api/cases
-```
+**Sintoma:** erro 503/502 ao usar endpoints de geração de caso.
+
+**Comportamento atual:** `backend\CaseZeroApi\Controllers\CaseGenerationController.cs` faz proxy para a Function App.
+
+**Erros atuais relevantes:**
+- `Case generator not configured (CaseGenerator:FunctionBaseUrl missing).`
+- `Case generator unreachable`
 
 **Soluções:**
 
-1. **Token expirado**
-   ```typescript
-   // Verificar no frontend se token está válido
-   const isTokenExpired = (token: string) => {
-     const payload = JSON.parse(atob(token.split('.')[1]));
-     return payload.exp * 1000 < Date.now();
-   };
-   ```
-
-2. **Secret key diferente entre ambientes**
+1. **Configurar a URL base das Functions**
+   Defina no backend:
    ```json
-   // Verificar appsettings.json
    {
-     "JwtSettings": {
-       "SecretKey": "MesmoSecretEmTodosOsAmbientes"
+     "CaseGenerator": {
+       "FunctionBaseUrl": "http://localhost:7071",
+       "FunctionKey": "<optional-local-key>"
      }
    }
    ```
 
----
-
-## 🗄️ Problemas de Banco de Dados
-
-### Entity Framework Migrations
-
-**Sintoma:** Erro ao aplicar migrações
-
-**Soluções:**
-
-1. **Migration conflitante**
-   ```bash
-   # Remover migration problemática
-   dotnet ef migrations remove
-   
-   # Criar nova migration
-   dotnet ef migrations add FixDatabaseIssue
-   dotnet ef database update
+2. **Subir o host das Functions na porta esperada**
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\run-functions.ps1
    ```
+   O script e os logs atuais assumem `http://localhost:7071`.
 
-2. **Banco corrupto**
-   ```bash
-   # Backup atual
-   cp casezero.db casezero_backup.db
-   
-   # Recriar banco
-   rm casezero.db
-   dotnet ef database update
-   ```
+3. **Conferir a rota correta**
+   O backend chama:
+   - `POST {FunctionBaseUrl}/api/cases/v2/generate`
+   - `GET  {FunctionBaseUrl}/api/cases/v2/jobs/{jobId}`
 
-3. **Schema mismatch**
-   ```bash
-   # Verificar diferenças
-   dotnet ef migrations script
-   
-   # Aplicar manualmente se necessário
-   sqlite3 casezero.db < migration.sql
-   ```
+### Functions/Azurite não iniciam
 
-### Problemas de Performance do Banco
+**Sintoma:** `func start` falha, a geração trava em storage, ou aparece erro de configuração de blob.
 
-**Sintoma:** Queries lentas, timeout
-
-**Diagnóstico:**
-```sql
--- Verificar queries lentas (se logging habilitado)
-SELECT * FROM logs WHERE duration > 1000;
-
--- Verificar tamanho do banco
-.dbinfo
-
--- Verificar índices
-.indices
+**Caminho suportado hoje:**
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-functions.ps1
 ```
 
-**Soluções:**
+**O script atual faz o seguinte:**
+- exige **.NET 9** para build das Functions;
+- exige **Node 20+** para `func`/Azurite;
+- instala `azure-functions-core-tools@4` e `azurite` se faltarem;
+- inicia o Azurite usando a pasta raiz **`AzuriteConfig`**;
+- sobe o host em **`http://localhost:7071`**.
 
-1. **Falta de índices**
-   ```sql
-   -- Adicionar índices para queries frequentes
-   CREATE INDEX IX_CaseSessions_UserId_Status ON CaseSessions(UserId, Status);
-   CREATE INDEX IX_Evidence_CaseId_Type ON Evidence(CaseId, Type);
-   ```
-
-2. **Banco fragmentado**
-   ```sql
-   -- Otimizar banco
-   VACUUM;
-   REINDEX;
-   ANALYZE;
-   ```
-
-3. **Queries N+1**
-   ```csharp
-   // Evitar - causa N+1 queries
-   var cases = await _context.Cases.ToListAsync();
-   foreach (var case in cases)
-   {
-       var evidences = case.Evidences; // Lazy loading
-   }
-   
-   // Correto - uma query com Include
-   var cases = await _context.Cases
-       .Include(c => c.Evidences)
-       .ToListAsync();
-   ```
-
----
-
-## 🎮 Problemas de Casos e Conteúdo
-
-### Caso não carrega
-
-**Sintoma:** Erro 404 ou caso vazio
-
-**Diagnóstico:**
-```bash
-# Verificar se arquivo case.json existe
-ls -la cases/CASE-2024-001/case.json
-
-# Validar JSON
-cat cases/CASE-2024-001/case.json | jq .
-
-# Usar script de validação
-./validate_case.sh CASE-2024-001
-```
+**Chaves atuais de `functions\CaseGen.Functions\local.settings.json` (nomes apenas):**
+- `AzureWebJobsStorage`
+- `FUNCTIONS_WORKER_RUNTIME`
+- `CaseGeneratorStorage__ConnectionString`
+- `CaseGeneratorStorage__BundlesContainer`
+- `LLM__UseAzureFoundry`
+- `AzureFoundry__Endpoint`
+- `AzureFoundry__ModelName`
+- `AzureFoundry__ImageDeploymentName`
+- `AzureFoundry__ApiKey`
+- `ASPNETCORE_ENVIRONMENT`
 
 **Soluções:**
 
-1. **JSON malformado**
-   ```bash
-   # Validar e formatar JSON
-   cat case.json | jq . > case_formatted.json
-   mv case_formatted.json case.json
-   ```
+1. **Storage local não configurado**
+   O factory atual aceita `CaseGeneratorStorage:AccountName` (managed identity) ou `CaseGeneratorStorage:ConnectionString` / `CaseGeneratorStorage__ConnectionString` / `AzureWebJobsStorage`.
 
-2. **Arquivos em falta**
-   ```bash
-   # Verificar todos os arquivos referenciados
-   find cases/CASE-2024-001 -name "*.pdf" -o -name "*.jpg" -o -name "*.mp4"
-   ```
-
-3. **Permissões incorretas**
-   ```bash
-   # Corrigir permissões
-   chmod -R 644 cases/CASE-2024-001/*
-   chmod 755 cases/CASE-2024-001/
-   ```
-
-### Evidências não desbloqueiam
-
-**Sintoma:** Progresso do jogo não avança
-
-**Diagnóstico:**
-```javascript
-// No browser console, verificar estado do jogo
-console.log(caseSession.unlockedContent);
-console.log(caseSession.progress);
-```
-
-**Soluções:**
-
-1. **Lógica de desbloqueio incorreta**
+   Para desenvolvimento local com Azurite, use placeholders como:
    ```json
-   // Verificar unlockRequirements no case.json
    {
-     "unlockRequirements": ["evidence_001", "forensic_002"]
+     "Values": {
+       "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+       "CaseGeneratorStorage__ConnectionString": "UseDevelopmentStorage=true",
+       "CaseGeneratorStorage__BundlesContainer": "bundles"
+     }
    }
    ```
 
-2. **Estado da sessão desatualizado**
-   ```csharp
-   // Forçar atualização da sessão
-   await _caseSessionService.UpdateProgressAsync(sessionId, newUnlockedContent);
-   ```
+2. **Azurite preso por PID antigo**
+   O helper script grava `AzuriteConfig\azurite.pid`. Se houver PID órfão, remova o arquivo e rode o script novamente.
+
+3. **Pasta errada de diagnóstico**
+   O fluxo atual usa **`AzuriteConfig`** como `--location` do Azurite. Não assuma `AzuriteRuntime` como origem principal dos dados/logs locais.
+
+4. **Logs do Azurite**
+   Consulte `AzuriteConfig\azurite.log` quando houver falha de storage local.
 
 ---
 
-## 🖼️ Geração de Imagens
+## 🗄️ Problemas de Dados e Casos
+
+### Falha de schema em `case.json`
+
+**Sintoma:** falha em CI ou nos testes de validação de casos.
+
+**Comportamento atual de CI:** o workflow `cd-dev.yml` valida `cases/*/case.json` contra `schemas/case.schema.json` com `ajv`.
+
+**Validação local suportada hoje:**
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\validate-casev2.ps1 -Mode Artifact -CaseDirectory .\cases\<case-id>
+```
+
+Outros modos reais do script incluem `Goldens`, `Generate`, `DirectGenerate`, `Batch` e `Full`.
+
+**Correções comuns:**
+1. confirmar que o diretório do caso existe;
+2. validar o `case.json` contra `schemas\case.schema.json`;
+3. se o erro ocorreu após geração, usar `-Mode Generate` para gerar e validar no mesmo fluxo.
 
 ### Caso gerado sem nenhuma imagem
 
-**Sintoma:** a geração termina com sucesso, mas o caso contém apenas PDFs ou
-documentos.
+**Sintoma:** o resultado ou diretório do caso não contém imagens.
 
-**Comportamento esperado:** no pipeline v2, imagens são condicionais. Não existe
-um campo `generateImages` na requisição. O renderizador chama o modelo de imagem
-somente para assets planejados com tipo `photo` ou `image`.
+**Comportamento esperado:** o portfólio Case v2 atual exige fotografias de cena e um retrato para cada suspeito. Falhas nesses visuais são bloqueantes: o caso incompleto não deve ser publicado nem reportado como sucesso.
 
-**Diagnóstico:**
-
+**Diagnóstico atual:**
 1. Verifique `AssetsRenderedImages` e `AssetRenderingErrors` no resultado do job.
-2. Consulte o resumo do `AssetRenderingService` no Application Insights:
+2. Em logs das Functions, procure por mensagens como:
+   - `Rendered {Pdfs} PDFs and {Imgs} images...`
+   - `Image render failed`
+   - `Mandatory visual render failed`
 
-   ```kusto
-   traces
-   | where timestamp > ago(6h)
-   | where message startswith "Rendered " or message startswith "Image render failed"
-   | project timestamp, severityLevel, message
-   | order by timestamp desc
-   ```
-
-3. Interprete o resultado:
-   - `0 images`, `skipped 0`, `errors 0`: nenhum asset visual foi planejado; não
-     é falha.
-   - `errors > 0` ou mensagem `Image render failed`: a imagem foi planejada, mas
-     a chamada ao modelo ou a gravação do arquivo falhou.
-
-Para tornar imagens obrigatórias, altere o contrato do portfólio determinístico
-para exigir ao menos um asset `photo`; não adicione apenas uma opção na UI.
+**Interpretação rápida:**
+- `AssetsRenderedImages = 0` em um job concluído: investigue métricas antigas, bundle desatualizado ou resposta inconsistente;
+- `Mandatory visual render failed`: a tentativa deve falhar e pode iniciar um retry completo;
+- outros erros em `AssetRenderingErrors`: verifique se pertencem a imagens opcionais de objeto ou vigilância.
 
 ---
 
-## 🚀 Problemas de Deploy
+## 🚀 Problemas de CI e Deploy
 
-### Docker não builda
+### CI falha no GitHub Actions
 
-**Sintoma:** Erro durante `docker build` ou `docker-compose up`
+**Workflow principal atual:** `.github\workflows\cd-dev.yml`
 
-**Soluções:**
+Ele faz hoje:
+1. setup de **.NET 8.x + .NET 9.x**;
+2. setup de **Node 20**;
+3. `npm ci` e `npm run build` no frontend;
+4. `dotnet restore` e `dotnet build` da solução;
+5. testes de backend unitários;
+6. testes de backend de integração;
+7. testes das Functions;
+8. `npm run test:run` no frontend;
+9. validação de `cases/*/case.json` com `ajv`.
 
-1. **Dockerfile incorreto**
-   ```dockerfile
-   # Verificar se paths estão corretos
-   COPY ["CaseZeroApi.csproj", "."]
-   # Não usar COPY . . muito cedo
-   ```
+**Observações importantes:**
+- mudanças apenas em `docs/**` e arquivos Markdown são ignoradas por esse workflow em `push`;
+- o build do frontend recebe `VITE_API_URL` via secret do GitHub Actions.
 
-2. **Context incorreto**
-   ```bash
-   # Build com context correto
-   docker build -t casezero-backend -f backend/Dockerfile backend/
-   ```
+**Se quiser reproduzir localmente, use os mesmos comandos do workflow.**
 
-3. **Dependências não encontradas**
-   ```dockerfile
-   # Certificar que restore acontece antes do copy do código
-   COPY ["*.csproj", "./"]
-   RUN dotnet restore
-   COPY . .
-   ```
+### Deploy de infraestrutura falha
 
-### SSL/HTTPS Issues
+**Workflow atual:** `.github\workflows\infrastructure-3tier.yml`
 
-**Sintoma:** Erros de certificado ou conexão insegura
+**Regras atuais do workflow:**
+- é **manual** (`workflow_dispatch`);
+- aceita `validate`, `deploy` e `destroy`;
+- `destroy` exige `confirm_destroy=CONFIRM`;
+- o deploy pode habilitar SQL Database via `deploy_sql_database`.
 
-**Soluções:**
+Se a falha for de infraestrutura, investigue os logs do próprio workflow e os parâmetros enviados; não use passos antigos de Docker Compose ou Nginx, porque eles não representam o fluxo atual versionado neste repositório.
 
-1. **Certificado Let's Encrypt expirado**
-   ```bash
-   # Verificar status
-   sudo certbot certificates
-   
-   # Renovar
-   sudo certbot renew
-   sudo systemctl reload nginx
-   ```
+### Docker/Nginx/backup scripts antigos
 
-2. **Configuração nginx incorreta**
-   ```nginx
-   # Verificar config
-   sudo nginx -t
-   
-   # Verificar certificados
-   openssl x509 -in /etc/ssl/certs/casezero.crt -text -noout
-   ```
+As orientações antigas para `Dockerfile`, `docker-compose`, `nginx`, `scripts\backup.sh`, `scripts\restore.sh` e `scripts\deploy.sh` **não correspondem ao estado atual do repositório**.
 
-### Performance em Produção
+Hoje:
+- não há `Dockerfile` versionado na raiz/escopo principal deste repositório;
+- não há `docker-compose.yml` versionado para o fluxo principal;
+- não existem `scripts\backup.sh`, `scripts\restore.sh` ou `scripts\deploy.sh` neste repositório.
 
-**Sintoma:** Sistema lento, timeouts
-
-**Diagnóstico:**
-```bash
-# Verificar recursos do servidor
-top
-df -h
-free -m
-
-# Verificar logs
-tail -f /var/log/casezero/api-$(date +%Y%m%d).log
-tail -f /var/log/nginx/access.log
-```
-
-**Soluções:**
-
-1. **Falta de recursos**
-   ```bash
-   # Adicionar swap se necessário
-   sudo fallocate -l 2G /swapfile
-   sudo chmod 600 /swapfile
-   sudo mkswap /swapfile
-   sudo swapon /swapfile
-   ```
-
-2. **Nginx mal configurado**
-   ```nginx
-   # Otimizar nginx.conf
-   worker_processes auto;
-   worker_connections 1024;
-   
-   # Habilitar gzip
-   gzip on;
-   gzip_types text/plain application/json application/javascript text/css;
-   ```
+Se precisar de recuperação/rollback, siga o processo operacional real do ambiente Azure correspondente, não esses comandos antigos.
 
 ---
 
 ## 🔧 Ferramentas de Diagnóstico
 
-### Logs Importantes
+### Verificações rápidas
 
 **Backend:**
-```bash
-# Logs da aplicação
-tail -f /var/log/casezero/api-$(date +%Y%m%d).log
-
-# Logs do systemd service
-sudo journalctl -u casezero-api -f
-
-# Logs do Entity Framework (se habilitado)
-grep "Executed DbCommand" /var/log/casezero/api-$(date +%Y%m%d).log
+```powershell
+cd .\backend\CaseZeroApi
+dotnet run --urls http://localhost:5001
+```
+Depois abra:
+```text
+http://localhost:5001/swagger/index.html
 ```
 
 **Frontend:**
+```powershell
+cd .\frontend
+npm ci
+npm run dev
+```
+Confirme no browser console:
 ```javascript
-// Browser console
-console.log('Environment:', import.meta.env);
-console.log('API URL:', import.meta.env.VITE_API_BASE_URL);
-
-// Network tab para verificar requests
+console.log(import.meta.env.VITE_API_URL)
 ```
 
-**Nginx:**
-```bash
-# Access logs
-tail -f /var/log/nginx/access.log
-
-# Error logs
-tail -f /var/log/nginx/error.log
+**Functions + Azurite:**
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run-functions.ps1
 ```
 
-### Health Checks
+### Logs úteis
 
-**API Health Check:**
-```bash
-curl http://localhost:5000/health
-```
-
-**Database Check:**
-```bash
-sqlite3 casezero.db "SELECT COUNT(*) FROM AspNetUsers;"
-```
-
-**File System Check:**
-```bash
-# Verificar casos
-ls -la cases/
-du -sh cases/*
-
-# Verificar permissões
-find /var/www/casezero -type f ! -readable
-```
-
-### Performance Monitoring
-
-**Backend Metrics:**
-```csharp
-// Adicionar ao Program.cs para monitoramento
-app.Use(async (context, next) =>
-{
-    var sw = Stopwatch.StartNew();
-    await next();
-    sw.Stop();
-    
-    if (sw.ElapsedMilliseconds > 1000)
-    {
-        _logger.LogWarning("Slow request: {Path} took {Duration}ms", 
-            context.Request.Path, sw.ElapsedMilliseconds);
-    }
-});
-```
-
-**Frontend Performance:**
-```javascript
-// Usar Performance API
-performance.mark('case-load-start');
-// ... código de carregamento
-performance.mark('case-load-end');
-performance.measure('case-load', 'case-load-start', 'case-load-end');
-console.log(performance.getEntriesByName('case-load'));
-```
+- `AzuriteConfig\azurite.log` — falhas de storage local/Azurite.
+- `functions\CaseGen.Functions\func-host.log` — histórico de endpoints expostos/local host.
+- saída do `dotnet run`/`func start` — principal fonte para exceptions atuais de startup.
 
 ---
 
 ## 📞 Escalação de Problemas
 
-### Quando Escalar
+Escalone quando houver:
+1. falha persistente com credenciais/configuração corretas;
+2. divergência entre ambiente local e CI já reproduzida com os mesmos comandos do workflow;
+3. erro de geração de caso com `AssetRenderingErrors` ou falha do orchestrator sem causa óbvia;
+4. problema de infraestrutura Azure identificado no workflow manual.
 
-1. **Dados corrompidos** - Backup/restore necessário
-2. **Falha de segurança** - Acesso não autorizado
-3. **Performance crítica** - Sistema inutilizável
-4. **Perda de dados** - Backup falhou
-
-### Informações para Incluir
-
-1. **Contexto:**
-   - Quando o problema começou?
-   - O que mudou recentemente?
-   - Quantos usuários afetados?
-
-2. **Logs:**
-   - Logs de erro relevantes
-   - Timestamps exatos
-   - Stack traces completos
-
-3. **Ambiente:**
-   - Versão do sistema
-   - Sistema operacional
-   - Recursos disponíveis
-
-4. **Passos para Reproduzir:**
-   - Sequência exata de ações
-   - Dados de entrada
-   - Resultado esperado vs atual
-
----
-
-## 🔄 Recovery Procedures
-
-### Backup e Restore
-
-```bash
-# Backup completo
-./scripts/backup.sh
-
-# Restore específico
-./scripts/restore.sh 20240115_120000
-
-# Backup manual do banco
-cp /var/data/casezero.db /backup/casezero_$(date +%Y%m%d_%H%M%S).db
-```
-
-### Rollback de Deploy
-
-```bash
-# Via Git (se deploy direto)
-git checkout previous-working-commit
-./scripts/deploy.sh
-
-# Via Docker
-docker-compose down
-docker tag casezero:current casezero:broken
-docker tag casezero:previous casezero:current
-docker-compose up -d
-```
-
-### Recuperação de Dados
-
-```sql
--- Recuperar dados de backup
-.restore /backup/casezero_backup.db
-
--- Verificar integridade
-PRAGMA integrity_check;
-
--- Reconstruir índices se necessário
-REINDEX;
-```
+Ao escalar, inclua:
+- comando executado;
+- arquivo/configuração relevante (sem segredos);
+- mensagem exata de erro;
+- se o problema ocorreu em backend, frontend, functions, Azurite ou GitHub Actions.
 
 ---
 
 ## 📚 Recursos Adicionais
 
-### Documentação de Referência
-- [.NET Troubleshooting](https://docs.microsoft.com/en-us/dotnet/core/diagnostics/)
-- [React DevTools](https://reactjs.org/blog/2019/08/15/new-react-devtools.html)
-- [SQLite Documentation](https://www.sqlite.org/docs.html)
-- [Nginx Troubleshooting](https://nginx.org/en/docs/debugging_log.html)
-
-### Ferramentas Úteis
-- **Postman/Insomnia** - Teste de APIs
-- **React DevTools** - Debug de componentes
-- **Chrome DevTools** - Performance e network
-- **DB Browser for SQLite** - Visualização do banco
-- **htop/top** - Monitoramento de sistema
+- [.NET Diagnostics](https://learn.microsoft.com/dotnet/core/diagnostics/)
+- [Vite Documentation](https://vite.dev/guide/)
+- [Vitest Documentation](https://vitest.dev/guide/)
+- [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local)
+- [Azurite Documentation](https://learn.microsoft.com/azure/storage/common/storage-use-azurite)
