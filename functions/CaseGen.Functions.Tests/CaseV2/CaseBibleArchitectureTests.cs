@@ -367,6 +367,140 @@ public class CaseBibleArchitectureTests
     }
 
     [Fact]
+    public void Normalizer_CanonicalizesTypedIdsAndRedirectsReferences()
+    {
+        var bible = CaseBibleTestData.ValidRookieBible();
+        var fact = bible.Facts[0];
+        var observation = bible.Observations.First(value => value.FactId == fact.Id);
+        var source = bible.Sources.Single(value => value.Id == observation.SourceId);
+        var clue = bible.DifficultyIntent.Clues.First(value =>
+            value.ObservationIds.Contains(observation.Id, StringComparer.Ordinal));
+        var originalFactId = fact.Id;
+        var originalObservationId = observation.Id;
+        var originalSourceId = source.Id;
+        var originalClueId = clue.Id;
+
+        fact.Id = "fact.access.owner";
+        observation.Id = "endpoint_owner";
+        observation.FactId = fact.Id;
+        source.Id = "source.endpoint.record";
+        observation.SourceId = source.Id;
+        clue.Id = "clue.access.owner";
+        clue.ObservationIds = clue.ObservationIds
+            .Select(id => id == originalObservationId ? observation.Id : id)
+            .ToList();
+        foreach (var beat in bible.TruthTimeline)
+            beat.FactIds = beat.FactIds.Select(id => id == originalFactId ? fact.Id : id).ToList();
+        foreach (var path in bible.DifficultyIntent.ProofPaths)
+        {
+            path.ClueIds = path.ClueIds.Select(id => id == originalClueId ? clue.Id : id).ToList();
+            if (path.ConclusionFactId == originalFactId)
+                path.ConclusionFactId = fact.Id;
+        }
+        bible.InvestigationConstraints.OpeningObservationIds =
+            bible.InvestigationConstraints.OpeningObservationIds
+                .Select(id => id == originalObservationId ? observation.Id : id)
+                .ToList();
+        bible.InvestigationConstraints.MustPreserveFactIds =
+            bible.InvestigationConstraints.MustPreserveFactIds
+                .Select(id => id == originalFactId ? fact.Id : id)
+                .ToList();
+
+        CaseBibleNormalizer.Normalize(bible);
+
+        Assert.Equal("fact.access_owner", fact.Id);
+        Assert.Equal("observation.endpoint_owner", observation.Id);
+        Assert.Equal("source.endpoint_record", source.Id);
+        Assert.Equal("clue.access_owner", clue.Id);
+        Assert.Equal(fact.Id, observation.FactId);
+        Assert.Equal(source.Id, observation.SourceId);
+        Assert.Contains(observation.Id, clue.ObservationIds);
+        Assert.DoesNotContain(
+            CaseBibleValidator.Validate(bible, "Rookie", "en-US", required: true).Issues,
+            issue => issue.Code == "typed_id_invalid");
+    }
+
+    [Fact]
+    public void Normalizer_RewritesTimestampsToCanonicalOffsetPreservingInstant()
+    {
+        var bible = CaseBibleTestData.ValidRookieBible();
+        bible.World.UtcOffset = "UTC-04:00";
+        bible.Incident.OccurredAt = "2026-07-21T23:30:00Z";
+        var truthBeat = bible.TruthTimeline[0];
+        truthBeat.Time = "2026-07-21T22:00:00Z";
+        var workSchedule = bible.WorkSchedules[0];
+        workSchedule.Start = "2026-07-21T20:00:00Z";
+        workSchedule.End = "2026-07-22T04:00:00Z";
+        var observation = bible.Observations[0];
+        observation.ObservedAt = "2026-07-21T23:35:00Z";
+        var dateTimeFact = bible.Facts.First(fact => fact.LiteralType == LiteralValueType.DateTime);
+        dateTimeFact.LiteralValue = "2026-07-21T23:40:00Z";
+
+        CaseBibleNormalizer.Normalize(bible);
+
+        Assert.Equal("-04:00", bible.World.UtcOffset);
+        Assert.Equal(TimeSpan.FromHours(-4), DateTimeOffset.Parse(bible.Incident.OccurredAt).Offset);
+        Assert.Equal(
+            DateTimeOffset.Parse("2026-07-21T23:30:00Z"),
+            DateTimeOffset.Parse(bible.Incident.OccurredAt));
+        Assert.All(
+            new[]
+            {
+                truthBeat.Time,
+                workSchedule.Start,
+                workSchedule.End,
+                observation.ObservedAt!,
+                dateTimeFact.LiteralValue!
+            },
+            value => Assert.Equal(TimeSpan.FromHours(-4), DateTimeOffset.Parse(value).Offset));
+    }
+
+    [Fact]
+    public void Normalizer_InterpretsOffsetlessTimestampInCanonicalZone()
+    {
+        var bible = CaseBibleTestData.ValidRookieBible();
+        bible.World.UtcOffset = "-04:00";
+        bible.Incident.OccurredAt = "2026-07-21T23:30:00";
+
+        CaseBibleNormalizer.Normalize(bible);
+
+        Assert.Equal(
+            DateTimeOffset.Parse("2026-07-21T23:30:00-04:00"),
+            DateTimeOffset.Parse(bible.Incident.OccurredAt));
+    }
+
+    [Fact]
+    public void Normalizer_ReplacesRejectedInvestigatorPlaceholderDomain()
+    {
+        var bible = CaseBibleTestData.ValidRookieBible();
+        var investigator = bible.People.Single(person =>
+            person.Id == bible.World.InvestigatorPersonId);
+        investigator.Email = "detective@agency.example";
+
+        CaseBibleNormalizer.Normalize(bible);
+
+        Assert.Equal("detective@casezero.local", investigator.Email);
+    }
+
+    [Theory]
+    [InlineData("\"verified\"", FactTruthStatus.Confirmed)]
+    [InlineData("\"contested\"", FactTruthStatus.Disputed)]
+    [InlineData("\"disproven\"", FactTruthStatus.False)]
+    public void FactTruthStatus_DeserializesSafeAliases(string json, FactTruthStatus expected)
+    {
+        Assert.Equal(expected, JsonSerializer.Deserialize<FactTruthStatus>(json));
+    }
+
+    [Theory]
+    [InlineData("\"direct\"", ObservationFidelity.DirectRecord)]
+    [InlineData("\"witness_statement\"", ObservationFidelity.Testimony)]
+    [InlineData("\"indirect\"", ObservationFidelity.Circumstantial)]
+    public void ObservationFidelity_DeserializesSafeAliases(string json, ObservationFidelity expected)
+    {
+        Assert.Equal(expected, JsonSerializer.Deserialize<ObservationFidelity>(json));
+    }
+
+    [Fact]
     public void Normalizer_MakesClueAndDecoyFactsPlayerVisible()
     {
         var bible = CaseBibleTestData.ValidDetectiveBible();

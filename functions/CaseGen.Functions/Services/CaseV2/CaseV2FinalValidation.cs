@@ -108,6 +108,8 @@ public sealed class CaseV2FinalValidator
                 Add(report, FinalValidationGate.Solver, "solver.narrative_failed", "solver.trace", "narrative player simulation failed");
             if (!solver.Correct)
                 Add(report, FinalValidationGate.Solver, "solver.score_failed", "solver.trace", $"sequential solver failed with score {solver.Score:0.####}");
+            else if (solver.Score < 0.90)
+                Add(report, FinalValidationGate.Solver, "solver.quality_threshold", "solver.trace", $"sequential solver score {solver.Score:0.####} is below the MVP threshold 0.90");
             if (solver.Attempt.ObservationIds.Count == 0)
                 Add(report, FinalValidationGate.Solver, "solver.citations_missing", "solver.trace", "successful solver attempt has no exact observation citations");
         }

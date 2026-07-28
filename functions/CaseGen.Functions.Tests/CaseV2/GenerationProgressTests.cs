@@ -70,4 +70,31 @@ public class GenerationProgressTests
         Assert.Equal(progressBeforeFailure, failed.ProgressPercent);
         Assert.Equal("witness failed", failed.Error);
     }
+
+    [Fact]
+    public void CompleteRetries_PreserveAttemptHistoryAndRestartStageProgress()
+    {
+        var now = DateTimeOffset.Parse("2026-07-22T12:00:00Z");
+        var status = JobPhaseStatus.Started("job-retry", now, maxAttempts: 5);
+        status.StartStage("caseBible", now.AddSeconds(1), retry: false);
+        status.StartStage("plotOutline", now.AddSeconds(2), retry: false);
+        status.ScheduleRetry("invalid Case Bible", now.AddMinutes(1), now.AddSeconds(3));
+
+        Assert.Equal("failed", status.Attempts.Single().Status);
+        Assert.Equal(1, status.CurrentAttempt);
+        Assert.Equal(5, status.MaxAttempts);
+        Assert.Equal("invalid Case Bible", status.RetryReason);
+
+        status.StartAttempt(2, 5, now.AddMinutes(1));
+        status.StartStage("caseBible", now.AddMinutes(1).AddSeconds(1), retry: false);
+
+        Assert.Equal(2, status.CurrentAttempt);
+        Assert.Equal(2, status.Attempts.Count);
+        Assert.Equal("failed", status.Attempts[0].Status);
+        Assert.Equal("running", status.Attempts[1].Status);
+        Assert.Equal("running", status.Stages.Single(stage => stage.Id == "caseDesign").Status);
+        Assert.Equal(0, status.ProgressPercent);
+        Assert.Null(status.RetryReason);
+        Assert.Null(status.NextRetryAt);
+    }
 }

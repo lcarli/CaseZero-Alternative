@@ -363,25 +363,74 @@ public static class CaseBibleNormalizer
 
     public static void Normalize(CaseBible bible)
     {
-        if (bible.World.UtcOffset.StartsWith("UTC", StringComparison.OrdinalIgnoreCase))
-            bible.World.UtcOffset = bible.World.UtcOffset[3..].Trim();
-        foreach (var schedule in bible.WorkSchedules)
-            schedule.Id = NormalizeTypedId(schedule.Id);
-        var clueIdMap = bible.DifficultyIntent.Clues
-            .Where(clue => !string.IsNullOrWhiteSpace(clue.Id))
-            .ToDictionary(
-                clue => clue.Id,
-                clue => FlattenTypedId(clue.Id, "clue"),
-                StringComparer.Ordinal);
+        bible.World.UtcOffset = NormalizeUtcOffset(bible.World.UtcOffset);
+
+        var sourceIdMap = CanonicalizeTypedIds(
+            bible.Sources,
+            source => source.Id,
+            (source, id) => source.Id = id,
+            "source");
+        var factIdMap = CanonicalizeTypedIds(
+            bible.Facts,
+            fact => fact.Id,
+            (fact, id) => fact.Id = id,
+            "fact");
+        var observationIdMap = CanonicalizeTypedIds(
+            bible.Observations,
+            observation => observation.Id,
+            (observation, id) => observation.Id = id,
+            "observation");
+        var clueIdMap = CanonicalizeTypedIds(
+            bible.DifficultyIntent.Clues,
+            clue => clue.Id,
+            (clue, id) => clue.Id = id,
+            "clue");
+
+        string Rewrite(IReadOnlyDictionary<string, string> map, string id) =>
+            map.GetValueOrDefault(id) ?? id;
+        List<string> RewriteAll(IReadOnlyDictionary<string, string> map, IEnumerable<string> ids) =>
+            ids.Select(id => Rewrite(map, id)).Distinct(StringComparer.Ordinal).ToList();
+
+        foreach (var observation in bible.Observations)
+        {
+            observation.FactId = Rewrite(factIdMap, observation.FactId);
+            observation.SourceId = Rewrite(sourceIdMap, observation.SourceId);
+        }
+        foreach (var beat in bible.TruthTimeline)
+            beat.FactIds = RewriteAll(factIdMap, beat.FactIds);
         foreach (var clue in bible.DifficultyIntent.Clues)
-            clue.Id = clueIdMap.GetValueOrDefault(clue.Id) ?? clue.Id;
+            clue.ObservationIds = RewriteAll(observationIdMap, clue.ObservationIds);
         foreach (var proofPath in bible.DifficultyIntent.ProofPaths)
         {
-            proofPath.ClueIds = proofPath.ClueIds
-                .Select(id => clueIdMap.GetValueOrDefault(id) ?? id)
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
+            proofPath.ClueIds = RewriteAll(clueIdMap, proofPath.ClueIds);
+            proofPath.ConclusionFactId = Rewrite(factIdMap, proofPath.ConclusionFactId);
         }
+        foreach (var decoy in bible.DifficultyIntent.DecoyArcs)
+        {
+            decoy.SuspicionObservationIds = RewriteAll(observationIdMap, decoy.SuspicionObservationIds);
+            decoy.VerificationObservationIds = RewriteAll(observationIdMap, decoy.VerificationObservationIds);
+        }
+        foreach (var opportunity in bible.DifficultyIntent.ForensicOpportunities)
+        {
+            opportunity.InputSourceId = Rewrite(sourceIdMap, opportunity.InputSourceId);
+            opportunity.ResultObservationId = Rewrite(observationIdMap, opportunity.ResultObservationId);
+        }
+        foreach (var conflict in bible.DifficultyIntent.IntentionalConflicts)
+        {
+            conflict.FactIds = RewriteAll(factIdMap, conflict.FactIds);
+            conflict.ObservationIds = RewriteAll(observationIdMap, conflict.ObservationIds);
+            conflict.ResolutionObservationIds = RewriteAll(observationIdMap, conflict.ResolutionObservationIds);
+        }
+        bible.InvestigationConstraints.OpeningObservationIds =
+            RewriteAll(observationIdMap, bible.InvestigationConstraints.OpeningObservationIds);
+        bible.InvestigationConstraints.MustPreserveFactIds =
+            RewriteAll(factIdMap, bible.InvestigationConstraints.MustPreserveFactIds);
+
+        NormalizeCanonicalTimestamps(bible);
+        NormalizeInvestigatorEmail(bible);
+
+        foreach (var schedule in bible.WorkSchedules)
+            schedule.Id = NormalizeTypedId(schedule.Id);
         NormalizeClueSourceTypes(bible);
         foreach (var person in bible.People.Where(person =>
                      !person.Roles.Contains(CaseBiblePersonRole.Suspect)))
@@ -862,6 +911,146 @@ public static class CaseBibleNormalizer
                 return normalized;
             var suffix = normalized[prefix.Length..].Replace('.', '_');
             return $"{prefix}{suffix}";
+        }
+
+        static Dictionary<string, string> CanonicalizeTypedIds<T>(
+            IEnumerable<T> values,
+            Func<T, string> getId,
+            Action<T, string> setId,
+            string expectedPrefix)
+        {
+            var candidates = values
+                .Where(value => !string.IsNullOrWhiteSpace(getId(value)))
+                .Select(value =>
+                {
+                    var original = getId(value);
+                    var normalized = NormalizeTypedId(original);
+                    var prefix = $"{expectedPrefix}.";
+                    var suffix = normalized.StartsWith(prefix, StringComparison.Ordinal)
+                        ? normalized[prefix.Length..]
+                        : normalized;
+                    return (Value: value, Original: original, Canonical: $"{prefix}{suffix.Replace('.', '_')}");
+                })
+                .ToList();
+            var collisions = candidates
+                .GroupBy(candidate => candidate.Canonical, StringComparer.Ordinal)
+                .Where(group => group.Count() > 1)
+                .Select(group => group.Key)
+                .ToHashSet(StringComparer.Ordinal);
+            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var candidate in candidates.Where(candidate =>
+                         !collisions.Contains(candidate.Canonical)
+                         && !string.Equals(candidate.Original, candidate.Canonical, StringComparison.Ordinal)))
+            {
+                setId(candidate.Value, candidate.Canonical);
+                map[candidate.Original] = candidate.Canonical;
+            }
+            return map;
+        }
+
+        static string NormalizeUtcOffset(string value)
+        {
+            var candidate = value.Trim();
+            if (candidate.StartsWith("UTC", StringComparison.OrdinalIgnoreCase))
+                candidate = candidate[3..].Trim();
+            if (candidate is "Z" or "z" or "")
+                return "+00:00";
+            if (TimeSpan.TryParse(candidate, CultureInfo.InvariantCulture, out var offset)
+                && offset >= TimeSpan.FromHours(-14)
+                && offset <= TimeSpan.FromHours(14))
+            {
+                var sign = offset < TimeSpan.Zero ? '-' : '+';
+                var absolute = offset.Duration();
+                return $"{sign}{absolute.Hours:00}:{absolute.Minutes:00}";
+            }
+            return candidate;
+        }
+
+        static void NormalizeCanonicalTimestamps(CaseBible bible)
+        {
+            if (!TimeSpan.TryParse(bible.World.UtcOffset, CultureInfo.InvariantCulture, out var offset))
+                return;
+
+            string NormalizeTimestamp(string value)
+            {
+                DateTimeOffset parsed;
+                if (HasExplicitOffset(value))
+                {
+                    if (!DateTimeOffset.TryParse(
+                            value,
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.AllowWhiteSpaces,
+                            out parsed))
+                        return value;
+                }
+                else
+                {
+                    if (!DateTime.TryParse(
+                            value,
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.AllowWhiteSpaces,
+                            out var local))
+                        return value;
+                    parsed = new DateTimeOffset(DateTime.SpecifyKind(local, DateTimeKind.Unspecified), offset);
+                }
+                return parsed.ToOffset(offset)
+                    .ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz", CultureInfo.InvariantCulture);
+            }
+
+            string? NormalizeOptionalTimestamp(string? value) =>
+                string.IsNullOrWhiteSpace(value) ? value : NormalizeTimestamp(value);
+
+            bible.Incident.OccurredAt = NormalizeTimestamp(bible.Incident.OccurredAt);
+            bible.Incident.DiscoveredAt = NormalizeTimestamp(bible.Incident.DiscoveredAt);
+            bible.Incident.ReportedAt = NormalizeTimestamp(bible.Incident.ReportedAt);
+            bible.Incident.OpenedAt = NormalizeTimestamp(bible.Incident.OpenedAt);
+            foreach (var beat in bible.TruthTimeline)
+            {
+                beat.Time = NormalizeTimestamp(beat.Time);
+                beat.EndTime = NormalizeOptionalTimestamp(beat.EndTime);
+            }
+            foreach (var schedule in bible.WorkSchedules)
+            {
+                schedule.Start = NormalizeTimestamp(schedule.Start);
+                schedule.End = NormalizeTimestamp(schedule.End);
+            }
+            foreach (var observation in bible.Observations)
+                observation.ObservedAt = NormalizeOptionalTimestamp(observation.ObservedAt);
+            foreach (var fact in bible.Facts.Where(fact =>
+                         fact.LiteralType == LiteralValueType.DateTime
+                         && !string.IsNullOrWhiteSpace(fact.LiteralValue)))
+            {
+                fact.LiteralValue = NormalizeTimestamp(fact.LiteralValue!);
+            }
+
+            static bool HasExplicitOffset(string value)
+            {
+                var trimmed = value.Trim();
+                if (trimmed.EndsWith('Z') || trimmed.EndsWith('z'))
+                    return true;
+                if (trimmed.Length < 6)
+                    return false;
+                var suffix = trimmed[^6..];
+                return suffix[0] is '+' or '-'
+                       && suffix[3] == ':'
+                       && suffix.Skip(1).Where((_, index) => index != 2).All(char.IsAsciiDigit);
+            }
+        }
+
+        static void NormalizeInvestigatorEmail(CaseBible bible)
+        {
+            var investigator = bible.People.FirstOrDefault(person =>
+                person.Id == bible.World.InvestigatorPersonId);
+            if (investigator is null || string.IsNullOrWhiteSpace(investigator.Email))
+                return;
+            var separator = investigator.Email.LastIndexOf('@');
+            if (separator <= 0 || separator == investigator.Email.Length - 1)
+                return;
+            var domain = investigator.Email[(separator + 1)..];
+            if (!domain.EndsWith(".example", StringComparison.OrdinalIgnoreCase)
+                && !domain.Equals("example.com", StringComparison.OrdinalIgnoreCase))
+                return;
+            investigator.Email = $"{investigator.Email[..separator]}@casezero.local";
         }
     }
 

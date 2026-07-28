@@ -56,17 +56,31 @@ public class DirectCaseGenerationIntegrationTests
         var seed = int.TryParse(Environment.GetEnvironmentVariable("CASEZERO_SEED"), out var parsedSeed)
             ? parsedSeed
             : 1;
+        var reporter = new RecordingJobPhaseReporter(
+            caseId,
+            Environment.GetEnvironmentVariable("CASEZERO_PHASE_REPORT_FILE"));
+        await reporter.ReportAttemptStartedAsync(1, 1);
 
-        var response = await generator.GenerateAsync(new GenerateCaseV2Request
+        GenerateCaseV2Response response;
+        try
         {
-            CaseId = caseId,
-            Difficulty = difficulty,
-            RequiredRank = difficulty,
-            Theme = theme,
-            Language = language,
-            Seed = seed,
-            WriteToDisk = true
-        });
+            response = await generator.GenerateAsync(new GenerateCaseV2Request
+            {
+                CaseId = caseId,
+                Difficulty = difficulty,
+                RequiredRank = difficulty,
+                Theme = theme,
+                Language = language,
+                Seed = seed,
+                WriteToDisk = true
+            }, reporter);
+            await reporter.ReportCompletedAsync();
+        }
+        catch (Exception exception)
+        {
+            await reporter.ReportFailedAsync(exception.Message);
+            throw;
+        }
 
         var result = new DirectGenerationResult
         {
@@ -76,7 +90,8 @@ public class DirectCaseGenerationIntegrationTests
             FinalValidationPassed = response.FinalValidation?.IsValid == true,
             SolverSucceeded = response.Solver?.Correct == true,
             InputTokens = response.InputTokens,
-            OutputTokens = response.OutputTokens
+            OutputTokens = response.OutputTokens,
+            PhaseEvents = reporter.PhaseEvents.ToList()
         };
         WriteResult(result);
 
@@ -88,6 +103,7 @@ public class DirectCaseGenerationIntegrationTests
         Assert.True(File.Exists(response.OutputPath));
         Assert.True(response.CaseGraphEnabled);
         Assert.True(response.FinalValidation?.IsValid);
+        Assert.NotEmpty(reporter.PhaseEvents);
 
         var artifactReport = CaseV2ArtifactValidationHarness.ValidateDirectory(
             Path.GetDirectoryName(response.OutputPath)
@@ -167,5 +183,85 @@ public class DirectCaseGenerationIntegrationTests
         public bool SolverSucceeded { get; set; }
         public long InputTokens { get; set; }
         public long OutputTokens { get; set; }
+        public List<string> PhaseEvents { get; set; } = new();
+    }
+
+    private sealed class RecordingJobPhaseReporter : IJobPhaseReporter
+    {
+        private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
+        private readonly string? _path;
+        private readonly SemaphoreSlim _lock = new(1, 1);
+        private JobPhaseStatus _status;
+
+        public RecordingJobPhaseReporter(string jobId, string? path)
+        {
+            _path = path;
+            _status = JobPhaseStatus.Started(jobId, DateTimeOffset.UtcNow);
+        }
+
+        public bool IsConfigured => true;
+        public List<string> PhaseEvents { get; } = new();
+
+        public Task ReportStartedAsync(CancellationToken ct = default) =>
+            ReportAttemptStartedAsync(1, 1, ct);
+
+        public async Task ReportAttemptStartedAsync(int attempt, int maxAttempts, CancellationToken ct = default)
+        {
+            _status.StartAttempt(attempt, maxAttempts, DateTimeOffset.UtcNow);
+            PhaseEvents.Add($"attempt:{attempt}:started");
+            await WriteAsync(ct);
+        }
+
+        public async Task ReportPhaseAsync(string phase, CancellationToken ct = default)
+        {
+            _status.StartStage(phase, DateTimeOffset.UtcNow, retry: false);
+            PhaseEvents.Add($"phase:{phase}");
+            await WriteAsync(ct);
+        }
+
+        public async Task ReportRetryScheduledAsync(string error, DateTimeOffset retryAt, CancellationToken ct = default)
+        {
+            _status.ScheduleRetry(error, retryAt, DateTimeOffset.UtcNow);
+            PhaseEvents.Add($"attempt:{_status.CurrentAttempt}:retry");
+            await WriteAsync(ct);
+        }
+
+        public async Task ReportCompletedAsync(CancellationToken ct = default)
+        {
+            _status.Complete(DateTimeOffset.UtcNow);
+            PhaseEvents.Add($"attempt:{_status.CurrentAttempt}:completed");
+            await WriteAsync(ct);
+        }
+
+        public async Task ReportFailedAsync(string error, CancellationToken ct = default)
+        {
+            _status.Fail(error, DateTimeOffset.UtcNow);
+            PhaseEvents.Add($"attempt:{_status.CurrentAttempt}:failed");
+            await WriteAsync(ct);
+        }
+
+        public Task<JobPhaseStatus?> GetAsync(CancellationToken ct = default) =>
+            Task.FromResult<JobPhaseStatus?>(_status);
+
+        private async Task WriteAsync(CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(_path))
+                return;
+            await _lock.WaitAsync(ct);
+            try
+            {
+                var directory = Path.GetDirectoryName(_path);
+                if (!string.IsNullOrWhiteSpace(directory))
+                    Directory.CreateDirectory(directory);
+                await File.WriteAllTextAsync(
+                    _path,
+                    JsonSerializer.Serialize(new { status = _status, events = PhaseEvents }, Options),
+                    ct);
+            }
+            finally
+            {
+                _lock.Release();
+            }
+        }
     }
 }

@@ -3,8 +3,9 @@ param(
     [string]$Language = "en-US",
     [int]$CasesPerDifficulty = 3,
     [int]$CooldownSeconds = 60,
-    [int]$MaxAttempts = 3,
+    [int]$MaxAttempts = 5,
     [string]$ReportPath = "casev2-soak-report.json",
+    [int[]]$Seeds = @(),
     [switch]$KeepCases
 )
 
@@ -98,6 +99,9 @@ try {
         $difficulty = $difficulties[$difficultyIndex]
         foreach ($caseIndex in 1..$CasesPerDifficulty) {
             $seed = (($difficultyIndex + 1) * 1000) + 100 + $caseIndex
+            if ($Seeds.Count -gt 0 -and $seed -notin $Seeds) {
+                continue
+            }
             $theme = $themes[($caseIndex - 1) % $themes.Count]
             $existingRun = Get-Run $difficulty $seed
             if ($null -ne $existingRun -and $existingRun.status -eq "passed") {
@@ -130,8 +134,10 @@ try {
             for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
                 $caseId = "case_soak_$($difficulty.ToLowerInvariant())_${seed}_a$attempt"
                 $resultPath = Join-Path $logDirectory "$caseId-result.json"
+                $phaseReportPath = Join-Path $logDirectory "$caseId-progress.json"
                 $logPath = Join-Path $logDirectory "$caseId.log"
                 Remove-Item -LiteralPath $resultPath -ErrorAction SilentlyContinue
+                Remove-Item -LiteralPath $phaseReportPath -ErrorAction SilentlyContinue
                 $attemptStarted = [DateTime]::UtcNow
 
                 $env:CASEZERO_RUN_REAL_GENERATION = "1"
@@ -141,6 +147,7 @@ try {
                 $env:CASEZERO_LANGUAGE = $Language
                 $env:CASEZERO_CASE_ID = $caseId
                 $env:CASEZERO_DIRECT_RESULT_FILE = $resultPath
+                $env:CASEZERO_PHASE_REPORT_FILE = $phaseReportPath
 
                 try {
                     Write-Host "Generating difficulty=$difficulty seed=$seed attempt=$attempt"
@@ -155,6 +162,7 @@ try {
                     Remove-Item Env:\CASEZERO_LANGUAGE -ErrorAction SilentlyContinue
                     Remove-Item Env:\CASEZERO_CASE_ID -ErrorAction SilentlyContinue
                     Remove-Item Env:\CASEZERO_DIRECT_RESULT_FILE -ErrorAction SilentlyContinue
+                    Remove-Item Env:\CASEZERO_PHASE_REPORT_FILE -ErrorAction SilentlyContinue
                 }
 
                 $attemptDuration = [Math]::Round(([DateTime]::UtcNow - $attemptStarted).TotalSeconds, 1)
@@ -166,6 +174,12 @@ try {
                     exitCode = $exitCode
                     rateLimited = $logText -match "(?i)\b429\b|rate.?limit|too many requests"
                     logPath = $logPath
+                    phaseReportPath = $phaseReportPath
+                    phaseEvents = if (Test-Path $phaseReportPath) {
+                        @((Get-Content $phaseReportPath -Raw | ConvertFrom-Json).events)
+                    } else {
+                        @()
+                    }
                 }
                 $existingRun.attempts += $attemptRecord
 
@@ -220,10 +234,11 @@ try {
         passed = @($finishedRuns | Where-Object status -eq "passed").Count
         failed = @($finishedRuns | Where-Object status -eq "failed").Count
         rateLimitedAttempts = @($report.runs.attempts | Where-Object rateLimited).Count
-        totalInputTokens = ($finishedRuns | Measure-Object inputTokens -Sum).Sum
-        totalOutputTokens = ($finishedRuns | Measure-Object outputTokens -Sum).Sum
+        totalInputTokens = ($finishedRuns | ForEach-Object { [long]($_.inputTokens ?? 0) } | Measure-Object -Sum).Sum
+        totalOutputTokens = ($finishedRuns | ForEach-Object { [long]($_.outputTokens ?? 0) } | Measure-Object -Sum).Sum
     }
-    if (@($finishedRuns).Count -eq ($difficulties.Count * $CasesPerDifficulty)) {
+    $expectedRuns = if ($Seeds.Count -gt 0) { $Seeds.Count } else { $difficulties.Count * $CasesPerDifficulty }
+    if (@($finishedRuns).Count -eq $expectedRuns) {
         $report.completedAtUtc = [DateTime]::UtcNow.ToString("O")
     }
     Save-Report

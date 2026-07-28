@@ -6,6 +6,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace CaseGen.Functions.Functions.CaseV2;
@@ -39,22 +40,38 @@ public class CaseV2GenerationOrchestrator
         var logger = context.CreateReplaySafeLogger<CaseV2GenerationOrchestrator>();
         logger.LogInformation("[CaseV2] Orchestration {InstanceId} started for jobId={JobId}", context.InstanceId, input.JobId);
 
-        // Single activity wraps the whole generator. Splitting per-phase would give better
-        // crash recovery but requires refactoring CaseV2GeneratorService — deferred (see plan.md).
-        var result = await context.CallActivityAsync<CaseV2JobResult>(ActivityName, input);
+        CaseV2JobResult? result = null;
+        for (var attempt = 1; attempt <= input.MaxAttempts; attempt++)
+        {
+            var attemptInput = input with { Attempt = attempt };
+            result = await context.CallActivityAsync<CaseV2JobResult>(ActivityName, attemptInput);
+            if (!result.HasErrors)
+                break;
+            if (attempt == input.MaxAttempts)
+                break;
+
+            var backoffSeconds = Math.Min(300, 15 * (1 << Math.Min(attempt - 1, 4)));
+            await context.CreateTimer(
+                context.CurrentUtcDateTime.AddSeconds(backoffSeconds),
+                CancellationToken.None);
+        }
 
         logger.LogInformation(
             "[CaseV2] Orchestration {InstanceId} finished jobId={JobId} caseId={CaseId} errors={Errors}",
-            context.InstanceId, input.JobId, result.CaseId, result.ValidationErrorsCount);
+            context.InstanceId, input.JobId, result!.CaseId, result.ValidationErrorsCount);
 
-        return result;
+        return result!;
     }
 }
 
 /// <summary>
 /// Input passed from starter → orchestrator → activity.
 /// </summary>
-public record CaseV2OrchestrationInput(GenerateCaseV2Request Request, string JobId);
+public record CaseV2OrchestrationInput(
+    GenerateCaseV2Request Request,
+    string JobId,
+    int Attempt = 1,
+    int MaxAttempts = 5);
 
 /// <summary>
 /// Compact job result — large payload (full case.json, asset bytes) is in blob storage, not Durable state.
@@ -90,7 +107,10 @@ public record CaseV2JobResult(
     string? RedTeamVerdict,
     string? RedTeamVerdictInitial,
     List<string> RedTeamVerdictTrajectory,
-    bool RedTeamRerun);
+    bool RedTeamRerun,
+    int AttemptCount,
+    int MaxAttempts,
+    double SolverScore);
 
 /// <summary>
 /// The single long-running activity. Runs the v2 generator end-to-end and reports the current phase
@@ -120,8 +140,12 @@ public class CaseV2GenerateActivity
         var ct = ctx.CancellationToken;
         var reporter = _reporterFactory.Create(input.JobId);
 
-        await reporter.ReportStartedAsync(ct);
-        _logger.LogInformation("[CaseV2] Activity start jobId={JobId}", input.JobId);
+        await reporter.ReportAttemptStartedAsync(input.Attempt, input.MaxAttempts, ct);
+        _logger.LogInformation(
+            "[CaseV2] Activity start jobId={JobId} attempt={Attempt}/{MaxAttempts}",
+            input.JobId,
+            input.Attempt,
+            input.MaxAttempts);
 
         try
         {
@@ -132,10 +156,12 @@ public class CaseV2GenerateActivity
             {
                 _logger.LogWarning("[CaseV2] Activity completed with validation errors jobId={JobId} errors={Count}",
                     input.JobId, response.ValidationErrors.Count);
-                await reporter.ReportFailedAsync(
-                    $"Validation failed with {response.ValidationErrors.Count} error(s): "
-                    + string.Join(" · ", response.ValidationErrors.Take(3)),
-                    ct);
+                var error = $"Validation failed with {response.ValidationErrors.Count} error(s): "
+                            + string.Join(" · ", response.ValidationErrors.Take(3));
+                if (input.Attempt < input.MaxAttempts)
+                    await reporter.ReportRetryScheduledAsync(error, RetryAt(input.Attempt), ct);
+                else
+                    await reporter.ReportFailedAsync(error, ct);
             }
             else
             {
@@ -174,7 +200,21 @@ public class CaseV2GenerateActivity
                 RedTeamVerdict: response.RedTeam?.Verdict,
                 RedTeamVerdictInitial: response.RedTeamInitial?.Verdict,
                 RedTeamVerdictTrajectory: response.RedTeamVerdictTrajectory,
-                RedTeamRerun: response.RedTeamRerun);
+                RedTeamRerun: response.RedTeamRerun,
+                AttemptCount: input.Attempt,
+                MaxAttempts: input.MaxAttempts,
+                SolverScore: response.Solver?.Score ?? 0);
+        }
+        catch (Exception ex) when (input.Attempt < input.MaxAttempts && IsRetryable(ex))
+        {
+            _logger.LogWarning(
+                ex,
+                "[CaseV2] Retryable activity failure jobId={JobId} attempt={Attempt}/{MaxAttempts}",
+                input.JobId,
+                input.Attempt,
+                input.MaxAttempts);
+            await reporter.ReportRetryScheduledAsync(ex.Message, RetryAt(input.Attempt), CancellationToken.None);
+            return FailedAttempt(input, ex.Message);
         }
         catch (Exception ex)
         {
@@ -184,6 +224,53 @@ public class CaseV2GenerateActivity
             throw;
         }
     }
+
+    private static DateTimeOffset RetryAt(int attempt) =>
+        DateTimeOffset.UtcNow.AddSeconds(Math.Min(300, 15 * (1 << Math.Min(attempt - 1, 4))));
+
+    private static bool IsRetryable(Exception exception) =>
+        exception is CaseBibleValidationException
+        or TimeoutException
+        or HttpRequestException
+        || exception is Azure.RequestFailedException requestFailed
+        && (requestFailed.Status is 408 or 429 || requestFailed.Status >= 500)
+        || exception.InnerException is not null && IsRetryable(exception.InnerException);
+
+    private static CaseV2JobResult FailedAttempt(CaseV2OrchestrationInput input, string error) => new(
+        JobId: input.JobId,
+        CaseId: input.Request.CaseId ?? string.Empty,
+        OutputPath: string.Empty,
+        ValidationErrorsCount: 1,
+        AssetsRenderedPdfs: 0,
+        AssetsRenderedImages: 0,
+        BlobsPublished: 0,
+        HasErrors: true,
+        ErrorMessage: error,
+        StageLatencyMs: new Dictionary<string, double>(),
+        AutoFixesApplied: new List<string>(),
+        RefineAttempted: false,
+        RefineErrorsBefore: 0,
+        RefineErrorsAfter: 1,
+        RefineIterations: 0,
+        InputTokens: 0,
+        OutputTokens: 0,
+        CaseGraphEnabled: false,
+        FinalValidation: null,
+        GraphValidationPassed: false,
+        FirstPassSuccess: false,
+        RepairPlateauCount: 0,
+        RepairOperationCount: 0,
+        SolverSucceeded: false,
+        EvidenceLayoutDiversity: 0,
+        EvidenceLayouts: new List<string>(),
+        SpecialistFindingsByCategory: new Dictionary<string, int>(),
+        RedTeamVerdict: null,
+        RedTeamVerdictInitial: null,
+        RedTeamVerdictTrajectory: new List<string>(),
+        RedTeamRerun: false,
+        AttemptCount: input.Attempt,
+        MaxAttempts: input.MaxAttempts,
+        SolverScore: 0);
 }
 
 /// <summary>
@@ -199,10 +286,14 @@ public class StartCaseV2GenerationFunction
     };
 
     private readonly ILogger<StartCaseV2GenerationFunction> _logger;
+    private readonly IConfiguration _configuration;
 
-    public StartCaseV2GenerationFunction(ILogger<StartCaseV2GenerationFunction> logger)
+    public StartCaseV2GenerationFunction(
+        ILogger<StartCaseV2GenerationFunction> logger,
+        IConfiguration configuration)
     {
         _logger = logger;
+        _configuration = configuration;
     }
 
     [Function("StartCaseV2Generation")]
@@ -271,7 +362,11 @@ public class StartCaseV2GenerationFunction
 
         // 3) schedule the orchestration with an explicit, unique instanceId (== jobId)
         var jobId = $"{CaseV2GenerationOrchestrator.JobIdPrefix}{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}";
-        var input = new CaseV2OrchestrationInput(request, jobId);
+        var maxAttempts = int.TryParse(_configuration["CaseGenV2:JobMaxAttempts"], out var configuredMaxAttempts)
+                          && configuredMaxAttempts > 0
+            ? Math.Min(configuredMaxAttempts, 10)
+            : 5;
+        var input = new CaseV2OrchestrationInput(request, jobId, MaxAttempts: maxAttempts);
 
         try
         {
@@ -346,6 +441,11 @@ public class GetCaseV2JobStatusFunction
         string? pipelineVersion = null;
         double? progressPercent = null;
         object? stages = null;
+        object? attempts = null;
+        int? currentAttempt = null;
+        int? maxAttempts = null;
+        DateTimeOffset? nextRetryAt = null;
+        string? retryReason = null;
         string? blobError = null;
         try
         {
@@ -366,6 +466,27 @@ public class GetCaseV2JobStatusFunction
                     completedAt = stage.CompletedAt,
                     durationMs = stage.DurationMs
                 }).ToArray();
+                attempts = blob.Attempts.Select(attempt => new
+                {
+                    number = attempt.Number,
+                    status = attempt.Status,
+                    startedAt = attempt.StartedAt,
+                    completedAt = attempt.CompletedAt,
+                    error = attempt.Error,
+                    stages = attempt.Stages.Select(stage => new
+                    {
+                        id = stage.Id,
+                        status = stage.Status,
+                        attempt = stage.Attempt,
+                        startedAt = stage.StartedAt,
+                        completedAt = stage.CompletedAt,
+                        durationMs = stage.DurationMs
+                    }).ToArray()
+                }).ToArray();
+                currentAttempt = blob.CurrentAttempt;
+                maxAttempts = blob.MaxAttempts;
+                nextRetryAt = blob.NextRetryAt;
+                retryReason = blob.RetryReason;
                 blobError = blob.Error;
             }
         }
@@ -424,6 +545,11 @@ public class GetCaseV2JobStatusFunction
             pipelineVersion,
             progressPercent,
             stages,
+            attempts,
+            currentAttempt,
+            maxAttempts,
+            nextRetryAt,
+            retryReason,
             runtimeStatus = metadata.RuntimeStatus.ToString(),
             createdAt = metadata.CreatedAt,
             lastUpdatedAt = metadata.LastUpdatedAt,

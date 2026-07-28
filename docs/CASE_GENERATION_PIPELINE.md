@@ -79,7 +79,7 @@ A best-effort singleton check searches for an active Case v2 orchestration creat
 
 ## Job progress model
 
-The public progress model is versioned as `casegraph-v1`.
+The public progress model is versioned as `casegraph-v2`. It preserves complete-attempt history while retaining the current `stages` snapshot for compatibility.
 
 | Public stage | Internal phases |
 |---|---|
@@ -96,6 +96,8 @@ The public progress model is versioned as `casegraph-v1`.
 | `finalization` | `renderAssets`, `publishToBlob` |
 
 Each public stage records status, attempt count, start/completion timestamps, and duration. The status endpoint also returns the exact internal `currentPhase`.
+
+The job-level progress payload also returns `currentAttempt`, `maxAttempts`, `nextRetryAt`, `retryReason`, and `attempts`. Every attempt contains its own stage history, timestamps, status, and terminal error. Starting a new complete attempt does not erase earlier phases.
 
 ## Canonical data layers
 
