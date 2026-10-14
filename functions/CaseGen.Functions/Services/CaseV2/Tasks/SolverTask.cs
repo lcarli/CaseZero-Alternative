@@ -13,8 +13,8 @@ namespace CaseGen.Functions.Services.CaseV2.Tasks;
 /// the same scoring formula <see cref="Services.SolutionService"/> would run
 /// on the live site and reports the resulting score + breakdown.
 ///
-/// This lets us catch "the case isn't actually solvable from the player's POV"
-/// flaws that schema validation can't see.
+/// This is diagnostic only: it does not inspect rendered documents or simulate
+/// real forensic requests and must not authorize publication.
 /// </summary>
 public class SolverTask
 {
@@ -49,15 +49,7 @@ public class SolverTask
         public string? Notes { get; set; }
     }
 
-    private const string Schema = """
-    {"type":"object","required":["suspectId","evidenceIds","analysisIds","answers"],
-     "properties":{
-       "suspectId":{"type":"string","pattern":"^suspect\\.[a-z0-9_]+$"},
-       "evidenceIds":{"type":"array","items":{"type":"string","pattern":"^asset\\.[a-z0-9_]+$"}},
-       "analysisIds":{"type":"array","items":{"type":"string","pattern":"^asset\\.[a-z0-9_]+:[A-Za-z0-9_]+$"}},
-       "answers":{"type":"array","items":{"type":"object","required":["questionId","optionId"]}}
-     }}
-    """;
+    private static readonly string Schema = MicrotaskSchemas.Solver;
 
     public async Task<SolverResult> RunAsync(CaseDraft draft, CancellationToken ct)
     {
@@ -65,7 +57,7 @@ public class SolverTask
         // correctOptionId; we feed the solver only what a player would see on the site.
         var visibleAssets = draft.AssetFull
             .Where(a => string.Equals(a.Visibility, "initial", StringComparison.OrdinalIgnoreCase))
-            .Select(a => new { a.Id, a.Type, a.Title, a.Description });
+            .Select(a => new { a.Id, a.Type, a.Title, a.Description, a.Body, a.BodyDoc });
         var visibleEmails = draft.FollowUpEmails
             .Concat(new[]
             {
@@ -92,7 +84,7 @@ public class SolverTask
         // because the runtime auto-reveals them. We approximate by including ResultEmails/Assets too.
         var rookie = string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase);
         var availableAssets = rookie
-            ? visibleAssets.Concat(draft.ResultAssets.Select(a => new { a.Id, a.Type, a.Title, a.Description }))
+            ? visibleAssets.Concat(draft.ResultAssets.Select(a => new { a.Id, a.Type, a.Title, a.Description, a.Body, a.BodyDoc }))
             : visibleAssets;
         var availableEmails = rookie
             ? visibleEmails.Concat(draft.ResultEmails.Select(e => new { e.Id, e.From, e.Subject, e.Body }))
@@ -106,6 +98,7 @@ public class SolverTask
 
         var ctxJson = JsonSerializer.Serialize(new
         {
+            revision = draft.Revision,
             metadata = new { draft.Metadata.Title, draft.Metadata.Location, draft.Metadata.IncidentDate, draft.Metadata.OpenedAt },
             assets = availableAssets,
             emails = availableEmails,
@@ -136,11 +129,17 @@ Emit JSON only.";
         Attempt attempt;
         try
         {
-            var raw = await _llm.GenerateStructuredResponseAsync(system, user, Schema, ct);
-            attempt = JsonSerializer.Deserialize<Attempt>(raw.Content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                      ?? new Attempt();
+            attempt = await TaskRunner.RunStructuredAsync<Attempt>(_llm, _logger, "Solver", system, user, Schema, ct,
+                maxRetries: 0,
+                validate: a =>
+                {
+                    MicrotaskValidation.Unique(a.Answers.Select(answer => answer.QuestionId), "solver answers");
+                    TaskContractException.Require(a.Answers.All(answer => draft.Questions.Any(q =>
+                        q.Id == answer.QuestionId && q.Options.Any(o => o.Id == answer.OptionId))),
+                        "Solver answers must reference existing questions and their options.");
+                });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             _logger.LogWarning(ex, "Solver failed — returning unscored");
             return new SolverResult { Notes = "Solver failed: " + ex.Message };

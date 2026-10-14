@@ -37,7 +37,7 @@ public class VisibilityServiceTests : IDisposable
     }
 
     private static CaseV2Models.CaseV2 BuildV2Case(
-        string requiredRank = "Rookie",
+        string requiredRank = "Detective",
         string? unlockMode = null,
         int assetInitialCount = 2,
         int assetHiddenCount = 1,
@@ -59,7 +59,7 @@ public class VisibilityServiceTests : IDisposable
         return new CaseV2Models.CaseV2
         {
             CaseId = CaseId,
-            Metadata = new CaseV2Models.CaseV2Metadata { Title = "Vis Test", RequiredRank = requiredRank, UnlockMode = unlockMode ?? "all_initial" },
+            Metadata = new CaseV2Models.CaseV2Metadata { Title = "Vis Test", RequiredRank = requiredRank, UnlockMode = unlockMode ?? "gated" },
             Assets = assets,
             Emails = emails,
             Suspects = new List<CaseV2Models.CaseV2Suspect>()
@@ -71,19 +71,19 @@ public class VisibilityServiceTests : IDisposable
                         .ReturnsAsync(caseData);
 
     [Fact]
-    public async Task ApplyInitialRules_Rookie_UnlocksAllInitialAssets()
+    public async Task ApplyInitialRules_Rookie_UnlocksAllAssetsEvenWhenJsonSaysGated()
     {
         SetupCase(BuildV2Case(requiredRank: "Rookie", assetInitialCount: 2, assetHiddenCount: 1));
         var (assets, _) = await _sut.ApplyInitialRulesAsync(UserId, CaseId);
-        Assert.Equal(2, assets);
+        Assert.Equal(3, assets);
     }
 
     [Fact]
-    public async Task ApplyInitialRules_Rookie_UnlocksAllInitialEmails()
+    public async Task ApplyInitialRules_Rookie_UnlocksAllEmailsEvenWhenJsonSaysGated()
     {
         SetupCase(BuildV2Case(requiredRank: "Rookie", emailInitialCount: 3, emailHiddenCount: 1));
         var (_, emails) = await _sut.ApplyInitialRulesAsync(UserId, CaseId);
-        Assert.Equal(3, emails);
+        Assert.Equal(4, emails);
     }
 
     [Fact]
@@ -92,6 +92,15 @@ public class VisibilityServiceTests : IDisposable
         SetupCase(BuildV2Case(assetInitialCount: 1, assetHiddenCount: 2));
         await _sut.ApplyInitialRulesAsync(UserId, CaseId);
         Assert.False(await _sut.IsAssetVisibleAsync(UserId, CaseId, "asset.hidden_1"));
+    }
+
+    [Fact]
+    public async Task ApplyInitialRules_ExplicitAllInitial_UnlocksAllAtHigherRank()
+    {
+        SetupCase(BuildV2Case(requiredRank: "Detective", unlockMode: "all_initial", assetInitialCount: 1, assetHiddenCount: 2));
+        var (assets, _) = await _sut.ApplyInitialRulesAsync(UserId, CaseId);
+        Assert.Equal(3, assets);
+        Assert.True(await _sut.IsAssetVisibleAsync(UserId, CaseId, "asset.hidden_1"));
     }
 
     [Fact]

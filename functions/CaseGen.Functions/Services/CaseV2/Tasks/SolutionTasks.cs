@@ -18,15 +18,7 @@ public class SolutionSkeletonTask
         [JsonPropertyName("questionTopics")] public List<QuestionTopic> QuestionTopics { get; set; } = new();
     }
 
-    private const string Schema = """
-    {"type":"object","required":["requiredEvidenceIds","requiredAnalysisIds","questionTopics"],
-     "properties":{
-       "requiredEvidenceIds":{"type":"array","minItems":1,"items":{"type":"string","pattern":"^asset\\.[a-z0-9_]+$"}},
-       "requiredAnalysisIds":{"type":"array","minItems":1,"items":{"type":"string","pattern":"^asset\\.[a-z0-9_]+:[A-Za-z0-9_]+$"}},
-       "questionTopics":{"type":"array","minItems":2,"maxItems":4,
-         "items":{"type":"object","required":["id","topic","weight"],
-           "properties":{"id":{"type":"string","pattern":"^q\\.[a-z0-9_]+$"}}}}}}
-    """;
+    private static readonly string Schema = MicrotaskSchemas.SolutionSkeleton;
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
@@ -49,11 +41,13 @@ public class SolutionSkeletonTask
 
         var ctxJson = System.Text.Json.JsonSerializer.Serialize(new
         {
+            language = draft.Request.Language ?? "en-US",
             culpritId = draft.CulpritId,
             assets = draft.AssetStubs
                 .Concat(draft.ResultAssets.Select(a => new AssetStub { Id = a.Id, Type = a.Type, Title = a.Title, Role = "lab result" }))
                 .Select(a => new { a.Id, a.Type, a.Title, role = a.Role, reachable = reachableAssets.Contains(a.Id) }),
-            forensics = draft.ForensicFull.Where(f => f.Findings).Select(f => new { id = $"{f.InputAssetId}:{f.AnalysisType}", f.MatchedSuspectId })
+            forensics = draft.ForensicFull.Where(f => f.Findings).Select(f => new { id = $"{f.InputAssetId}:{f.AnalysisType}", f.MatchedSuspectId }),
+            canonical = draft.GetComponents()
         });
 
         var system = @"You are writing the **skeleton** of the case solution.
@@ -71,16 +65,18 @@ Pick:
 
 Emit JSON only.";
 
-        var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "SolutionSkeleton", system, user, Schema, ct);
-
-        // Defensive: drop any requiredEvidenceId that ended up unreachable anyway.
-        var ids = o.RequiredEvidenceIds.Where(reachableAssets.Contains).ToList();
-        if (ids.Count == 0 && o.RequiredEvidenceIds.Count > 0)
-        {
-            _logger.LogWarning("SolutionSkeleton picked only unreachable evidence — keeping originals so downstream auto-fix can promote them");
-            ids = o.RequiredEvidenceIds;
-        }
-        draft.RequiredEvidenceIds = ids;
+        var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "SolutionSkeleton", system, user, Schema, ct,
+            validate: output =>
+            {
+                TaskContractException.Require(output.RequiredEvidenceIds.All(reachableAssets.Contains),
+                    "requiredEvidenceIds must refer only to existing reachable assets.");
+                var analyses = draft.ForensicFull.Where(f => f.Findings)
+                    .Select(f => $"{f.InputAssetId}:{f.AnalysisType}").ToHashSet(StringComparer.Ordinal);
+                TaskContractException.Require(output.RequiredAnalysisIds.All(analyses.Contains),
+                    "requiredAnalysisIds must refer only to existing outcomes with findings.");
+                MicrotaskValidation.Unique(output.QuestionTopics.Select(q => q.Id), "questionTopics");
+            });
+        draft.RequiredEvidenceIds = o.RequiredEvidenceIds;
         draft.RequiredAnalysisIds = o.RequiredAnalysisIds;
         draft.QuestionTopics = o.QuestionTopics;
     }
@@ -93,15 +89,7 @@ public class QuestionTask
     private readonly ILogger _logger;
     public QuestionTask(ILLMProvider llm, ILogger logger) { _llm = llm; _logger = logger; }
 
-    private const string Schema = """
-    {"type":"object","required":["id","prompt","options","correctOptionId","weight"],
-     "properties":{
-       "id":{"type":"string","pattern":"^q\\.[a-z0-9_]+$"},
-       "options":{"type":"array","minItems":3,"maxItems":4,
-         "items":{"type":"object","required":["id","label"],
-           "properties":{"id":{"type":"string","pattern":"^opt\\.[a-z0-9_]+$"}}}},
-       "correctOptionId":{"type":"string","pattern":"^opt\\.[a-z0-9_]+$"}}}
-    """;
+    private static readonly string Schema = MicrotaskSchemas.Question;
 
     public async Task<SolutionQuestion> RunAsync(CaseDraft draft, QuestionTopic topic, CancellationToken ct)
     {
@@ -111,37 +99,35 @@ Topic: ""{topic.Topic}"". Echo id `{topic.Id}` and `weight` {topic.Weight}.
 (four characters: o, p, t, dot) followed by lowercase letters/digits/underscores. NEVER use `opt_` or just `opt-`.
 All options must be plausible (no obvious distractors). One is the correct answer (`correctOptionId`), and it
 MUST be one of the `option.id` values you emit.
-Keep the prompt under 25 words.";
-        var user = $@"CASE DRAFT (read-only):
-{draft.ToSummaryJson()}
+Keep the prompt under 25 words. Cite planned facts with support excerpts from the question prompt or CORRECT option.
+Never use a distractor as support. Preserve the exact canonical answer text; do not guess using private culprit information.";
+        var plan = draft.Bible?.Questions.Single(q => q.Id == topic.Id);
+        var context = plan is null ? draft.ToReviewJson() : CaseBibleAuthorship.Context(draft, plan.SourceIds.ToArray());
+        var user = $@"SUPPORTED READ-ONLY CONTEXT:
+{context}
 
-CULPRIT INFO: {draft.SuspectFull.FirstOrDefault(s => s.Id == draft.CulpritId)?.Motive ?? "(see culprit suspect's motive in draft)"}
+SUPPORTED ANSWER: {plan?.Answer ?? "(use the supplied evidence)"}
+REQUIRED FACT REFERENCES: {string.Join(", ", plan?.FactIds ?? new())}
+ACTUAL AUTHORED SOURCES:
+{(plan is null ? "(see draft)" : CaseBibleAuthorship.Materials(draft, plan.SourceIds))}
 
 Emit JSON only.";
-        var q = await TaskRunner.RunStructuredAsync<SolutionQuestion>(_llm, _logger, $"Question:{topic.Id}", system, user, Schema, ct);
-        q.Id = topic.Id;
-        q.Weight = topic.Weight;
-
-        // Defensive: coerce `opt_xxx` (underscore) to `opt.xxx` (dot) if the LLM drifts.
-        foreach (var opt in q.Options)
-        {
-            if (opt.Id.StartsWith("opt_", StringComparison.Ordinal))
-                opt.Id = "opt." + opt.Id.Substring(4);
-            if (opt.Id.StartsWith("opt-", StringComparison.Ordinal))
-                opt.Id = "opt." + opt.Id.Substring(4);
-        }
-        if (q.CorrectOptionId.StartsWith("opt_", StringComparison.Ordinal))
-            q.CorrectOptionId = "opt." + q.CorrectOptionId.Substring(4);
-        if (q.CorrectOptionId.StartsWith("opt-", StringComparison.Ordinal))
-            q.CorrectOptionId = "opt." + q.CorrectOptionId.Substring(4);
-
-        // Ensure correctOptionId is one of the options.
-        if (!q.Options.Any(o => o.Id == q.CorrectOptionId) && q.Options.Count > 0)
-        {
-            _logger.LogWarning("Question {Id} correctOptionId {Correct} not in options — defaulting to first", q.Id, q.CorrectOptionId);
-            q.CorrectOptionId = q.Options[0].Id;
-        }
-        return q;
+        return await TaskRunner.RunStructuredAsync<SolutionQuestion>(_llm, _logger, $"Question:{topic.Id}", system, user, Schema, ct,
+            validate: q =>
+            {
+                MicrotaskValidation.Equal(q.Id, topic.Id, "question.id");
+                TaskContractException.Require(q.Weight == topic.Weight, "question.weight must echo the topic weight.");
+                MicrotaskValidation.Unique(q.Options.Select(o => o.Id), "options");
+                MicrotaskValidation.Unique(q.Options.Select(o => o.Label), "option labels");
+                TaskContractException.Require(q.Options.Any(o => o.Id == q.CorrectOptionId),
+                    $"correctOptionId '{q.CorrectOptionId}' is not present in options; no answer will be substituted.");
+                if (plan is not null)
+                {
+                    var answer = q.Options.Single(o => o.Id == q.CorrectOptionId);
+                    MicrotaskValidation.Equal(answer.Label, plan.Answer, "question.answer");
+                    CaseBibleAuthorship.Support(q.Support, plan.FactIds, $"{q.Prompt}\n{answer.Label}", q.Id);
+                }
+            });
     }
 }
 
@@ -152,26 +138,38 @@ public class ExplanationTask
     private readonly ILogger _logger;
     public ExplanationTask(ILLMProvider llm, ILogger logger) { _llm = llm; _logger = logger; }
 
-    private class Output { [JsonPropertyName("explanation")] public string Explanation { get; set; } = string.Empty; }
+    private class Output : CaseAuthoredContent { [JsonPropertyName("explanation")] public string Explanation { get; set; } = string.Empty; }
 
-    private const string Schema = """
-    {"type":"object","required":["explanation"],"properties":{"explanation":{"type":"string","minLength":40}}}
-    """;
+    private static readonly string Schema = MicrotaskSchemas.Explanation;
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
         var culprit = draft.SuspectFull.FirstOrDefault(s => s.Id == draft.CulpritId);
+        var sourceIds = draft.Bible?.Sources.Where(s => s.Type is not ("photo" or "profile") &&
+            s.FactIds.Any(draft.Bible.ExplanationFactIds.Contains)).Select(s => s.Id).ToArray();
+        var context = sourceIds is null ? draft.ToReviewJson() : CaseBibleAuthorship.Context(draft, sourceIds);
         var system = @"You are writing the post-mortem explanation shown to the player when they solve the case (or run out of attempts).
-2-4 sentence markdown. Tie the evidence + forensic analyses to the culprit. State why each decoy is cleared.";
-        var user = $@"CASE DRAFT (read-only):
-{draft.ToSummaryJson()}
+Concise markdown. Explain how the complementary evidence supports the conclusion, with explicit source references.
+Do NOT clear every decoy by fiat: exclusion requires positive independent facts; no findings or similarity are insufficient.
+Return support[] excerpts covering exactly explanationFactIds when a CaseBible is provided.";
+        var user = $@"SUPPORTED READ-ONLY CONTEXT:
+{context}
 
-CULPRIT: {culprit?.Name} — motive: {culprit?.Motive}
+SUPPORTED RESPONSIBILITY CONCLUSION: {culprit?.Name}
 KEY EVIDENCE: {string.Join(", ", draft.RequiredEvidenceIds)}
 KEY ANALYSES: {string.Join(", ", draft.RequiredAnalysisIds)}
+REQUIRED FACT REFERENCES: {string.Join(", ", draft.Bible?.ExplanationFactIds ?? new())}
+ACTUAL AUTHORED SOURCES:
+{(sourceIds is null ? "(see draft)" : CaseBibleAuthorship.Materials(draft, sourceIds))}
 
 Emit JSON only.";
-        var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "Explanation", system, user, Schema, ct);
+        var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "Explanation", system, user, Schema, ct,
+            validate: result =>
+            {
+                if (draft.Bible is not null)
+                    CaseBibleAuthorship.Support(result.Support, draft.Bible.ExplanationFactIds, result.Explanation, "explanation");
+            });
         draft.Explanation = o.Explanation;
+        draft.ExplanationSupport = o.Support;
     }
 }

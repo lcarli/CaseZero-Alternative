@@ -21,6 +21,7 @@ namespace CaseZeroApi.DTOs
         public string? GameTimeAtStart { get; set; }
         public string? GameTimeAtEnd { get; set; }
         public SessionStatus Status { get; set; }
+        public CaseZeroApi.Services.GameClockSnapshot? GameClock { get; set; }
     }
 
     public class StartCaseSessionRequest

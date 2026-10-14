@@ -19,6 +19,11 @@ namespace CaseZeroApi.Models
         public string? GameTimeAtEnd { get; set; }
         public bool IsActive { get; set; } = true;
         public SessionStatus Status { get; set; } = SessionStatus.Active;
+        public double GameTimeMinutes { get; set; }
+        public DateTime? GameClockUpdatedAt { get; set; }
+        public string? ObservedTriggers { get; set; }
+        [System.ComponentModel.DataAnnotations.ConcurrencyCheck]
+        public int StateVersion { get; set; }
 
         // v2 session state (JSON-serialized lists/dicts) — see CaseV2SanitizerService and RulesEngineService.
         public string? FiredRuleIds { get; set; }

@@ -17,19 +17,25 @@ namespace CaseZeroApi.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IVisibilityService _visibilityService;
         private readonly ILogger<CaseSessionController> _logger;
+        private readonly ICaseV2StorageService _storage;
+        private readonly CaseGameClock _clock;
 
         public CaseSessionController(
             ApplicationDbContext context, 
             IVisibilityService visibilityService,
-            ILogger<CaseSessionController> logger)
+            ILogger<CaseSessionController> logger,
+            ICaseV2StorageService storage,
+            CaseGameClock clock)
         {
             _context = context;
             _visibilityService = visibilityService;
             _logger = logger;
+            _storage = storage;
+            _clock = clock;
         }
 
         /// <summary>
-        /// Start a new case session
+        /// Start or restore the user's case session.
         /// </summary>
         [HttpPost("start")]
         public async Task<IActionResult> StartSession([FromBody] StartCaseSessionRequest request)
@@ -65,42 +71,23 @@ namespace CaseZeroApi.Controllers
                     }
                 }
 
-                // End any active session for this user/case
-                var existingSession = await _context.CaseSessions
-                    .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == request.CaseId && cs.Status == SessionStatus.Active);
-
-                if (existingSession != null)
+                var caseData = await _storage.GetRawAsync(request.CaseId);
+                if (isV1Case && caseData is null) return NotFound(new { error = "case_not_found" });
+                var newSession = await _context.CaseSessions
+                    .Where(cs => cs.UserId == userId && cs.CaseId == request.CaseId)
+                    .OrderByDescending(cs => cs.SessionStart).ThenByDescending(cs => cs.Id)
+                    .FirstOrDefaultAsync();
+                if (newSession is null)
                 {
-                    existingSession.Status = SessionStatus.Paused;
-                    existingSession.SessionEnd = DateTime.UtcNow;
-                    existingSession.SessionDurationMinutes = 
-                        (int)(existingSession.SessionEnd.Value - existingSession.SessionStart).TotalMinutes;
+                    newSession = new CaseSession { UserId = userId, CaseId = request.CaseId };
+                    _context.CaseSessions.Add(newSession);
                 }
-
-                // Create new session
-                var newSession = new CaseSession
-                {
-                    UserId = userId,
-                    CaseId = request.CaseId,
-                    SessionStart = DateTime.UtcNow,
-                    GameTimeAtStart = request.GameTimeAtStart,
-                    Status = SessionStatus.Active
-                };
-
-                _context.CaseSessions.Add(newSession);
+                _clock.Initialize(newSession, CaseGameClock.Parse(caseData?.Metadata.OpenedAt ??
+                    request.GameTimeAtStart ?? DateTime.UtcNow.ToString("o")));
+                if (newSession.Status == SessionStatus.Paused) _clock.Resume(newSession);
+                _clock.Capture(newSession);
                 await _context.SaveChangesAsync();
-
-                // Apply initial visibility rules (unlock initial assets/emails)
-                try
-                {
-                    var (assetsUnlocked, emailsUnlocked) = await _visibilityService.ApplyInitialRulesAsync(userId, request.CaseId);
-                    _logger.LogInformation("Initial visibility applied: {Assets} assets, {Emails} emails unlocked", assetsUnlocked, emailsUnlocked);
-                }
-                catch (Exception visEx)
-                {
-                    _logger.LogError(visEx, "Failed to apply initial visibility rules, but session was created");
-                    // Continue - session is valid even if visibility fails
-                }
+                await _visibilityService.ApplyInitialRulesAsync(userId, request.CaseId);
 
                 var sessionDto = new CaseSessionDto
                 {
@@ -112,10 +99,15 @@ namespace CaseZeroApi.Controllers
                     SessionDurationMinutes = newSession.SessionDurationMinutes,
                     GameTimeAtStart = newSession.GameTimeAtStart,
                     GameTimeAtEnd = newSession.GameTimeAtEnd,
-                    Status = newSession.Status
+                    Status = newSession.Status,
+                    GameClock = _clock.Read(newSession)
                 };
 
                 return Ok(sessionDto);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return SessionChanged(ex, userId, request.CaseId);
             }
             catch (Exception ex)
             {
@@ -146,7 +138,9 @@ namespace CaseZeroApi.Controllers
                 _logger.LogInformation("🔍 Looking for active session for userId: {UserId}, caseId: {CaseId}", userId, caseId);
                 
                 var activeSession = await _context.CaseSessions
-                    .FirstOrDefaultAsync(cs => cs.UserId == userId && cs.CaseId == caseId && cs.Status == SessionStatus.Active);
+                    .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
+                    .OrderByDescending(cs => cs.SessionStart).ThenByDescending(cs => cs.Id)
+                    .FirstOrDefaultAsync();
 
                 if (activeSession == null)
                 {
@@ -156,9 +150,11 @@ namespace CaseZeroApi.Controllers
 
                 _logger.LogInformation("✅ Active session found: {SessionId}", activeSession.Id);
                 
-                activeSession.Status = SessionStatus.Paused;
+                await InitializeClockAsync(activeSession);
+                _clock.Capture(activeSession);
+                if (activeSession.Status != SessionStatus.Completed) activeSession.Status = SessionStatus.Paused;
+                activeSession.IsActive = false;
                 activeSession.SessionEnd = DateTime.UtcNow;
-                activeSession.GameTimeAtEnd = request.GameTimeAtEnd;
                 activeSession.SessionDurationMinutes = 
                     (int)(activeSession.SessionEnd.Value - activeSession.SessionStart).TotalMinutes;
 
@@ -176,10 +172,15 @@ namespace CaseZeroApi.Controllers
                     SessionDurationMinutes = activeSession.SessionDurationMinutes,
                     GameTimeAtStart = activeSession.GameTimeAtStart,
                     GameTimeAtEnd = activeSession.GameTimeAtEnd,
-                    Status = activeSession.Status
+                    Status = activeSession.Status,
+                    GameClock = _clock.Read(activeSession)
                 };
 
                 return Ok(sessionDto);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return SessionChanged(ex, userId, caseId);
             }
             catch (Exception ex)
             {
@@ -205,12 +206,15 @@ namespace CaseZeroApi.Controllers
                 var lastSession = await _context.CaseSessions
                     .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
                     .OrderByDescending(cs => cs.SessionStart)
+                    .ThenByDescending(cs => cs.Id)
                     .FirstOrDefaultAsync();
 
                 if (lastSession == null)
                 {
                     return NotFound("No session found for this case");
                 }
+                await InitializeClockAsync(lastSession);
+                await _context.SaveChangesAsync();
 
                 var sessionDto = new CaseSessionDto
                 {
@@ -222,10 +226,15 @@ namespace CaseZeroApi.Controllers
                     SessionDurationMinutes = lastSession.SessionDurationMinutes,
                     GameTimeAtStart = lastSession.GameTimeAtStart,
                     GameTimeAtEnd = lastSession.GameTimeAtEnd,
-                    Status = lastSession.Status
+                    Status = lastSession.Status,
+                    GameClock = _clock.Read(lastSession)
                 };
 
                 return Ok(sessionDto);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return SessionChanged(ex, userId, caseId);
             }
             catch (Exception ex)
             {
@@ -353,7 +362,7 @@ namespace CaseZeroApi.Controllers
         }
 
         /// <summary>
-        /// Resume a paused case session
+        /// Resume the latest case session without resetting an already active clock.
         /// </summary>
         [HttpPost("/api/cases/{caseId}/resume")]
         public async Task<IActionResult> ResumeSession(string caseId)
@@ -366,45 +375,88 @@ namespace CaseZeroApi.Controllers
 
             try
             {
-                // Find the most recent paused session
-                var pausedSession = await _context.CaseSessions
-                    .Where(cs => cs.UserId == userId && cs.CaseId == caseId && cs.Status == SessionStatus.Paused)
-                    .OrderByDescending(cs => cs.SessionStart)
+                var session = await _context.CaseSessions
+                    .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
+                    .OrderByDescending(cs => cs.SessionStart).ThenByDescending(cs => cs.Id)
                     .FirstOrDefaultAsync();
 
-                if (pausedSession == null)
+                if (session == null)
                 {
-                    return NotFound("No paused session found for this case");
+                    return NotFound(new { error = "session_not_found" });
                 }
+                if (session.Status == SessionStatus.Completed)
+                    return Conflict(new { error = "session_completed" });
 
-                // Mark as active
-                pausedSession.Status = SessionStatus.Active;
-                pausedSession.SessionEnd = null; // Clear end time since we're resuming
+                await InitializeClockAsync(session);
+                _clock.Resume(session);
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("✅ Resumed session {SessionId} for user {UserId} on case {CaseId}", 
-                    pausedSession.Id, userId, caseId);
+                    session.Id, userId, caseId);
 
                 var sessionDto = new CaseSessionDto
                 {
-                    Id = pausedSession.Id,
-                    UserId = pausedSession.UserId,
-                    CaseId = pausedSession.CaseId,
-                    SessionStart = pausedSession.SessionStart,
-                    SessionEnd = pausedSession.SessionEnd,
-                    SessionDurationMinutes = pausedSession.SessionDurationMinutes,
-                    GameTimeAtStart = pausedSession.GameTimeAtStart,
-                    GameTimeAtEnd = pausedSession.GameTimeAtEnd,
-                    Status = pausedSession.Status
+                    Id = session.Id,
+                    UserId = session.UserId,
+                    CaseId = session.CaseId,
+                    SessionStart = session.SessionStart,
+                    SessionEnd = session.SessionEnd,
+                    SessionDurationMinutes = session.SessionDurationMinutes,
+                    GameTimeAtStart = session.GameTimeAtStart,
+                    GameTimeAtEnd = session.GameTimeAtEnd,
+                    Status = session.Status,
+                    GameClock = _clock.Read(session)
                 };
 
                 return Ok(sessionDto);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return SessionChanged(ex, userId, caseId);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error resuming session for user {UserId} and case {CaseId}", userId, caseId);
                 return StatusCode(500, "Internal server error");
             }
+        }
+
+        [HttpGet("clock/{caseId}")]
+        public async Task<IActionResult> GetClock(string caseId, CancellationToken ct)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+            try
+            {
+                var session = await _context.CaseSessions
+                    .Where(s => s.UserId == userId && s.CaseId == caseId)
+                    .OrderByDescending(s => s.SessionStart).ThenByDescending(s => s.Id)
+                    .FirstOrDefaultAsync(ct);
+                if (session is null) return NotFound(new { error = "session_not_found" });
+                await InitializeClockAsync(session, ct);
+                await _context.SaveChangesAsync(ct);
+                return Ok(_clock.Read(session));
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                return SessionChanged(ex, userId, caseId);
+            }
+        }
+
+        [HttpPost("clock/{caseId}/pause")]
+        public Task<IActionResult> PauseClock(string caseId) => EndSession(caseId, new EndCaseSessionRequest());
+
+        private async Task InitializeClockAsync(CaseSession session, CancellationToken ct = default)
+        {
+            if (session.GameClockUpdatedAt is not null) return;
+            var caseData = await _storage.GetRawAsync(session.CaseId, ct);
+            _clock.Initialize(session, CaseGameClock.Parse(caseData?.Metadata.OpenedAt ?? session.GameTimeAtStart));
+        }
+
+        private ConflictObjectResult SessionChanged(DbUpdateConcurrencyException ex, string userId, string caseId)
+        {
+            _logger.LogWarning(ex, "Concurrent session update for user {UserId} and case {CaseId}", userId, caseId);
+            return Conflict(new { error = "session_changed" });
         }
 
         /// <summary>

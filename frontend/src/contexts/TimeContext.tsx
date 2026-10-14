@@ -1,13 +1,17 @@
-import React, { createContext, useState, useEffect, useRef } from 'react'
+import React, { createContext, useState, useEffect, useRef, useCallback } from 'react'
 import type { ReactNode } from 'react'
+import { caseSessionApi, type GameClockSnapshot } from '../services/api'
+import { useLanguage } from '../hooks/useLanguageContext'
 
 interface TimeContextType {
   gameTime: Date
   startTime: Date
+  elapsedMinutes: number
   isRunning: boolean
+  error: string | null
   setStartTime: (startTime: Date) => void
-  pauseTime: () => void
-  resumeTime: () => void
+  pauseTime: () => Promise<void>
+  resumeTime: () => Promise<void>
   addTimeEntry: (entry: TimeEntry) => void
   timeEntries: TimeEntry[]
   getFormattedTime: () => string
@@ -29,134 +33,97 @@ interface TimeProviderProps {
   children: ReactNode
   caseId?: string
   initialGameTime?: Date
+  initialGameClock?: GameClockSnapshot
 }
 
-// Game time runs faster than real time: 1 real second = 1 game minute (60x multiplier)
-// This means: 1 real minute = 1 game hour, 1 real hour = 60 game hours
-const TIME_MULTIPLIER = 60
-
-export const TimeProvider: React.FC<TimeProviderProps> = ({ children, caseId, initialGameTime }) => {
-  const [gameTime, setGameTime] = useState<Date>(initialGameTime || new Date())
-  const [startTime, setStartTimeState] = useState<Date>(initialGameTime || new Date())
-  const [isRunning, setIsRunning] = useState<boolean>(true)
+export const TimeProvider: React.FC<TimeProviderProps> = ({ children, caseId, initialGameTime, initialGameClock }) => {
+  const { t, currentLanguage } = useLanguage()
+  const [gameTime, setGameTime] = useState(() => new Date(initialGameClock?.gameTime ?? initialGameTime?.getTime() ?? Date.now()))
+  const [elapsedMinutes, setElapsedMinutes] = useState(initialGameClock?.elapsedMinutes ?? 0)
+  const [isRunning, setIsRunning] = useState(initialGameClock?.isRunning ?? false)
+  const [error, setError] = useState<string | null>(null)
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
-  const intervalRef = useRef<number | null>(null)
-  const lastUpdateRef = useRef<number>(Date.now())
+  const snapshot = useRef({ clock: initialGameClock, receivedAt: Date.now() })
+  const clockChanges = useRef(0)
 
-  // Initialize game time based on case
+  const applyClock = useCallback((clock: GameClockSnapshot) => {
+    const previous = snapshot.current.clock
+    if (previous && Date.parse(clock.asOfUtc) < Date.parse(previous.asOfUtc)) return
+    snapshot.current = { clock, receivedAt: Date.now() }
+    setGameTime(new Date(clock.gameTime))
+    setElapsedMinutes(clock.elapsedMinutes)
+    setIsRunning(clock.isRunning)
+    setError(null)
+  }, [])
+
   useEffect(() => {
-    if (caseId && !initialGameTime) {
-      // Only set default time if no initialGameTime was provided
-      const caseStartTime = new Date()
-      // Set to 8:00 AM of today for the case start
-      caseStartTime.setHours(8, 0, 0, 0)
-      setStartTimeState(caseStartTime)
-      setGameTime(new Date(caseStartTime))
-      
-      // Add initial case start entry
-      const initialEntry: TimeEntry = {
-        id: `init-${Date.now()}`,
-        timestamp: caseStartTime,
-        type: 'case',
-        message: `Investigação iniciada - Caso ${caseId}`,
-        category: 'Início do Caso',
-        priority: 'high'
-      }
-      setTimeEntries([initialEntry])
-    } else if (caseId && initialGameTime) {
-      // Use provided initialGameTime (from previous session)
-      const resumeEntry: TimeEntry = {
-        id: `resume-${Date.now()}`,
-        timestamp: initialGameTime,
-        type: 'case',
-        message: `Investigação retomada - Caso ${caseId}`,
-        category: 'Retomada do Caso',
-        priority: 'medium'
-      }
-      setTimeEntries(prev => [...prev, resumeEntry])
-    }
-  }, [caseId, initialGameTime])
+    if (initialGameClock) applyClock(initialGameClock)
+  }, [initialGameClock, applyClock])
 
-  // Game time ticker
   useEffect(() => {
-    if (isRunning) {
-      intervalRef.current = setInterval(() => {
-        const now = Date.now()
-        const realTimeDelta = now - lastUpdateRef.current
-        const gameTimeDelta = realTimeDelta * TIME_MULTIPLIER
-        
-        setGameTime(prev => new Date(prev.getTime() + gameTimeDelta))
-        lastUpdateRef.current = now
-      }, 1000) // Update every second
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
+    if (!caseId) return
+    let alive = true
+    const sync = async () => {
+      const change = clockChanges.current
+      try {
+        const clock = await caseSessionApi.getGameClock(caseId)
+        if (alive && change === clockChanges.current) applyClock(clock)
+      } catch (err) {
+        console.error('Game clock synchronization failed:', err)
+        if (alive && change === clockChanges.current) setError(t('gameClockSyncFailed'))
       }
     }
+    void sync()
+    const interval = setInterval(() => { void sync() }, 10000)
+    return () => { alive = false; clearInterval(interval) }
+  }, [caseId, applyClock, t])
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, [isRunning])
-
-  // Update last update reference when resuming
   useEffect(() => {
-    if (isRunning) {
-      lastUpdateRef.current = Date.now()
+    const interval = setInterval(() => {
+      const clock = snapshot.current.clock
+      if (!clock) return
+      const delta = clock.isRunning ? Math.max(0, Date.now() - snapshot.current.receivedAt) * clock.multiplier : 0
+      setGameTime(new Date(new Date(clock.gameTime).getTime() + delta))
+      setElapsedMinutes(clock.elapsedMinutes + delta / 60000)
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    if (!caseId) return
+    const pauseOnExit = () => {
+      void caseSessionApi.pauseGameClock(caseId, true).catch((err: unknown) => {
+        console.error('Saving the case clock on page exit failed:', err)
+      })
     }
-  }, [isRunning])
+    window.addEventListener('pagehide', pauseOnExit)
+    return () => window.removeEventListener('pagehide', pauseOnExit)
+  }, [caseId])
 
-  const setStartTime = (newStartTime: Date) => {
-    setStartTimeState(newStartTime)
-    setGameTime(new Date(newStartTime))
+  const changeClock = async (running: boolean) => {
+    if (!caseId) return
+    try {
+      const session = await (running ? caseSessionApi.resumeGameClock(caseId) : caseSessionApi.pauseGameClock(caseId))
+      if (!session.gameClock) throw new Error('Missing authoritative game clock')
+      clockChanges.current += 1
+      applyClock(session.gameClock)
+    } catch (err) {
+      console.error('Changing game clock state failed:', err)
+      setError(t('gameClockSyncFailed'))
+    }
   }
 
-  const pauseTime = () => {
-    setIsRunning(false)
-  }
-
-  const resumeTime = () => {
-    setIsRunning(true)
-    lastUpdateRef.current = Date.now()
-  }
-
-  const addTimeEntry = (entry: TimeEntry) => {
-    setTimeEntries(prev => [...prev, entry].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()))
-  }
-
-  const getFormattedTime = () => {
-    return gameTime.toLocaleTimeString('pt-BR', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      second: '2-digit'
-    })
-  }
-
-  const getFormattedDate = () => {
-    return gameTime.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit', 
-      year: 'numeric'
-    })
-  }
-
-  const contextValue: TimeContextType = {
-    gameTime,
-    startTime,
-    isRunning,
-    setStartTime,
-    pauseTime,
-    resumeTime,
-    addTimeEntry,
-    timeEntries,
-    getFormattedTime,
-    getFormattedDate
-  }
-
+  const startTime = new Date(gameTime.getTime() - elapsedMinutes * 60000)
   return (
-    <TimeContext.Provider value={contextValue}>
+    <TimeContext.Provider value={{
+      gameTime, startTime, elapsedMinutes, isRunning, error,
+      setStartTime: () => { setError(t('gameClockServerOwned')) },
+      pauseTime: () => changeClock(false), resumeTime: () => changeClock(true),
+      addTimeEntry: entry => setTimeEntries(prev => [...prev, entry].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())),
+      timeEntries,
+      getFormattedTime: () => gameTime.toLocaleTimeString(currentLanguage, { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      getFormattedDate: () => gameTime.toLocaleDateString(currentLanguage, { day: '2-digit', month: '2-digit', year: 'numeric' }),
+    }}>
       {children}
     </TimeContext.Provider>
   )

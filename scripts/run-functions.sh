@@ -45,9 +45,6 @@ echo $! > "$AZURITE_DIR/azurite.pid"
 sleep 2
 log "Azurite up (pid $(cat "$AZURITE_DIR/azurite.pid"))."
 
-# Make sure the v2 schema is in the output before func start
-cp "$REPO_ROOT/schemas/case.schema.json" "$FUNC_DIR/Schemas/case.v2.schema.json"
-
 log "Restoring + building $FUNC_DIR…"
 ( cd "$FUNC_DIR" && dotnet build CaseGen.Functions.csproj --nologo >/dev/null )
 

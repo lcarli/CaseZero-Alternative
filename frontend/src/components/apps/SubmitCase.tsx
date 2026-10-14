@@ -197,13 +197,14 @@ const ExplanationPanel = styled.div`
 `
 
 const SubmitCase: React.FC = () => {
-  const { t } = useLanguage()
+  const { t, currentLanguage } = useLanguage()
   const { state, submitCase } = useCase()
   const assets = useAssets()
   const suspects = useSuspects()
   const submission = useSubmission()
 
   const questions = useMemo(() => state.case?.solution.questions ?? [], [state.case])
+  const scoreFormat = useMemo(() => new Intl.NumberFormat(currentLanguage, { maximumFractionDigits: 4 }), [currentLanguage])
   const attemptsRemaining = submission.maxAttempts - submission.attemptsUsed
   const lastResult = submission.lastResult
   const isExhausted = attemptsRemaining <= 0
@@ -297,7 +298,7 @@ const SubmitCase: React.FC = () => {
         <Section>
           <SectionTitle>{t('submitCaseAnalysisLabel')}</SectionTitle>
           <TextArea
-            placeholder="asset.id:AnalysisType (one per line or comma-separated)"
+            placeholder={t('submitCaseAnalysisPlaceholder')}
             value={analysisText}
             onChange={e => setAnalysisText(e.target.value)}
             disabled={isExhausted}
@@ -341,20 +342,20 @@ const SubmitCase: React.FC = () => {
               : t('submitCaseResultIncorrect')}
           </div>
           <ScoreLine>
-            {t('submitCaseScore')}: {lastResult.score}
+            {t('submitCaseScore')}: {scoreFormat.format(lastResult.score)}
           </ScoreLine>
           <BreakdownGrid>
-            <BreakdownItem $ok={lastResult.breakdown.culprit}>
-              {t('submitCaseBreakdownCulprit')}: {lastResult.breakdown.culprit ? '✓' : '✗'}
+            <BreakdownItem $ok={lastResult.breakdown.culpritScore > 0}>
+              {t('submitCaseBreakdownCulprit')}: {scoreFormat.format(lastResult.breakdown.culpritScore)}
             </BreakdownItem>
-            <BreakdownItem $ok={lastResult.breakdown.evidence}>
-              {t('submitCaseBreakdownEvidence')}: {lastResult.breakdown.evidence ? '✓' : '✗'}
+            <BreakdownItem $ok={lastResult.breakdown.evidenceScore > 0}>
+              {t('submitCaseBreakdownEvidence')}: {scoreFormat.format(lastResult.breakdown.evidenceScore)}
             </BreakdownItem>
-            <BreakdownItem $ok={lastResult.breakdown.analysis}>
-              {t('submitCaseBreakdownAnalysis')}: {lastResult.breakdown.analysis ? '✓' : '✗'}
+            <BreakdownItem $ok={lastResult.breakdown.analysisScore > 0}>
+              {t('submitCaseBreakdownAnalysis')}: {scoreFormat.format(lastResult.breakdown.analysisScore)}
             </BreakdownItem>
-            <BreakdownItem $ok={lastResult.breakdown.questions}>
-              {t('submitCaseBreakdownQuestions')}: {lastResult.breakdown.questions ? '✓' : '✗'}
+            <BreakdownItem $ok={lastResult.breakdown.questionsScore > 0}>
+              {t('submitCaseBreakdownQuestions')}: {scoreFormat.format(lastResult.breakdown.questionsScore)}
             </BreakdownItem>
           </BreakdownGrid>
           <ScoreLine>

@@ -29,9 +29,8 @@ builder.Services
     .AddScoped<MechanicalRulesBuilder>()
     .AddScoped<IConsistencyValidator, ConsistencyValidator>()
     .AddScoped<ICaseV2BlobPublisher, CaseV2BlobPublisher>()
-    .AddScoped<ISchemaErrorAutoFixer, SchemaErrorAutoFixer>()
     .AddSingleton<IJobPhaseReporterFactory, JobPhaseReporterFactory>()
-    // Digital evidence templates — each enriches a specific bodyDoc.layout before render
+    // Enrich canonical documents before review; rendering must not apply templates again.
     .AddScoped<IEvidenceTemplate, CallLogTemplate>()
     .AddScoped<IEvidenceTemplate, PosExportTemplate>()
     .AddScoped<IEvidenceTemplate, PhoneDumpTemplate>()

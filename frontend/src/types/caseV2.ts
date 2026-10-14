@@ -122,6 +122,8 @@ export interface CaseV2Sanitized {
   forensicsDefaults: ForensicsDefaults
   solution: SanitizedSolution
   gameMetadata?: Record<string, unknown>
+  notifications?: Notification[]
+  emailStates?: Record<string, { emailId: string; readAt?: string | null; openCount: number }>
 }
 
 // Dashboard item (from GET /api/cases/dashboard)
@@ -146,10 +148,10 @@ export interface SubmitCaseRequest {
 }
 
 export interface SubmitCaseBreakdown {
-  culprit: boolean
-  evidence: boolean
-  analysis: boolean
-  questions: boolean
+  culpritScore: number
+  evidenceScore: number
+  analysisScore: number
+  questionsScore: number
 }
 
 export interface SubmitCaseResult {

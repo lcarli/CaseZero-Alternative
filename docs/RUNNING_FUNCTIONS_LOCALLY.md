@@ -1,6 +1,6 @@
 # Running CaseGen.Functions locally (Mac + Windows)
 
-This guide covers running the **CaseZero case generator** locally to produce a `case.json` v2 that the site can consume. The full Plan→Expand→Design→Documents→Media→Normalize pipeline is preserved, but the canonical flow for now is the **5-stage v2 pipeline** exposed at `POST /api/cases/v2/generate`.
+This guide covers running the **CaseZero case generator** locally to produce a `case.json` v2 bundle. The current flow is the micro-task pipeline exposed at `POST /api/cases/v2/generate`, with strict quality checks before isolated rendering and publication. See [Case Generation Pipeline](CASE_GENERATION_PIPELINE.md) for the exact stages and current limitations.
 
 > Functions stay on **.NET 9** (per project policy). The site stays on .NET 8.
 
@@ -13,6 +13,26 @@ Same on Mac and Windows:
 - An **Azure Foundry / Azure OpenAI** endpoint + key (the LLM provider). Default reads from `functions/CaseGen.Functions/local.settings.json`.
 
 If anything is missing the run scripts install Azurite + Functions Core Tools automatically via `npm`.
+
+### Isolated real-model pilot without the Functions host
+
+For the controlled **pt-BR Rookie** pilot, use the .NET 9 console runner:
+
+```bash
+dotnet run --project tools/CaseGen.Pilot/CaseGen.Pilot.csproj -- . ../casezero-pilot-rookie-001
+```
+
+Run from the repository root and choose a **new** output directory outside the
+repository. This explicitly calls the real configured model and can incur costs.
+It uses the production generator/renderers, writes local diagnostics, and
+replaces cloud publication with a publisher that refuses every upload. No
+Functions host, Azurite, database, portal login or Azure CLI session is needed
+when the resource permits the configured API key. The current provider is
+key-based; `HTTP 403 AuthenticationTypeDisabled` means the resource rejects this
+authentication mode, not that a local Functions host is missing.
+
+See [the handoff](CASE_GENERATION_HANDOFF.md) for credentials, the known blocker,
+artifact interpretation and the required analysis before moving to Detective.
 
 ## 2. One-command bring-up
 
@@ -30,7 +50,7 @@ The script:
 1. Verifies `dotnet`, `node`.
 2. Installs Azurite and `azure-functions-core-tools@4` globally if missing.
 3. Spins up Azurite in the background (logs in `AzuriteConfig/azurite.log`, PID in `AzuriteConfig/azurite.pid`).
-4. Copies the canonical schema to `functions/CaseGen.Functions/Schemas/case.v2.schema.json`.
+4. Builds with the canonical `schemas/case.schema.json` linked automatically into build/publish output as `Schemas/case.v2.schema.json`.
 5. Builds + starts the Functions host on `http://localhost:7071`.
 
 Stop the host with `Ctrl+C`. Azurite keeps running — kill it with `kill $(cat AzuriteConfig/azurite.pid)` or `Stop-Process` on Windows.
@@ -99,15 +119,34 @@ When done:
   "currentPhase": null,
   "runtimeStatus": "Completed",
   "result": {
-    "caseId": "case_002",
-    "outputPath": "/Users/.../cases/case_002/case.json",
-    "validationErrorsCount": 0,
-    "assetsRenderedPdfs": 3,
-    "assetsRenderedImages": 2,
-    "blobsPublished": 9,
-    "hasErrors": false,
-    "errorMessage": null,
-    "stageLatencyMs": { "plotOutline": 4321, "suspectCards": 6532, "...": 0 }
+    "JobId": "casev2-20260515081234-a1b2c3",
+    "CaseId": "case_002",
+    "OutputPath": "/path/to/cases/case_002/case.json",
+    "ValidationErrorsCount": 0,
+    "AssetsRenderedPdfs": 6,
+    "AssetsRenderedImages": 2,
+    "BlobsPublished": 10,
+    "HasErrors": false,
+    "ErrorMessage": null,
+    "StageLatencyMs": { "plotOutline": 4321, "suspectCards": 6532 },
+    "Bundle": {
+      "BundleId": "0123456789abcdef0123456789abcdef",
+      "Revision": 0,
+      "Verified": true,
+      "AssetsVerified": 8,
+      "TotalBytes": 245760,
+      "ManifestChecksum": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "Quality": {
+      "Approved": true,
+      "Preview": false,
+      "PersistenceRequested": true,
+      "Persisted": true,
+      "PublicationRequested": true,
+      "Published": true,
+      "SolverMode": "diagnostic",
+      "Issues": []
+    }
   },
   "error": null
 }
@@ -115,64 +154,100 @@ When done:
 
 Status values: `queued | running | done | failed`. While `running`, the optional `currentPhase` field shows the current pipeline stage (best-effort, written to `jobs/{jobId}/status.json` in blob storage).
 
+A Durable `runtimeStatus: "Completed"` can still mean `status: "failed"`:
+`needs_review`, `reject`, medium/high findings, invalid/unavailable review,
+render failures, missing files, and configured publication failures are blockers.
+The failed job retains its result and `Quality.Issues`; inspect those codes,
+references, and original messages instead of relying on validation counts alone.
+
 ### What's persisted
 
-- `cases/<caseId>/case.json` + `cases/<caseId>/assets/*` — written to local disk when `writeToDisk=true`.
-- `bundles/<caseId>/case.json` + `bundles/<caseId>/assets/*` — uploaded to blob storage so the website sees the new case (`CaseV2StorageService`).
+- `cases/<caseId>/case.json` + `cases/<caseId>/assets/<bundleId>/*` — verified immutable files/manifest plus an atomic JSON-only commit with `writeToDisk=true`.
+- `bundles/<caseId>/case.json` + `bundles/<caseId>/assets/<bundleId>/*` — published when storage is configured; immutable files are verified remotely before the conditional JSON commit.
 - `jobs/<jobId>/status.json` — per-job phase doc (read by the GET endpoint).
 
-The file is idempotent — re-running with the same `caseId` overwrites.
+Use `Quality.Persisted` and `Quality.Published` for actual outcomes. Unconfigured
+publication is local-only mode; configured but unavailable Azurite is a failure.
+`CaseGenV2:CasesBasePath` can set the local destination and must be writable.
+Re-running an approved generation with the same `caseId` changes only its final
+JSON pointer/content, not files used by previous readers. Conflicting local
+locks or remote ETags fail explicitly. There is no transaction across Blob and
+disk; confirmed remote success can coexist with a local failure. Old and
+uncertain remote bundles are retained, not automatically garbage-collected.
+Use a new ID for experimental runs; `seed` is not replay/checkpoint support.
 
 ### Body fields (all optional)
 
 | Field | Default | Notes |
 |-------|---------|-------|
-| `caseId` | `case_yyyymmdd_hhmmss` | Forced to lower-case and prefixed `case_` if missing |
-| `title` | model picks | Overrides whatever the plot stage produced |
-| `theme` | model picks | A short hint to anchor the plot |
-| `location` | model picks | City, state |
+| `caseId` | `case_yyyymmdd_hhmmss` | Up to 128 characters; letters/digits/underscores/hyphens; lowercased, hyphens replaced with underscores, prefixed `case_` if needed |
+| `title` | model picks | Nonblank if supplied, up to 200 characters; overrides the plot title |
+| `theme` | model picks | Nonblank if supplied, up to 2000 characters |
+| `location` | model picks | Nonblank if supplied, up to 300 characters |
 | `difficulty` | `Detective` | One of: `Rookie · Detective · Detective2 · Sergeant · Lieutenant · Captain · Commander` |
 | `requiredRank` | `difficulty` | Same enum |
-| `language` | `en-US` | Future use — story strings still come out in EN by default |
-| `seed` | none | Forwarded into `gameMetadata.generation.seed` |
-| `writeToDisk` | `true` | Set to `false` if you only want the JSON in the response |
+| `language` | `en-US` | `pt-BR`, `en-US`, `es-ES`, or `fr-FR`; included in draft/task context, but no semantic language certification yet |
+| `seed` | none | Signed 32-bit integer, forwarded into `gameMetadata.generation.seed`; not true reproducibility |
+| `writeToDisk` | `true` | `false` checks the draft without rendering, saving, or publishing; the polling result is a summary, not the full case JSON |
+
+An empty body or `{}` preserves defaults. Invalid JSON/UTF-8, duplicates,
+unknown fields, invalid ranks/languages/types, and blank explicit hints return
+400 (`invalid_request`) instead of starting with defaults. Bodies above 16 KiB
+return 413 (`request_too_large`). These responses include `errors` and do not
+schedule a job. Omit an optional hint to let the model choose it; the UI does
+this automatically for cleared fields.
+
+Native structured output is optional:
+`AzureFoundry__UseStructuredOutputs=true`, only on a compatible model
+deployment. Local schema validation runs in both modes. Unsupported native
+schema shapes use an explicitly logged prompt path, not a second API attempt
+after rejection. See [contract and retry details](CASE_GENERATION_PIPELINE.md#microtask-contracts-and-bounded-calls).
+
+Schema validation uses the MIT-licensed `JsonSchema.Net 7.4.0` package with
+mandatory date-time format validation and Draft 2020-12 processing. No
+commercial schema-validation license or hourly quota is required. Keep the
+package pin unless the replacement binary/dependency licenses have been
+reviewed; newer binaries may have additional maintenance-fee terms.
 
 ## 4. Pipeline overview (micro-tasks, parallel, with context continuity)
 
-Every LLM call receives a slim summary of the **case so far** via `CaseDraft.ToSummaryJson()` — full suspect motives/alibis, asset descriptions, timeline, forensic conclusions, dates and times. Tasks never see only IDs; they see real prior content so the writing stays coherent (suspect created in Phase 2 keeps the same motive when referenced in Phase 8 question generation, dates stay anchored to `incidentDate`/`openedAt`, etc.).
+Focused tasks share the canonical draft. Forensic detail and solution-content
+tasks receive full relevant bodies, and red-team compares all document/email
+bodies and complete rules with the compiled JSON. Templates are applied before
+review, not again during rendering. The solver reads player-visible bodies,
+but does not execute gameplay or inspect the actual rendered PDFs; it remains
+diagnostic only.
 
-After all LLM stages finish and the JSON validates, the **AssetRenderingService** materialises every asset to disk:
+After the draft passes the strict gate, **AssetRenderingService** works in
+`<CasesBasePath>/.casegen-staging/<workspace>/<caseId>/assets/`:
 
-- **PDF / document** → real PDF rendered with QuestPDF (`IPdfRenderingService.GenerateTestPdfAsync(title, body, category)`). The model produces the markdown body in the `AssetCardTask` (or in `ForensicOutcomeTask` for lab reports).
+- **PDF / document / digital** → PDFs rendered with QuestPDF. Initial cards require validated `bodyDoc`; forensic report markdown remains supported.
 - **photo / image** → real image generated by the configured image model (`ILLMProvider.GenerateImageAsync(prompt)`). Prompt = `body` if present, otherwise the description.
-- **audio / video / digital** → placeholder sidecar `.txt` with the body so the asset still loads in the FileViewer.
+- **speech evidence** → explicitly planned document transcripts, rendered as PDFs.
+- **audio / video / unsupported types** → explicit failure, without a placeholder or fictional media URI.
 
-### Phases
+The renderer reports actual filenames/MIME. The sealed manifest checks
+signatures/basic terminators, size, SHA-256 and exact coverage; final URIs use
+`assets/<bundleId>/<actualFilename>`, including JPEG/WebP output. Public JSON
+and destination bytes are reverified before commit. File integrity is not
+certification of extracted PDF text, visual image content, or playability;
+those checks and new document families remain separate work.
+One canonical repair can replace affected components and their dependent
+material. Acceptance requires recompilation, contract/consistency validation,
+and a new successful review of that exact revision, including semantic repairs
+with zero schema errors before and after. Failed repair explicitly blocks
+output; invalid/unavailable initial review never triggers content repair.
+`result.Repair` records acceptance, changed components, and original blockers.
 
-| # | Phase | LLM calls | Parallel? | Purpose |
-|---|-------|-----------|-----------|---------|
-| 1 | **Plot Outline** | 1 | — | `metadata` + victim + 3-6 suspect stubs + culprit pick |
-| 2 | **Suspect Cards** | N | ✅ | Full profile: motive, alibi, alibiVerified, background — kept in the draft for every downstream stage |
-| 3 | **Asset Plan** | 1 | — | List of 4-10 asset stubs (id + type + title + role) |
-| 4 | **Asset Cards · Timeline · Briefing** | M+2 | ✅ | Per-asset: description + **body** (markdown for PDFs, image prompt for photos, transcript for audio); narrative timeline + temporal events anchored to `incidentDate`; chief-of-police email |
-| 5 | **Forensics Plan** | 1 | — | `analysisTypes` + outcome stubs (smoking-gun pinned to culprit) |
-| 6 | **Forensic Outcomes · Initial Emails** | K+1 | ✅ | Per-outcome conclusion + (if findings) hidden PDF (Chain-of-Custody / Methodology / Findings / Conclusion) + hidden lab email; 0-3 follow-up emails |
-| 7 | **Rules · Solution Skeleton** | 2 | ✅ | Rules wiring + required evidence/analysis IDs + question topics |
-| 8 | **Questions · Explanation** | Q+1 | ✅ | One MCQ per topic + final markdown explanation |
-| 9 | **Assemble + Validate** | 0 | — | C# deterministic JSON + `JSchema.IsValid` against `schemas/case.schema.json` |
-| 10 | **Render Assets** | I per image | ✅ images run in parallel | PDFs via QuestPDF + images via the LLM image model; sidecars for audio/video/digital |
-
-For a typical 4-suspect, 6-asset (3 pdf + 2 photo + 1 digital), 2-outcome, 3-question case that's roughly:
-
-- ~20 LLM text calls (most inside parallel batches)
-- ~3 PDF renders (QuestPDF, fast)
-- ~2 LLM image calls (in parallel)
+The authoritative phase table, output modes, and quality contract are in
+[Case Generation Pipeline](CASE_GENERATION_PIPELINE.md). Optional/skipped stages
+are not painted as completed in the generation UI.
 
 ### Why micro-tasks instead of one big call?
 
-- **Token budget:** large cases used to choke a one-shot prompt. Each micro-task fits comfortably.
+- **Token budget:** focused tasks limit output size; full-body review/repair may require a larger input context. Truncated output is an explicit failure, not an accepted partial case.
 - **Quality per scope:** the model focuses on ONE suspect / ONE asset / ONE question.
-- **Failure isolation:** if `SuspectCard:suspect.eva_blackwood` fails, only that one retries (built-in 1-shot retry inside `TaskRunner`).
+- **Failure isolation:** a malformed microtask gets at most one retry with its specific contract error; permanent provider errors/cancellation do not retry. Solver/refine have no retries.
 - **Parallelism:** independent steps inside a phase run via `Task.WhenAll`.
 - **Context continuity:** the orchestrator passes the growing `CaseDraft` (real motives, descriptions, timeline, dates) so a suspect's alibi from Phase 2 is consistently referenced in the Phase 8 question, and the timeline never drifts off `incidentDate`/`openedAt`.
 
@@ -180,12 +255,18 @@ For a typical 4-suspect, 6-asset (3 pdf + 2 photo + 1 digital), 2-outcome, 3-que
 
 The site's `CaseV2StorageService` prefers the local `cases/` directory before falling back to blob, so a freshly generated `case_002` immediately shows up in `GET /api/cases/dashboard` after a backend restart (or `force-reload` of the dashboard if storage cache is empty).
 
-To regenerate the same id with tweaks, just POST again with `caseId: "case_002"` — the file is overwritten.
+To regenerate the same id with tweaks, POST again with `caseId: "case_002"`.
+The new immutable bundle replaces only the committed `case.json`; cached
+readers can still load old files. A stale retry cannot revert a newer commit.
 
 ## 6. Troubleshooting
 
 - **`AzureFoundry:ApiKey not configured`** — fill in `functions/CaseGen.Functions/local.settings.json` (do not commit secrets) or export `AzureFoundry__ApiKey` in your shell.
-- **`Could not locate case.v2 schema`** — re-run the script; it copies the schema at start. Or copy `schemas/case.schema.json` → `functions/CaseGen.Functions/Schemas/case.v2.schema.json` manually.
-- **`502 / 504` from the LLM** — re-run; transient. The pipeline is idempotent per `caseId`.
+- **`Canonical case schema is missing from the build output`** — rebuild/republish the Functions project; MSBuild distributes the canonical schema. Do not create a second versioned source copy.
+- **`invalid_request` / `request_too_large`** — correct the reported `errors` before resubmitting; no generation was scheduled.
+- **A microtask fails with a contract error** — inspect the named task and field. Missing bodies, invalid tables, drifted IDs, unsupported forensic pairs, and invalid answer keys now fail early rather than being silently substituted.
+- **`502 / 504` from the LLM** — inspect the job diagnostics before retrying. Use a new `caseId` for experiments; generation still has no persistent microtask checkpoint recovery.
+- **`bundle_invalid` / `asset_integrity_failed` / `asset_file_missing`** — inspect file references and manifest diagnostics. Missing, extra, truncated, mislabeled, or changed files cannot be committed.
+- **`publication_conflict`** — another writer changed the case or its local lock is unavailable. Inspect the current committed case before starting a new generation; do not delete prior bundles or blindly retry stale publication data.
 - **Validation errors in the response** — the model violated the v2 schema. Re-run; if persistent, narrow the prompt by setting `theme` more explicitly or lowering `difficulty`.
 - **Mac M-series + Azurite EACCES on tcp 10000/10001/10002** — kill any stale Azurite process: `kill $(cat AzuriteConfig/azurite.pid)`.

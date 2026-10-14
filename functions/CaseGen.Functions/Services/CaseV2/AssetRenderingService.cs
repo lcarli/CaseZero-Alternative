@@ -5,6 +5,7 @@ namespace CaseGen.Functions.Services.CaseV2;
 
 public interface IAssetRenderingService
 {
+    void PrepareForReview(IEnumerable<EvidenceAsset> assets);
     /// <summary>
     /// Materialises every asset that has renderable content (pdf/document/photo/image)
     /// to <c>cases/&lt;caseId&gt;/assets/</c>. Returns the number of files written + any errors.
@@ -18,14 +19,17 @@ public class AssetRenderingReport
     public int ImagesWritten { get; set; }
     public int Skipped { get; set; }
     public List<string> Errors { get; set; } = new();
+    public List<RenderedAssetFile> Files { get; set; } = new();
 }
+
+public record RenderedAssetFile(string AssetId, string FileName, string MimeType);
 
 /// <summary>
 /// Renders v2 assets to actual files next to the case JSON.
 /// - pdf/document  → QuestPDF via <see cref="IPdfRenderingService.GenerateTestPdfAsync"/>
 /// - photo/image   → image generation via <see cref="ILLMProvider.GenerateImageAsync"/>
-/// - audio/video   → placeholder .txt sidecar with the body/description
-/// - digital       → placeholder .txt sidecar with the body
+/// - digital       → structured PDF export
+/// - unsupported media fail explicitly; transcripts must be planned as documents
 /// </summary>
 public class AssetRenderingService : IAssetRenderingService
 {
@@ -49,6 +53,17 @@ public class AssetRenderingService : IAssetRenderingService
         _logger = logger;
     }
 
+    public void PrepareForReview(IEnumerable<EvidenceAsset> assets)
+    {
+        foreach (var asset in assets)
+        {
+            if (asset.PreparedForReview || asset.BodyDoc is null) continue;
+            if (string.IsNullOrEmpty(asset.BodyDoc.Title)) asset.BodyDoc.Title = asset.Title;
+            if (!asset.CanonicalContent) asset.BodyDoc = _templates.Apply(asset.BodyDoc);
+            asset.PreparedForReview = true;
+        }
+    }
+
     public async Task<AssetRenderingReport> RenderAllAsync(
         string caseId,
         string casesBasePath,
@@ -64,6 +79,7 @@ public class AssetRenderingService : IAssetRenderingService
 
         foreach (var a in assets)
         {
+            ct.ThrowIfCancellationRequested();
             // Anything with body content goes to the right renderer.
             switch (a.Type)
             {
@@ -78,14 +94,14 @@ public class AssetRenderingService : IAssetRenderingService
                 case "image":
                     imageTasks.Add(RenderImageAsync(caseId, assetsDir, a, report, ct));
                     break;
-                case "audio":
-                    RenderSidecar(assetsDir, a);
-                    report.Skipped++;
-                    break;
                 default:
-                    _logger.LogWarning("Unknown asset type {Type} on {Id} — emitting sidecar", a.Type, a.Id);
-                    RenderSidecar(assetsDir, a);
-                    report.Skipped++;
+                    var error = $"Unsupported evidence type {a.Type} on {a.Id}; transcripts must be documents.";
+                    _logger.LogWarning("{Error}", error);
+                    lock (report)
+                    {
+                        report.Errors.Add(error);
+                        report.Skipped++;
+                    }
                     break;
             }
         }
@@ -109,11 +125,9 @@ public class AssetRenderingService : IAssetRenderingService
             byte[] bytes;
             if (a.BodyDoc is not null && a.BodyDoc.Sections.Count > 0)
             {
-                // Preferred path: structured evidence document → run through the
-                // template registry (enriches per layout) → real tables / transcripts / etc.
-                if (string.IsNullOrEmpty(a.BodyDoc.Title)) a.BodyDoc.Title = a.Title;
-                var enriched = _templates.Apply(a.BodyDoc);
-                bytes = _docRenderer.Render(enriched);
+                if (!a.PreparedForReview)
+                    throw new InvalidOperationException("Structured document has not been prepared for review.");
+                bytes = _docRenderer.Render(a.BodyDoc);
             }
             else
             {
@@ -123,10 +137,14 @@ public class AssetRenderingService : IAssetRenderingService
             }
             var path = Path.Combine(dir, $"{a.Id.Replace("asset.", "")}.pdf");
             await File.WriteAllBytesAsync(path, bytes, ct);
-            lock (report) report.PdfsWritten++;
+            lock (report)
+            {
+                report.PdfsWritten++;
+                report.Files.Add(new RenderedAssetFile(a.Id, Path.GetFileName(path), "application/pdf"));
+            }
             _logger.LogDebug("PDF rendered: {Path}", path);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             var msg = $"PDF render failed for {a.Id}: {ex.Message}";
             _logger.LogWarning(ex, msg);
@@ -150,13 +168,17 @@ public class AssetRenderingService : IAssetRenderingService
             var bytes = await _llm.GenerateImageAsync(prompt, ct);
             // GPT-image returns PNG (the SDK doesn't expose the response content-type easily here).
             // Inspect the magic bytes so we don't mislabel the file with the wrong extension.
-            var ext = SniffImageExtension(bytes);
+            var (ext, mimeType) = CaseFileIntegrity.DetectImage(bytes);
             var path = Path.Combine(dir, $"{a.Id.Replace("asset.", "")}.{ext}");
             await File.WriteAllBytesAsync(path, bytes, ct);
-            lock (report) report.ImagesWritten++;
+            lock (report)
+            {
+                report.ImagesWritten++;
+                report.Files.Add(new RenderedAssetFile(a.Id, Path.GetFileName(path), mimeType));
+            }
             _logger.LogDebug("Image rendered: {Path}", path);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             var msg = $"Image render failed for {a.Id}: {ex.Message}";
             _logger.LogWarning(ex, msg);
@@ -164,30 +186,4 @@ public class AssetRenderingService : IAssetRenderingService
         }
     }
 
-    private static void RenderSidecar(string dir, EvidenceAsset a)
-    {
-        var slug = a.Id.Replace("asset.", "");
-        var ext = a.Type switch
-        {
-            "audio" => "mp3",
-            _ => "txt"
-        };
-        var placeholder = Path.Combine(dir, $"{slug}.{ext}.txt");
-        var content = $"# Placeholder for {a.Title} ({a.Type})\n\n{a.Description}\n\n{a.Body}";
-        File.WriteAllText(placeholder, content);
-    }
-
-    private static string SniffImageExtension(byte[] bytes)
-    {
-        if (bytes.Length >= 8 &&
-            bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) return "png";
-        if (bytes.Length >= 3 &&
-            bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF) return "jpg";
-        if (bytes.Length >= 4 &&
-            bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x38) return "gif";
-        if (bytes.Length >= 12 &&
-            bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46 &&
-            bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50) return "webp";
-        return "png"; // safe default for gpt-image-*
-    }
 }

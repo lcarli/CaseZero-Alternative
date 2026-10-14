@@ -6,7 +6,6 @@ using CaseZeroApi.Data;
 using CaseZeroApi.DTOs;
 using CaseZeroApi.Models;
 using CaseZeroApi.Services;
-using Azure.Storage.Blobs;
 
 namespace CaseZeroApi.Controllers
 {
@@ -18,35 +17,25 @@ namespace CaseZeroApi.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ILogger<EmailsController> _logger;
         private readonly ICaseV2StorageService _caseStorageService;
-        private readonly BlobServiceClient _blobServiceClient;
-        private readonly IConfiguration _configuration;
         private readonly IAuditLogService _auditLogService; // P86
-        private readonly IVisibilityService _visibilityService; // Asset unlock
         private readonly IRulesEngineService _rulesEngine; // v2 trigger plumbing
+        private readonly ICaseV2SanitizerService _sanitizer;
 
         public EmailsController(
             ApplicationDbContext context,
             ILogger<EmailsController> logger,
             ICaseV2StorageService caseStorageService,
-            IConfiguration configuration,
             IAuditLogService auditLogService, // P86
-            IVisibilityService visibilityService, // Asset unlock
-            IRulesEngineService rulesEngine)
+            IRulesEngineService rulesEngine,
+            ICaseV2SanitizerService sanitizer)
         {
             _context = context;
             _logger = logger;
             _caseStorageService = caseStorageService;
-            _configuration = configuration;
             _auditLogService = auditLogService; // P86
-            _visibilityService = visibilityService; // Asset unlock
             _rulesEngine = rulesEngine;
+            _sanitizer = sanitizer;
             
-            // Initialize BlobServiceClient for attachment downloads
-            var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
-                ?? configuration["AzureWebJobsStorage"]
-                ?? Environment.GetEnvironmentVariable("AzureWebJobsStorage")
-                ?? "UseDevelopmentStorage=true";
-            _blobServiceClient = new BlobServiceClient(connectionString);
         }
 
         /// <summary>
@@ -112,9 +101,7 @@ namespace CaseZeroApi.Controllers
                 }
 
                 // 5. Filtrar emails pelo IDs visíveis
-                var visibleEmails = caseData.Emails
-                    .Where(e => visibleEmailIds.Contains(e.Id))
-                    .ToList();
+                var visibleEmails = (await _sanitizer.SanitizeForUserAsync(caseData, userId, caseId)).Emails;
 
                 // 6. Buscar estados dos emails (lidos, contagem de aberturas)
                 var emailStates = await _context.CaseSessionEmailStates
@@ -302,7 +289,7 @@ namespace CaseZeroApi.Controllers
                 }
 
                 // 4. Buscar email específico
-                var email = caseData.Emails.FirstOrDefault(e => e.Id == emailId);
+                var email = (await _sanitizer.SanitizeForUserAsync(caseData, userId, caseId)).Emails.FirstOrDefault(e => e.Id == emailId);
                 if (email == null)
                 {
                     _logger.LogWarning("Email {EmailId} not found in case {CaseId}", emailId, caseId);
@@ -392,7 +379,7 @@ namespace CaseZeroApi.Controllers
                     return NotFound(new { message = "Case not found" });
                 }
 
-                var email = caseData.Emails.FirstOrDefault(e => e.Id == emailId);
+                var email = (await _sanitizer.SanitizeForUserAsync(caseData, userId, caseId)).Emails.FirstOrDefault(e => e.Id == emailId);
                 if (email == null)
                 {
                     _logger.LogWarning("Email {EmailId} not found in case {CaseId}", emailId, caseId);
@@ -415,58 +402,27 @@ namespace CaseZeroApi.Controllers
                     return NotFound(new { message = "Asset metadata not found" });
                 }
 
-                // 6. Download do blob usando URI do asset
-                var containerName = _configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
-                var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
-                
-                // Parse case:// URI to blob path
-                var relativePath = CaseV2StorageService.ParseCaseUri(asset.Uri, caseId) ?? assetId;
-                var blobPath = $"{caseId}/{relativePath}";
-                
-                var blobClient = containerClient.GetBlobClient(blobPath);
-
-                if (!await blobClient.ExistsAsync())
+                var stream = await _caseStorageService.GetAssetStreamAsync(caseId, assetId);
+                if (stream is null)
                 {
-                    _logger.LogWarning("Attachment file not found in blob storage: {BlobPath}", blobPath);
+                    _logger.LogWarning("Attachment file not found: {CaseId}/{AssetId}", caseId, assetId);
                     return NotFound(new { message = "Attachment file not found" });
                 }
-
-                // 7. 🎯 HOOK PÓS-DOWNLOAD (tarefa 30): Registrar em EmailAttachmentsDownloaded
-                var downloadRecord = new EmailAttachmentDownloaded
-                {
-                    UserId = userId,
-                    CaseId = caseId,
-                    EmailId = emailId,
-                    AssetId = assetId,
-                    DownloadedAt = DateTime.UtcNow
-                };
-                _context.EmailAttachmentsDownloaded.Add(downloadRecord);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("User {UserId} downloaded attachment {AssetId} from email {EmailId} in case {CaseId}",
-                    userId, assetId, emailId, caseId);
-
-                // 8. 🎯 HOOK: Aplicar regra reveal_asset (tarefa 30)
-                // Desbloquear asset automaticamente após download de attachment
                 try
                 {
-                    await _visibilityService.UnlockAssetAsync(userId, caseId, assetId);
-                    _logger.LogInformation("Asset {AssetId} unlocked for user {UserId} after email attachment download", assetId, userId);
+                    if (!await _context.EmailAttachmentsDownloaded.AnyAsync(d => d.UserId == userId &&
+                        d.CaseId == caseId && d.EmailId == emailId && d.AssetId == assetId))
+                        _context.EmailAttachmentsDownloaded.Add(new()
+                        {
+                            UserId = userId, CaseId = caseId, EmailId = emailId, AssetId = assetId, DownloadedAt = DateTime.UtcNow
+                        });
+                    await _rulesEngine.EvaluateAndApplyAsync(caseId, userId,
+                        new AttachmentDownloadTrigger(emailId, assetId), HttpContext.RequestAborted);
+                    var contentType = await _caseStorageService.GetAssetContentTypeAsync(caseId, assetId) ?? "application/octet-stream";
+                    var path = CaseV2StorageService.ParseCaseUri(asset.Uri, caseId);
+                    return File(stream, contentType, path is null ? assetId : Path.GetFileName(path));
                 }
-                catch (Exception revealEx)
-                {
-                    _logger.LogWarning(revealEx, "Failed to unlock asset {AssetId} after download, but file was downloaded successfully", assetId);
-                    // Continue - download succeeded even if unlock failed
-                }
-
-                // 9. Stream do arquivo
-                var download = await blobClient.DownloadStreamingAsync();
-                var properties = await blobClient.GetPropertiesAsync();
-                
-                var contentType = properties.Value.ContentType;
-                var fileName = assetId.Contains('/') ? assetId.Split('/').Last() : assetId;
-
-                return File(download.Value.Content, contentType, fileName);
+                catch { await stream.DisposeAsync(); throw; }
             }
             catch (Exception ex)
             {

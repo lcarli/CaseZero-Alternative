@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json.Nodes;
 using CaseGen.Functions.Models.CaseV2;
 using Microsoft.Extensions.Logging;
+using CaseZero.Progression;
 
 namespace CaseGen.Functions.Services.CaseV2;
 
@@ -57,13 +58,18 @@ public class ConsistencyValidator : IConsistencyValidator
         ValidateRequiredEvidence(draft, assetIds, report);
         ValidateRequiredAnalyses(draft, assetIds, report);
         ValidateForensicOutcomes(draft, assetIds, emailIds, suspectIds, report);
-        AutoFixMissingForensicsCompleteRules(draft, report);
+        if (draft.Bible is null) AutoFixMissingForensicsCompleteRules(draft, report);
         DropEmptyRules(draft, report);
         ValidateRulesReferences(draft, assetIds, emailIds, suspectIds, report);
-        EnsureRequiredEvidenceRevealable(draft, report);
+        CaseProgressionValidator.Validate(draft, report);
         ValidateTimeline(draft, report);
         ValidateTemporalEvents(draft, report);
         ValidateQuestions(draft, report);
+        if (draft.Bible is not null)
+        {
+            try { CaseBibleValidator.Authored(draft); }
+            catch (TaskContractException ex) { report.Findings.Add(new() { Area = "caseBible", Message = ex.Message }); }
+        }
         // partialCreditRules normalisation happens in the assembler already.
 
         return report;
@@ -86,9 +92,13 @@ public class ConsistencyValidator : IConsistencyValidator
             var id = d.RequiredEvidenceIds[i];
             if (!assetIds.Contains(id))
             {
-                d.RequiredEvidenceIds.RemoveAt(i);
-                r.Findings.Add(new() { Severity = "fixed", Area = "solution",
-                    Message = $"dropped orphan requiredEvidenceId '{id}' (no matching asset)" });
+                if (d.Bible is null)
+                {
+                    d.RequiredEvidenceIds.RemoveAt(i);
+                    r.Findings.Add(new() { Severity = "fixed", Area = "solution",
+                        Message = $"dropped orphan requiredEvidenceId '{id}' (no matching asset)" });
+                }
+                else r.Findings.Add(new() { Area = "solution", Message = $"Canonical requiredEvidenceId '{id}' has no matching asset." });
             }
         }
         if (d.RequiredEvidenceIds.Count == 0)
@@ -108,9 +118,13 @@ public class ConsistencyValidator : IConsistencyValidator
             var parts = id.Split(':', 2);
             if (parts.Length != 2 || !assetIds.Contains(parts[0]) || !validOutcomes.Contains(id))
             {
-                d.RequiredAnalysisIds.RemoveAt(i);
-                r.Findings.Add(new() { Severity = "fixed", Area = "solution",
-                    Message = $"dropped requiredAnalysisId '{id}' (no matching forensic outcome with findings=true)" });
+                if (d.Bible is null)
+                {
+                    d.RequiredAnalysisIds.RemoveAt(i);
+                    r.Findings.Add(new() { Severity = "fixed", Area = "solution",
+                        Message = $"dropped requiredAnalysisId '{id}' (no matching forensic outcome with findings=true)" });
+                }
+                else r.Findings.Add(new() { Area = "solution", Message = $"Canonical requiredAnalysisId '{id}' has no matching positive outcome." });
             }
         }
     }
@@ -151,9 +165,8 @@ public class ConsistencyValidator : IConsistencyValidator
                 string.Equals(rule.Trigger.Type, "forensics_complete", StringComparison.OrdinalIgnoreCase) &&
                 rule.Trigger.InputAssetId == f.InputAssetId &&
                 string.Equals(rule.Trigger.AnalysisType, f.AnalysisType, StringComparison.OrdinalIgnoreCase) &&
-                rule.Actions.Any(a =>
-                    (a.Type == "reveal_email" && a.EmailId == f.ResultEmailId && f.ResultEmailId is not null) ||
-                    (a.Type == "reveal_asset" && a.AssetId == f.ResultAssetId && f.ResultAssetId is not null)));
+                (f.ResultEmailId is null || rule.Actions.Any(a => a.Type == "reveal_email" && a.EmailId == f.ResultEmailId)) &&
+                (f.ResultAssetId is null || rule.Actions.Any(a => a.Type == "reveal_asset" && a.AssetId == f.ResultAssetId)));
             if (covered) continue;
 
             var slug = Slug($"{f.InputAssetId}_{f.AnalysisType}");
@@ -189,9 +202,13 @@ public class ConsistencyValidator : IConsistencyValidator
             var bogus = rule.Actions.Count == 0 || rule.Actions.All(a => ActionIsIncomplete(a));
             if (bogus)
             {
-                d.Rules.RemoveAt(i);
-                r.Findings.Add(new() { Severity = "fixed", Area = "rules",
-                    Message = $"dropped rule '{rule.RuleId}' (empty or malformed actions)" });
+                if (d.Bible is null)
+                {
+                    d.Rules.RemoveAt(i);
+                    r.Findings.Add(new() { Severity = "fixed", Area = "rules",
+                        Message = $"dropped rule '{rule.RuleId}' (empty or malformed actions)" });
+                }
+                else r.Findings.Add(new() { Area = "rules", Message = $"Canonical rule '{rule.RuleId}' has empty or malformed actions." });
             }
         }
     }
@@ -216,7 +233,15 @@ public class ConsistencyValidator : IConsistencyValidator
             if (!seenIds.Add(rule.RuleId))
                 r.Findings.Add(new() { Severity = "warning", Area = "rules", Message = $"duplicate ruleId '{rule.RuleId}'" });
 
-            var t = rule.Trigger;
+            List<RulesTrigger> leaves;
+            try { leaves = RuleConditions.Leaves(rule.Trigger).ToList(); }
+            catch (InvalidDataException ex)
+            {
+                r.Findings.Add(new() { Area = "rules", Message = $"rule {rule.RuleId}: {ex.Message}" });
+                continue;
+            }
+            foreach (var t in leaves)
+            {
             if (t.InputAssetId is not null && !assets.Contains(t.InputAssetId))
                 r.Findings.Add(new() { Severity = "error", Area = "rules", Message = $"rule {rule.RuleId} trigger.inputAssetId '{t.InputAssetId}' orphan" });
             if (t.AssetId is not null && !assets.Contains(t.AssetId))
@@ -225,6 +250,7 @@ public class ConsistencyValidator : IConsistencyValidator
                 r.Findings.Add(new() { Severity = "error", Area = "rules", Message = $"rule {rule.RuleId} trigger.emailId '{t.EmailId}' orphan" });
             if (t.SuspectId is not null && !suspects.Contains(t.SuspectId))
                 r.Findings.Add(new() { Severity = "error", Area = "rules", Message = $"rule {rule.RuleId} trigger.suspectId '{t.SuspectId}' orphan" });
+            }
 
             foreach (var a in rule.Actions)
             {
@@ -235,32 +261,6 @@ public class ConsistencyValidator : IConsistencyValidator
                 if (a.SuspectId is not null && !suspects.Contains(a.SuspectId))
                     r.Findings.Add(new() { Severity = "error", Area = "rules", Message = $"rule {rule.RuleId} action.suspectId '{a.SuspectId}' orphan" });
             }
-        }
-    }
-
-    /// <summary>
-    /// Every requiredEvidenceId must be either visibility=initial OR be revealable
-    /// by some rule. If neither, auto-promote the asset to 'initial' visibility —
-    /// the cheapest fix and never breaks unlock-mode semantics.
-    /// </summary>
-    private void EnsureRequiredEvidenceRevealable(CaseDraft d, ConsistencyReport r)
-    {
-        var revealedAssetIds = d.Rules
-            .SelectMany(rule => rule.Actions)
-            .Where(a => a.Type == "reveal_asset" && !string.IsNullOrEmpty(a.AssetId))
-            .Select(a => a.AssetId!)
-            .ToHashSet(StringComparer.Ordinal);
-
-        foreach (var id in d.RequiredEvidenceIds)
-        {
-            var asset = d.AssetFull.FirstOrDefault(a => a.Id == id) ?? d.ResultAssets.FirstOrDefault(a => a.Id == id);
-            if (asset is null) continue;
-            var visible = string.Equals(asset.Visibility, "initial", StringComparison.OrdinalIgnoreCase);
-            if (visible || revealedAssetIds.Contains(id)) continue;
-
-            asset.Visibility = "initial";
-            r.Findings.Add(new() { Severity = "fixed", Area = "visibility",
-                Message = $"required evidence '{id}' was hidden with no reveal rule — promoted to visibility=initial" });
         }
     }
 
@@ -278,7 +278,7 @@ public class ConsistencyValidator : IConsistencyValidator
         {
             if (!TryParseUtc(t.Time, out var tt)) continue;
             if (tt > opened.AddMinutes(1))
-                r.Findings.Add(new() { Severity = "warning", Area = "timeline", Message = $"timeline event '{t.Event}' time {t.Time} is after openedAt" });
+                r.Findings.Add(new() { Severity = "error", Area = "timeline", Message = $"timeline event '{t.Event}' time {t.Time} is after openedAt" });
             if (tt < incident.AddDays(-7))
                 r.Findings.Add(new() { Severity = "warning", Area = "timeline", Message = $"timeline event '{t.Event}' is more than a week before incident" });
         }
@@ -286,8 +286,14 @@ public class ConsistencyValidator : IConsistencyValidator
 
     private void ValidateTemporalEvents(CaseDraft d, ConsistencyReport r)
     {
+        var assets = d.AssetFull.Concat(d.ResultAssets).Select(a => a.Id).ToHashSet();
+        var emails = d.FollowUpEmails.Concat(d.ResultEmails).Select(e => e.Id).Append("email.briefing").ToHashSet();
         foreach (var te in d.TemporalEvents)
         {
+            if (te.Payload?.AssetId is { } asset && !assets.Contains(asset))
+                r.Findings.Add(new() { Area = "temporalEvents", Message = $"{te.Id} payload.assetId '{asset}' orphan" });
+            if (te.Payload?.EmailId is { } email && !emails.Contains(email))
+                r.Findings.Add(new() { Area = "temporalEvents", Message = $"{te.Id} payload.emailId '{email}' orphan" });
             if (te.TriggerAtMinutes < 0)
                 r.Findings.Add(new() { Severity = "error", Area = "temporalEvents", Message = $"{te.Id} triggerAtMinutes is negative" });
             if (te.TriggerAtMinutes > 24 * 60)

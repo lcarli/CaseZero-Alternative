@@ -26,6 +26,8 @@ Esta pasta contém toda a documentação técnica detalhada do projeto CaseZero-
 - **[gdd/br/](gdd/br/)** - GDD em português (tradução espelho)
 
 ### 🚀 Planejamento e Evolução
+- **[CASE_GENERATION_IMPLEMENTATION_PLAN.md](CASE_GENERATION_IMPLEMENTATION_PLAN.md)** - Plano incremental para coerência dos casos, harness, skills e materiais variados
+- **[CASE_GENERATION_HANDOFF.md](CASE_GENERATION_HANDOFF.md)** - Estado atual, pendências e instruções para retomar o piloto Rookie em outra máquina
 - **[FUTURE_FEATURES.md](FUTURE_FEATURES.md)** - Futuras funcionalidades e melhorias planejadas
 
 ### 🚀 Deploy e Operações

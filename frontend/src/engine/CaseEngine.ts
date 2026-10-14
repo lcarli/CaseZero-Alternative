@@ -75,14 +75,15 @@ export class CaseEngine {
   async loadCase(caseId: string): Promise<void> {
     try {
       const caseData = await this.apiClient.getCase(caseId)
-      const visibleAssets = caseData.assets.filter(a => a.visibility === 'initial')
-      const visibleEmails = caseData.emails.filter(e => e.visibility === 'initial')
-      const visibleSuspects = caseData.suspects.filter(s => s.visibility === 'initial')
+      const visibleAssets = caseData.assets
+      const visibleEmails = caseData.emails
+      const visibleSuspects = caseData.suspects
       this.setState({
         case: caseData,
         visibleAssets,
         visibleEmails,
         visibleSuspects,
+        notifications: caseData.notifications ?? [],
         submission: {
           attemptsUsed: 0,
           maxAttempts: caseData.solution.maxAttempts
@@ -94,12 +95,25 @@ export class CaseEngine {
     }
   }
 
+  async refreshCase(): Promise<void> {
+    const caseId = this.state.case?.caseId
+    if (!caseId) return
+    const data = await this.apiClient.getCase(caseId)
+    if (this.state.case?.caseId !== caseId) return
+    this.setState({
+      case: data, visibleAssets: data.assets, visibleEmails: data.emails,
+      visibleSuspects: data.suspects, notifications: data.notifications ?? [],
+    })
+  }
+
   async viewAsset(assetId: string): Promise<void> {
     if (!this.state.case) return
     try {
       await this.apiClient.viewAsset(this.state.case.caseId, assetId)
+      await this.refreshCase()
     } catch (err) {
       console.error('CaseEngine.viewAsset failed:', err)
+      throw err
     }
   }
 
@@ -107,8 +121,10 @@ export class CaseEngine {
     if (!this.state.case) return
     try {
       await this.apiClient.openEmail(this.state.case.caseId, emailId)
+      await this.refreshCase()
     } catch (err) {
       console.error('CaseEngine.openEmail failed:', err)
+      throw err
     }
   }
 
@@ -116,8 +132,10 @@ export class CaseEngine {
     if (!this.state.case) return
     try {
       await this.apiClient.viewSuspect(this.state.case.caseId, suspectId)
+      await this.refreshCase()
     } catch (err) {
       console.error('CaseEngine.viewSuspect failed:', err)
+      throw err
     }
   }
 

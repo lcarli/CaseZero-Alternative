@@ -21,6 +21,12 @@ public class MechanicalRulesBuilder
 
     public void Build(CaseDraft draft)
     {
+        if (draft.Bible is not null)
+        {
+            draft.Rules.AddRange(CaseBibleAuthorship.DiscoveryRules(draft.Bible));
+            _logger.LogInformation("Compiled canonical source discovery for case {CaseId}", draft.CaseId);
+            return;
+        }
         var built = 0;
         foreach (var f in draft.ForensicFull.Where(x => x.Findings && (x.ResultEmailId is not null || x.ResultAssetId is not null)))
         {

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import styled from 'styled-components'
 import type { EmailListDTO, EmailDTO } from '../../services/api'
 import { emailsApi } from '../../services/api'
+import { useCase } from '../../hooks/useCaseContext'
 
 const EmailAppContainer = styled.div`
   height: 100%;
@@ -187,7 +188,17 @@ interface EmailAppProps {
   onRefetchAssets?: () => void
 }
 
-const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId, onRefetchAssets }) => {
+const EmailApp: React.FC<EmailAppProps> = ({ emails: initialEmails = [], caseId: propsCaseId, onRefetchAssets }) => {
+  const { state, currentCase, refreshCase } = useCase()
+  const caseId = propsCaseId ?? currentCase ?? undefined
+  const emails: EmailListDTO[] = state.case ? state.visibleEmails.map(e => ({
+    emailId: e.id, from: e.from, to: Array.isArray(e.to) ? e.to.join(', ') : e.to,
+    subject: e.subject, sentAt: e.sentAt, priority: e.priority,
+    hasAttachments: (e.attachments?.length ?? 0) > 0, attachmentCount: e.attachments?.length ?? 0,
+    isRead: Boolean(state.case?.emailStates?.[e.id]?.readAt),
+    readAt: state.case?.emailStates?.[e.id]?.readAt,
+    openCount: state.case?.emailStates?.[e.id]?.openCount ?? 0,
+  })) : initialEmails
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null)
   const [openedEmail, setOpenedEmail] = useState<EmailDTO | null>(null)
   const [loading, setLoading] = useState(false)
@@ -203,6 +214,7 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId, onRefetchAsset
       // Task 49: POST /open then GET full email
       const fullEmail = await emailsApi.openEmail(caseId, emailId)
       setOpenedEmail(fullEmail)
+      await refreshCase()
     } catch (error) {
       console.error('Failed to open email:', error)
     } finally {
@@ -218,6 +230,7 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails = [], caseId, onRefetchAsset
     try {
       // Task 50: POST /emails/{emailId}/attachments/{assetId}/download
       await emailsApi.downloadAttachment(caseId, openedEmail.emailId, assetId)
+      await refreshCase()
       
       // Refetch assets to update FileViewer
       if (onRefetchAssets) {

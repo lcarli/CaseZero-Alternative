@@ -44,7 +44,8 @@ namespace CaseZeroApi.Services
                 if (caseData.Assets != null)
                 {
                     var initialAssets = caseData.Assets
-                        .Where(a => a.Visibility != null && a.Visibility.Equals("initial", StringComparison.OrdinalIgnoreCase))
+                        .Where(a => caseData.Metadata.IsAllInitial ||
+                            a.Visibility != null && a.Visibility.Equals("initial", StringComparison.OrdinalIgnoreCase))
                         .ToList();
 
                     foreach (var asset in initialAssets)
@@ -76,7 +77,8 @@ namespace CaseZeroApi.Services
                     _logger.LogDebug("Checking {Count} emails for initial visibility", caseData.Emails.Count);
 
                     var initialEmails = caseData.Emails
-                        .Where(e => e.Visibility != null && e.Visibility.Equals("initial", StringComparison.OrdinalIgnoreCase))
+                        .Where(e => caseData.Metadata.IsAllInitial ||
+                            e.Visibility != null && e.Visibility.Equals("initial", StringComparison.OrdinalIgnoreCase))
                         .ToList();
 
                     _logger.LogInformation("Found {Count} emails with visibility='initial'", initialEmails.Count);

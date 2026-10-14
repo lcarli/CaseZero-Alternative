@@ -49,9 +49,6 @@ $azuriteProc.Id | Out-File -FilePath $pidFile -Encoding ascii
 Start-Sleep -Seconds 2
 Log ("Azurite up (pid {0})." -f $azuriteProc.Id)
 
-# Make sure the v2 schema is in the output before func start
-Copy-Item (Join-Path $RepoRoot "schemas/case.schema.json") (Join-Path $FuncDir "Schemas/case.v2.schema.json") -Force
-
 Log "Restoring + building $FuncDir…"
 Push-Location $FuncDir
 dotnet build CaseGen.Functions.csproj --nologo | Out-Null

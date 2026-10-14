@@ -37,6 +37,23 @@ public class SolutionService : ISolutionService
         if (previousAttempts >= sol.MaxAttempts)
             throw new MaxAttemptsExceededException(sol.MaxAttempts);
 
+        var evidenceIds = request.EvidenceIds;
+        var analysisIds = request.AnalysisIds;
+        // Cases declaring progression cannot earn credit for undiscovered or merely claimed results.
+        if (caseData.Metadata.UnlockMode is "gated" or "all_initial")
+        {
+            var revealed = await _context.CaseSessionVisibleAssets
+                .Where(v => v.UserId == userId && v.CaseId == caseId).Select(v => v.AssetId).ToListAsync(ct);
+            var visible = caseData.Assets.Where(a => a.Visibility == "initial" ||
+                caseData.Metadata.IsAllInitial || revealed.Contains(a.Id)).Select(a => a.Id).ToHashSet();
+            var completed = await _context.ForensicRequests
+                .Where(r => r.UserId == userId && r.CaseId == caseId && r.Status == "completed")
+                .Select(r => new { r.InputAssetId, r.AnalysisType }).ToListAsync(ct);
+            var performed = completed.Select(r => $"{r.InputAssetId}:{r.AnalysisType}").ToHashSet();
+            evidenceIds = request.EvidenceIds.Where(visible.Contains).ToArray();
+            analysisIds = request.AnalysisIds.Where(performed.Contains).ToArray();
+        }
+
         // Culprit
         var culpritCorrect = string.Equals(request.SuspectId, sol.CulpritId, StringComparison.Ordinal);
         var culpritScore = culpritCorrect ? rules.CulpritWeight : 0.0;
@@ -49,7 +66,7 @@ public class SolutionService : ISolutionService
         }
         else
         {
-            var hits = request.EvidenceIds.Intersect(sol.RequiredEvidenceIds, StringComparer.Ordinal).Count();
+            var hits = evidenceIds.Intersect(sol.RequiredEvidenceIds, StringComparer.Ordinal).Count();
             evidenceScore = rules.EvidenceWeight * ((double)hits / sol.RequiredEvidenceIds.Count);
         }
 
@@ -61,7 +78,7 @@ public class SolutionService : ISolutionService
         }
         else
         {
-            var hits = request.AnalysisIds.Intersect(sol.RequiredAnalysisIds, StringComparer.Ordinal).Count();
+            var hits = analysisIds.Intersect(sol.RequiredAnalysisIds, StringComparer.Ordinal).Count();
             analysisScore = rules.AnalysisWeight * ((double)hits / sol.RequiredAnalysisIds.Count);
         }
 

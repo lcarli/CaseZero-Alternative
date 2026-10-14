@@ -14,6 +14,7 @@ let mockSubmissionState = {
   maxAttempts: 3,
   lastResult: undefined as SubmitCaseResult | undefined,
 }
+let mockLanguage = 'en-US'
 
 const mockSuspects = [
   { id: 'suspect.marcus', name: 'Marcus Reeve', visibility: 'initial' as const, alibiVerified: false },
@@ -58,7 +59,7 @@ const mockSubmitCase = vi.fn(async (payload: SubmitCaseRequest): Promise<SubmitC
   return {
     correct: false,
     score: 0,
-    breakdown: { culprit: false, evidence: false, analysis: false, questions: false },
+    breakdown: { culpritScore: 0, evidenceScore: 0, analysisScore: 0, questionsScore: 0 },
     attemptsRemaining: 2,
     feedbackText: 'wrong',
     explanationMarkdown: undefined,
@@ -88,7 +89,7 @@ vi.mock('../contexts/CaseContext', () => ({
 }))
 
 vi.mock('../contexts/LanguageContext', () => ({
-  useLanguage: () => ({ t: (key: string) => key }),
+  useLanguage: () => ({ t: (key: string) => key, currentLanguage: mockLanguage }),
   LanguageProvider: ({ children }: { children: React.ReactNode }) => children,
 }))
 
@@ -106,6 +107,7 @@ describe('SubmitCase', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockSubmissionState = { attemptsUsed: 0, maxAttempts: 3, lastResult: undefined }
+    mockLanguage = 'en-US'
   })
 
   it('renders visible suspects as select options', () => {
@@ -133,7 +135,7 @@ describe('SubmitCase', () => {
   it('calls submitCase with the chosen payload on submit', async () => {
     mockSubmitCase.mockResolvedValueOnce({
       correct: true, score: 1.0,
-      breakdown: { culprit: true, evidence: true, analysis: true, questions: true },
+      breakdown: { culpritScore: 0.4, evidenceScore: 0.2, analysisScore: 0.2, questionsScore: 0.2 },
       attemptsRemaining: 2, feedbackText: 'Case solved.', explanationMarkdown: undefined,
     })
 
@@ -153,7 +155,7 @@ describe('SubmitCase', () => {
   it('renders score after response', async () => {
     mockSubmitCase.mockResolvedValueOnce({
       correct: true, score: 0.9,
-      breakdown: { culprit: true, evidence: true, analysis: false, questions: true },
+      breakdown: { culpritScore: 0.4, evidenceScore: 0.1, analysisScore: 0.2, questionsScore: 0.2 },
       attemptsRemaining: 2, feedbackText: 'Case solved!', explanationMarkdown: undefined,
     })
 
@@ -166,11 +168,31 @@ describe('SubmitCase', () => {
     rerender(<SubmitCase />)
 
     expect(screen.getByText(/0\.9/)).toBeInTheDocument()
+    expect(screen.getByText('submitCaseBreakdownCulprit: 0.4')).toBeInTheDocument()
+    expect(screen.getByText('submitCaseBreakdownEvidence: 0.1')).toBeInTheDocument()
+    expect(screen.getByText('submitCaseBreakdownAnalysis: 0.2')).toBeInTheDocument()
+    expect(screen.getByText('submitCaseBreakdownQuestions: 0.2')).toBeInTheDocument()
   })
 
   it('button is disabled when no suspect is selected', () => {
     render(<SubmitCase />)
     expect(screen.getByRole('button')).toBeDisabled()
+  })
+
+  it.each([
+    ['pt-BR', '0,15'],
+    ['en-US', '0.15'],
+    ['es-ES', '0,15'],
+    ['fr-FR', '0,15'],
+  ])('formats numeric analysis credit in %s', (language, score) => {
+    mockLanguage = language
+    mockSubmissionState.lastResult = {
+      correct: false, score: 0.65,
+      breakdown: { culpritScore: 0.4, evidenceScore: 0.1, analysisScore: 0.15, questionsScore: 0 },
+      attemptsRemaining: 2, feedbackText: 'Not quite.',
+    }
+    render(<SubmitCase />)
+    expect(screen.getByText(`submitCaseBreakdownAnalysis: ${score}`)).toBeInTheDocument()
   })
 
   it('button is disabled when attemptsRemaining is 0', () => {
@@ -183,7 +205,7 @@ describe('SubmitCase', () => {
     const explanation = 'Marcus committed the crime because of blackmail.'
     mockSubmitCase.mockResolvedValueOnce({
       correct: false, score: 0.3,
-      breakdown: { culprit: false, evidence: false, analysis: false, questions: false },
+      breakdown: { culpritScore: 0, evidenceScore: 0.1, analysisScore: 0, questionsScore: 0.2 },
       attemptsRemaining: 0, feedbackText: 'Out of attempts.',
       explanationMarkdown: explanation,
     })

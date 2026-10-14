@@ -10,15 +10,16 @@ import { useCase } from '../hooks/useCaseContext'
  * eventos temporais e perícias).
  */
 export const TimeSync: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { gameTime } = useTimeContext()
-  const { updateGameTime, engine } = useCase()
+  const { elapsedMinutes } = useTimeContext()
+  const { postGameTime, engine } = useCase()
+  const minutes = Math.floor(elapsedMinutes)
 
   // Sincroniza o gameTime do TimeContext com o CaseEngine
   useEffect(() => {
-    if (engine && gameTime) {
-      updateGameTime(gameTime)
+    if (engine) {
+      void postGameTime(minutes)
     }
-  }, [gameTime, engine, updateGameTime])
+  }, [minutes, engine, postGameTime])
 
   return <>{children}</>
 }

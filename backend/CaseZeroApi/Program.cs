@@ -205,8 +205,10 @@ builder.Services.AddScoped<ICaseV2StorageService, CaseV2StorageService>();
 builder.Services.AddScoped<ISolutionService, SolutionService>();
 builder.Services.AddScoped<IVisibilityService, VisibilityService>();
 builder.Services.AddScoped<IRulesEngineService, RulesEngineService>();
+builder.Services.AddSingleton<TimeProvider>(TimeProvider.System);
+builder.Services.AddSingleton<CaseGameClock>();
+builder.Services.AddScoped<ForensicRequestProcessor>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>(); // P86: Audit Log
-builder.Services.AddSingleton<IForensicQueueService, ForensicQueueService>();
 
 // HTTP client for the case-generation Function App (proxied by CaseGenerationController).
 // Long timeout because some upstream calls (job status during heavy phases) can take a few seconds.

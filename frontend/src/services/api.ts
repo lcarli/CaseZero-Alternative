@@ -81,6 +81,15 @@ export interface CaseSession {
   gameTimeAtStart?: string
   gameTimeAtEnd?: string
   isActive: boolean
+  gameClock?: GameClockSnapshot
+}
+
+export interface GameClockSnapshot {
+  gameTime: string
+  elapsedMinutes: number
+  isRunning: boolean
+  multiplier: number
+  asOfUtc: string
 }
 
 export interface StartCaseSessionRequest {
@@ -307,6 +316,14 @@ export const caseSessionApi = {
   getLastSession: async (caseId: string): Promise<CaseSession> => {
     return apiFetch(`/casesession/last/${caseId}`)
   },
+  getGameClock: async (caseId: string): Promise<GameClockSnapshot> =>
+    apiFetch(`/casesession/clock/${caseId}`),
+
+  pauseGameClock: async (caseId: string, keepalive = false): Promise<CaseSession> =>
+    apiFetch(`/casesession/clock/${caseId}/pause`, { method: 'POST', keepalive }),
+
+  resumeGameClock: async (caseId: string): Promise<CaseSession> =>
+    apiFetch(`/cases/${caseId}/resume`, { method: 'POST' }),
   
   getCaseSessions: async (caseId: string): Promise<CaseSession[]> => {
     return apiFetch(`/casesession/${caseId}`)
@@ -365,6 +382,48 @@ export interface GenerateCaseStartResponse {
   statusUri: string
 }
 
+export interface GenerateCaseQualityIssue {
+  Code: string
+  Severity: 'low' | 'medium' | 'high'
+  Area: string
+  Reference?: string | null
+  Message: string
+  Blocking: boolean
+}
+
+export interface GenerateCaseQualityReport {
+  Revision?: number
+  ReviewedRevision?: number | null
+  Approved: boolean
+  Preview: boolean
+  PersistenceRequested: boolean
+  Persisted: boolean
+  PublicationRequested: boolean
+  Published: boolean
+  SolverMode: 'diagnostic'
+  Issues: GenerateCaseQualityIssue[]
+}
+
+export interface GenerateCaseRepairReport {
+  Attempted: boolean
+  Accepted: boolean
+  BaseRevision: number
+  CandidateRevision?: number | null
+  ChangedComponents: string[]
+  OriginalBlockers: string[]
+  ErrorCode?: string | null
+  ErrorMessage?: string | null
+}
+
+export interface GenerateCaseBundleReport {
+  BundleId: string
+  Revision: number
+  Verified: boolean
+  AssetsVerified: number
+  TotalBytes: number
+  ManifestChecksum: string
+}
+
 export interface GenerateCaseStatus {
   jobId: string
   status: 'queued' | 'running' | 'done' | 'failed'
@@ -389,6 +448,10 @@ export interface GenerateCaseStatus {
     RefineErrorsBefore?: number
     RefineErrorsAfter?: number
     RedTeamVerdict?: string | null
+    Quality?: GenerateCaseQualityReport | null
+    AssetsSkipped?: number
+    Repair?: GenerateCaseRepairReport | null
+    Bundle?: GenerateCaseBundleReport | null
   } | null
 }
 
@@ -512,7 +575,7 @@ export const forensicRequestApi = {
   /**
    * Create a new forensic request
    */
-  createForensicRequest: async (request: ForensicRequestDTO): Promise<ForensicRequestDTO> => {
+  createForensicRequest: async (request: CreateForensicRequestDTO): Promise<ForensicRequestDTO> => {
     return apiFetch('/forensicrequest', {
       method: 'POST',
       body: JSON.stringify(request),
@@ -730,6 +793,14 @@ export interface ForensicRequestDTO {
   status: string
   resultDocumentId?: string
   resultEmailId?: string
+  notes?: string
+  failureCode?: string
+}
+
+export interface CreateForensicRequestDTO {
+  caseId: string
+  inputAssetId: string
+  analysisType: string
   notes?: string
 }
 

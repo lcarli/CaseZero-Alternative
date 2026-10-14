@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import styled from 'styled-components'
 import { useTimeContext } from '../hooks/useTimeContext'
+import { useLanguage } from '../hooks/useLanguageContext'
 
 const ClockContainer = styled.div`
   position: relative;
@@ -135,7 +136,8 @@ const InfoRow = styled.div`
 `
 
 const Clock: React.FC = () => {
-  const { getFormattedTime, getFormattedDate, isRunning, startTime, gameTime } = useTimeContext()
+  const { getFormattedTime, getFormattedDate, isRunning, startTime, gameTime, pauseTime, resumeTime, error } = useTimeContext()
+  const { t, currentLanguage } = useLanguage()
   const [isExpanded, setIsExpanded] = useState(false)
 
   // Forensic badge removed - handled by ForensicsQueue app directly
@@ -161,24 +163,28 @@ const Clock: React.FC = () => {
       
       {isExpanded && (
         <ExpandedClock>
-          <ClockTitle>🕐 Sistema de Tempo</ClockTitle>
+          <ClockTitle>{t('gameClockTitle')}</ClockTitle>
           <ClockInfo>
             <InfoRow>
-              <span className="label">Status:</span>
-              <span className="value">{isRunning ? 'Ativo' : 'Pausado'}</span>
+              <span className="label">{t('gameClockTitle')}:</span>
+              <span className="value">{isRunning ? t('gameClockActive') : t('gameClockPaused')}</span>
             </InfoRow>
             <InfoRow>
-              <span className="label">Início:</span>
-              <span className="value">{startTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span className="label">{t('gameClockStarted')}:</span>
+              <span className="value">{startTime.toLocaleTimeString(currentLanguage, { hour: '2-digit', minute: '2-digit' })}</span>
             </InfoRow>
             <InfoRow>
-              <span className="label">Tempo Decorrido:</span>
+              <span className="label">{t('gameClockElapsed')}:</span>
               <span className="value">{getElapsedTime()}</span>
             </InfoRow>
             <InfoRow>
-              <span className="label">Velocidade:</span>
-              <span className="value">60x tempo real</span>
+              <span className="label">{t('gameClockSpeed')}:</span>
+              <span className="value">{t('gameClockMultiplier')}</span>
             </InfoRow>
+            <button onClick={event => { event.stopPropagation(); void (isRunning ? pauseTime() : resumeTime()) }}>
+              {isRunning ? t('gameClockPause') : t('gameClockResume')}
+            </button>
+            {error && <p role="alert">{error}</p>}
           </ClockInfo>
         </ExpandedClock>
       )}

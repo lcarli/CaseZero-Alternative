@@ -159,6 +159,7 @@ bin/
 obj/
 *.user
 *.userosscache
+*.csproj.lscache
 *.sln.docstates
 project.lock.json
 project.fragment.lock.json

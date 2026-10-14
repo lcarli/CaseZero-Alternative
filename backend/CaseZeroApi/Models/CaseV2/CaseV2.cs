@@ -35,6 +35,8 @@ public class CaseV2Metadata
     [JsonPropertyName("briefing")] public string? Briefing { get; set; }
     [JsonPropertyName("tags")] public List<string>? Tags { get; set; }
     [JsonPropertyName("victim")] public CaseV2Victim? Victim { get; set; }
+    [JsonIgnore] public bool IsAllInitial => UnlockMode == "all_initial" ||
+        string.Equals(RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase);
 }
 
 public class CaseV2Victim
@@ -195,7 +197,7 @@ public class CaseV2Rule
     [JsonPropertyName("actions")] public List<CaseV2Action> Actions { get; set; } = new();
 }
 
-public class CaseV2Trigger
+public class CaseV2Trigger : CaseZero.Progression.IRuleCondition<CaseV2Trigger>
 {
     [JsonPropertyName("type")] public string Type { get; set; } = string.Empty;
     [JsonPropertyName("inputAssetId")] public string? InputAssetId { get; set; }
@@ -206,6 +208,7 @@ public class CaseV2Trigger
     [JsonPropertyName("atMinutes")] public int? AtMinutes { get; set; }
     [JsonPropertyName("operator")] public string? Operator { get; set; }
     [JsonPropertyName("conditions")] public List<CaseV2Trigger>? Conditions { get; set; }
+    IReadOnlyList<CaseV2Trigger>? CaseZero.Progression.IRuleCondition<CaseV2Trigger>.Children => Conditions;
 }
 
 public class CaseV2Action
@@ -231,6 +234,10 @@ public class CaseV2AnalysisType
     [JsonPropertyName("type")] public string Type { get; set; } = string.Empty;
     [JsonPropertyName("durationMinutes")] public int DurationMinutes { get; set; }
     [JsonPropertyName("availableFor")] public List<string> AvailableFor { get; set; } = new();
+
+    public bool Supports(CaseV2Asset asset) => AvailableFor.Contains(asset.Type) ||
+        (asset.Metadata is not null && asset.Metadata.TryGetValue("physicalType", out var type) &&
+         type.ValueKind == JsonValueKind.String && AvailableFor.Contains(type.GetString() ?? ""));
 }
 
 public class CaseV2NoFindingsEmailTemplate

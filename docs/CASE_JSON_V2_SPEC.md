@@ -124,6 +124,10 @@ The first email with `visibility: "initial"` (or `id == "email.briefing"`) is th
 ## 6. `timeline[]`
 
 Static, narrative timeline of known events. Cliente vê.
+The generator compiles it from its private canonical plan. Estimated/interval
+times retain their bounds in `event`; attributed witness/suspect claims retain
+their speaker and are not marked verified simply because they appear in a file.
+No extra public time-window or provenance fields are introduced.
 
 ```jsonc
 {
@@ -142,6 +146,16 @@ Static, narrative timeline of known events. Cliente vê.
 
 Time-driven scripted events keyed off **game time** (minutes since `metadata.openedAt`).
 
+The server owns the case clock: **60 game minutes per real minute while the
+session is active**. Pausing or disconnecting checkpoints accumulated minutes;
+resuming reuses the same session and does not count the paused interval. New
+sessions start at `metadata.openedAt`; migrated sessions retain their saved
+calendar baseline so existing forensic deadlines remain meaningful. UTC is
+used for audit timestamps, not as the forensic deadline clock.
+The browser also requests a keepalive checkpoint on page exit. This is
+best-effort if connectivity is lost; explicit pause/disconnect is the confirmed
+checkpoint path.
+
 ```jsonc
 {
   "id": "tevt.<slug>",                   // required
@@ -156,6 +170,8 @@ Time-driven scripted events keyed off **game time** (minutes since `metadata.ope
 ```
 
 Idempotent: backend marks each `tevt.*` as fired in session state and never replays.
+All populated payload fields are applied: an email and an asset can be revealed
+together, and `message` becomes a persisted player notification.
 
 ---
 
@@ -191,6 +207,13 @@ Canonical rule shape. **Any other shape that appeared in older code (e.g. `rules
 ```
 
 Each rule fires **at most once per session** (idempotent per `(ruleId, sessionId)`).
+Leaf events are cumulative, persisted observations, not comparisons against
+only the current API call. An `AND` can combine an earlier completed analysis
+with a later report view; nested `AND`/`OR` use the same evaluator in generation
+reachability checks and the runtime. Reopening the case preserves observations,
+fired rule/event IDs, attachments, overrides, notifications and revealed items.
+The sanitized player response already contains authorized entities, including
+unlocked entities whose authored `visibility` remains `hidden`.
 
 ---
 
@@ -213,6 +236,16 @@ Each rule fires **at most once per session** (idempotent per `(ruleId, sessionId
 ```
 
 The backend matches `analysisType` against `Asset.type` (or `Asset.metadata.physicalType`) via `availableFor`.
+The v2 schema requires at least one available method. A case can still have no
+positive forensic outcomes and an empty `solution.requiredAnalysisIds` when
+complementary documentary evidence supports the solution.
+
+`POST /api/forensicrequest` accepts `caseId`, `inputAssetId`, `analysisType`
+and optional `notes`. The input must be visible, the analysis must be configured
+and compatible, and the session must be active. The server supplies the asset
+name, request time and deadline using the configured `durationMinutes`.
+Repeated submission of the same active/completed pair returns the existing
+request. Clients cannot set completion state or result IDs.
 
 ---
 
@@ -237,6 +270,28 @@ Behaviour:
 - If `findings == true` and `resultAssetId`/`resultEmailId` set → reveal them via session state.
 - If `findings == false` (or no outcome) → backend sends `forensicsDefaults.noFindingsEmail`.
 - In **all** cases, `rules[]` with trigger `forensics_complete` matching `(inputAssetId, analysisType)` are evaluated independently.
+
+The database-backed worker evaluates requests against the persisted case clock,
+reveals the actual configured PDF/email, and commits completion with progression
+state. Invalid configurations yield `status: "failed"` and
+`failureCode: "forensic_configuration_invalid"`, not fabricated results.
+Optimistic state versions protect concurrent clock, cancellation and rule
+updates. Conflicting clock/request mutations return HTTP 409 with
+`session_changed` or `forensic_request_changed`. Cancellation keeps history;
+a completed request cannot be cancelled.
+No-findings emails have stable request-derived IDs and can be opened through
+the normal email API. Generated no-findings templates follow the case language.
+No findings do not establish innocence. New generated suspect matches require
+individualizing evidence about that suspect, not visual similarity; a positive
+comparison with no `matchedSuspectId` can contribute to collective proof.
+Internal author-support references and the private CaseBible are not serialized
+into `forensicOutcomes`, questions, asset/email metadata or player responses.
+
+Request/result lists refresh from the backend; SignalR `ForensicCompleted`
+accelerates refresh but is not required for correctness. Attachment downloads
+use the same local/blob asset reader as document downloads, honor session
+attachment overrides, and record `attachment_download` before returning the
+actual stream. An elapsed deadline alone does not make the UI declare success.
 
 ---
 
@@ -289,7 +344,13 @@ total          = culpritScore + evidenceScore + analysisScore + questionsScore
 correct        = total >= minimumScore
 ```
 
-Empty `requiredEvidenceIds` or `requiredAnalysisIds` → that component scores 1.0 (no requirement).
+Empty `requiredEvidenceIds` or `requiredAnalysisIds` → that component earns its full configured weight (no requirement).
+
+Cases declaring `gated` or `all_initial` progression award evidence credit only
+for authorized assets, and analysis credit only for completed persisted
+requests. Each analysis ID is `<inputAssetId>:<analysisType>`. Submission
+responses expose numeric weighted contributions as `breakdown.culpritScore`,
+`evidenceScore`, `analysisScore` and `questionsScore`, not correctness booleans.
 
 ---
 
@@ -350,6 +411,10 @@ A valid v2 `case.json` MUST:
 - [ ] `solution.partialCreditRules` weights sum to exactly 1.0.
 - [ ] Every `solution.questions[].correctOptionId` belongs to that question's `options`.
 - [ ] Every `solution.requiredAnalysisIds` entry has the form `<assetId>:<analysisType>`.
+- [ ] Required evidence and analyses are reachable from initial visibility,
+      compatible analyses, temporal payloads, attachments and nested rules.
+      Circular reveals do not count; unreachable evidence is rejected, never
+      silently promoted to initial visibility.
 
 The backend rejects (HTTP 422) cases that fail any of the above when uploaded.
 
@@ -364,15 +429,30 @@ The backend rejects (HTTP 422) cases that fail any of the above when uploaded.
 | `asset_viewed`         | `POST /api/cases/{c}/assets/{a}/view`                     | per `(assetId,sessionId)` |
 | `email_opened`         | `POST /api/cases/{c}/emails/{e}/open`                     | per `(emailId,sessionId)` |
 | `suspect_viewed`       | `POST /api/cases/{c}/suspects/{s}/view`                   | per `(suspectId,sessionId)` |
-| `time_elapsed`         | `POST /api/cases/{c}/time` (gameTimeMinutes)              | per `(ruleId,sessionId)` |
+| `time_elapsed`         | `POST /api/cases/{c}/time` (server-derived game minutes) | per `(ruleId,sessionId)` |
 | `multiple_conditions`  | composite; satisfied when sub-conditions satisfied        | per `(ruleId,sessionId)` |
 
 | Action                 | Effect                                              |
 |------------------------|-----------------------------------------------------|
-| `reveal_email`         | Adds emailId to `CaseSessionState.RevealedEmailIds`, SignalR `case.entity.revealed` |
-| `reveal_asset`         | Adds assetId to `RevealedAssetIds`                  |
+| `reveal_email`         | Adds emailId to `CaseSessionVisibleEmails`          |
+| `reveal_asset`         | Adds assetId to `CaseSessionVisibleAssets`          |
 | `reveal_suspect`       | Adds suspectId to `RevealedSuspectIds`              |
 | `add_email_attachment` | `EmailAttachmentOverrides[emailId] += assetId`      |
 | `send_notification`    | Pushes a notification (level/message)               |
 | `update_suspect_status`| `SuspectStatusOverrides[suspectId] = status`        |
 | `mark_alibi_verified`  | `SuspectAlibiVerified[suspectId] = verified`        |
+
+`GET /api/casesession/clock/{caseId}` returns the authoritative game-clock
+snapshot. `POST /api/casesession/clock/{caseId}/pause` checkpoints it, and
+`POST /api/cases/{caseId}/resume` resumes the persisted session. The legacy
+`gameTimeMinutes` heartbeat body is accepted for compatibility but cannot
+fast-forward the clock. Public `case.json` v2 is unchanged; per-player
+`notifications` and `emailStates` are additive sanitized-response fields.
+
+Cases declaring `gated`/`all_initial` progression receive solution evidence
+credit only for visible evidence and analysis credit only for persisted completed
+requests. Existing scoring weights/minimum score still apply. Historical cases
+without a progression mode retain legacy grading.
+
+Deploy the additive EF migration `PersistForensicGameTimeAndTriggerHistory`
+with the API. Generation and its tests remain `net9.0`; the API remains `net8.0`.

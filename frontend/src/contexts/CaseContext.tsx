@@ -48,6 +48,7 @@ interface CaseContextValue {
   isLoading: boolean
   error: string | null
   loadCase: (caseId: string) => Promise<void>
+  refreshCase: () => Promise<void>
   viewAsset: (assetId: string) => Promise<void>
   openEmail: (emailId: string) => Promise<void>
   viewSuspect: (suspectId: string) => Promise<void>
@@ -74,7 +75,6 @@ export const CaseProvider: React.FC<{ children: ReactNode; caseId?: string }> = 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeCaseId, setActiveCaseId] = useState<string | null>(caseId || null)
-  const sessionStartRef = useRef<Date | null>(null)
 
   // Load case when caseId changes
   useEffect(() => {
@@ -115,6 +115,9 @@ export const CaseProvider: React.FC<{ children: ReactNode; caseId?: string }> = 
           const d = data as { emailId: string; assetId: string }
           engine.applyReveal('asset', d.assetId)
         }))
+        cleanups.push(srClient.on('ForensicCompleted', () => {
+          void engine.refreshCase().catch((err: unknown) => console.error('Refreshing forensic results failed:', err))
+        }))
       })
       .catch((err: Error) => console.error('SignalR connect failed:', err))
 
@@ -124,6 +127,16 @@ export const CaseProvider: React.FC<{ children: ReactNode; caseId?: string }> = 
       srClient.disconnect().catch(console.error)
     }
   }, [caseId, engine])
+
+  useEffect(() => {
+    if (!activeCaseId) return
+    const interval = setInterval(() => {
+      void engine.refreshCase().catch((err: unknown) => {
+        console.error('Refreshing case progression failed:', err)
+      })
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [activeCaseId, engine])
 
   const loadCase = useCallback(async (id: string) => {
     setActiveCaseId(id)
@@ -141,16 +154,16 @@ export const CaseProvider: React.FC<{ children: ReactNode; caseId?: string }> = 
   const updateGameTime = useCallback((newTime: Date) => {
     // Legacy callers pass a Date; we translate to minutes since session start
     // and forward to the engine.postGameTime endpoint.
-    if (!sessionStartRef.current) {
-      sessionStartRef.current = newTime
-      return
-    }
+    const openedAt = engine.getSnapshot().case?.metadata.openedAt
+    if (!openedAt) return
     const minutes = Math.max(
       0,
-      Math.floor((newTime.getTime() - sessionStartRef.current.getTime()) / 60000)
+      Math.floor((newTime.getTime() - new Date(openedAt).getTime()) / 60000)
     )
     void engine.postGameTime(minutes)
   }, [engine])
+  const postGameTime = useCallback((min: number) => engine.postGameTime(min), [engine])
+  const refreshCase = useCallback(() => engine.refreshCase(), [engine])
 
   const contextValue: CaseContextValue = {
     state,
@@ -160,11 +173,12 @@ export const CaseProvider: React.FC<{ children: ReactNode; caseId?: string }> = 
     isLoading,
     error,
     loadCase,
+    refreshCase,
     viewAsset: (id) => engine.viewAsset(id),
     openEmail: (id) => engine.openEmail(id),
     viewSuspect: (id) => engine.viewSuspect(id),
     submitCase: (payload) => engine.submitCase(payload),
-    postGameTime: (min) => engine.postGameTime(min),
+    postGameTime,
     updateGameTime,
   }
 

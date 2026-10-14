@@ -16,20 +16,7 @@ public class AssetPlanTask
         [JsonPropertyName("assets")] public List<AssetStub> Assets { get; set; } = new();
     }
 
-    private const string Schema = """
-    {
-      "type":"object","required":["assets"],
-      "properties":{
-        "assets":{"type":"array","minItems":4,"maxItems":10,
-          "items":{"type":"object","required":["id","type","title","role","visibility"],
-            "properties":{
-              "id":{"type":"string","pattern":"^asset\\.[a-z0-9_]+$"},
-              "type":{"type":"string","enum":["photo","pdf","document","audio","digital"]},
-              "visibility":{"type":"string","enum":["initial","hidden"]}
-            }}}
-      }
-    }
-    """;
+    private static readonly string Schema = MicrotaskSchemas.AssetPlan;
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
@@ -39,21 +26,20 @@ List 4-10 distinct assets. Each has:
 - type — one of these EXACT values (do NOT use anything else, especially not `video` or `image`):
     * `photo`    — a single still image of a scene / object / location
     * `pdf`      — a PDF report or evidence document (will be rendered with QuestPDF)
-    * `document` — same renderer as `pdf` (alias for narrative purposes)
-    * `audio`    — an audio recording (transcript stored in sidecar, audio TTS deferred)
+    * `document` — same renderer as `pdf`; includes written transcripts of interviews / calls
     * `digital`  — a digital-forensics export (call logs, POS data, sensor log, file listing). Will be rendered as a PDF report.
 - a short title
 - a ONE-LINE role explaining how it fits the case
 - `visibility` = `initial` (all assets here are initial; result PDFs from forensics come later).
 
-Do NOT write descriptions or metadata — that comes in a later step. Pick assets that make sense given the case draft.";
+Do NOT write descriptions or metadata — that comes in a later step. Pick assets that make sense given the case draft.
+Audio and video files are not supported. Plan any speech evidence as a document transcript, never as an audio asset or placeholder.";
         var user = $@"CASE DRAFT (read-only):
 {draft.ToSummaryJson()}
 
 Emit JSON only.";
-        var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "AssetPlan", system, user, Schema, ct);
-        // Force all initial-stage assets to be visibility=initial
-        foreach (var a in o.Assets) a.Visibility = "initial";
+        var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "AssetPlan", system, user, Schema, ct,
+            validate: output => MicrotaskValidation.Unique(output.Assets.Select(a => a.Id), "assets"));
         draft.AssetStubs = o.Assets;
     }
 }
@@ -65,40 +51,16 @@ public class AssetCardTask
     private readonly ILogger _logger;
     public AssetCardTask(ILLMProvider llm, ILogger logger) { _llm = llm; _logger = logger; }
 
-    private const string Schema = """
-    {
-      "type":"object","required":["id","type","title","description","visibility","category"],
-      "properties":{
-        "id":{"type":"string","pattern":"^asset\\.[a-z0-9_]+$"},
-        "type":{"type":"string"},
-        "visibility":{"type":"string","enum":["initial","hidden"]},
-        "body":{"type":"string"},
-        "bodyDoc":{"type":["object","null"],
-          "properties":{
-            "layout":{"type":"string"},
-            "title":{"type":"string"},
-            "subtitle":{"type":["string","null"]},
-            "classification":{"type":"string"},
-            "header":{"type":"array","items":{"type":"object","required":["label","value"]}},
-            "sections":{"type":"array","minItems":1,
-              "items":{"type":"object","required":["kind"],
-                "properties":{"kind":{"type":"string","enum":["narrative","table","keyValue","transcript","code","callout"]}}}},
-            "signature":{"type":["object","null"]}
-          }}
-      }
-    }
-    """;
+    private static readonly string Schema = MicrotaskSchemas.AssetCard;
 
     public async Task<EvidenceAsset> RunAsync(CaseDraft draft, AssetStub stub, CancellationToken ct)
     {
         var (bodyGuidance, mustHaveBodyDoc) = stub.Type switch
         {
             "pdf" or "document" =>
-                ("Set `bodyDoc` to a structured EvidenceDocument (see schema in this prompt). Pick a `layout` that fits — `PoliceReport`, `InterviewTranscript`, `WitnessStatement`, `Memo`, `ForensicReport`, `EvidenceLog` or `GeneralReport`. Use `narrative` for prose, `transcript` for Q/A interrogations, `keyValue` for header-style facts (date, location, officer), `table` for any tabulated data, `callout` for highlighted notes. Anchor every date/time to the case timeline (incidentDate / openedAt).", true),
+                ("Set `bodyDoc` to a structured EvidenceDocument (see schema in this prompt). Pick a `layout` that fits — `PoliceReport`, `InterviewTranscript`, `WitnessStatement`, `Memo`, `ForensicReport`, `EvidenceLog` or `GeneralReport`. Speech evidence requires `InterviewTranscript` with transcript entries; it is a written document, not a playable recording. Use `narrative` for prose, `transcript` for Q/A interrogations, `keyValue` for header-style facts (date, location, officer), `table` for any tabulated data, `callout` for highlighted notes. Anchor every date/time to the case timeline (incidentDate / openedAt).", true),
             "photo" =>
                 ("Set `body` to a vivid image prompt that an image model can render (lighting, composition, framing, mood, visible details). Leave `bodyDoc` null.", false),
-            "audio" =>
-                ("Set `body` to a transcript + descriptive note (stored as sidecar, TTS deferred). Leave `bodyDoc` null.", false),
             "digital" =>
                 ("Set `bodyDoc` to a structured EvidenceDocument. CHOOSE one of these recognised digital layouts so a specialised template can enrich the output:\n" +
                  "  · `CallLog`         — telecom CDRs. Table columns: Timestamp, Direction, Other Party, Duration, Notes.\n" +
@@ -122,7 +84,7 @@ Echo the supplied id and type exactly.
 Produce:
 - `description`: 1-3 sentence summary visible in the case-file listing.
 - `category`: short label (Document / Digital / Physical / Biological / Communication).
-- `visibility`: `initial`.
+- `visibility`: echo `{stub.Visibility}` from the source plan.
 - {(mustHaveBodyDoc ? "`bodyDoc`: REQUIRED for this asset type — a structured EvidenceDocument (see below). Leave `body` as the empty string." : "`body`: required — see guidance below.")}
 
 Body guidance: {bodyGuidance}
@@ -140,31 +102,32 @@ EvidenceDocument schema (when used):
     {{ kind:""callout"", heading?, text }}        ← highlighted notes
   signature?: {{ name, title?, badge?, signedAt? }}
 
-Keep continuity with the supplied case draft (suspects, motives, alibis, location, incidentDate, openedAt). Use suspect names ONLY when they exist in the draft.";
+Keep continuity with the authorized source facts and time precision. Use only supplied identities.
+{CaseBibleAuthorship.Instructions}";
 
-        var user = $@"CASE DRAFT (read-only):
-{draft.ToSummaryJson()}
+        var context = draft.Bible is null ? draft.ToSummaryJson() : CaseBibleAuthorship.Context(draft, stub.Id);
+        var user = $@"AUTHOR'S READ-ONLY CONTEXT:
+{context}
 
 ASSET TO DESIGN:
 id={stub.Id}
 type={stub.Type}
 title={stub.Title}
-role={stub.Role}
+visibility={stub.Visibility}
 
 Emit JSON only.";
-        var a = await TaskRunner.RunStructuredAsync<EvidenceAsset>(_llm, _logger, $"AssetCard:{stub.Id}", system, user, Schema, ct);
-        a.Id = stub.Id;
-        a.Type = stub.Type;
-        a.Title = string.IsNullOrEmpty(a.Title) ? stub.Title : a.Title;
-        a.Visibility = "initial";
-
-        // Sanity check: PDF/document/digital MUST have bodyDoc with at least one section.
-        if (mustHaveBodyDoc && (a.BodyDoc is null || a.BodyDoc.Sections.Count == 0))
-        {
-            _logger.LogWarning("AssetCard:{Id} expected a bodyDoc but the LLM omitted it — falling back to body markdown", stub.Id);
-        }
-
-        return a;
+        return await TaskRunner.RunStructuredAsync<EvidenceAsset>(_llm, _logger, $"AssetCard:{stub.Id}", system, user, Schema, ct,
+            validate: a =>
+            {
+                MicrotaskValidation.Equal(a.Id, stub.Id, "asset.id");
+                MicrotaskValidation.Equal(a.Type, stub.Type, "asset.type");
+                MicrotaskValidation.Equal(a.Title, stub.Title, "asset.title");
+                MicrotaskValidation.Equal(a.Visibility, stub.Visibility, "asset.visibility");
+                TaskContractException.Require(!mustHaveBodyDoc || a.BodyDoc is not null,
+                    "This asset type requires bodyDoc; markdown is not a fallback for an initial document.");
+                MicrotaskValidation.Asset(a);
+                CaseBibleAuthorship.Asset(draft, a);
+            });
     }
 }
 
@@ -181,26 +144,17 @@ public class TimelineTask
         [JsonPropertyName("temporalEvents")] public List<EvidenceTemporalEvent> TemporalEvents { get; set; } = new();
     }
 
-    private const string Schema = """
-    {
-      "type":"object","required":["timeline","temporalEvents"],
-      "properties":{
-        "timeline":{"type":"array","minItems":2,"maxItems":8,
-          "items":{"type":"object","required":["time","event"],
-            "properties":{
-              "source":{"type":"string","enum":["investigation","witness","sensor","forensic"]},
-              "importance":{"type":"string","enum":["low","medium","high","critical"]}}}},
-        "temporalEvents":{"type":"array","minItems":0,"maxItems":3,
-          "items":{"type":"object","required":["id","triggerAtMinutes","type"],
-            "properties":{
-              "id":{"type":"string","pattern":"^tevt\\.[a-z0-9_]+$"},
-              "type":{"type":"string","enum":["memo","witness","alert","email"]}}}}
-      }
-    }
-    """;
+    private static readonly string Schema = MicrotaskSchemas.Timeline;
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
+        if (draft.Bible is not null)
+        {
+            ct.ThrowIfCancellationRequested();
+            draft.Timeline = CaseBibleAuthorship.Timeline(draft);
+            draft.TemporalEvents = new();
+            return;
+        }
         var system = @"You are writing the **narrative timeline** and optional **temporalEvents** for an in-progress case.
 The timeline is the verified chain of events visible to the player; it spans from the incident to the moment the chief opens the case.
 `temporalEvents` are scripted memos/witness recall that fire by game time (minutes since case opening, range 5-120).
@@ -215,7 +169,24 @@ Reference asset/email IDs only if they exist in the draft.";
 {draft.ToSummaryJson()}
 
 Emit JSON only.";
-        var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "Timeline", system, user, Schema, ct);
+        var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "Timeline", system, user, Schema, ct,
+            validate: output =>
+            {
+                MicrotaskValidation.Unique(output.TemporalEvents.Select(t => t.Id), "temporalEvents");
+                var assets = MicrotaskValidation.AssetIds(draft);
+                foreach (var item in output.TemporalEvents)
+                {
+                    var payload = item.Payload!;
+                    TaskContractException.Require(payload.EmailId is null || payload.EmailId == "email.briefing",
+                        "temporalEvents may reference only an email already defined in the draft.");
+                    TaskContractException.Require(payload.AssetId is null || assets.Contains(payload.AssetId),
+                        $"temporalEvent references unknown asset '{payload.AssetId}'.");
+                    TaskContractException.Require(payload.EmailId is not null || payload.AssetId is not null ||
+                        !string.IsNullOrWhiteSpace(payload.Message), "temporalEvent payload must contain content.");
+                    TaskContractException.Require(item.Type != "email" || payload.EmailId is not null,
+                        "An email temporalEvent requires payload.emailId.");
+                }
+            });
         draft.Timeline = o.Timeline;
         draft.TemporalEvents = o.TemporalEvents;
     }

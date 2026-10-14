@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import styled from 'styled-components'
 import type { AssetDTO } from '../../services/api'
 import { casesApi } from '../../services/api'
@@ -73,14 +73,12 @@ interface FileViewerProps {
 }
 
 const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [] }) => {
-  const [assets, setAssets] = useState<AssetDTO[]>(initialAssets)
   const { openWindow } = useWindowContext()
-  const { currentCase } = useCase()
-
-  // Update assets when props change
-  useEffect(() => {
-    setAssets(initialAssets)
-  }, [initialAssets])
+  const { currentCase, state, viewAsset } = useCase()
+  const activeCaseId = state.case?.caseId
+  const assets: AssetDTO[] = activeCaseId ? state.visibleAssets.map(a => ({
+    ...a, caseId: activeCaseId, name: a.title, filePath: a.uri, isVisible: true,
+  })) : initialAssets;
 
   // Detect file type from asset.type (v2), filePath/uri (v1+v2) or name (legacy)
   const detectFileType = (asset: AssetDTO): 'text' | 'image' | 'pdf' | 'video' | 'audio' => {
@@ -128,6 +126,7 @@ const FileViewer: React.FC<FileViewerProps> = ({ assets: initialAssets = [] }) =
   }
 
   const handleFileDoubleClick = (asset: AssetDTO) => {
+    void viewAsset(asset.id).catch((error: unknown) => console.error('Recording asset view failed:', error))
     const fileItem = assetToFileItem(asset)
     const displayName = asset.name || asset.title || asset.id
 

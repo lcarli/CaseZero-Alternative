@@ -32,6 +32,26 @@ namespace CaseZeroApi.Data
         // P86: Audit Log
         public DbSet<AuditLog> AuditLogs { get; set; }
 
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            AdvanceStateVersions();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            AdvanceStateVersions();
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        private void AdvanceStateVersions()
+        {
+            foreach (var entry in ChangeTracker.Entries<CaseSession>().Where(e => e.State == EntityState.Modified))
+                entry.Entity.StateVersion = entry.Property(e => e.StateVersion).OriginalValue + 1;
+            foreach (var entry in ChangeTracker.Entries<ForensicRequest>().Where(e => e.State == EntityState.Modified))
+                entry.Entity.StateVersion = entry.Property(e => e.StateVersion).OriginalValue + 1;
+        }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);

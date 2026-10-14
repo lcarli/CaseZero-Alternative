@@ -12,6 +12,8 @@ public class CaseV2Sanitized
     public CaseV2ForensicsDefaultsClient? ForensicsDefaults { get; set; }
     public SanitizedSolution? Solution { get; set; }
     public CaseV2GameMetadataClient? GameMetadata { get; set; }
+    public List<CaseZeroApi.Services.RulesEngineService.SessionNotification> Notifications { get; set; } = new();
+    public Dictionary<string, CaseZeroApi.DTOs.EmailStateDto> EmailStates { get; set; } = new();
 }
 
 public class CaseV2ForensicsDefaultsClient

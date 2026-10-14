@@ -1,20 +1,22 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using CaseGen.Functions.Models.CaseV2;
 
 namespace CaseGen.Functions.Services.CaseV2;
 
 /// <summary>
-/// Slim, evolving case state passed between micro-tasks. Each task gets a small
-/// summarised view of upstream output (IDs + 1-line role) plus its specific input.
-/// Full bodies stay in <see cref="FullPlot"/> / <see cref="FullEvidence"/> / etc.
+/// Canonical case state. Compilation, review, repair, and rendering consume the same revision.
 /// </summary>
 public class CaseDraft
 {
+    public int Revision { get; set; }
     public string CaseId { get; set; } = string.Empty;
     public GenerateCaseV2Request Request { get; set; } = new();
 
     public PlotMetadata Metadata { get; set; } = new();
     public string CulpritId { get; set; } = string.Empty;
+    public CaseBible? Bible { get; set; }
 
     public List<SuspectStub> SuspectStubs { get; set; } = new();
     public List<PlotSuspect> SuspectFull { get; set; } = new();
@@ -41,12 +43,90 @@ public class CaseDraft
     public List<QuestionTopic> QuestionTopics { get; set; } = new();
     public List<SolutionQuestion> Questions { get; set; } = new();
     public string Explanation { get; set; } = string.Empty;
+    public List<CaseContentSupport> ExplanationSupport { get; set; } = new();
+
+    public static JsonSerializerOptions CanonicalJsonOptions { get; } = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = false,
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
+    };
+
+    public CaseDraft Copy()
+    {
+        var copy = JsonSerializer.Deserialize<CaseDraft>(JsonSerializer.Serialize(this, CanonicalJsonOptions), CanonicalJsonOptions)
+            ?? throw new InvalidOperationException("Canonical draft could not be copied.");
+        foreach (var asset in copy.AssetFull.Concat(copy.ResultAssets))
+        {
+            asset.PreparedForReview = AssetFull.Concat(ResultAssets).Single(a => a.Id == asset.Id).PreparedForReview;
+            asset.CanonicalContent = AssetFull.Concat(ResultAssets).Single(a => a.Id == asset.Id).CanonicalContent;
+        }
+        return copy;
+    }
+
+    public JsonObject GetComponents()
+    {
+        var components = new JsonObject
+        {
+            ["metadata"] = JsonSerializer.SerializeToNode(Metadata, CanonicalJsonOptions),
+            ["briefing"] = JsonSerializer.SerializeToNode(Briefing, CanonicalJsonOptions),
+            ["timeline"] = JsonSerializer.SerializeToNode(Timeline, CanonicalJsonOptions),
+            ["temporalEvents"] = JsonSerializer.SerializeToNode(TemporalEvents, CanonicalJsonOptions),
+            ["analysisTypes"] = JsonSerializer.SerializeToNode(AnalysisTypes, CanonicalJsonOptions),
+            ["rules"] = JsonSerializer.SerializeToNode(Rules, CanonicalJsonOptions),
+            ["solution"] = JsonSerializer.SerializeToNode(new SolutionResult
+            {
+                CulpritId = CulpritId, RequiredEvidenceIds = RequiredEvidenceIds,
+                RequiredAnalysisIds = RequiredAnalysisIds, Questions = Questions, Explanation = Explanation,
+                ExplanationSupport = ExplanationSupport
+            }, CanonicalJsonOptions)
+        };
+        if (Bible is not null) components["caseBible"] = JsonSerializer.SerializeToNode(Bible, CanonicalJsonOptions);
+        foreach (var suspect in SuspectFull)
+            components.Add(suspect.Id, JsonSerializer.SerializeToNode(suspect, CanonicalJsonOptions));
+        foreach (var asset in AssetFull.Concat(ResultAssets))
+        {
+            var node = JsonSerializer.SerializeToNode(asset, CanonicalJsonOptions)!;
+            if (node["bodyDoc"]?["sections"] is JsonArray sections)
+            {
+                foreach (var section in sections.OfType<JsonObject>())
+                {
+                    var content = section["kind"]!.GetValue<string>() switch
+                    {
+                        "table" => "table", "keyValue" => "items", "transcript" => "transcript", "code" => "code", _ => "text"
+                    };
+                    foreach (var field in new[] { "text", "table", "items", "transcript", "code" })
+                        if (field != content && section[field] is null) section.Remove(field);
+                }
+            }
+            components.Add(asset.Id, node);
+        }
+        foreach (var email in FollowUpEmails.Concat(ResultEmails))
+            components.Add(email.Id, JsonSerializer.SerializeToNode(email, CanonicalJsonOptions));
+        foreach (var outcome in ForensicFull)
+            components.Add($"{outcome.InputAssetId}:{outcome.AnalysisType}",
+                JsonSerializer.SerializeToNode(outcome, CanonicalJsonOptions));
+        return components;
+    }
+
+    public string ToReviewJson() => JsonSerializer.Serialize(new
+    {
+        revision = Revision, caseId = CaseId, language = Request.Language ?? "en-US",
+        culpritId = CulpritId,
+        requested = new
+        {
+            Request.Title, Request.Location, difficulty = Request.Difficulty ?? "Detective",
+            requiredRank = Request.RequiredRank ?? Request.Difficulty ?? "Detective"
+        },
+        components = GetComponents()
+    }, CanonicalJsonOptions);
 
     /// <summary>Builds a context summary for downstream prompts. Rich enough for coherence,
     /// trimmed enough to keep token cost predictable.</summary>
     public string ToSummaryJson() => System.Text.Json.JsonSerializer.Serialize(new
     {
         caseId = CaseId,
+        language = Request.Language ?? "en-US",
         metadata = new
         {
             title = Metadata.Title,

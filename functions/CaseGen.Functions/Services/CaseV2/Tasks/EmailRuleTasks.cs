@@ -11,20 +11,27 @@ public class BriefingEmailTask
     private readonly ILogger _logger;
     public BriefingEmailTask(ILLMProvider llm, ILogger logger) { _llm = llm; _logger = logger; }
 
-    private const string Schema = """
-    {"type":"object","required":["from","subject","body"],
-     "properties":{"from":{"type":"string"},"subject":{"type":"string"},"body":{"type":"string"}}}
-    """;
+    private static readonly string Schema = MicrotaskSchemas.BriefingEmail;
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
-        var system = @"You are writing ONLY the briefing email from the chief of police, addressed to Detective Alex Morgan.
-4-6 paragraph markdown body. Urge discretion. Reference the victim, location, and the urgency. Do NOT name the culprit.";
-        var user = $@"CASE DRAFT (read-only):
-{draft.ToSummaryJson()}
+        var system = $@"You are writing ONLY the briefing email from the chief of police, addressed to Detective Alex Morgan.
+4-6 paragraph markdown body. Urge discretion. Reference only the source's known observations. Do NOT name a culprit.
+{CaseBibleAuthorship.Instructions}";
+        var context = draft.Bible is null ? draft.ToSummaryJson() : CaseBibleAuthorship.Context(draft, "email.briefing");
+        var user = $@"AUTHOR'S READ-ONLY CONTEXT:
+{context}
 
-Emit JSON only with from / subject / body.";
-        var b = await TaskRunner.RunStructuredAsync<PlotBriefingEmail>(_llm, _logger, "BriefingEmail", system, user, Schema, ct);
+Emit JSON only with from / subject / body / support.";
+        var b = await TaskRunner.RunStructuredAsync<PlotBriefingEmail>(_llm, _logger, "BriefingEmail", system, user, Schema, ct,
+            validate: email =>
+            {
+                if (draft.Bible is null) return;
+                var plan = draft.Bible.Sources.Single(s => s.Id == "email.briefing");
+                MicrotaskValidation.Equal(email.From, plan.From!, "briefing.from");
+                MicrotaskValidation.Equal(email.Subject, plan.Title, "briefing.subject");
+                CaseBibleAuthorship.Source(draft, "email.briefing", email.Support, email.Body);
+            });
         draft.Briefing = b;
     }
 }
@@ -38,25 +45,44 @@ public class InitialEmailsTask
 
     private class Output { [JsonPropertyName("emails")] public List<EvidenceEmail> Emails { get; set; } = new(); }
 
-    private const string Schema = """
-    {"type":"object","required":["emails"],
-     "properties":{"emails":{"type":"array","minItems":0,"maxItems":3,
-       "items":{"type":"object","required":["id","from","subject","body","sentAt","visibility"],
-         "properties":{
-           "id":{"type":"string","pattern":"^email\\.[a-z0-9_]+$"},
-           "visibility":{"type":"string","enum":["initial"]}}}}}}
-    """;
+    private static readonly string Schema = MicrotaskSchemas.InitialEmails;
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
+        if (draft.Bible is not null)
+        {
+            var sources = draft.Bible.Sources.Where(s => s.Kind == "email").ToList();
+            var results = await Task.WhenAll(sources.Select(async source =>
+            {
+                var output = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, $"InitialEmail:{source.Id}",
+                    $"Write 0-3 OPTIONAL emails, but in this call emit EXACTLY ONE planned email.\n{CaseBibleAuthorship.Instructions}",
+                    CaseBibleAuthorship.Context(draft, source.Id), Schema, ct, validate: o =>
+                    {
+                        TaskContractException.Require(o.Emails.Count == 1 && o.Emails[0].Id == source.Id, "Return exactly the planned email.");
+                        CaseBibleAuthorship.Email(draft, o.Emails[0]);
+                    });
+                return output.Emails[0];
+            }));
+            draft.FollowUpEmails = results.ToList();
+            return;
+        }
         var system = @"You are writing 0-3 OPTIONAL initial-visibility emails from witnesses, partner, or the chief (NOT forensic-lab results).
 All emails are `visibility: initial` — they show up immediately. If the case doesn't naturally need any, emit `emails: []`.";
         var user = $@"CASE DRAFT (read-only):
-{draft.ToSummaryJson()}
+{draft.ToReviewJson()}
 
 Emit JSON only.";
-        var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "InitialEmails", system, user, Schema, ct);
-        foreach (var e in o.Emails) e.Visibility = "initial";
+        var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "InitialEmails", system, user, Schema, ct,
+            validate: output =>
+            {
+                MicrotaskValidation.Unique(output.Emails.Select(e => e.Id)
+                    .Concat(MicrotaskValidation.EmailIds(draft)), "emails");
+                foreach (var email in output.Emails)
+                {
+                    MicrotaskValidation.Equal(email.Visibility, "initial", "email.visibility");
+                    MicrotaskValidation.Email(email, draft);
+                }
+            });
         draft.FollowUpEmails = o.Emails;
     }
 }
@@ -70,22 +96,7 @@ public class RulesTask
 
     private class Output { [JsonPropertyName("rules")] public List<RulesRule> Rules { get; set; } = new(); }
 
-    private const string Schema = """
-    {"type":"object","required":["rules"],
-     "properties":{"rules":{"type":"array","minItems":0,"maxItems":10,
-       "items":{"type":"object","required":["ruleId","trigger","actions"],
-         "properties":{
-           "ruleId":{"type":"string","pattern":"^rule\\.[a-z0-9_]+$"},
-           "trigger":{"type":"object","required":["type"],
-             "properties":{"type":{"type":"string","enum":["forensics_complete","attachment_download","asset_viewed","email_opened","time_elapsed","suspect_viewed","multiple_conditions"]}}},
-           "actions":{"type":"array","minItems":1,"maxItems":6,
-             "items":{"type":"object","required":["type"],
-               "properties":{
-                 "type":{"type":"string","enum":["reveal_email","reveal_asset","reveal_suspect","add_email_attachment","send_notification","update_suspect_status","mark_alibi_verified"]},
-                 "status":{"type":["string","null"],"enum":["suspect","cleared","confirmed_culprit",null]},
-                 "level":{"type":["string","null"],"enum":["info","warn","critical",null]}
-               }}}}}}}}
-    """;
+    private static readonly string Schema = MicrotaskSchemas.Rules;
 
     public async Task RunAsync(CaseDraft draft, CancellationToken ct)
     {
@@ -97,24 +108,20 @@ public class RulesTask
         var unlockMode = string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase)
             ? "all_initial" : "gated";
 
-        var existingRulesSummary = draft.Rules.Select(r => new
-        {
-            r.RuleId,
-            trigger = r.Trigger.Type,
-            actions = r.Actions.Select(a => a.Type).ToList()
-        });
-
         var ctxJson = System.Text.Json.JsonSerializer.Serialize(new
         {
-            culpritId = draft.CulpritId,
+            language = draft.Request.Language ?? "en-US",
             unlockMode,
             assets = draft.AssetStubs.Select(a => a.Id),
             resultAssets = draft.ResultAssets.Select(a => a.Id),
             emails = draft.FollowUpEmails.Select(e => e.Id),
             resultEmails = draft.ResultEmails.Select(e => e.Id),
-            suspects = draft.SuspectFull.Select(s => new { s.Id, s.Name, isCulprit = s.Id == draft.CulpritId, s.AlibiVerified }),
+            suspects = draft.SuspectFull.Select(s => new { s.Id, s.Name, s.AlibiVerified }),
             briefingEmailId = "email.briefing",
-            preBuiltRules = existingRulesSummary
+            analysisTypes = draft.AnalysisTypes,
+            preBuiltRules = draft.Rules,
+            canonical = draft.Bible is null ? draft.GetComponents() : System.Text.Json.Nodes.JsonNode.Parse(
+                CaseBibleAuthorship.Context(draft, draft.Bible.Sources.Where(s => s.Type != "profile").Select(s => s.Id).ToArray()))
         });
 
         var system = @"You are writing ONLY the narrative `rules` for the case runtime.
@@ -128,32 +135,29 @@ ALLOWED action.type values:
   reveal_email, reveal_asset, reveal_suspect, add_email_attachment, send_notification, update_suspect_status, mark_alibi_verified
 
 Sensible narrative rules to consider (emit 0-4 total — quality over quantity):
-- `email_opened` of a key lab-result email → `send_notification` (level info) flagging the matched suspect.
-- `email_opened` of the briefing → `mark_alibi_verified` for a decoy whose alibi was independently verified up-front.
+- `email_opened` of a key lab-result email → `send_notification` (level info) suggesting examination of its documented findings.
+- Independently supported alibi verification is already in the public profiles; do not invent verification or clear suspects.
 - `asset_viewed` of a turning-point asset → `send_notification` (level info or warn) nudging the next step.
 - `multiple_conditions` AND/OR composing two earlier triggers when the case naturally needs a delayed reveal.
 
 You may emit ZERO rules if the case doesn't need any extra narrative beats. NEVER duplicate a preBuiltRule.
-All referenced IDs MUST exist in the supplied context.";
+All referenced IDs MUST exist in the supplied context.
+When caseBible is present, all discovery and alibi support is already compiled. Emit ONLY neutral send_notification
+actions, never a new reveal, guilt announcement, exoneration or verification shortcut.";
 
         var user = $@"CONTEXT:
 {ctxJson}
 
 Emit JSON only. The `rules` array contains ONLY new narrative rules (do not echo preBuiltRules).";
 
-        var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "Rules", system, user, Schema, ct);
-
-        // Append new rules to the pre-built ones, skipping duplicates.
-        var existingIds = draft.Rules.Select(r => r.RuleId).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var r in o.Rules)
-        {
-            // Defensive: coerce `rule_xxx` (underscore) → `rule.xxx` (dot) if the LLM drifts.
-            if (r.RuleId.StartsWith("rule_", StringComparison.Ordinal))
-                r.RuleId = "rule." + r.RuleId.Substring(5);
-            if (r.RuleId.StartsWith("rule-", StringComparison.Ordinal))
-                r.RuleId = "rule." + r.RuleId.Substring(5);
-            if (string.IsNullOrEmpty(r.RuleId) || !existingIds.Add(r.RuleId)) continue;
-            draft.Rules.Add(r);
-        }
+        var o = await TaskRunner.RunStructuredAsync<Output>(_llm, _logger, "Rules", system, user, Schema, ct,
+            validate: output =>
+            {
+                MicrotaskValidation.Rules(output.Rules, draft);
+                if (draft.Bible is not null)
+                    TaskContractException.Require(output.Rules.SelectMany(r => r.Actions).All(a => a.Type == "send_notification"),
+                        "Canonical discovery/verification cannot be rewritten by narrative rules.");
+            });
+        draft.Rules.AddRange(o.Rules);
     }
 }

@@ -26,9 +26,9 @@ public class CaseV2SanitizerService : ICaseV2SanitizerService
             Version = caseData.Version,
             CaseId = caseData.CaseId,
             Metadata = caseData.Metadata,
-            Assets = caseData.Assets.Where(a => a.Visibility == "initial").ToList(),
-            Emails = caseData.Emails.Where(e => e.Visibility == "initial").ToList(),
-            Suspects = caseData.Suspects.Where(s => s.Visibility == "initial").ToList(),
+            Assets = caseData.Assets.Where(a => caseData.Metadata.IsAllInitial || a.Visibility == "initial").ToList(),
+            Emails = caseData.Emails.Where(e => caseData.Metadata.IsAllInitial || e.Visibility == "initial").ToList(),
+            Suspects = caseData.Suspects.Where(s => caseData.Metadata.IsAllInitial || s.Visibility == "initial").ToList(),
             Timeline = caseData.Timeline,
             ForensicsDefaults = caseData.ForensicsDefaults is null
                 ? null
@@ -55,6 +55,7 @@ public class CaseV2SanitizerService : ICaseV2SanitizerService
         var session = await _context.CaseSessions
             .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
             .OrderByDescending(cs => cs.SessionStart)
+            .ThenByDescending(cs => cs.Id)
             .FirstOrDefaultAsync(ct);
 
         var revealedSuspectIds = ParseStringList(session?.RevealedSuspectIds);
@@ -62,15 +63,21 @@ public class CaseV2SanitizerService : ICaseV2SanitizerService
         var statusOverrides = ParseDict<string>(session?.SuspectStatusOverrides);
         var alibiOverrides = ParseDict<bool>(session?.SuspectAlibiVerified);
         var syntheticEmails = ParseList<CaseV2Email>(session?.SyntheticEmails);
+        var emailStates = await _context.CaseSessionEmailStates
+            .Where(s => s.UserId == userId && s.CaseId == caseId)
+            .ToDictionaryAsync(s => s.EmailId, s => new CaseZeroApi.DTOs.EmailStateDto
+            {
+                EmailId = s.EmailId, ReadAt = s.ReadAt, OpenCount = s.OpenCount
+            }, ct);
 
         // Assets: visible = those flagged 'initial' OR present in session visible list
         var assets = caseData.Assets
-            .Where(a => a.Visibility == "initial" || visibleAssetIds.Contains(a.Id))
+            .Where(a => caseData.Metadata.IsAllInitial || a.Visibility == "initial" || visibleAssetIds.Contains(a.Id))
             .ToList();
 
         // Emails: same logic + apply attachment overrides + add synthetic emails
         var emails = caseData.Emails
-            .Where(e => e.Visibility == "initial" || visibleEmailIds.Contains(e.Id))
+            .Where(e => caseData.Metadata.IsAllInitial || e.Visibility == "initial" || visibleEmailIds.Contains(e.Id))
             .Select(e =>
             {
                 if (attachmentOverrides.TryGetValue(e.Id, out var extra) && extra is not null && extra.Count > 0)
@@ -99,7 +106,7 @@ public class CaseV2SanitizerService : ICaseV2SanitizerService
 
         // Suspects: initial + revealed; apply status & alibi overrides
         var suspects = caseData.Suspects
-            .Where(s => s.Visibility == "initial" || revealedSuspectIds.Contains(s.Id))
+            .Where(s => caseData.Metadata.IsAllInitial || s.Visibility == "initial" || revealedSuspectIds.Contains(s.Id))
             .Select(s => ApplyOverrides(s, statusOverrides, alibiOverrides))
             .ToList();
 
@@ -111,6 +118,8 @@ public class CaseV2SanitizerService : ICaseV2SanitizerService
             Assets = assets,
             Emails = emails,
             Suspects = suspects,
+            Notifications = ParseList<RulesEngineService.SessionNotification>(session?.Notifications) ?? new(),
+            EmailStates = emailStates,
             Timeline = caseData.Timeline,
             ForensicsDefaults = caseData.ForensicsDefaults is null
                 ? null
@@ -167,21 +176,29 @@ public class CaseV2SanitizerService : ICaseV2SanitizerService
         Localizations = g.Localizations
     };
 
-    private static List<string> ParseStringList(string? json)
+    private List<string> ParseStringList(string? json)
     {
-        if (string.IsNullOrWhiteSpace(json)) return new();
-        try { return JsonSerializer.Deserialize<List<string>>(json) ?? new(); } catch { return new(); }
+        return Parse<List<string>>(json);
     }
 
-    private static List<T>? ParseList<T>(string? json)
+    private List<T> ParseList<T>(string? json)
     {
-        if (string.IsNullOrWhiteSpace(json)) return null;
-        try { return JsonSerializer.Deserialize<List<T>>(json); } catch { return null; }
+        return Parse<List<T>>(json);
     }
 
-    private static Dictionary<string, T> ParseDict<T>(string? json)
+    private Dictionary<string, T> ParseDict<T>(string? json)
+    {
+        return Parse<Dictionary<string, T>>(json);
+    }
+
+    private T Parse<T>(string? json) where T : new()
     {
         if (string.IsNullOrWhiteSpace(json)) return new();
-        try { return JsonSerializer.Deserialize<Dictionary<string, T>>(json) ?? new(); } catch { return new(); }
+        try { return JsonSerializer.Deserialize<T>(json) ?? throw new InvalidDataException("Session progression state is null."); }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Invalid persisted session progression state");
+            throw;
+        }
     }
 }

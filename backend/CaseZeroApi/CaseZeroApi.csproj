@@ -23,4 +23,8 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="../../shared/RuleConditions.cs" Link="Shared/RuleConditions.cs" />
+  </ItemGroup>
+
 </Project>

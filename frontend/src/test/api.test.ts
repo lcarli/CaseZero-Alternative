@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { authApi } from '../services/api'
+import { authApi, casesV2Api } from '../services/api'
 
 // Mock fetch
 const mockFetch = vi.fn()
@@ -122,5 +122,26 @@ describe('API Service', () => {
       )
       expect(result).toEqual(mockResponse)
     })
+  })
+
+  it('preserves numeric partial-credit scores returned by the case submission API', async () => {
+    const result = {
+      correct: false, score: 0.65,
+      breakdown: { culpritScore: 0.4, evidenceScore: 0.1, analysisScore: 0.15, questionsScore: 0 },
+      attemptsRemaining: 2, feedbackText: 'Not quite.', explanationMarkdown: null,
+    }
+    mockFetch.mockResolvedValueOnce({
+      ok: true, status: 200,
+      headers: { get: (name: string) => name === 'content-type' ? 'application/json' : null },
+      json: async () => result,
+    })
+    const response = await casesV2Api.submitCase('case_progression', {
+      suspectId: 'suspect.one', evidenceIds: [], analysisIds: [], answers: [],
+    })
+    expect(response.breakdown).toEqual(result.breakdown)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:5001/api/cases/case_progression/submit',
+      expect.objectContaining({ method: 'POST' }),
+    )
   })
 })

@@ -18,17 +18,23 @@ public class CaseTriggersController : ControllerBase
     private readonly IRulesEngineService _rulesEngine;
     private readonly ICaseV2StorageService _storage;
     private readonly ILogger<CaseTriggersController> _logger;
+    private readonly CaseGameClock _clock;
+    private readonly ICaseV2SanitizerService _sanitizer;
 
     public CaseTriggersController(
         ApplicationDbContext context,
         IRulesEngineService rulesEngine,
         ICaseV2StorageService storage,
-        ILogger<CaseTriggersController> logger)
+        ILogger<CaseTriggersController> logger,
+        CaseGameClock clock,
+        ICaseV2SanitizerService sanitizer)
     {
         _context = context;
         _rulesEngine = rulesEngine;
         _storage = storage;
         _logger = logger;
+        _clock = clock;
+        _sanitizer = sanitizer;
     }
 
     private string? UserId() => User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -38,6 +44,11 @@ public class CaseTriggersController : ControllerBase
     {
         var userId = UserId();
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var data = await _storage.GetRawAsync(caseId, ct);
+        if (data is null) return NotFound(new { error = "case_not_found" });
+        var visible = await _sanitizer.SanitizeForUserAsync(data, userId, caseId, ct);
+        if (!visible.Assets.Any(a => a.Id == assetId))
+            return StatusCode(403, new { error = "asset_not_visible" });
         await _rulesEngine.EvaluateAndApplyAsync(caseId, userId, new AssetViewedTrigger(assetId), ct);
         return Ok(new { caseId, assetId, trigger = "asset_viewed" });
     }
@@ -47,6 +58,11 @@ public class CaseTriggersController : ControllerBase
     {
         var userId = UserId();
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
+        var data = await _storage.GetRawAsync(caseId, ct);
+        if (data is null) return NotFound(new { error = "case_not_found" });
+        var visible = await _sanitizer.SanitizeForUserAsync(data, userId, caseId, ct);
+        if (!visible.Suspects.Any(s => s.Id == suspectId))
+            return StatusCode(403, new { error = "suspect_not_visible" });
         await _rulesEngine.EvaluateAndApplyAsync(caseId, userId, new SuspectViewedTrigger(suspectId), ct);
         return Ok(new { caseId, suspectId, trigger = "suspect_viewed" });
     }
@@ -60,71 +76,18 @@ public class CaseTriggersController : ControllerBase
         if (string.IsNullOrEmpty(userId)) return Unauthorized();
         if (body is null) return BadRequest(new { error = "Body required" });
 
-        var gameTime = body.GameTimeMinutes;
-
-        // Fire rules with time_elapsed trigger
-        await _rulesEngine.EvaluateAndApplyAsync(caseId, userId, new TimeElapsedTrigger(gameTime), ct);
-
-        // Process temporalEvents (idempotent via FiredTemporalEventIds)
+        if (body.GameTimeMinutes < 0) return BadRequest(new { error = "invalid_game_time" });
+        var session = await _context.CaseSessions
+            .Where(s => s.UserId == userId && s.CaseId == caseId)
+            .OrderByDescending(s => s.SessionStart).ThenByDescending(s => s.Id)
+            .FirstOrDefaultAsync(ct);
+        if (session is null) return NotFound(new { error = "session_not_found" });
         var caseData = await _storage.GetRawAsync(caseId, ct);
-        var firedTemporalIds = new List<string>();
-        if (caseData?.TemporalEvents is { Count: > 0 })
-        {
-            var session = await _context.CaseSessions
-                .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
-                .OrderByDescending(cs => cs.SessionStart)
-                .FirstOrDefaultAsync(ct);
-
-            if (session is not null)
-            {
-                var fired = ParseList(session.FiredTemporalEventIds);
-                var pending = caseData.TemporalEvents
-                    .Where(te => te.TriggerAtMinutes <= gameTime && !fired.Contains(te.Id))
-                    .ToList();
-
-                foreach (var te in pending)
-                {
-                    fired.Add(te.Id);
-                    firedTemporalIds.Add(te.Id);
-                    // Reveal email / asset payloads, or just record a memo
-                    if (!string.IsNullOrEmpty(te.Payload?.EmailId))
-                    {
-                        var existsE = await _context.CaseSessionVisibleEmails
-                            .AnyAsync(v => v.UserId == userId && v.CaseId == caseId && v.EmailId == te.Payload.EmailId, ct);
-                        if (!existsE)
-                            _context.CaseSessionVisibleEmails.Add(new CaseSessionVisibleEmail
-                            {
-                                UserId = userId,
-                                CaseId = caseId,
-                                EmailId = te.Payload.EmailId,
-                                UnlockedAt = DateTime.UtcNow
-                            });
-                    }
-                    if (!string.IsNullOrEmpty(te.Payload?.AssetId))
-                    {
-                        var existsA = await _context.CaseSessionVisibleAssets
-                            .AnyAsync(v => v.UserId == userId && v.CaseId == caseId && v.AssetId == te.Payload.AssetId, ct);
-                        if (!existsA)
-                            _context.CaseSessionVisibleAssets.Add(new CaseSessionVisibleAsset
-                            {
-                                UserId = userId,
-                                CaseId = caseId,
-                                AssetId = te.Payload.AssetId,
-                                UnlockedAt = DateTime.UtcNow
-                            });
-                    }
-                }
-                session.FiredTemporalEventIds = JsonSerializer.Serialize(fired);
-                await _context.SaveChangesAsync(ct);
-            }
-        }
-
-        return Ok(new { caseId, gameTimeMinutes = gameTime, firedTemporalEventIds = firedTemporalIds });
-    }
-
-    private static List<string> ParseList(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return new();
-        try { return JsonSerializer.Deserialize<List<string>>(json) ?? new(); } catch { return new(); }
+        if (caseData is null) return NotFound(new { error = "case_not_found" });
+        _clock.Initialize(session, CaseGameClock.Parse(caseData.Metadata.OpenedAt));
+        var clock = _clock.Capture(session);
+        await _rulesEngine.EvaluateAndApplyAsync(caseId, userId,
+            new TimeElapsedTrigger((int)Math.Floor(clock.ElapsedMinutes)), ct);
+        return Ok(new { caseId, gameTimeMinutes = clock.ElapsedMinutes, gameClock = clock });
     }
 }

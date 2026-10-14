@@ -2,6 +2,8 @@ using System.Text.Json;
 using CaseZeroApi.Data;
 using CaseZeroApi.Models;
 using Microsoft.EntityFrameworkCore;
+using CaseZero.Progression;
+using CaseZeroApi.Models.CaseV2;
 
 namespace CaseZeroApi.Services;
 
@@ -34,11 +36,12 @@ public class RulesEngineService : IRulesEngineService
         CancellationToken ct = default)
     {
         var caseData = await _v2Storage.GetRawAsync(caseId, ct);
-        if (caseData?.Rules is null || caseData.Rules.Count == 0) return;
+        if (caseData is null) throw new InvalidDataException($"Case '{caseId}' was not found.");
 
         var session = await _context.CaseSessions
             .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
             .OrderByDescending(cs => cs.SessionStart)
+            .ThenByDescending(cs => cs.Id)
             .FirstOrDefaultAsync(ct);
         if (session is null)
         {
@@ -47,63 +50,68 @@ public class RulesEngineService : IRulesEngineService
         }
 
         var firedRuleIds = ParseList(session.FiredRuleIds);
-        var dirty = false;
+        var observed = Parse<List<ObservedCaseTrigger>>(session.ObservedTriggers);
+        var fact = ObservedCaseTrigger.From(trigger);
+        if (fact is not null && !observed.Contains(fact)) observed.Add(fact);
+        session.ObservedTriggers = JsonSerializer.Serialize(observed);
+        if (trigger is AttachmentDownloadTrigger attachment)
+            await ApplyActionsAsync(new[] { new CaseV2Action { Type = "reveal_asset", AssetId = attachment.AssetId } },
+                session, userId, caseId, ct);
+        if (trigger is TimeElapsedTrigger elapsed)
+        {
+            session.GameTimeMinutes = Math.Max(session.GameTimeMinutes, elapsed.GameTimeMinutes);
+            await ApplyTemporalEventsAsync(caseData, session, userId, caseId, ct);
+        }
 
-        foreach (var rule in caseData.Rules)
+        foreach (var rule in caseData.Rules ?? new())
         {
             if (firedRuleIds.Contains(rule.RuleId)) continue;
-            if (!TriggerMatches(rule.Trigger, trigger)) continue;
+            if (!RuleConditions.Satisfied(rule.Trigger, c => LeafMatches(c, observed, session.GameTimeMinutes))) continue;
 
             await ApplyActionsAsync(rule.Actions, session, userId, caseId, ct);
             firedRuleIds.Add(rule.RuleId);
-            dirty = true;
             _logger.LogInformation("Rule {RuleId} fired for user {UserId} case {CaseId}", rule.RuleId, userId, caseId);
         }
 
-        if (dirty)
-        {
-            session.FiredRuleIds = JsonSerializer.Serialize(firedRuleIds);
-            await _context.SaveChangesAsync(ct);
-        }
+        session.FiredRuleIds = JsonSerializer.Serialize(firedRuleIds);
+        await _context.SaveChangesAsync(ct);
     }
 
-    private static bool TriggerMatches(Models.CaseV2.CaseV2Trigger def, RuleTrigger fired)
+    private static bool LeafMatches(CaseV2Trigger def, List<ObservedCaseTrigger> observed, double elapsed)
     {
-        return def.Type switch
+        if (def.Type == "time_elapsed") return def.AtMinutes.HasValue && elapsed >= def.AtMinutes.Value;
+        return observed.Any(f => def.Type switch
         {
-            "forensics_complete" when fired is ForensicsCompleteTrigger f =>
-                def.InputAssetId == f.InputAssetId &&
+            "forensics_complete" when f.Type == def.Type =>
+                def.InputAssetId == f.AssetId &&
                 string.Equals(def.AnalysisType, f.AnalysisType, StringComparison.OrdinalIgnoreCase),
-
-            "attachment_download" when fired is AttachmentDownloadTrigger a =>
-                (def.EmailId is null || def.EmailId == a.EmailId) &&
-                (def.AssetId is null || def.AssetId == a.AssetId),
-
-            "asset_viewed" when fired is AssetViewedTrigger v =>
-                def.AssetId == v.AssetId || def.InputAssetId == v.AssetId,
-
-            "email_opened" when fired is EmailOpenedTrigger e =>
-                def.EmailId == e.EmailId,
-
-            "suspect_viewed" when fired is SuspectViewedTrigger s =>
-                def.SuspectId == s.SuspectId,
-
-            "time_elapsed" when fired is TimeElapsedTrigger t =>
-                def.AtMinutes.HasValue && t.GameTimeMinutes >= def.AtMinutes.Value,
-
-            "multiple_conditions" =>
-                EvaluateMultiple(def, fired),
-
+            "attachment_download" when f.Type == def.Type =>
+                (def.EmailId is null || def.EmailId == f.EmailId) &&
+                (def.AssetId is null || def.AssetId == f.AssetId),
+            "asset_viewed" when f.Type == def.Type => def.AssetId == f.AssetId || def.InputAssetId == f.AssetId,
+            "email_opened" when f.Type == def.Type => def.EmailId == f.EmailId,
+            "suspect_viewed" when f.Type == def.Type => def.SuspectId == f.SuspectId,
             _ => false
-        };
+        });
     }
 
-    private static bool EvaluateMultiple(Models.CaseV2.CaseV2Trigger def, RuleTrigger fired)
+    private async Task ApplyTemporalEventsAsync(CaseV2 caseData, CaseSession session, string userId, string caseId, CancellationToken ct)
     {
-        if (def.Conditions is null || def.Conditions.Count == 0) return false;
-        if (string.Equals(def.Operator, "OR", StringComparison.OrdinalIgnoreCase))
-            return def.Conditions.Any(c => TriggerMatches(c, fired));
-        return def.Conditions.All(c => TriggerMatches(c, fired));
+        var fired = ParseList(session.FiredTemporalEventIds);
+        foreach (var item in caseData.TemporalEvents ?? new())
+        {
+            if (item.TriggerAtMinutes > session.GameTimeMinutes || fired.Contains(item.Id)) continue;
+            var actions = new List<CaseV2Action>();
+            if (!string.IsNullOrEmpty(item.Payload?.EmailId))
+                actions.Add(new() { Type = "reveal_email", EmailId = item.Payload.EmailId });
+            if (!string.IsNullOrEmpty(item.Payload?.AssetId))
+                actions.Add(new() { Type = "reveal_asset", AssetId = item.Payload.AssetId });
+            if (!string.IsNullOrEmpty(item.Payload?.Message))
+                actions.Add(new() { Type = "send_notification", Message = item.Payload.Message, Level = "info" });
+            await ApplyActionsAsync(actions, session, userId, caseId, ct);
+            fired.Add(item.Id);
+        }
+        session.FiredTemporalEventIds = JsonSerializer.Serialize(fired);
     }
 
     private async Task ApplyActionsAsync(
@@ -119,7 +127,9 @@ public class RulesEngineService : IRulesEngineService
             {
                 case "reveal_email" when !string.IsNullOrEmpty(action.EmailId):
                     {
-                        var exists = await _context.CaseSessionVisibleEmails
+                        var exists = _context.CaseSessionVisibleEmails.Local.Any(v =>
+                            v.UserId == userId && v.CaseId == caseId && v.EmailId == action.EmailId) ||
+                            await _context.CaseSessionVisibleEmails
                             .AnyAsync(v => v.UserId == userId && v.CaseId == caseId && v.EmailId == action.EmailId, ct);
                         if (!exists)
                             _context.CaseSessionVisibleEmails.Add(new CaseSessionVisibleEmail
@@ -133,7 +143,9 @@ public class RulesEngineService : IRulesEngineService
                     }
                 case "reveal_asset" when !string.IsNullOrEmpty(action.AssetId):
                     {
-                        var exists = await _context.CaseSessionVisibleAssets
+                        var exists = _context.CaseSessionVisibleAssets.Local.Any(v =>
+                            v.UserId == userId && v.CaseId == caseId && v.AssetId == action.AssetId) ||
+                            await _context.CaseSessionVisibleAssets
                             .AnyAsync(v => v.UserId == userId && v.CaseId == caseId && v.AssetId == action.AssetId, ct);
                         if (!exists)
                             _context.CaseSessionVisibleAssets.Add(new CaseSessionVisibleAsset
@@ -187,40 +199,39 @@ public class RulesEngineService : IRulesEngineService
                     }
                 default:
                     _logger.LogWarning("Unknown or malformed action type {Type}", action.Type);
-                    break;
+                    throw new InvalidDataException($"Unknown or malformed rule action '{action.Type}'.");
             }
         }
     }
 
     private static List<string> ParseList(string? json)
     {
-        if (string.IsNullOrWhiteSpace(json)) return new();
-        try { return JsonSerializer.Deserialize<List<string>>(json) ?? new(); } catch { return new(); }
+        return Parse<List<string>>(json);
     }
 
     private static Dictionary<string, string> ParseDict(string? json)
     {
-        if (string.IsNullOrWhiteSpace(json)) return new();
-        try { return JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new(); } catch { return new(); }
+        return Parse<Dictionary<string, string>>(json);
     }
 
     private static Dictionary<string, bool> ParseBoolDict(string? json)
     {
-        if (string.IsNullOrWhiteSpace(json)) return new();
-        try { return JsonSerializer.Deserialize<Dictionary<string, bool>>(json) ?? new(); } catch { return new(); }
+        return Parse<Dictionary<string, bool>>(json);
     }
 
     private static Dictionary<string, List<string>> ParseStringListDict(string? json)
     {
-        if (string.IsNullOrWhiteSpace(json)) return new();
-        try { return JsonSerializer.Deserialize<Dictionary<string, List<string>>>(json) ?? new(); } catch { return new(); }
+        return Parse<Dictionary<string, List<string>>>(json);
     }
 
     private static List<SessionNotification> ParseNotifications(string? json)
     {
-        if (string.IsNullOrWhiteSpace(json)) return new();
-        try { return JsonSerializer.Deserialize<List<SessionNotification>>(json) ?? new(); } catch { return new(); }
+        return Parse<List<SessionNotification>>(json);
     }
+
+    private static T Parse<T>(string? json) where T : new() =>
+        string.IsNullOrWhiteSpace(json) ? new() :
+            JsonSerializer.Deserialize<T>(json) ?? throw new InvalidDataException("Session progression state is null.");
 
     public record SessionNotification(string Level, string Message, DateTime At);
 }

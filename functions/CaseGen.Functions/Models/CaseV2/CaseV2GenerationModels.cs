@@ -37,7 +37,62 @@ public class GenerateCaseV2Response
     public Services.CaseV2.ConsistencyReport? Consistency { get; set; }
     public Services.CaseV2.Tasks.RedTeamTask.Report? RedTeam { get; set; }
     public Services.CaseV2.Tasks.SolverTask.SolverResult? Solver { get; set; }
+    public CaseQualityReport Quality { get; set; } = new();
+    public CaseRepairReport Repair { get; set; } = new();
+    public CaseBundleReport? Bundle { get; set; }
 }
+
+public class CaseBundleReport
+{
+    public string BundleId { get; set; } = string.Empty;
+    public int Revision { get; set; }
+    public bool Verified { get; set; }
+    public int AssetsVerified { get; set; }
+    public long TotalBytes { get; set; }
+    public string ManifestChecksum { get; set; } = string.Empty;
+}
+
+public class CaseRepairReport
+{
+    public bool Attempted { get; set; }
+    public bool Accepted { get; set; }
+    public int BaseRevision { get; set; }
+    public int? CandidateRevision { get; set; }
+    public List<string> ChangedComponents { get; set; } = new();
+    public List<string> OriginalBlockers { get; set; } = new();
+    public string? ErrorCode { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+public class CaseQualityReport
+{
+    public int Revision { get; set; }
+    public int? ReviewedRevision { get; set; }
+    public bool Approved { get; set; }
+    public bool Preview { get; set; }
+    public bool PersistenceRequested { get; set; }
+    public bool Persisted { get; set; }
+    public bool PublicationRequested { get; set; }
+    public bool Published { get; set; }
+    public string SolverMode => "diagnostic";
+    public List<CaseQualityIssue> Issues { get; set; } = new();
+
+    [JsonIgnore] public bool HasBlockingIssues => Issues.Any(issue => issue.Blocking);
+
+    public void Block(string code, string area, string message, string? reference = null)
+    {
+        Approved = false;
+        Issues.Add(new CaseQualityIssue(code, "high", area, reference, message, true));
+    }
+}
+
+public record CaseQualityIssue(
+    string Code,
+    string Severity,
+    string Area,
+    string? Reference,
+    string Message,
+    bool Blocking);
 
 // ----- Stage 1: Plot -----
 public class PlotResult
@@ -70,7 +125,7 @@ public class PlotVictim
     [JsonPropertyName("occupation")] public string Occupation { get; set; } = string.Empty;
 }
 
-public class PlotSuspect
+public class PlotSuspect : CaseAuthoredContent
 {
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("name")] public string Name { get; set; } = string.Empty;
@@ -83,7 +138,7 @@ public class PlotSuspect
     [JsonPropertyName("background")] public string? Background { get; set; }
 }
 
-public class PlotBriefingEmail
+public class PlotBriefingEmail : CaseAuthoredContent
 {
     [JsonPropertyName("from")] public string From { get; set; } = string.Empty;
     [JsonPropertyName("subject")] public string Subject { get; set; } = string.Empty;
@@ -99,7 +154,7 @@ public class EvidenceResult
     [JsonPropertyName("emails")] public List<EvidenceEmail> Emails { get; set; } = new();
 }
 
-public class EvidenceAsset
+public class EvidenceAsset : CaseAuthoredContent
 {
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("type")] public string Type { get; set; } = "pdf";
@@ -116,6 +171,8 @@ public class EvidenceAsset
     /// pdf/document/digital assets so the renderer can produce real tables,
     /// transcripts, key/value blocks, etc.</summary>
     [JsonPropertyName("bodyDoc")] public EvidenceDocument? BodyDoc { get; set; }
+    [JsonIgnore] public bool PreparedForReview { get; set; }
+    [JsonIgnore] public bool CanonicalContent { get; set; }
 }
 
 public class EvidenceTimelineEntry
@@ -142,7 +199,7 @@ public class EvidenceTemporalPayload
     [JsonPropertyName("message")] public string? Message { get; set; }
 }
 
-public class EvidenceEmail
+public class EvidenceEmail : CaseAuthoredContent
 {
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("from")] public string From { get; set; } = string.Empty;
@@ -170,7 +227,7 @@ public class ForensicsAnalysisType
     [JsonPropertyName("availableFor")] public List<string> AvailableFor { get; set; } = new();
 }
 
-public class ForensicsOutcome
+public class ForensicsOutcome : CaseAuthoredContent
 {
     [JsonPropertyName("inputAssetId")] public string InputAssetId { get; set; } = string.Empty;
     [JsonPropertyName("analysisType")] public string AnalysisType { get; set; } = string.Empty;
@@ -196,7 +253,7 @@ public class RulesRule
     [JsonPropertyName("actions")] public List<RulesAction> Actions { get; set; } = new();
 }
 
-public class RulesTrigger
+public class RulesTrigger : CaseZero.Progression.IRuleCondition<RulesTrigger>
 {
     [JsonPropertyName("type")] public string Type { get; set; } = string.Empty;
     [JsonPropertyName("inputAssetId")] public string? InputAssetId { get; set; }
@@ -207,6 +264,7 @@ public class RulesTrigger
     [JsonPropertyName("atMinutes")] public int? AtMinutes { get; set; }
     [JsonPropertyName("operator")] public string? Operator { get; set; }
     [JsonPropertyName("conditions")] public List<RulesTrigger>? Conditions { get; set; }
+    IReadOnlyList<RulesTrigger>? CaseZero.Progression.IRuleCondition<RulesTrigger>.Children => Conditions;
 }
 
 public class RulesAction
@@ -229,12 +287,13 @@ public class SolutionResult
     [JsonPropertyName("requiredAnalysisIds")] public List<string> RequiredAnalysisIds { get; set; } = new();
     [JsonPropertyName("questions")] public List<SolutionQuestion> Questions { get; set; } = new();
     [JsonPropertyName("explanation")] public string Explanation { get; set; } = string.Empty;
+    [JsonPropertyName("explanationSupport")] public List<CaseContentSupport> ExplanationSupport { get; set; } = new();
     [JsonPropertyName("minimumScore")] public double MinimumScore { get; set; } = 0.7;
     [JsonPropertyName("maxAttempts")] public int MaxAttempts { get; set; } = 3;
     [JsonPropertyName("partialCreditRules")] public SolutionPartialCredit PartialCreditRules { get; set; } = new();
 }
 
-public class SolutionQuestion
+public class SolutionQuestion : CaseAuthoredContent
 {
     [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
     [JsonPropertyName("prompt")] public string Prompt { get; set; } = string.Empty;

@@ -292,6 +292,7 @@ public class CaseV2StorageService : ICaseV2StorageService
         ".png" => "image/png",
         ".jpg" or ".jpeg" => "image/jpeg",
         ".gif" => "image/gif",
+        ".webp" => "image/webp",
         ".txt" => "text/plain",
         ".json" => "application/json",
         ".html" or ".htm" => "text/html",

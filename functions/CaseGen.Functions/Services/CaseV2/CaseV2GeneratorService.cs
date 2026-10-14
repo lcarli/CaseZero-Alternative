@@ -3,10 +3,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using CaseGen.Functions.Models.CaseV2;
 using CaseGen.Functions.Services.CaseV2.Tasks;
+using Json.Schema;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Schema;
 
 namespace CaseGen.Functions.Services.CaseV2;
 
@@ -42,9 +41,8 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
     private readonly ICaseV2BlobPublisher _blobPublisher;
     private readonly MechanicalRulesBuilder _mechanicalRules;
     private readonly IConsistencyValidator _consistency;
-    private readonly ISchemaErrorAutoFixer _autoFixer;
     private readonly ILogger<CaseV2GeneratorService> _logger;
-    private readonly JSchema _v2Schema;
+    private readonly JsonSchema _v2Schema;
     private readonly string _v2SchemaJson;
 
     public CaseV2GeneratorService(
@@ -54,7 +52,6 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         ICaseV2BlobPublisher blobPublisher,
         MechanicalRulesBuilder mechanicalRules,
         IConsistencyValidator consistency,
-        ISchemaErrorAutoFixer autoFixer,
         ILogger<CaseV2GeneratorService> logger)
     {
         _llm = llm;
@@ -63,12 +60,11 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         _blobPublisher = blobPublisher;
         _mechanicalRules = mechanicalRules;
         _consistency = consistency;
-        _autoFixer = autoFixer;
         _logger = logger;
 
         var schemaPath = ResolveSchemaPath();
         _v2SchemaJson = File.ReadAllText(schemaPath);
-        _v2Schema = JSchema.Parse(_v2SchemaJson);
+        _v2Schema = StructuredJson.ParseSchema(_v2SchemaJson);
         _logger.LogInformation("CaseV2 generator loaded schema from {Path}", schemaPath);
     }
 
@@ -77,9 +73,11 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
     public async Task<GenerateCaseV2Response> GenerateAsync(GenerateCaseV2Request request, IJobPhaseReporter reporter, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+        GenerationRequestValidator.Validate(request);
         var draft = new CaseDraft
         {
-            CaseId = NormaliseCaseId(request.CaseId),
+            CaseId = GenerationRequestValidator.NormalizeCaseId(request.CaseId),
             Request = request
         };
 
@@ -92,12 +90,15 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         // The reporter swallows its own exceptions so it never breaks the pipeline.
         async Task Stage(string name, Func<Task> body)
         {
+            ct.ThrowIfCancellationRequested();
             await reporter.ReportPhaseAsync(name, ct);
             await TimeStage(name, stageMs, body);
+            ct.ThrowIfCancellationRequested();
         }
 
         // === Phase 1: plot outline (sequential gate)
         await Stage("plotOutline", () => new PlotOutlineTask(_llm, _logger).RunAsync(draft, ct));
+        await Stage("caseBible", () => new CaseBibleTask(_llm, _logger).RunAsync(draft, ct));
 
         // === Phase 2: suspect cards in parallel
         await Stage("suspectCards", async () =>
@@ -106,9 +107,6 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             var results = await Task.WhenAll(draft.SuspectStubs.Select(stub => task.RunAsync(draft, stub, ct)));
             draft.SuspectFull = results.ToList();
         });
-
-        // === Phase 3: asset plan (gate)
-        await Stage("assetPlan", () => new AssetPlanTask(_llm, _logger).RunAsync(draft, ct));
 
         // === Phase 4: asset cards + timeline + briefing in parallel
         await Stage("assetsAndTimelineAndBriefing", async () =>
@@ -119,14 +117,11 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             var timelineTask = new TimelineTask(_llm, _logger).RunAsync(draft, ct);
             var briefingTask = new BriefingEmailTask(_llm, _logger).RunAsync(draft, ct);
 
+            await Task.WhenAll(assetsTask, timelineTask, briefingTask);
             var assets = await assetsTask;
-            await timelineTask;
-            await briefingTask;
             draft.AssetFull = assets.ToList();
+            _renderer.PrepareForReview(draft.AssetFull);
         });
-
-        // === Phase 5: forensics plan (gate)
-        await Stage("forensicsPlan", () => new ForensicsPlanTask(_llm, _logger).RunAsync(draft, ct));
 
         // === Phase 6: outcome details + initial emails in parallel
         await Stage("outcomesAndInitialEmails", async () =>
@@ -135,8 +130,13 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             var detailTasks = draft.ForensicStubs.Select(s => outcomeTask.RunAsync(draft, s, ct));
             var emailsTask = new InitialEmailsTask(_llm, _logger).RunAsync(draft, ct);
 
-            var details = await Task.WhenAll(detailTasks);
-            await emailsTask;
+            var detailsTask = Task.WhenAll(detailTasks);
+            await Task.WhenAll(detailsTask, emailsTask);
+            var details = await detailsTask;
+            MicrotaskValidation.Unique(draft.AssetFull.Select(a => a.Id)
+                .Concat(details.Where(d => d.asset is not null).Select(d => d.asset!.Id)), "assets/results");
+            MicrotaskValidation.Unique(draft.FollowUpEmails.Select(e => e.Id).Append("email.briefing")
+                .Concat(details.Where(d => d.email is not null).Select(d => d.email!.Id)), "emails/results");
 
             foreach (var (full, asset, email) in details)
             {
@@ -144,6 +144,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
                 if (asset is not null) draft.ResultAssets.Add(asset);
                 if (email is not null) draft.ResultEmails.Add(email);
             }
+            _renderer.PrepareForReview(draft.ResultAssets);
         });
 
         // === Phase 7: deterministic mechanical rules (cuts the most common LLM mistake)
@@ -151,7 +152,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         {
             _mechanicalRules.Build(draft);
             // Mark Rookie cases: result assets/emails are revealed automatically by all_initial,
-            // but we also mirror them as 'initial' so SolutionSkeleton & Solver see them as visible.
+            // but we also mirror them as 'initial' for downstream review.
             if (string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase))
             {
                 foreach (var a in draft.ResultAssets) a.Visibility = "initial";
@@ -160,13 +161,9 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             return Task.CompletedTask;
         });
 
-        // === Phase 8: SolutionSkeleton (sequential, sees mechanical rules) + RulesTask LLM (narrative)
+        // Keep the historical phase ID; CaseBible already supplies the solution requirements.
         await Stage("rulesAndSolutionSkeleton", async () =>
         {
-            // SolutionSkeleton needs the pre-built reveal rules already in the draft so it knows
-            // which hidden assets/emails are reachable. Run it first, then narrative rules in parallel
-            // with Questions in the next phase.
-            await new SolutionSkeletonTask(_llm, _logger).RunAsync(draft, ct);
             await new RulesTask(_llm, _logger).RunAsync(draft, ct);
         });
 
@@ -177,8 +174,9 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             var qTasks = draft.QuestionTopics.Select(t => qTask.RunAsync(draft, t, ct));
             var explanationTask = new ExplanationTask(_llm, _logger).RunAsync(draft, ct);
 
-            var questions = await Task.WhenAll(qTasks);
-            await explanationTask;
+            var questionsTask = Task.WhenAll(qTasks);
+            await Task.WhenAll(questionsTask, explanationTask);
+            var questions = await questionsTask;
             draft.Questions = questions.ToList();
         });
 
@@ -198,29 +196,9 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         var assembled = Assemble(draft);
         var json = assembled.ToJsonString(JsonOpts);
         var errors = Validate(json);
+        errors.AddRange(ValidateCanonical(draft, draft));
         if (consistencyReport is not null)
             errors.AddRange(consistencyReport.Errors);
-
-        // === Phase 11b: deterministic auto-fix for common LLM ID-format slips
-        //     (e.g. `asset_xxx` → `asset.xxx`). Runs only when there are errors.
-        var autoFixes = new List<string>();
-        if (errors.Count > 0)
-        {
-            await Stage("autoFixSchema", () =>
-            {
-                autoFixes.AddRange(_autoFixer.Fix(assembled));
-                if (autoFixes.Count > 0)
-                {
-                    json = assembled.ToJsonString(JsonOpts);
-                    var rev = Validate(json);
-                    if (consistencyReport is not null) rev.AddRange(consistencyReport.Errors);
-                    _logger.LogInformation("AutoFixer cleared {Before}→{After} validation errors",
-                        errors.Count, rev.Count);
-                    errors = rev;
-                }
-                return Task.CompletedTask;
-            });
-        }
 
         // === Phase 12: red-team + solver (semantic validation) — run in parallel
         // Always run these — even on schema-error cases the reports help diagnose what went wrong.
@@ -230,81 +208,204 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         {
             var rt = new Tasks.RedTeamTask(_llm, _logger).RunAsync(draft, json, ct);
             var sv = new Tasks.SolverTask(_llm, _logger).RunAsync(draft, ct);
+            await Task.WhenAll(rt, sv);
             redTeam = await rt;
             solver = await sv;
         });
 
-        // === Phase 12b: refine via LLM if schema errors persist OR red-team rejected.
-        var refineAttempted = false;
+        var repair = new CaseRepairReport { BaseRevision = draft.Revision };
         var refineErrorsBefore = errors.Count;
-        var highFindings = redTeam?.Findings.Where(f =>
-            string.Equals(f.Severity, "high", StringComparison.OrdinalIgnoreCase)).ToList()
-            ?? new List<Tasks.RedTeamTask.Finding>();
-        var shouldRefine = errors.Count > 0
-            || (string.Equals(redTeam?.Verdict, "reject", StringComparison.OrdinalIgnoreCase) && highFindings.Count > 0);
+        var initialQuality = CaseQualityGate.Evaluate(request, _blobPublisher.IsConfigured, errors,
+            consistencyReport?.Errors ?? new List<string>(), redTeam, draft.Revision);
+        var shouldRefine = redTeam?.Succeeded == true && initialQuality.HasBlockingIssues;
 
         if (shouldRefine)
         {
+            RefineCaseTask.Result? result = null;
             await Stage("refineCase", async () =>
             {
-                refineAttempted = true;
-                var result = await new Tasks.RefineCaseTask(_llm, _logger)
-                    .RunAsync(json, errors, highFindings, _v2SchemaJson, ct);
-
-                if (result.Succeeded)
-                {
-                    var refined = result.RefinedJson!;
-                    var revalidated = Validate(refined);
-                    if (revalidated.Count < errors.Count)
-                    {
-                        _logger.LogInformation("Refine improved errors {Before}→{After} — accepting refined JSON",
-                            errors.Count, revalidated.Count);
-                        json = refined;
-                        errors = revalidated;
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Refine did NOT reduce error count ({Before}→{After}) — keeping pre-refine JSON",
-                            errors.Count, revalidated.Count);
-                    }
-                }
-                else
-                {
-                    _logger.LogWarning("RefineCaseTask returned no document: {Error}", result.Error);
-                }
+                repair.Attempted = true;
+                repair.OriginalBlockers = initialQuality.Issues.Where(i => i.Blocking)
+                    .Select(i => $"{i.Code}: {i.Message}").ToList();
+                result = await new RefineCaseTask(_llm, _logger).RunAsync(draft, errors, redTeam!, _v2SchemaJson, ct);
             });
-        }
-
-        // === Phase 13: persist + render assets
-        var outputPath = string.Empty;
-        AssetRenderingReport? renderingReport = null;
-        int blobsPublished = 0;
-        if (errors.Count == 0 && request.WriteToDisk)
-        {
-            outputPath = WriteToDisk(draft.CaseId, json);
-            // Materialise PDFs / images / sidecars next to case.json
-            await Stage("renderAssets", async () =>
+            repair.ErrorCode = result!.ErrorCode;
+            repair.ErrorMessage = result.Error;
+            if (result.Candidate is { } candidate)
             {
-                var basePath = ResolveCasesBasePath();
-                var allAssets = draft.AssetFull.Concat(draft.ResultAssets).ToList();
-                renderingReport = await _renderer.RenderAllAsync(draft.CaseId, basePath, allAssets, ct);
-            });
-
-            // === Phase 13b: publish to Blob Storage so the website (running on a different
-            // host in production) picks the case up via CaseV2StorageService. No-op locally
-            // when Azurite is off and no connection string is set.
-            if (_blobPublisher.IsConfigured)
-            {
-                await Stage("publishToBlob", async () =>
+                repair.CandidateRevision = candidate.Revision;
+                await Stage("revalidateRepair", async () =>
                 {
-                    var assetsDir = Path.Combine(ResolveCasesBasePath(), draft.CaseId, "assets");
-                    blobsPublished = await _blobPublisher.PublishAsync(draft.CaseId, outputPath, assetsDir, ct);
+                    _renderer.PrepareForReview(candidate.AssetFull.Concat(candidate.ResultAssets));
+                    var candidateConsistency = _consistency.Validate(candidate);
+                    var candidateJson = Assemble(candidate).ToJsonString(JsonOpts);
+                    var candidateErrors = Validate(candidateJson);
+                    candidateErrors.AddRange(ValidateCanonical(candidate, draft));
+                    candidateErrors.AddRange(candidateConsistency.Errors);
+                    var before = draft.GetComponents();
+                    repair.ChangedComponents = candidate.GetComponents()
+                        .Where(component => !JsonNode.DeepEquals(before[component.Key], component.Value))
+                        .Select(component => component.Key).ToList();
+                    if (candidateErrors.Count > 0)
+                    {
+                        RejectRepair(string.Join(" · ", candidateErrors));
+                        return;
+                    }
+
+                    var reviewTask = new RedTeamTask(_llm, _logger).RunAsync(candidate, candidateJson, ct);
+                    var solverTask = new SolverTask(_llm, _logger).RunAsync(candidate, ct);
+                    await Task.WhenAll(reviewTask, solverTask);
+                    var candidateReview = await reviewTask;
+                    var candidateQuality = CaseQualityGate.Evaluate(request, _blobPublisher.IsConfigured,
+                        candidateErrors, candidateConsistency.Errors, candidateReview, candidate.Revision);
+                    if (!candidateQuality.Approved)
+                    {
+                        RejectRepair(string.Join(" · ", candidateQuality.Issues.Where(i => i.Blocking)
+                            .Select(i => $"{i.Code}: {i.Message}")));
+                        return;
+                    }
+
+                    draft = candidate;
+                    json = candidateJson;
+                    errors = candidateErrors;
+                    consistencyReport = candidateConsistency;
+                    redTeam = candidateReview;
+                    solver = await solverTask;
+                    repair.Accepted = true;
+                    _logger.LogInformation("Accepted canonical revision {Revision}; changed components: {Components}",
+                        draft.Revision, string.Join(", ", repair.ChangedComponents));
                 });
             }
         }
-        else if (errors.Count > 0)
+
+        void RejectRepair(string message)
         {
-            _logger.LogWarning("Case {CaseId} failed schema validation: {Errors}", draft.CaseId, string.Join("; ", errors));
+            repair.ErrorCode = "repair_rejected";
+            repair.ErrorMessage = message;
+            _logger.LogWarning("Canonical repair rejected; keeping revision {Revision}: {Errors}", draft.Revision, message);
+        }
+
+        var quality = new CaseQualityReport();
+        await Stage("qualityGate", () =>
+        {
+            quality = CaseQualityGate.Evaluate(
+                request, _blobPublisher.IsConfigured, errors,
+                consistencyReport?.Errors ?? new List<string>(), redTeam, draft.Revision);
+            if (repair.Attempted && !repair.Accepted)
+                quality.Block(repair.ErrorCode ?? "repair_rejected", "refine",
+                    repair.ErrorMessage ?? "The single repair pass did not resolve all blocking issues.");
+            return Task.CompletedTask;
+        });
+
+        // Render in a nested workspace that local case discovery cannot see.
+        var outputPath = string.Empty;
+        AssetRenderingReport? renderingReport = null;
+        CaseBundle? bundle = null;
+        int blobsPublished = 0;
+        if (quality.Approved && request.WriteToDisk)
+        {
+            string? workspace = null;
+            var operationCode = "persistence_failed";
+            var operationArea = "persistence";
+            try
+            {
+                var basePath = ResolveCasesBasePath();
+                workspace = Path.Combine(basePath, ".casegen-staging", Guid.NewGuid().ToString("N"));
+                var stagedCaseDir = Path.Combine(workspace, draft.CaseId);
+                var assetsDir = Path.Combine(stagedCaseDir, "assets");
+                Directory.CreateDirectory(assetsDir);
+                var stagedJsonPath = Path.Combine(stagedCaseDir, "case.json");
+                await File.WriteAllTextAsync(stagedJsonPath, json, ct);
+
+                operationCode = "asset_render_failed";
+                operationArea = "rendering";
+                await Stage("renderAssets", async () =>
+                {
+                    var allAssets = draft.AssetFull.Concat(draft.ResultAssets).ToList();
+                    renderingReport = await _renderer.RenderAllAsync(draft.CaseId, workspace, allAssets, ct);
+                    CaseQualityGate.CheckRendering(quality, renderingReport);
+                });
+
+                if (quality.Approved)
+                {
+                    operationCode = "bundle_invalid";
+                    operationArea = "artifacts";
+                    await Stage("verifyBundle", async () =>
+                    {
+                        bundle = await CaseBundle.CreateAsync(draft.CaseId, draft.Revision, stagedCaseDir, json,
+                            draft.AssetFull.Concat(draft.ResultAssets), renderingReport!, ct);
+                        json = bundle.CaseJson;
+                        var packagingErrors = Validate(json);
+                        errors.AddRange(packagingErrors);
+                        foreach (var error in packagingErrors) quality.Block("schema_invalid", "artifacts", error);
+                    });
+                }
+
+                if (quality.Approved && bundle is not null)
+                {
+                    operationCode = "persistence_failed";
+                    operationArea = "persistence";
+                    LocalCasePublication? publication = null;
+                    await Stage("preparePublication", async () =>
+                        publication = await LocalCasePublication.PrepareAsync(bundle, basePath, _logger, ct));
+                    using var localPublication = publication!;
+
+                    if (quality.PublicationRequested)
+                    {
+                        operationCode = "publication_failed";
+                        operationArea = "publication";
+                        await Stage("publishToBlob", async () =>
+                        {
+                            blobsPublished = await _blobPublisher.PublishAsync(bundle, ct);
+                            if (blobsPublished <= 0)
+                                throw new InvalidOperationException("Configured publisher did not publish the case.");
+                            quality.Published = true;
+                        });
+                    }
+
+                    operationCode = "persistence_failed";
+                    operationArea = "persistence";
+                    await Stage("persistCase", async () =>
+                    {
+                        outputPath = await localPublication.CommitAsync(ct);
+                        quality.Persisted = true;
+                        _logger.LogInformation("Persisted approved case {CaseId} to {Path}", draft.CaseId, outputPath);
+                    });
+                }
+            }
+            catch (CaseBundleValidationException ex)
+            {
+                if (bundle is not null) bundle.Report.Verified = false;
+                quality.Block(ex.Code, operationArea, ex.Message, ex.Reference);
+                _logger.LogError(ex, "Case {CaseId} bundle verification failed during {Area}", draft.CaseId, operationArea);
+            }
+            catch (CasePublicationConflictException ex)
+            {
+                quality.Block("publication_conflict", operationArea, ex.Message);
+                _logger.LogWarning(ex, "Case {CaseId} publication conflicted during {Area}", draft.CaseId, operationArea);
+            }
+            catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                quality.Block(operationCode, operationArea, ex.Message);
+                _logger.LogError(ex, "Case {CaseId} failed during {Area}", draft.CaseId, operationArea);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+                                      or Azure.RequestFailedException or HttpRequestException
+                                      or TimeoutException or InvalidOperationException)
+            {
+                quality.Block(operationCode, operationArea, ex.Message);
+                _logger.LogError(ex, "Case {CaseId} failed during {Area}", draft.CaseId, operationArea);
+            }
+            finally
+            {
+                CleanupWorkspace(workspace, quality.Persisted);
+            }
+        }
+
+        if (!quality.Approved)
+        {
+            _logger.LogWarning("Quality gate blocked case {CaseId}: {Issues}",
+                draft.CaseId, string.Join("; ", quality.Issues.Where(issue => issue.Blocking).Select(issue => $"{issue.Code}: {issue.Message}")));
         }
 
         return new GenerateCaseV2Response
@@ -319,19 +420,36 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             AssetsSkipped = renderingReport?.Skipped ?? 0,
             AssetRenderingErrors = renderingReport?.Errors ?? new(),
             BlobsPublished = blobsPublished,
-            AutoFixesApplied = autoFixes,
-            RefineAttempted = refineAttempted,
+            AutoFixesApplied = consistencyReport?.AutoFixes ?? new(),
+            RefineAttempted = repair.Attempted,
             RefineErrorsBefore = refineErrorsBefore,
             RefineErrorsAfter = errors.Count,
             RedTeam = redTeam,
             Solver = solver,
-            Consistency = consistencyReport
+            Consistency = consistencyReport,
+            Quality = quality,
+            Repair = repair,
+            Bundle = bundle?.Report
         };
     }
 
     // ----------------------------------------------------------------------
     // Assembly
     // ----------------------------------------------------------------------
+
+    private List<string> ValidateCanonical(CaseDraft candidate, CaseDraft baseline)
+    {
+        try
+        {
+            CaseDraftRepair.Validate(candidate, baseline, _v2SchemaJson);
+            return new();
+        }
+        catch (Exception ex) when (ex is TaskContractException or JsonException or Newtonsoft.Json.JsonException)
+        {
+            _logger.LogWarning(ex, "Canonical component validation failed for revision {Revision}", candidate.Revision);
+            return new() { $"Canonical components: {ex.Message}" };
+        }
+    }
 
     private JsonObject Assemble(CaseDraft d)
     {
@@ -366,15 +484,29 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         var temporalEvents = JsonSerializer.SerializeToNode(d.TemporalEvents, JsonOpts)!.AsArray();
         var rules = JsonSerializer.SerializeToNode(d.Rules, JsonOpts)!.AsArray();
         var forensicOutcomes = JsonSerializer.SerializeToNode(d.ForensicFull, JsonOpts)!.AsArray();
+        foreach (var outcome in forensicOutcomes.OfType<JsonObject>()) outcome.Remove("support");
+        var questions = JsonSerializer.SerializeToNode(d.Questions, JsonOpts)!.AsArray();
+        foreach (var question in questions.OfType<JsonObject>()) question.Remove("support");
 
+        var noFindings = (d.Request.Language ?? "en-US") switch
+        {
+            "pt-BR" => (From: "Laboratório de Perícia", Subject: "Resultado da análise — {{analysisType}} — Sem achados",
+                Body: "Detetive,\n\nA análise {{analysisType}} de {{assetName}} não revelou pistas úteis à investigação.\n\nLaboratório de Perícia"),
+            "es-ES" => (From: "Laboratorio Forense", Subject: "Resultado del análisis — {{analysisType}} — Sin hallazgos",
+                Body: "Detective,\n\nEl análisis {{analysisType}} de {{assetName}} no reveló pistas útiles para la investigación.\n\nLaboratorio Forense"),
+            "fr-FR" => (From: "Laboratoire de police scientifique", Subject: "Résultats — {{analysisType}} — Aucun élément",
+                Body: "Détective,\n\nL’analyse {{analysisType}} de {{assetName}} n’a révélé aucune piste exploitable.\n\nLaboratoire de police scientifique"),
+            _ => (From: "Forensics Lab", Subject: "Analysis Results — {{analysisType}} — No Findings",
+                Body: "Detective,\n\nThe {{analysisType}} analysis on {{assetName}} did not reveal any actionable leads.\n\nForensics Lab")
+        };
         var forensicsDefaults = new JsonObject
         {
             ["analysisTypes"] = JsonSerializer.SerializeToNode(d.AnalysisTypes, JsonOpts),
             ["noFindingsEmail"] = new JsonObject
             {
-                ["template"] = "Detective,\n\nThe {{analysisType}} analysis on {{assetName}} did not reveal any actionable leads.\n\nForensics Lab",
-                ["from"] = "Forensics Lab <lab@citypolice.gov>",
-                ["subject"] = "Analysis Results — {{analysisType}} — No Findings"
+                ["template"] = noFindings.Body,
+                ["from"] = $"{noFindings.From} <lab@citypolice.gov>",
+                ["subject"] = noFindings.Subject
             }
         };
 
@@ -392,7 +524,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             ["culpritId"] = d.CulpritId,
             ["requiredEvidenceIds"] = JsonSerializer.SerializeToNode(d.RequiredEvidenceIds, JsonOpts),
             ["requiredAnalysisIds"] = JsonSerializer.SerializeToNode(d.RequiredAnalysisIds, JsonOpts),
-            ["questions"] = JsonSerializer.SerializeToNode(d.Questions, JsonOpts),
+            ["questions"] = questions,
             ["explanation"] = d.Explanation,
             ["minimumScore"] = 0.7,
             ["maxAttempts"] = 3,
@@ -443,21 +575,11 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
     private static JsonNode BuildAssetNode(string caseId, EvidenceAsset a)
     {
-        // Map asset.type to the file extension the renderer produced under cases/<id>/assets/.
-        // Image extensions stay flexible (renderer sniffs and may produce png/jpg/webp).
-        var ext = a.Type switch
-        {
-            "photo" or "image" => "png",
-            "pdf" or "document" or "digital" => "pdf",
-            "audio" => "mp3",
-            _ => "bin"
-        };
         var category = a.Category ?? a.Type switch
         {
             "photo" or "image" => "Document",
             "pdf" or "document" => "Document",
             "digital" => "Digital",
-            "audio" => "Communication",
             _ => "Document"
         };
         return new JsonObject
@@ -466,7 +588,8 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
             ["type"] = a.Type,
             ["title"] = a.Title,
             ["description"] = a.Description,
-            ["uri"] = $"case://{caseId}/assets/{a.Id.Replace("asset.", "")}.{ext}",
+            // Unrendered previews have provisional references, never guessed file extensions.
+            ["uri"] = $"case://{caseId}/assets/{a.Id["asset.".Length..]}",
             ["visibility"] = a.Visibility ?? "initial",
             ["category"] = category
         };
@@ -474,7 +597,7 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
     private static JsonNode BuildBriefingNode(CaseDraft d)
     {
-        var initialAttachmentIds = d.AssetFull
+        var initialAttachmentIds = d.Bible?.Sources.Single(s => s.Id == "email.briefing").Attachments ?? d.AssetFull
             .Where(a => a.Visibility == "initial")
             .Take(2)
             .Select(a => a.Id)
@@ -518,32 +641,44 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
         var errors = new List<string>();
         try
         {
-            var jObject = JObject.Parse(json);
-            if (!jObject.IsValid(_v2Schema, out IList<string> messages))
-                errors.AddRange(messages);
+            using var document = StructuredJson.ParseObject(json);
+            errors.AddRange(StructuredJson.SchemaErrors(document, _v2Schema));
         }
-        catch (Exception ex)
+        catch (JsonException ex)
         {
             errors.Add($"JSON parse error: {ex.Message}");
+            _logger.LogWarning(ex, "Compiled case JSON could not be parsed.");
         }
         return errors;
     }
 
-    private string WriteToDisk(string caseId, string json)
+    private void CleanupWorkspace(string? workspace, bool persisted)
     {
-        var basePath = ResolveCasesBasePath();
-        var caseDir = Path.Combine(basePath, caseId);
-        Directory.CreateDirectory(caseDir);
-        var path = Path.Combine(caseDir, "case.json");
-        File.WriteAllText(path, json);
-        _logger.LogInformation("Wrote case {CaseId} to {Path}", caseId, path);
-        return path;
+        if (workspace is null || !Directory.Exists(workspace)) return;
+        if (!persisted && Directory.Exists(Path.Combine(workspace, "previous")))
+        {
+            _logger.LogError("Previous case retained at {Workspace} after a failed promotion; manual recovery is required", workspace);
+            return;
+        }
+        try
+        {
+            Directory.Delete(workspace, recursive: true);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Failed to clean generation workspace {Workspace}", workspace);
+        }
     }
 
     private string ResolveCasesBasePath()
     {
         var configured = _config["CaseGenV2:CasesBasePath"];
-        if (!string.IsNullOrWhiteSpace(configured) && Directory.Exists(configured)) return configured!;
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            var path = Path.GetFullPath(configured);
+            Directory.CreateDirectory(path);
+            return path;
+        }
 
         // Walk up from the binary looking for the repo-root `cases/` directory
         // (identified by the presence of `case_001` or by being a sibling of `functions/`).
@@ -568,29 +703,9 @@ public class CaseV2GeneratorService : ICaseV2GeneratorService
 
     private static string ResolveSchemaPath()
     {
-        var candidates = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "Schemas", "case.v2.schema.json"),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Schemas", "case.v2.schema.json"),
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "schemas", "case.schema.json")
-        };
-        foreach (var c in candidates)
-        {
-            var full = Path.GetFullPath(c);
-            if (File.Exists(full)) return full;
-        }
-        throw new FileNotFoundException("Could not locate case.v2 schema next to the build output.");
-    }
-
-    private static string NormaliseCaseId(string? caseId)
-    {
-        if (!string.IsNullOrWhiteSpace(caseId))
-        {
-            var s = caseId.Trim().ToLowerInvariant().Replace('-', '_');
-            if (!s.StartsWith("case_")) s = "case_" + s;
-            return s;
-        }
-        return $"case_{DateTime.UtcNow:yyyyMMdd_HHmmss}";
+        var path = Path.Combine(AppContext.BaseDirectory, "Schemas", "case.v2.schema.json");
+        if (File.Exists(path)) return path;
+        throw new FileNotFoundException("Canonical case schema is missing from the build output. Rebuild or republish CaseGen.Functions.", path);
     }
 
     private static async Task TimeStage(string name, Dictionary<string, double> sink, Func<Task> body)

@@ -191,16 +191,25 @@ namespace CaseZeroApi.Migrations
                     b.Property<string>("FiredTemporalEventIds")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("GameClockUpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("GameTimeAtEnd")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("GameTimeAtStart")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<double>("GameTimeMinutes")
+                        .HasColumnType("float");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
                     b.Property<string>("Notifications")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ObservedTriggers")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("RevealedSuspectIds")
@@ -214,6 +223,10 @@ namespace CaseZeroApi.Migrations
 
                     b.Property<DateTime>("SessionStart")
                         .HasColumnType("datetime2");
+
+                    b.Property<int>("StateVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -662,6 +675,9 @@ namespace CaseZeroApi.Migrations
                     b.Property<DateTime>("EstimatedCompletionTime")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("FailureCode")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("InputAssetId")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -681,6 +697,10 @@ namespace CaseZeroApi.Migrations
 
                     b.Property<string>("ResultEmailId")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("StateVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
 
                     b.Property<string>("Status")
                         .IsRequired()

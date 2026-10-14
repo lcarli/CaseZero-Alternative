@@ -44,8 +44,8 @@ public class CaseV2GenerationOrchestrator
         var result = await context.CallActivityAsync<CaseV2JobResult>(ActivityName, input);
 
         logger.LogInformation(
-            "[CaseV2] Orchestration {InstanceId} finished jobId={JobId} caseId={CaseId} errors={Errors}",
-            context.InstanceId, input.JobId, result.CaseId, result.ValidationErrorsCount);
+            "[CaseV2] Orchestration {InstanceId} finished jobId={JobId} caseId={CaseId} hasErrors={HasErrors} validationErrors={Errors}",
+            context.InstanceId, input.JobId, result.CaseId, result.HasErrors, result.ValidationErrorsCount);
 
         return result;
     }
@@ -74,7 +74,41 @@ public record CaseV2JobResult(
     bool RefineAttempted,
     int RefineErrorsBefore,
     int RefineErrorsAfter,
-    string? RedTeamVerdict);
+    string? RedTeamVerdict,
+    CaseQualityReport? Quality = null,
+    int AssetsSkipped = 0,
+    CaseRepairReport? Repair = null,
+    CaseBundleReport? Bundle = null)
+{
+    public static CaseV2JobResult FromResponse(string jobId, GenerateCaseV2Response response)
+    {
+        var quality = response.Quality;
+        var hasErrors = response.ValidationErrors.Count > 0 || response.AssetRenderingErrors.Count > 0
+            || !quality.Approved || quality.HasBlockingIssues
+            || (response.Bundle is not null && (!response.Bundle.Verified || response.Bundle.Revision != quality.Revision))
+            || (quality.PersistenceRequested && !quality.Persisted)
+            || (quality.PublicationRequested && !quality.Published);
+        var blockers = quality.Issues.Where(issue => issue.Blocking).ToList();
+        var messages = blockers
+            .Select(issue => $"{issue.Code}: {issue.Message}")
+            .ToList();
+        var reportedMessages = blockers.Select(issue => issue.Message).ToHashSet(StringComparer.Ordinal);
+        messages.AddRange(response.ValidationErrors.Concat(response.AssetRenderingErrors)
+            .Where(message => !reportedMessages.Contains(message))
+            .Distinct(StringComparer.Ordinal));
+        var error = hasErrors
+            ? (messages.Count > 0
+                ? string.Join(" · ", messages)
+                : "Generation did not pass quality checks or complete the requested outputs.")
+            : null;
+        return new CaseV2JobResult(
+            jobId, response.CaseId, response.OutputPath, response.ValidationErrors.Count,
+            response.AssetsRenderedPdfs, response.AssetsRenderedImages, response.BlobsPublished,
+            hasErrors, error, response.StageLatencyMs, response.AutoFixesApplied,
+            response.RefineAttempted, response.RefineErrorsBefore, response.RefineErrorsAfter,
+            response.RedTeam?.Verdict, quality, response.AssetsSkipped, response.Repair, response.Bundle);
+    }
+}
 
 /// <summary>
 /// The single long-running activity. Runs the v2 generator end-to-end and reports the current phase
@@ -111,37 +145,19 @@ public class CaseV2GenerateActivity
         {
             var response = await _generator.GenerateAsync(input.Request, reporter, ct);
 
-            var hasErrors = response.ValidationErrors.Count > 0;
-            if (hasErrors)
+            var result = CaseV2JobResult.FromResponse(input.JobId, response);
+            if (result.HasErrors)
             {
-                _logger.LogWarning("[CaseV2] Activity completed with validation errors jobId={JobId} errors={Count}",
-                    input.JobId, response.ValidationErrors.Count);
-                await reporter.ReportFailedAsync(
-                    $"Validation failed with {response.ValidationErrors.Count} error(s): "
-                    + string.Join(" · ", response.ValidationErrors.Take(3)),
-                    ct);
+                _logger.LogWarning("[CaseV2] Activity completed with blockers jobId={JobId}: {Error}",
+                    input.JobId, result.ErrorMessage);
+                await reporter.ReportFailedAsync(result.ErrorMessage!, ct);
             }
             else
             {
                 await reporter.ReportCompletedAsync(ct);
             }
 
-            return new CaseV2JobResult(
-                JobId: input.JobId,
-                CaseId: response.CaseId,
-                OutputPath: response.OutputPath,
-                ValidationErrorsCount: response.ValidationErrors.Count,
-                AssetsRenderedPdfs: response.AssetsRenderedPdfs,
-                AssetsRenderedImages: response.AssetsRenderedImages,
-                BlobsPublished: response.BlobsPublished,
-                HasErrors: hasErrors,
-                ErrorMessage: hasErrors ? string.Join(" · ", response.ValidationErrors) : null,
-                StageLatencyMs: response.StageLatencyMs,
-                AutoFixesApplied: response.AutoFixesApplied,
-                RefineAttempted: response.RefineAttempted,
-                RefineErrorsBefore: response.RefineErrorsBefore,
-                RefineErrorsAfter: response.RefineErrorsAfter,
-                RedTeamVerdict: response.RedTeam?.Verdict);
+            return result;
         }
         catch (Exception ex)
         {
@@ -159,12 +175,6 @@ public class CaseV2GenerateActivity
 /// </summary>
 public class StartCaseV2GenerationFunction
 {
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        WriteIndented = true
-    };
-
     private readonly ILogger<StartCaseV2GenerationFunction> _logger;
 
     public StartCaseV2GenerationFunction(ILogger<StartCaseV2GenerationFunction> logger)
@@ -184,21 +194,19 @@ public class StartCaseV2GenerationFunction
         GenerateCaseV2Request request;
         try
         {
-            using var body = req.Body;
-            if (body.CanSeek && body.Length == 0)
-            {
-                request = new GenerateCaseV2Request();
-            }
-            else
-            {
-                request = await JsonSerializer.DeserializeAsync<GenerateCaseV2Request>(body, JsonOpts, ct)
-                          ?? new GenerateCaseV2Request();
-            }
+            request = await GenerationRequestValidator.ReadAsync(req.Body, ct);
         }
-        catch (Exception ex)
+        catch (GenerationRequestException ex)
         {
-            _logger.LogWarning(ex, "Failed to parse GenerateCaseV2Request body — falling back to defaults");
-            request = new GenerateCaseV2Request();
+            _logger.LogWarning("Invalid case generation request: {Errors}", ex.Message);
+            var invalid = req.CreateResponse(ex.TooLarge ? HttpStatusCode.RequestEntityTooLarge : HttpStatusCode.BadRequest);
+            await invalid.WriteAsJsonAsync(new
+            {
+                error = ex.TooLarge ? "request_too_large" : "invalid_request",
+                message = ex.Message,
+                errors = ex.Errors
+            }, ct);
+            return invalid;
         }
 
         // 2) singleton enforcement (best-effort). Query by InstanceIdPrefix so we hit the server-side
@@ -230,13 +238,14 @@ public class StartCaseV2GenerationFunction
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Failure to enforce singleton is non-fatal — log and let the request proceed.
             _logger.LogWarning(ex, "Singleton check failed — proceeding without enforcement");
         }
 
         // 3) schedule the orchestration with an explicit, unique instanceId (== jobId)
+        ct.ThrowIfCancellationRequested();
         var jobId = $"{CaseV2GenerationOrchestrator.JobIdPrefix}{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}";
         var input = new CaseV2OrchestrationInput(request, jobId);
 
@@ -248,7 +257,7 @@ public class StartCaseV2GenerationFunction
                 new StartOrchestrationOptions { InstanceId = jobId },
                 ct);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Failed to schedule {OrchestratorName} jobId={JobId}",
                 CaseV2GenerationOrchestrator.OrchestratorName, jobId);
@@ -278,6 +287,7 @@ public class StartCaseV2GenerationFunction
 /// </summary>
 public class GetCaseV2JobStatusFunction
 {
+    private static readonly JsonSerializerOptions ResultJsonOpts = new() { PropertyNameCaseInsensitive = true };
     private readonly IJobPhaseReporterFactory _reporterFactory;
     private readonly ILogger<GetCaseV2JobStatusFunction> _logger;
 
@@ -331,18 +341,16 @@ public class GetCaseV2JobStatusFunction
         if (isTerminal)
         {
             currentPhase = null; // suppress stale phase on terminal states
-            if (status == "done" && !string.IsNullOrEmpty(metadata.SerializedOutput))
+            if (metadata.RuntimeStatus == OrchestrationRuntimeStatus.Completed)
             {
-                try
-                {
-                    result = JsonSerializer.Deserialize<JsonElement>(metadata.SerializedOutput);
-                }
-                catch
-                {
-                    result = metadata.SerializedOutput;
-                }
+                var completed = ResolveCompletedResult(metadata.SerializedOutput);
+                status = completed.Status;
+                result = completed.Result;
+                error = completed.Error;
+                if (status == "failed")
+                    _logger.LogWarning("Completed job {JobId} has a logical failure: {Error}", jobId, error);
             }
-            if (status == "failed")
+            else if (status == "failed")
             {
                 error = ExtractFailureMessage(metadata, blobError);
                 _logger.LogWarning(
@@ -367,6 +375,38 @@ public class GetCaseV2JobStatusFunction
             error
         }, ct);
         return response;
+    }
+
+    public static (string Status, JsonElement? Result, string? Error) ResolveCompletedResult(string? serializedOutput)
+    {
+        if (string.IsNullOrWhiteSpace(serializedOutput))
+            return ("failed", null, "Generation completed without a result.");
+        try
+        {
+            var json = JsonSerializer.Deserialize<JsonElement>(serializedOutput);
+            var result = json.Deserialize<CaseV2JobResult>(ResultJsonOpts);
+            if (result is null || string.IsNullOrWhiteSpace(result.CaseId))
+                return ("failed", json, "Generation completed with an invalid result.");
+
+            var quality = result.Quality;
+            if (quality is not null && (quality.Issues is null || quality.Issues.Any(issue => issue is null)))
+                return ("failed", json, "Generation completed with an invalid quality report.");
+            var failed = result.HasErrors || result.ValidationErrorsCount > 0
+                || (result.Bundle is not null && (!result.Bundle.Verified || (quality is not null && result.Bundle.Revision != quality.Revision)))
+                || (quality is not null && (!quality.Approved || quality.HasBlockingIssues
+                    || (quality.PersistenceRequested && !quality.Persisted)
+                    || (quality.PublicationRequested && !quality.Published)));
+            return (
+                failed ? "failed" : "done",
+                json,
+                failed
+                    ? string.IsNullOrWhiteSpace(result.ErrorMessage) ? "Generation finished with blocking quality issues." : result.ErrorMessage
+                    : null);
+        }
+        catch (JsonException ex)
+        {
+            return ("failed", null, $"Generation result could not be read: {ex.Message}");
+        }
     }
 
     /// <summary>

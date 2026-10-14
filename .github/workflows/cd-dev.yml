@@ -43,7 +43,9 @@ jobs:
       - name: 🔧 Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: |
+            ${{ env.DOTNET_VERSION }}
+            ${{ env.DOTNET_FUNCTIONS_VERSION }}
 
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
@@ -110,11 +112,6 @@ jobs:
         with:
           name: frontend-build
           path: ./frontend/dist
-
-      - name: 🔧 Setup .NET 9 (for functions)
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_FUNCTIONS_VERSION }}
 
       - name: 📦 Publish CaseGen.Functions
         run: dotnet publish -c Release -o ./publish
