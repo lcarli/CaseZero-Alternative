@@ -119,10 +119,15 @@ namespace CaseZeroApi.IntegrationTests
                     ["ConnectionStrings:DefaultConnection"] = "InMemory",
                     ["ASPNETCORE_ENVIRONMENT"] = "Testing",
                     ["CaseGenV2:UseBlobStorage"] = "false",
+                    ["CaseGenerator:FunctionBaseUrl"] = "",
                     // Force the storage service to read fixture cases from the repo's cases/
                     // folder regardless of where the test host's content root happens to point.
                     ["CaseGenV2:LocalCasesPath"] = Path.Combine(ResolveRepoRoot(), "cases"),
-                    ["CaseGeneratorStorage:ConnectionString"] = "UseDevelopmentStorage=true"
+                    ["CaseGeneratorStorage:ConnectionString"] = "UseDevelopmentStorage=true",
+                    // Explicitly blank the MI account name so tests always take the
+                    // connection-string path (Azurite-style) even if a developer has
+                    // CaseGeneratorStorage__AccountName set in their environment.
+                    ["CaseGeneratorStorage:AccountName"] = ""
                 });
             });
         }
@@ -147,7 +152,10 @@ namespace CaseZeroApi.IntegrationTests
 
         // ===== Helper Methods for Authentication & Security Tests =====
 
-        protected async Task<string> CreateAuthenticatedUserAndGetToken(string email = "test@fic-police.gov", string? userId = null)
+        protected async Task<string> CreateAuthenticatedUserAndGetToken(
+            string email = "test@fic-police.gov",
+            string? userId = null,
+            IEnumerable<string>? roles = null)
         {
             using var scope = _factory.Services.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -158,7 +166,7 @@ namespace CaseZeroApi.IntegrationTests
             var existingUser = await context.Users.FirstOrDefaultAsync(u => u.Id == actualUserId);
             if (existingUser != null)
             {
-                return jwtService.GenerateToken(existingUser);
+                return jwtService.GenerateToken(existingUser, roles ?? [UserRoles.Player]);
             }
             
             var user = new User
@@ -176,7 +184,7 @@ namespace CaseZeroApi.IntegrationTests
             context.Users.Add(user);
             await context.SaveChangesAsync();
 
-            return jwtService.GenerateToken(user);
+            return jwtService.GenerateToken(user, roles ?? [UserRoles.Player]);
         }
 
         protected async Task CreateActiveSessionForUser(string userId, string caseId)

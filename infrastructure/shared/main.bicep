@@ -123,7 +123,7 @@ module sqlServer 'br/public:avm/res/sql/server:0.20.3' = if (enableSqlDatabase &
     administratorLogin: sqlAdminLogin
     administratorLoginPassword: sqlAdminPassword
     minimalTlsVersion: '1.2'
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'Disabled'
     databases: [
       {
         name: sqlDatabaseName
@@ -169,6 +169,7 @@ output connectionString string = enableMonitoring ? appInsights.outputs.connecti
 
 // SQL Database outputs
 output sqlServerName string = enableSqlDatabase ? sqlServer.outputs.name : ''
+output sqlServerId string = enableSqlDatabase ? sqlServer.outputs.resourceId : ''
 output sqlServerFqdn string = enableSqlDatabase ? '${sqlServer.outputs.name}.${az.environment().suffixes.sqlServerHostname}' : ''
 output sqlDatabaseName string = enableSqlDatabase ? sqlDatabaseName : ''
 // Connection string will be retrieved from Key Vault secret 'sql-connection-string'

@@ -348,4 +348,94 @@ describe('CaseGenerationPage', () => {
     await act(async () => { resolvePoll({ jobId: 'job-quality', status: 'running', currentPhase: 'plotOutline' }) })
     expect(timers.mock.calls.filter(([, delay]) => delay === 2500 || delay === 5000)).toHaveLength(0)
   })
+
+  it('keeps attempt/stage metrics and prior retries alongside the quality and bundle reports', async () => {
+    const retried = completed()
+    retried.currentAttempt = 2
+    retried.maxAttempts = 3
+    retried.stages = [
+      { id: 'caseDesign', status: 'completed', attempt: 2, durationMs: 100 },
+      { id: 'finalValidation', status: 'completed', attempt: 2, durationMs: 50 },
+      { id: 'finalization', status: 'completed', attempt: 2, durationMs: 75 },
+    ]
+    retried.attempts = [{
+      number: 1, status: 'failed', startedAt: '2026-10-14T12:00:00Z',
+      completedAt: '2026-10-14T12:00:01Z', stages: [], error: 'First attempt failed review',
+    }]
+    Object.assign(retried.result!, {
+      AttemptCount: 2, MaxAttempts: 3, GraphValidationPassed: true, SolverSucceeded: true,
+      SolverScore: 0.85, RepairOperationCount: 2,
+      Bundle: {
+        BundleId: 'verified-bundle', Revision: 1, Verified: true,
+        AssetsVerified: 5, TotalBytes: 4096, ManifestChecksum: `sha256:${'b'.repeat(64)}`,
+      },
+    })
+    api.getJob.mockResolvedValue(retried)
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: enUS.generateCaseBtn }))
+    await screen.findByText(enUS.generationSolverDiagnostic)
+    expect(screen.getByText(enUS.generationAttemptHistory)).toBeInTheDocument()
+    expect(screen.getByText(`${enUS.generationAttempt} 1 · ${enUS.failed}`)).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(enUS.stageCaseDesign))).toBeInTheDocument()
+    expectStat(enUS.generationAttempt, '2 / 3')
+    expectStat(enUS.generationSolverScore, '0.85')
+    expectStat(enUS.generationRepairOperations, '2')
+    expectStat(enUS.generationApproved, enUS.generationYes)
+    expectStat(enUS.generationBundleVerified, enUS.generationYes)
+  })
+
+  it('shows the scheduled retry and current stage while generation is still running', async () => {
+    api.getJob.mockResolvedValue({
+      jobId: 'job-quality', status: 'running', currentStageId: 'finalValidation',
+      currentPhase: 'qualityGate', currentAttempt: 2, maxAttempts: 3, progressPercent: 70,
+      nextRetryAt: '2026-10-14T12:01:00Z', retryReason: 'Review retry',
+      stages: [{ id: 'finalValidation', status: 'running', attempt: 2 }],
+    } satisfies GenerateCaseStatus)
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: enUS.generateCaseBtn }))
+    await screen.findByText(enUS.generationRetryScheduled)
+    expect(screen.getByText('Review retry')).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(enUS.stageFinalValidation))).toBeInTheDocument()
+    expect(screen.queryByText(enUS.generationApproved)).not.toBeInTheDocument()
+  })
+
+  it.each(['pt-BR', 'en-US', 'es-ES', 'fr-FR'])('distinguishes player-visible model evaluation from graph diagnostics in %s', async language => {
+    const locale = translations[language]
+    const investigated = completed()
+    investigated.result!.Quality!.SolverMode = 'player-visible'
+    investigated.result!.SolverSucceeded = true
+    investigated.result!.StageLatencyMs = {
+      prepareMaterials: 5, playerInvestigation: 25, blockingReview: 15,
+      targetedRepair: 10, renderAssets: 20, verifyBundle: 5, publishToBlob: 10, persist: 5,
+    }
+    api.getJob.mockResolvedValue(investigated)
+    renderPage(language)
+    fireEvent.click(screen.getByRole('button', { name: locale.generateCaseBtn }))
+    await screen.findByText(locale.generationPlayerInvestigationScope)
+    expect(screen.getByText(locale.generationPlayerQualityScope)).toBeInTheDocument()
+    expect(screen.queryByText(locale.generationSolverDiagnostic)).not.toBeInTheDocument()
+    for (const label of [
+      locale.generationPhasePrepareMaterials, locale.generationPhasePlayerInvestigation,
+      locale.generationPhaseBlockingReview, locale.generationPhaseRefine, locale.generationPhaseRender,
+      locale.generationPhaseVerifyBundle, locale.generationPhasePublish, locale.generationPhasePersist,
+    ]) {
+      expect(screen.getByRole('listitem', { name: `${label}: ${locale.completed}` })).toBeInTheDocument()
+    }
+    expectStat(locale.generationSolutionWitness, locale.generationYes)
+  })
+
+  it.each([
+    ['prepareMaterials', 'generationPhasePrepareMaterials'],
+    ['playerInvestigation', 'generationPhasePlayerInvestigation'],
+    ['blockingReview', 'generationPhaseBlockingReview'],
+    ['verifyBundle', 'generationPhaseVerifyBundle'],
+    ['persist', 'generationPhasePersist'],
+    ['targetedRepair', 'generationPhaseRefine'],
+  ] as const)('maps current phase %s without showing an untranslated identifier', async (phase, label) => {
+    api.getJob.mockResolvedValue({ jobId: 'job-quality', status: 'running', currentPhase: phase } satisfies GenerateCaseStatus)
+    renderPage()
+    fireEvent.click(screen.getByRole('button', { name: enUS.generateCaseBtn }))
+    await screen.findByText(new RegExp(enUS[label].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
+    expect(screen.queryByText(phase)).not.toBeInTheDocument()
+  })
 })

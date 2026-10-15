@@ -1,467 +1,236 @@
-# 🏗️ Guia de Configuração de Recursos Azure
+# Configuração Azure para CI/CD
 
-Este guia fornece instruções passo a passo para configurar recursos Azure para a aplicação CaseZero com otimização de custos em mente.
+Este guia prepara a assinatura para os workflows atuais. A infraestrutura é
+declarada em `infrastructure/main.bicep`; evite criar manualmente recursos que o
+template já administra.
 
 ## Pré-requisitos
 
-- Assinatura Azure com permissões apropriadas
-- Azure CLI instalado e configurado
-- Terminal PowerShell ou Bash
-- Repositório GitHub com Actions habilitadas
+- Azure CLI autenticado;
+- permissão para deployments em nível de assinatura;
+- permissão para criar resource groups e atribuições RBAC;
+- GitHub Actions habilitado;
+- secrets descritos em [`variables-and-secrets.md`](variables-and-secrets.md).
 
-## Arquitetura Otimizada para Custos
+## 1. Selecionar a assinatura
 
-```mermaid
-graph TB
-    subgraph "Ambiente de Desenvolvimento"
-        D1[App Service Plan B1]
-        D2[SQL Database Basic]
-        D3[Storage LRS]
-        D4[Static Web App Free]
-    end
-    
-    subgraph "Ambiente de Produção"
-        P1[App Service Plan S1]
-        P2[SQL Database S1]
-        P3[Storage GRS]
-        P4[Static Web App Standard]
-        P5[Staging Slot]
-    end
-    
-    subgraph "Recursos Compartilhados"
-        S1[Key Vault]
-        S2[Log Analytics]
-        S3[Application Insights]
-    end
+```powershell
+az login
+az account set --subscription "<subscription-id>"
+az account show --query "{name:name,id:id,tenantId:tenantId}"
 ```
 
-## Passo 1: Configuração da Assinatura Azure
+## 2. Registrar providers
 
-### 1.1 Verificar Limites da Assinatura
+```powershell
+$providers = @(
+  "Microsoft.Authorization",
+  "Microsoft.CognitiveServices",
+  "Microsoft.Insights",
+  "Microsoft.KeyVault",
+  "Microsoft.Network",
+  "Microsoft.OperationalInsights",
+  "Microsoft.Sql",
+  "Microsoft.Storage",
+  "Microsoft.Web"
+)
 
-```bash
-# Verificar registros de provedores de recursos
-az provider list --query "[?registrationState=='Registered'].namespace" -o table
-
-# Registrar provedores necessários se preciso
-az provider register --namespace Microsoft.Web
-az provider register --namespace Microsoft.Sql
-az provider register --namespace Microsoft.Storage
-az provider register --namespace Microsoft.Insights
-```
-
-### 1.2 Set Up Resource Groups
-
-```bash
-# Variables
-SUBSCRIPTION_ID="your-subscription-id"
-LOCATION="East US 2"  # Choose based on your location for cost optimization
-
-# Set default subscription
-az account set --subscription $SUBSCRIPTION_ID
-
-# Create resource groups
-az group create --name casezero-dev-rg --location "$LOCATION" --tags Environment=development Project=CaseZero
-az group create --name casezero-prod-rg --location "$LOCATION" --tags Environment=production Project=CaseZero
-az group create --name casezero-shared-rg --location "$LOCATION" --tags Environment=shared Project=CaseZero
-```
-
-## Step 2: Create Service Principals
-
-### 2.1 Development Environment Service Principal
-
-```bash
-# Create service principal for development
-az ad sp create-for-rbac --name "casezero-dev-sp" \
-  --role "Contributor" \
-  --scopes "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/casezero-dev-rg" \
-  --sdk-auth > dev-credentials.json
-
-# Grant additional permissions for Static Web Apps
-DEV_SP_ID=$(az ad sp list --display-name "casezero-dev-sp" --query "[0].appId" -o tsv)
-az role assignment create --assignee $DEV_SP_ID \
-  --role "Website Contributor" \
-  --scope "/subscriptions/$SUBSCRIPTION_ID"
-```
-
-### 2.2 Production Environment Service Principal
-
-```bash
-# Create service principal for production
-az ad sp create-for-rbac --name "casezero-prod-sp" \
-  --role "Contributor" \
-  --scopes "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/casezero-prod-rg" \
-  --sdk-auth > prod-credentials.json
-
-# Grant additional permissions
-PROD_SP_ID=$(az ad sp list --display-name "casezero-prod-sp" --query "[0].appId" -o tsv)
-az role assignment create --assignee $PROD_SP_ID \
-  --role "Website Contributor" \
-  --scope "/subscriptions/$SUBSCRIPTION_ID"
-```
-
-## Step 3: Set Up Azure Key Vault (Optional but Recommended)
-
-### 3.1 Create Key Vault
-
-```bash
-# Create Key Vault for secrets management
-KEYVAULT_NAME="casezero-kv-$(date +%s)"  # Unique name
-
-az keyvault create \
-  --name $KEYVAULT_NAME \
-  --resource-group casezero-shared-rg \
-  --location "$LOCATION" \
-  --sku standard \
-  --enable-soft-delete true \
-  --retention-days 7
-```
-
-### 3.2 Add Secrets to Key Vault
-
-```bash
-# Generate strong passwords
-SQL_ADMIN_PASSWORD=$(openssl rand -base64 32)
-JWT_SECRET=$(openssl rand -base64 64)
-
-# Store secrets in Key Vault
-az keyvault secret set --vault-name $KEYVAULT_NAME --name "sql-admin-login" --value "casezero-admin"
-az keyvault secret set --vault-name $KEYVAULT_NAME --name "sql-admin-password" --value "$SQL_ADMIN_PASSWORD"
-az keyvault secret set --vault-name $KEYVAULT_NAME --name "jwt-secret" --value "$JWT_SECRET"
-
-# Grant access to service principals
-az keyvault set-policy --name $KEYVAULT_NAME --spn $DEV_SP_ID --secret-permissions get list
-az keyvault set-policy --name $KEYVAULT_NAME --spn $PROD_SP_ID --secret-permissions get list
-```
-
-## Step 4: Configure GitHub Repository
-
-### 4.1 Add Repository Secrets
-
-Navigate to your GitHub repository settings and add these secrets:
-
-```yaml
-# Azure Credentials (content from the JSON files created above)
-AZURE_CREDENTIALS_DEV: |
-  {
-    "clientId": "...",
-    "clientSecret": "...",
-    "subscriptionId": "...",
-    "tenantId": "...",
-    "activeDirectoryEndpointUrl": "...",
-    "resourceManagerEndpointUrl": "...",
-    "activeDirectoryGraphResourceId": "...",
-    "sqlManagementEndpointUrl": "...",
-    "galleryEndpointUrl": "...",
-    "managementEndpointUrl": "..."
-  }
-
-AZURE_CREDENTIALS_PROD: |
-  {
-    "clientId": "...",
-    "clientSecret": "...",
-    "subscriptionId": "...",
-    "tenantId": "...",
-    "activeDirectoryEndpointUrl": "...",
-    "resourceManagerEndpointUrl": "...",
-    "activeDirectoryGraphResourceId": "...",
-    "sqlManagementEndpointUrl": "...",
-    "galleryEndpointUrl": "...",
-    "managementEndpointUrl": "..."
-  }
-
-# Resource Groups
-AZURE_RESOURCE_GROUP_DEV: casezero-dev-rg
-AZURE_RESOURCE_GROUP_PROD: casezero-prod-rg
-
-# Teams Webhook (optional)
-TEAMS_WEBHOOK_URL: https://your-organization.webhook.office.com/...
-```
-
-### 4.2 Update Parameter Files
-
-Edit `infrastructure/bicep/parameters.dev.json`:
-
-```json
-{
-  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-  "contentVersion": "1.0.0.0",
-  "parameters": {
-    "environment": {
-      "value": "dev"
-    },
-    "namePrefix": {
-      "value": "casezero"
-    },
-    "location": {
-      "value": "East US 2"
-    },
-    "appServicePlanSku": {
-      "value": "B1"
-    },
-    "enableApplicationInsights": {
-      "value": true
-    },
-    "enableBackup": {
-      "value": false
-    },
-    "sqlServerAdminLogin": {
-      "reference": {
-        "keyVault": {
-          "id": "/subscriptions/YOUR_SUBSCRIPTION_ID/resourceGroups/casezero-shared-rg/providers/Microsoft.KeyVault/vaults/YOUR_KEYVAULT_NAME"
-        },
-        "secretName": "sql-admin-login"
-      }
-    },
-    "sqlServerAdminPassword": {
-      "reference": {
-        "keyVault": {
-          "id": "/subscriptions/YOUR_SUBSCRIPTION_ID/resourceGroups/casezero-shared-rg/providers/Microsoft.KeyVault/vaults/YOUR_KEYVAULT_NAME"
-        },
-        "secretName": "sql-admin-password"
-      }
-    }
-  }
+foreach ($provider in $providers) {
+  az provider register --namespace $provider
 }
 ```
 
-Repeat for `parameters.prod.json` with production values.
+## 3. Preparar a identidade do GitHub
 
-## Step 5: Deploy Initial Infrastructure
+O workflow de infraestrutura usa deployment em nível de assinatura. A
+identidade precisa criar resource groups, recursos e role assignments
+declarados no Bicep.
 
-### 5.1 Manual Deployment (First Time)
-
-```bash
-# Deploy development environment
-az deployment group create \
-  --resource-group casezero-dev-rg \
-  --template-file infrastructure/bicep/main.bicep \
-  --parameters @infrastructure/bicep/parameters.dev.json \
-  --name initial-dev-deployment
-
-# Deploy production environment
-az deployment group create \
-  --resource-group casezero-prod-rg \
-  --template-file infrastructure/bicep/main.bicep \
-  --parameters @infrastructure/bicep/parameters.prod.json \
-  --name initial-prod-deployment
+```powershell
+az ad sp create-for-rbac `
+  --name "casezero-dev-github" `
+  --role Contributor `
+  --scopes "/subscriptions/<subscription-id>" `
+  --sdk-auth
 ```
 
-### 5.2 GitHub Actions Deployment
+Armazene a saída em `AZURE_CREDENTIALS_DEV`. Repita para PROD somente quando
+esse ambiente for utilizado.
 
-1. Go to GitHub Actions in your repository
-2. Run "🏗️ Deploy Infrastructure" workflow
-3. Select environment and action
-4. Monitor deployment progress
+Permissões para criar role assignments podem exigir `User Access Administrator`
+ou `Role Based Access Control Administrator`. Conceda apenas se o deployment
+falhar nessa etapa e limite o escopo à assinatura usada pelo projeto.
 
-## Step 6: Configure Environments
+## 4. Configurar secrets GitHub
 
-### 6.1 GitHub Environment Protection
+Configure:
 
-1. Go to Repository Settings > Environments
-2. Create `development` environment:
-   - No protection rules needed
-   - Add environment-specific secrets
+- `AZURE_CREDENTIALS_DEV`;
+- `AZURE_CREDENTIALS_PROD`, se aplicável;
+- `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV`;
+- `VITE_API_URL`;
+- `SQL_ADMIN_LOGIN`;
+- `SQL_ADMIN_PASSWORD`.
 
-3. Create `production` environment:
-   - Add required reviewers
-   - Restrict deployment branches to `main`
-   - Add environment-specific secrets
+Não armazene segredos do Azure Foundry no GitHub. A Function os resolve pelo Key
+Vault criado pela infraestrutura.
 
-### 6.2 Static Web Apps Configuration
+## 5. Revisar parâmetros
 
-After infrastructure deployment, configure Static Web Apps:
+Use:
 
-```bash
-# Get Static Web App deployment tokens
-DEV_SWA_TOKEN=$(az staticwebapp secrets list --name casezero-frontend-dev --query "properties.apiKey" -o tsv)
-PROD_SWA_TOKEN=$(az staticwebapp secrets list --name casezero-frontend-prod --query "properties.apiKey" -o tsv)
-
-# Add to GitHub secrets
-echo "Add these to GitHub repository secrets:"
-echo "AZURE_STATIC_WEB_APPS_API_TOKEN_DEV: $DEV_SWA_TOKEN"
-echo "AZURE_STATIC_WEB_APPS_API_TOKEN_PROD: $PROD_SWA_TOKEN"
+```text
+infrastructure/parameters.dev.json
+infrastructure/parameters.prod.json
 ```
 
-## Step 7: Cost Optimization Setup
+Confirme especialmente:
 
-### 7.1 Cost Alerts
+- `environment`;
+- região;
+- nomes/prefixos;
+- origens CORS;
+- opção de Azure SQL;
+- SKUs e redundância;
+- rede e subnets.
 
-```bash
-# Create budget for development
-az consumption budget create \
-  --budget-name casezero-dev-budget \
-  --amount 50 \
-  --category Cost \
-  --time-grain Monthly \
-  --start-date 2024-01-01 \
-  --end-date 2025-12-31 \
-  --resource-group casezero-dev-rg
+Nunca grave senha SQL diretamente nesses arquivos.
 
-# Create budget for production
-az consumption budget create \
-  --budget-name casezero-prod-budget \
-  --amount 200 \
-  --category Cost \
-  --time-grain Monthly \
-  --start-date 2024-01-01 \
-  --end-date 2025-12-31 \
-  --resource-group casezero-prod-rg
+## 6. Validar infraestrutura
+
+No GitHub:
+
+1. abra **Deploy 3-Tier Infrastructure**;
+2. escolha o ambiente;
+3. selecione `validate`;
+4. revise a compilação Bicep e o deployment validation.
+
+Localmente:
+
+```powershell
+az bicep build --file infrastructure\main.bicep
+
+az deployment sub validate `
+  --location canadacentral `
+  --template-file infrastructure\main.bicep `
+  --parameters "@infrastructure\parameters.dev.json" `
+  --parameters sqlAdminLogin="<login>" `
+  --parameters sqlAdminPassword="<password>"
 ```
 
-### 7.2 Auto-Shutdown Policies (Development)
+## 7. Implantar
 
-```bash
-# Create auto-shutdown policy for dev resources
-az resource create \
-  --resource-group casezero-dev-rg \
-  --resource-type "Microsoft.DevTestLab/schedules" \
-  --name "shutdown-computevm-casezero-api-dev" \
-  --properties '{
-    "status": "Enabled",
-    "taskType": "ComputeVmShutdownTask",
-    "dailyRecurrence": {"time": "1900"},
-    "timeZoneId": "UTC",
-    "targetResourceId": "/subscriptions/'$SUBSCRIPTION_ID'/resourceGroups/casezero-dev-rg/providers/Microsoft.Web/sites/casezero-api-dev"
-  }'
+Execute o workflow novamente com `action=deploy`. Ele gera `what-if` antes da
+implantação e usa um nome de deployment versionado por timestamp.
+
+Os outputs incluem URLs do frontend, API e Function App. O arquivo completo de
+output é publicado como artifact; ele não deve conter valores de secrets.
+
+## 8. Configurar o token da Static Web App
+
+Depois que `casezero-web-dev` existir:
+
+```powershell
+az staticwebapp secrets list `
+  --name casezero-web-dev `
+  --resource-group casezero-web-dev-rg `
+  --query properties.apiKey `
+  --output tsv
 ```
 
-## Step 8: Monitoring Setup
+Armazene o resultado em `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV`.
 
-### 8.1 Application Insights Configuration
+## 9. Validar a topologia
 
-```bash
-# Get Application Insights instrumentation key
-DEV_INSIGHTS_KEY=$(az monitor app-insights component show \
-  --app casezero-insights-dev \
-  --resource-group casezero-dev-rg \
-  --query "instrumentationKey" -o tsv)
+Confira:
 
-PROD_INSIGHTS_KEY=$(az monitor app-insights component show \
-  --app casezero-insights-prod \
-  --resource-group casezero-prod-rg \
-  --query "instrumentationKey" -o tsv)
+- API e Function com identidades gerenciadas;
+- integração de VNet;
+- private endpoints aprovados;
+- zonas DNS privadas vinculadas à VNet;
+- Storage com acesso público desabilitado;
+- API com leitura de blobs e envio de mensagens para Queue;
+- Function com acesso aos blobs e aos secrets do Key Vault;
+- referências do Key Vault em estado `Resolved`;
+- frontend configurado com a URL da API.
 
-echo "Application Insights Keys:"
-echo "Dev: $DEV_INSIGHTS_KEY"
-echo "Prod: $PROD_INSIGHTS_KEY"
+Exemplos:
+
+```powershell
+az webapp identity show `
+  --name casezero-api-dev `
+  --resource-group casezero-api-dev-rg
+
+az functionapp identity show `
+  --name casegen-func-dev `
+  --resource-group casezero-func-dev-rg
+
+az network private-endpoint list --output table
 ```
 
-### 8.2 Log Analytics Workspace
+## 10. Implantar a aplicação
 
-```bash
-# Configure log retention (cost optimization)
-az monitor log-analytics workspace update \
-  --resource-group casezero-dev-rg \
-  --workspace-name casezero-logs-dev \
-  --retention-time 30
+Após a infraestrutura:
 
-az monitor log-analytics workspace update \
-  --resource-group casezero-prod-rg \
-  --workspace-name casezero-logs-prod \
-  --retention-time 90
-```
+1. abra **Deploy to DEV Environment**;
+2. execute manualmente para `development`, ou faça push elegível;
+3. confirme build e testes;
+4. confirme deploy da API, Function e frontend.
 
-## Step 9: Security Hardening
+## Atualizações
 
-### 9.1 Network Security
+Para alterações de infraestrutura:
 
-```bash
-# Configure IP restrictions for production App Service
-az webapp config access-restriction add \
-  --resource-group casezero-prod-rg \
-  --name casezero-api-prod \
-  --rule-name "AllowCloudflare" \
-  --action Allow \
-  --ip-address 173.245.48.0/20 \
-  --priority 100
-```
+1. modifique os arquivos Bicep;
+2. gere novamente os JSONs compilados usados pelo repositório;
+3. execute `validate`;
+4. revise `what-if`;
+5. execute `deploy`.
 
-### 9.2 SSL Certificates
+Não aplique mudanças manuais permanentes no Portal sem refletir a configuração
+no IaC.
 
-```bash
-# Enable HTTPS only
-az webapp update \
-  --resource-group casezero-prod-rg \
-  --name casezero-api-prod \
-  --https-only true
+## Destruição
 
-# Configure minimum TLS version
-az webapp config set \
-  --resource-group casezero-prod-rg \
-  --name casezero-api-prod \
-  --min-tls-version 1.2
-```
+`action=destroy` exige `confirm_destroy=CONFIRM` e remove resource groups
+encontrados pelas tags de ambiente.
 
-## Step 10: Backup Configuration
+Antes de usar:
 
-### 10.1 Database Backup (Production)
-
-```bash
-# Enable long-term retention for SQL Database
-az sql db ltr-policy set \
-  --resource-group casezero-prod-rg \
-  --server casezero-sql-prod \
-  --database casezero-db \
-  --weekly-retention P4W \
-  --monthly-retention P12M \
-  --yearly-retention P7Y \
-  --week-of-year 1
-```
-
-### 10.2 Application Backup (Production)
-
-```bash
-# Configure app service backup
-az webapp config backup create \
-  --resource-group casezero-prod-rg \
-  --webapp-name casezero-api-prod \
-  --backup-name automated-backup \
-  --storage-account-url "https://casezero-storage-prod.blob.core.windows.net/backups" \
-  --frequency 1 \
-  --frequency-unit Day \
-  --retain-one true \
-  --retention 30
-```
-
-## Validation Checklist
-
-After completing the setup, verify:
-
-- [ ] All resource groups created
-- [ ] Service principals configured with appropriate permissions
-- [ ] GitHub secrets added correctly
-- [ ] Infrastructure deployments successful
-- [ ] Applications accessible via HTTPS
-- [ ] Monitoring and logging working
-- [ ] Cost alerts configured
-- [ ] Security settings applied
-- [ ] Backup policies enabled (production)
-
-## Cost Monitoring
-
-Monitor your costs regularly:
-
-1. **Azure Cost Management**: Set up dashboards and alerts
-2. **Resource Tagging**: Ensure all resources are properly tagged
-3. **Usage Reviews**: Monthly review of resource utilization
-4. **Right-sizing**: Adjust resources based on actual usage
+- revise a consulta de resource groups;
+- faça backup dos dados necessários;
+- confirme o ambiente;
+- verifique locks e recursos compartilhados;
+- trate a ação como irreversível.
 
 ## Troubleshooting
 
-### Common Issues
+### `No subscriptions found`
 
-1. **Permission Denied**: Verify service principal roles and scopes
-2. **Resource Name Conflicts**: Ensure globally unique names
-3. **Quota Limits**: Check subscription limits for resources
-4. **Network Connectivity**: Verify firewall rules and NSGs
+O JSON do service principal pode estar expirado, apontando para outro tenant ou
+sem acesso à assinatura. Teste a autenticação e rotacione a credencial.
 
-### Support Resources
+### Falha ao criar role assignment
 
-- Azure Support Plans: https://azure.microsoft.com/support/plans/
-- Azure Documentation: https://docs.microsoft.com/azure/
-- Community Forums: https://docs.microsoft.com/answers/
+Conceda temporariamente a permissão mínima necessária para atribuir roles e
+remova privilégios excessivos após o deployment.
 
----
+### Storage inacessível
 
-**Next Steps**: After completing this setup, proceed to deploy your applications using the GitHub Actions workflows described in the main CI/CD documentation.
+Não habilite acesso público como solução permanente. Verifique VNet, DNS
+privado, private endpoint e RBAC da identidade chamadora.
+
+### Referência do Key Vault não resolvida
+
+Confirme:
+
+- nome exato do segredo;
+- URI gerada pelo Bicep;
+- role `Key Vault Secrets User`;
+- conectividade privada e DNS;
+- estado da referência nas app settings.
+
+### Azure Policy alterou uma propriedade
+
+Compare o estado real com o `what-if` e consulte as policy assignments. Não
+presuma que um comando bem-sucedido permaneceu aplicado.

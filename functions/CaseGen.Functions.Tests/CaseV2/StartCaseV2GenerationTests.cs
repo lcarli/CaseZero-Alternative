@@ -8,6 +8,7 @@ using CaseGen.Functions.Services.CaseV2;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -26,7 +27,7 @@ public class StartCaseV2GenerationTests
         using var context = new TestContext(default);
         var request = new TestRequest(context, Encoding.UTF8.GetBytes(body));
         // Invalid input must return before accessing the Durable dependency.
-        var response = await new StartCaseV2GenerationFunction(NullLogger<StartCaseV2GenerationFunction>.Instance)
+        var response = await new StartCaseV2GenerationFunction(NullLogger<StartCaseV2GenerationFunction>.Instance, new ConfigurationBuilder().Build())
             .Run(request, null!, context);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         response.Body.Position = 0;
@@ -40,7 +41,7 @@ public class StartCaseV2GenerationTests
     {
         using var context = new TestContext(default);
         var request = new TestRequest(context, Encoding.UTF8.GetBytes(new string('x', GenerationRequestValidator.MaxBodyBytes + 1)));
-        var response = await new StartCaseV2GenerationFunction(NullLogger<StartCaseV2GenerationFunction>.Instance)
+        var response = await new StartCaseV2GenerationFunction(NullLogger<StartCaseV2GenerationFunction>.Instance, new ConfigurationBuilder().Build())
             .Run(request, null!, context);
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
         response.Body.Position = 0;
@@ -54,10 +55,10 @@ public class StartCaseV2GenerationTests
         using var context = new TestContext(new CancellationToken(true));
         var request = new TestRequest(context, Encoding.UTF8.GetBytes("{}"));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
-            new StartCaseV2GenerationFunction(NullLogger<StartCaseV2GenerationFunction>.Instance).Run(request, null!, context));
+            new StartCaseV2GenerationFunction(NullLogger<StartCaseV2GenerationFunction>.Instance, new ConfigurationBuilder().Build()).Run(request, null!, context));
     }
 
-    private sealed class TestContext : FunctionContext, IDisposable
+    internal sealed class TestContext : FunctionContext, IDisposable
     {
         private readonly ServiceProvider _services;
         private readonly CancellationToken _token;

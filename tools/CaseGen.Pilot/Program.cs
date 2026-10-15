@@ -6,6 +6,7 @@ using CaseGen.Functions.Services;
 using CaseGen.Functions.Services.CaseV2;
 using CaseGen.Functions.Services.CaseV2.Templates;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 if (args.Length != 2)
@@ -52,17 +53,15 @@ var reporter = new LocalPhaseReporter(runDirectory);
 var provider = new TracingProvider(
     new AzureFoundryLLMProvider(configuration, loggerFactory.CreateLogger<AzureFoundryLLMProvider>()),
     runDirectory, reporter);
-var templates = new EvidenceTemplateRegistry(new IEvidenceTemplate[]
-{
-    new CallLogTemplate(), new PosExportTemplate(), new PhoneDumpTemplate(),
-    new SensorLogTemplate(), new BrowserHistoryTemplate(), new BankStatementTemplate(),
-    new GpsTrackTemplate(), new FileListingTemplate(), new ChatExportTemplate(),
-    new EmailExportTemplate(), new AccessLogTemplate()
-});
+using var services = new ServiceCollection()
+    .AddSingleton(loggerFactory)
+    .AddCaseGenApplicationServices(configuration)
+    .BuildServiceProvider();
+var templates = services.GetRequiredService<IEvidenceTemplateRegistry>();
 var renderer = new CapturingRenderer(new AssetRenderingService(
     new PdfRenderingService(configuration, loggerFactory.CreateLogger<PdfRenderingService>()),
     provider,
-    new EvidenceDocumentRenderer(loggerFactory.CreateLogger<EvidenceDocumentRenderer>()),
+    services.GetRequiredService<IEvidenceDocumentRenderer>(),
     templates, loggerFactory.CreateLogger<AssetRenderingService>()), runDirectory);
 var consistency = new CapturingConsistency(
     new ConsistencyValidator(loggerFactory.CreateLogger<ConsistencyValidator>()), runDirectory);
@@ -152,6 +151,8 @@ static class Artifacts
 sealed class DisabledPublisher : ICaseV2BlobPublisher
 {
     public bool IsConfigured => false;
+    public Task<string?> GetPublicationETagAsync(string caseId, CancellationToken ct = default)
+        => throw new InvalidOperationException("Cloud publication is prohibited for this local pilot.");
     public Task<int> PublishAsync(CaseBundle bundle, CancellationToken ct = default)
         => throw new InvalidOperationException("Cloud publication is prohibited for this local pilot.");
 }
@@ -162,20 +163,27 @@ sealed class LocalPhaseReporter(string runDirectory) : IJobPhaseReporter
     public string? CurrentPhase { get; private set; }
     public bool IsConfigured => true;
 
-    public Task ReportStartedAsync(CancellationToken ct = default) => WriteAsync("running", null, ct);
+    public Task ReportStartedAsync(CancellationToken ct = default) => WriteAsync(_ => { }, ct);
+    public Task ReportAttemptStartedAsync(int attempt, int maxAttempts, CancellationToken ct = default)
+        => WriteAsync(progress => progress.StartAttempt(attempt, maxAttempts, DateTimeOffset.UtcNow), ct);
+    public Task ReportRetryScheduledAsync(string error, DateTimeOffset retryAt, CancellationToken ct = default)
+        => WriteAsync(progress => progress.ScheduleRetry(error, retryAt, DateTimeOffset.UtcNow), ct);
     public Task ReportPhaseAsync(string phase, CancellationToken ct = default)
     {
         CurrentPhase = phase;
         Console.WriteLine($"PHASE {phase}");
-        return WriteAsync("running", null, ct);
+        return WriteAsync(progress => progress.StartStage(phase, DateTimeOffset.UtcNow, retry: false), ct);
     }
-    public Task ReportCompletedAsync(CancellationToken ct = default) => WriteAsync("done", null, ct);
-    public Task ReportFailedAsync(string error, CancellationToken ct = default) => WriteAsync("failed", error, ct);
+    public Task ReportCompletedAsync(CancellationToken ct = default) =>
+        WriteAsync(progress => progress.Complete(DateTimeOffset.UtcNow), ct);
+    public Task ReportFailedAsync(string error, CancellationToken ct = default) =>
+        WriteAsync(progress => progress.Fail(error, DateTimeOffset.UtcNow), ct);
     public Task<JobPhaseStatus?> GetAsync(CancellationToken ct = default) => Task.FromResult(status);
 
-    private async Task WriteAsync(string state, string? error, CancellationToken ct)
+    private async Task WriteAsync(Action<JobPhaseStatus> update, CancellationToken ct)
     {
-        status = new JobPhaseStatus(Path.GetFileName(runDirectory), state, CurrentPhase, error, DateTimeOffset.UtcNow);
+        status ??= JobPhaseStatus.Started(Path.GetFileName(runDirectory), DateTimeOffset.UtcNow);
+        update(status);
         await Artifacts.WriteJsonAsync(Path.Combine(runDirectory, "phase.json"), status, ct);
         await File.AppendAllTextAsync(Path.Combine(runDirectory, "phases.jsonl"),
             JsonSerializer.Serialize(status) + Environment.NewLine, ct);
@@ -184,6 +192,7 @@ sealed class LocalPhaseReporter(string runDirectory) : IJobPhaseReporter
 
 sealed class TracingProvider(ILLMProvider inner, string runDirectory, LocalPhaseReporter reporter) : ILLMProvider
 {
+    public string GenerationIdentity => inner.GenerationIdentity;
     private int sequence;
     private readonly ConcurrentDictionary<int, object> calls = new();
 
@@ -195,6 +204,12 @@ sealed class TracingProvider(ILLMProvider inner, string runDirectory, LocalPhase
         => TextAsync("structured", systemPrompt, userPrompt, jsonSchema,
             () => inner.GenerateStructuredResponseAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken), cancellationToken);
 
+    public Task<LLMResponse> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema,
+        int maximumOutputTokens, CancellationToken cancellationToken = default)
+        => TextAsync("structured", systemPrompt, userPrompt, jsonSchema,
+            () => inner.GenerateStructuredResponseAsync(systemPrompt, userPrompt, jsonSchema, maximumOutputTokens, cancellationToken),
+            cancellationToken, maximumOutputTokens);
+
     public Task<byte[]> GenerateImageAsync(string prompt, CancellationToken cancellationToken = default)
         => ImageAsync(prompt, () => inner.GenerateImageAsync(prompt, cancellationToken), false, cancellationToken);
 
@@ -202,13 +217,13 @@ sealed class TracingProvider(ILLMProvider inner, string runDirectory, LocalPhase
         => ImageAsync(prompt, () => inner.GenerateImageWithReferenceAsync(prompt, referenceImage, maskImage, cancellationToken), true, cancellationToken);
 
     private async Task<LLMResponse> TextAsync(string kind, string system, string user, string? schema,
-        Func<Task<LLMResponse>> invoke, CancellationToken ct)
+        Func<Task<LLMResponse>> invoke, CancellationToken ct, int? maximumOutputTokens = null)
     {
         var id = Interlocked.Increment(ref sequence);
         var directory = Path.Combine(runDirectory, "calls", $"{id:D3}_{reporter.CurrentPhase}");
         Directory.CreateDirectory(directory);
         await Artifacts.WriteJsonAsync(Path.Combine(directory, "request.json"),
-            new { id, kind, phase = reporter.CurrentPhase, startedAt = DateTimeOffset.UtcNow, system, user, schema }, ct);
+            new { id, kind, phase = reporter.CurrentPhase, startedAt = DateTimeOffset.UtcNow, system, user, schema, maximumOutputTokens }, ct);
         Console.WriteLine($"CALL {id:D3} {kind} started ({reporter.CurrentPhase})");
         var watch = Stopwatch.StartNew();
         try
@@ -296,6 +311,14 @@ sealed class CapturingRenderer(IAssetRenderingService inner, string runDirectory
             JsonSerializer.Serialize(material, Artifacts.Options));
     }
 
+    public async Task<IReadOnlyDictionary<string, string>> ReadPreparedDocumentsAsync(
+        IEnumerable<EvidenceAsset> assets, CancellationToken ct = default)
+    {
+        var texts = await inner.ReadPreparedDocumentsAsync(assets, ct);
+        await Artifacts.WriteJsonAsync(Path.Combine(runDirectory, "readable-evidence.json"), texts, ct);
+        return texts;
+    }
+
     public async Task<AssetRenderingReport> RenderAllAsync(string caseId, string casesBasePath,
         IEnumerable<EvidenceAsset> assets, CancellationToken ct = default)
     {
@@ -312,8 +335,12 @@ sealed class CapturingRenderer(IAssetRenderingService inner, string runDirectory
             {
                 var destination = Path.Combine(runDirectory, "rendered-evidence");
                 Directory.CreateDirectory(destination);
-                foreach (var file in Directory.EnumerateFiles(source))
-                    File.Copy(file, Path.Combine(destination, Path.GetFileName(file)), overwrite: false);
+                foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+                {
+                    var target = Path.Combine(destination, Path.GetRelativePath(source, file));
+                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                    File.Copy(file, target, overwrite: false);
+                }
             }
         }
     }

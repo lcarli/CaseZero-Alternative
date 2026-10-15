@@ -3,10 +3,13 @@ using Microsoft.AspNetCore.Identity;
 using CaseZeroApi.Models;
 using CaseZeroApi.DTOs;
 using CaseZeroApi.Services;
+using CaseZeroApi.Data;
 using System.Security.Cryptography;
 using System.Text;
 using System.Globalization;
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace CaseZeroApi.Controllers
 {
@@ -20,19 +23,22 @@ namespace CaseZeroApi.Controllers
         // OBSOLETE: Email service removed (was from old email system)
         // private readonly IEmailService _emailService;
         private readonly ILogger<AuthController> _logger;
+        private readonly ApplicationDbContext _db;
 
         public AuthController(
             UserManager<User> userManager,
             SignInManager<User> signInManager,
             IJwtService jwtService,
             // IEmailService emailService,
-            ILogger<AuthController> logger)
+            ILogger<AuthController> logger,
+            ApplicationDbContext db)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _jwtService = jwtService;
             // _emailService = emailService;
             _logger = logger;
+            _db = db;
         }
 
         [HttpPost("register")]
@@ -79,6 +85,15 @@ namespace CaseZeroApi.Controllers
 
             if (result.Succeeded)
             {
+                var roleResult = await _userManager.AddToRoleAsync(user, UserRoles.Player);
+                if (!roleResult.Succeeded)
+                {
+                    await _userManager.DeleteAsync(user);
+                    foreach (var error in roleResult.Errors)
+                        ModelState.AddModelError(string.Empty, error.Description);
+                    return StatusCode(500, ModelState);
+                }
+
                 // TODO: Send verification email to personal email (IEmailService removed)
                 // Email functionality was part of old system - needs reimplementation
                 _logger.LogInformation("User {Email} registered successfully. Auto-verified (email service disabled).", 
@@ -87,6 +102,17 @@ namespace CaseZeroApi.Controllers
                 // Auto-verify for now since email service is obsolete
                 user.EmailVerified = true;
                 await _userManager.UpdateAsync(user);
+
+                // Seed the initial rank-history row so the profile timeline has a starting point.
+                _db.UserRankHistories.Add(new UserRankHistory
+                {
+                    UserId = user.Id,
+                    PreviousRank = null,
+                    NewRank = user.Rank,
+                    ChangedAt = DateTime.UtcNow,
+                    Reason = "Account created"
+                });
+                await _db.SaveChangesAsync();
                 
                 return Ok(new { 
                     Message = "Registro realizado com sucesso! Conta ativada automaticamente.",
@@ -128,25 +154,30 @@ namespace CaseZeroApi.Controllers
                 user.LastLoginAt = DateTime.UtcNow;
                 await _userManager.UpdateAsync(user);
 
-                var token = _jwtService.GenerateToken(user);
-                var userDto = new UserDto
-                {
-                    Id = user.Id,
-                    FirstName = user.FirstName,
-                    LastName = user.LastName,
-                    Email = user.Email!,
-                    PersonalEmail = user.PersonalEmail,
-                    Department = user.Department,
-                    Position = user.Position,
-                    BadgeNumber = user.BadgeNumber,
-                    EmailVerified = user.EmailVerified
-                };
+                var roles = await _userManager.GetRolesAsync(user);
+                var token = _jwtService.GenerateToken(user, roles);
+                var userDto = ToDto(user, roles);
 
                 _logger.LogInformation("User {Email} logged in successfully", request.Email);
                 return Ok(new LoginResponseDto { Token = token, User = userDto });
             }
 
             return Unauthorized(new { Message = "Invalid credentials" });
+        }
+
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> Me()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user is null)
+                return Unauthorized();
+
+            var roles = User.FindAll(ClaimTypes.Role)
+                .Select(claim => claim.Value)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            return Ok(ToDto(user, roles));
         }
 
         [HttpPost("verify-email")]
@@ -288,5 +319,19 @@ namespace CaseZeroApi.Controllers
                 return Convert.ToBase64String(bytes).Replace("+", "-").Replace("/", "_").Replace("=", "");
             }
         }
+
+        private static UserDto ToDto(User user, IEnumerable<string> roles) => new()
+        {
+            Id = user.Id,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email!,
+            PersonalEmail = user.PersonalEmail,
+            Department = user.Department,
+            Position = user.Position,
+            BadgeNumber = user.BadgeNumber,
+            EmailVerified = user.EmailVerified,
+            Roles = roles.ToArray()
+        };
     }
 }

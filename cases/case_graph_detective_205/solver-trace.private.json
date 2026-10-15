@@ -1,0 +1,283 @@
+{
+  "Correct": true,
+  "Score": 1,
+  "CulpritScore": 0.4,
+  "EvidenceScore": 0.2,
+  "AnalysisScore": 0.2,
+  "QuestionsScore": 0.2,
+  "Attempt": {
+    "suspectId": "suspect.jordan_kim",
+    "evidenceIds": [
+      "asset.access_log",
+      "asset.gps_track",
+      "asset.report_timeline_correlation_gps_track_vpn_extract_20260312"
+    ],
+    "analysisIds": [
+      "asset.gps_track:TimelineCorrelation"
+    ],
+    "observationIds": [
+      "observation.badge_owner_identity_access_log",
+      "observation.decoy_suspicion_colin_hart_access_log",
+      "observation.decoy_suspicion_maya_reed_gps_track",
+      "observation.decoy_verification_colin_hart_access_log",
+      "observation.decoy_verification_elena_soto_access_log",
+      "observation.decoy_verification_maya_reed_gps_track",
+      "observation.forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "observation.nameless_overwrite_session_gps_track",
+      "observation.reimbursement_packet_context_gps_track"
+    ],
+    "answers": [
+      {
+        "questionId": "q.after_hours_entry_time",
+        "optionId": "opt.185712"
+      },
+      {
+        "questionId": "q.overwrite_window_and_files",
+        "optionId": "opt.1926_1931_hotel_mileage"
+      },
+      {
+        "questionId": "q.session_token_to_endpoint",
+        "optionId": "opt.ip_10_44_8_23_mac_7b_19"
+      }
+    ],
+    "rationale": "Deterministic CaseGraph proof witness"
+  },
+  "LogicalProofPassed": true,
+  "NarrativeSimulationPassed": true,
+  "Trace": {
+    "Entries": [
+      {
+        "Sequence": 1,
+        "Kind": 0,
+        "ActionId": "inspect:asset.access_log",
+        "TargetId": "asset.access_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 2,
+        "Kind": 0,
+        "ActionId": "inspect:asset.bank_statement",
+        "TargetId": "asset.bank_statement",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 3,
+        "Kind": 0,
+        "ActionId": "inspect:asset.gps_track",
+        "TargetId": "asset.gps_track",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 4,
+        "Kind": 0,
+        "ActionId": "inspect:asset.medical_report",
+        "TargetId": "asset.medical_report",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 5,
+        "Kind": 0,
+        "ActionId": "inspect:asset.personal_letter",
+        "TargetId": "asset.personal_letter",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 6,
+        "Kind": 0,
+        "ActionId": "inspect:asset.receipt",
+        "TargetId": "asset.receipt",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 7,
+        "Kind": 0,
+        "ActionId": "inspect:asset.witness_statement",
+        "TargetId": "asset.witness_statement",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 8,
+        "Kind": 0,
+        "ActionId": "inspect:email.alicia_nguyen_finance_observation",
+        "TargetId": "email.alicia_nguyen_finance_observation",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 9,
+        "Kind": 0,
+        "ActionId": "inspect:email.colin_hart_fac_ticket_context",
+        "TargetId": "email.colin_hart_fac_ticket_context",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 10,
+        "Kind": 0,
+        "ActionId": "inspect:email.lena_park_scene_hold",
+        "TargetId": "email.lena_park_scene_hold",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 11,
+        "Kind": 2,
+        "ActionId": "action.analysis_gps_track_timelinecorrelation",
+        "TargetId": "asset.gps_track",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [
+          "asset.report_timeline_correlation_gps_track_vpn_extract_20260312",
+          "email.lab_timeline_correlation_gps_track_vpn_extract_20260312"
+        ],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 12,
+        "Kind": 0,
+        "ActionId": "inspect:asset.report_timeline_correlation_gps_track_vpn_extract_20260312",
+        "TargetId": "asset.report_timeline_correlation_gps_track_vpn_extract_20260312",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 13,
+        "Kind": 0,
+        "ActionId": "inspect:email.lab_timeline_correlation_gps_track_vpn_extract_20260312",
+        "TargetId": "email.lab_timeline_correlation_gps_track_vpn_extract_20260312",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 14,
+        "Kind": 4,
+        "ActionId": "accuse:suspect.jordan_kim",
+        "TargetId": "suspect.jordan_kim",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": [
+          "observation.badge_owner_identity_access_log",
+          "observation.decoy_suspicion_colin_hart_access_log",
+          "observation.decoy_suspicion_maya_reed_gps_track",
+          "observation.decoy_verification_colin_hart_access_log",
+          "observation.decoy_verification_elena_soto_access_log",
+          "observation.decoy_verification_maya_reed_gps_track",
+          "observation.forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+          "observation.nameless_overwrite_session_gps_track",
+          "observation.reimbursement_packet_context_gps_track"
+        ]
+      },
+      {
+        "Sequence": 15,
+        "Kind": 5,
+        "ActionId": "answer:q.after_hours_entry_time",
+        "TargetId": "q.after_hours_entry_time",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 16,
+        "Kind": 5,
+        "ActionId": "answer:q.overwrite_window_and_files",
+        "TargetId": "q.overwrite_window_and_files",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 17,
+        "Kind": 5,
+        "ActionId": "answer:q.session_token_to_endpoint",
+        "TargetId": "q.session_token_to_endpoint",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      }
+    ],
+    "FinalReachableSourceIds": [
+      "asset.access_log",
+      "asset.bank_statement",
+      "asset.gps_track",
+      "asset.medical_report",
+      "asset.personal_letter",
+      "asset.receipt",
+      "asset.report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "asset.witness_statement",
+      "email.alicia_nguyen_finance_observation",
+      "email.colin_hart_fac_ticket_context",
+      "email.lab_timeline_correlation_gps_track_vpn_extract_20260312",
+      "email.lena_park_scene_hold"
+    ],
+    "FinalReachableObservationIds": [
+      "observation.badge_owner_identity_access_log",
+      "observation.decoy_suspicion_colin_hart_access_log",
+      "observation.decoy_suspicion_elena_soto_bank_statement",
+      "observation.decoy_suspicion_maya_reed_gps_track",
+      "observation.decoy_verification_colin_hart_access_log",
+      "observation.decoy_verification_elena_soto_access_log",
+      "observation.decoy_verification_maya_reed_gps_track",
+      "observation.forensic_session_to_device_report_timeline_correlation_gps_track_vpn_extract_20260312",
+      "observation.nameless_overwrite_session_gps_track",
+      "observation.pdf_properties_author_receipt",
+      "observation.reimbursement_packet_context_gps_track",
+      "observation.reimbursement_packet_context_witness_statement",
+      "observation.workstation_asset_identity_personal_letter"
+    ],
+    "LogicalProofPassed": true,
+    "NarrativeSimulationPassed": true
+  },
+  "Notes": null
+}

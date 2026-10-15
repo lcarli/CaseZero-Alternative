@@ -12,12 +12,12 @@ This chapter defines the **technical architecture, technology stack, and impleme
 
 **Key Concepts:**
 - React frontend (TypeScript)
-- C# ASP.NET Core backend
-- Azure cloud infrastructure
-- Azure SQL Database (SQL Server)
-- Blob storage for assets
-- JWT authentication
-- Real-time forensics via background jobs
+- ASP.NET Core Web API backend (.NET 8)
+- Azure Functions isolated worker for case generation (.NET 9)
+- Azure SQL Database for identity and session state
+- Azure Blob Storage + Table Storage for published case bundles and job state
+- JWT + ASP.NET Identity authentication
+- Durable case generation and asynchronous forensics
 
 ---
 
@@ -58,10 +58,10 @@ This chapter defines the **technical architecture, technology stack, and impleme
 │                        USER'S BROWSER                        │
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │            React SPA (TypeScript)                      │ │
-│  │  - Desktop UI Components                               │ │
-│  │  - State Management (Redux)                            │ │
-│  │  - PDF.js for document viewing                         │ │
-│  │  - Service Worker (offline support)                    │ │
+│  │  - 4 UI locales: en-US, pt-BR, es-ES, fr-FR           │ │
+│  │  - Admin /case-generation workflow                    │ │
+│  │  - Phase/progress polling UI                          │ │
+│  │  - PDF.js for document viewing                        │ │
 │  └────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
                               │
@@ -71,32 +71,33 @@ This chapter defines the **technical architecture, technology stack, and impleme
 │                    AZURE CLOUD PLATFORM                      │
 │                                                              │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │        Azure App Service (Linux)                       │ │
-│  │  ┌──────────────────────────────────────────────────┐  │ │
-│  │  │   ASP.NET Core 9.0 Web API (C#)                  │  │ │
-│  │  │   - REST Controllers                              │  │ │
-│  │  │   - Authentication (JWT)                          │  │ │
-│  │  │   - Business Logic Services                       │  │ │
-│  │  │   - Entity Framework Core                         │  │ │
-│  │  └──────────────────────────────────────────────────┘  │ │
+│  │         ASP.NET Core 8.0 Web API (.NET 8)              │ │
+│  │   - JWT + ASP.NET Identity                             │ │
+│  │   - EF Core + SQL-backed session state                 │ │
+│  │   - Reads published case.json v2 bundles               │ │
 │  └────────────────────────────────────────────────────────┘ │
 │                              │                               │
 │              ┌───────────────┴───────────────┐              │
 │              │                               │              │
 │  ┌───────────▼────────────┐    ┌────────────▼──────────┐  │
 │  │ Azure SQL Database      │    │ Azure Blob Storage    │  │
-│  │ (SQL Server)            │    │ - case.json + assets  │  │
-│  │ - Identity + profiles   │    │ - Evidence imagery    │  │
-│  │ - Sessions & progress   │    │ - Forensic reports    │  │
-│  │ - Submissions, forensics│    │ - Suspect photography │  │
-│  │ - Emails & achievements │    │                       │  │
+│  │ - Identity + profiles   │    │ - Player-facing assets│  │
+│  │ - Sessions & progress   │    │ - Generated bundles   │  │
+│  │ - Submissions/forensics │    │ - case.json commit mk │  │
 │  └────────────────────────┘    └───────────────────────┘  │
+│                              │                               │
+│                     ┌────────▼────────┐                     │
+│                     │ Azure Table Stor│                     │
+│                     │ - Job/progress  │                     │
+│                     │ - Durable state │                     │
+│                     └─────────────────┘                     │
 │                                                              │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │        Azure Functions (Serverless)                    │ │
-│  │  - Forensic Timer Worker                               │ │
-│  │  - Email Notification Service                          │ │
-│  │  - Analytics Aggregation                               │ │
+│  │ Azure Functions Isolated Worker (.NET 9)               │ │
+│  │  - Durable case-generation orchestrator                │ │
+│  │  - Stage tasks + external markdown prompts             │ │
+│  │  - CaseGraph refresh + validation + solver gate        │ │
+│  │  - Asynchronous/timer-based forensic processing        │ │
 │  └────────────────────────────────────────────────────────┘ │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
@@ -109,39 +110,33 @@ This chapter defines the **technical architecture, technology stack, and impleme
 ### Frontend
 
 **Core Framework:**
-- **React 18+** (TypeScript)
+- **React 19** (TypeScript)
   - Component-based UI
   - Hooks for state management
   - Virtual DOM for performance
 
 **State Management:**
-- **Redux Toolkit**
-  - Centralized application state
-  - Predictable state updates
-  - Time-travel debugging
+- **React Context + hooks**
+  - Authentication, language, theme, notifications, and game-session state
+  - Local component state where global coordination is unnecessary
 
 **Routing:**
-- **React Router v6**
+- **React Router v7**
   - Client-side navigation
-  - Lazy loading for code splitting
   - Protected routes
 
 **Document Viewing:**
-- **PDF.js** (Mozilla)
-  - Native PDF rendering
-  - No server-side conversion
-  - Text selection, search
+- Browser-native rendering for PDFs and generated media
+- Application viewers for emails, evidence, reports, and other case assets
 
 **HTTP Client:**
-- **Axios**
-  - Promise-based requests
-  - Interceptors for auth
-  - Request cancellation
+- Native **Fetch API**
+  - JWT-authenticated API requests
+  - Streaming and Blob responses where required
 
 **Styling:**
-- **CSS Modules** + **Tailwind CSS**
-  - Scoped styles
-  - Utility-first CSS
+- **styled-components** + application CSS
+  - Component-oriented styles
   - Responsive design
 
 **Build Tool:**
@@ -153,14 +148,13 @@ This chapter defines the **technical architecture, technology stack, and impleme
 **Testing:**
 - **Vitest** (unit tests)
 - **React Testing Library** (component tests)
-- **Playwright** (E2E tests)
 
 ---
 
 ### Backend
 
 **Core Framework:**
-- **ASP.NET Core 9.0** (C#)
+- **ASP.NET Core 8.0** (C#) for `backend/CaseZeroApi`
   - Cross-platform (Linux, Windows)
   - High performance
   - Dependency injection built-in
@@ -168,26 +162,25 @@ This chapter defines the **technical architecture, technology stack, and impleme
 **API:**
 - **REST API** (JSON)
   - Conventional HTTP methods
-  - Clear resource endpoints
-  - Versioning via URL
+  - JWT + ASP.NET Identity authentication
+  - EF Core with SQL-backed persistence
 
-**Authentication:**
-- **JWT (JSON Web Tokens)**
-  - Stateless authentication
-  - Claims-based authorization
-  - Refresh token support
+**Case Generation Service:**
+- **Azure Functions isolated worker (.NET 9)** for `functions/CaseGen.Functions`
+  - Durable Functions orchestrator
+  - Azure OpenAI prompt-driven generation
+  - Blob/Table storage publication + job tracking
+
+**Background Processing:**
+- **Timer-based asynchronous forensics**
+  - Wait-duration forensic requests
+  - Completion checks run out-of-band from the Web API
 
 **Database ORM:**
-- **Entity Framework Core 9.0**
+- **Entity Framework Core**
+  - SQL Server / Azure SQL provider
   - Code-first migrations
   - LINQ queries
-  - Change tracking
-
-**Background Jobs:**
-- **Azure Functions** (Timer Triggers)
-  - Forensic timer completion
-  - Notification dispatch
-  - Analytics aggregation
 
 **Logging:**
 - **Serilog**
@@ -222,59 +215,53 @@ This chapter defines the **technical architecture, technology stack, and impleme
 ### Cloud Infrastructure
 
 **Hosting:**
-- **Azure App Service** (Web API)
-  - Managed platform
-  - Auto-scaling
-  - Deployment slots (staging/prod)
+- **Current repository implementation:** ASP.NET Core Web API (.NET 8) plus Azure Functions isolated worker (.NET 9)
+  - The exact production hosting topology is environment-specific
+  - App Service / deployment slots remain operational design options, not the only verified deployment shape
 
 **Serverless:**
-- **Azure Functions**
-  - Event-driven execution
-  - Pay-per-use
-  - Timer triggers for forensics
+- **Durable Functions orchestration**
+  - Implemented case-generation pipeline
+  - Exponential-backoff retries between stages
+  - Timer-based asynchronous forensic completion
 
 **Storage:**
-- **Azure Blob Storage**
-  - CDN for static assets
-  - Hot tier for active cases
-  - Cool tier for archived cases
+- **Azure Blob Storage + Azure Table Storage**
+  - Blob Storage holds published case bundles and assets
+  - Table Storage holds job state / durable progress data
+  - `case.json` is written last as the bundle commit marker
 
-**CDN:**
-- **Azure CDN**
-  - Global asset delivery
-  - Reduced latency
-  - HTTPS by default
+**AI Services:**
+- **Azure OpenAI (GPT-4o)**
+  - External prompt templates live under `functions/CaseGen.Functions/agents/case-v2/`
+  - Each generation stage uses a dedicated prompt file loaded via `AgentPromptCatalog`
 
-**Monitoring:**
-- **Azure Application Insights**
-  - Performance monitoring
-  - Error tracking
-  - Usage analytics
-
-**DevOps:**
-- **GitHub Actions**
-  - CI/CD pipelines
-  - Automated testing
-  - Deployment automation
+**Monitoring / DevOps:**
+- **Application Insights / GitHub Actions**
+  - Documented operational targets
+  - Treat as environment-specific unless separately provisioned in the active deployment
 
 ---
 
 ## 8.5 Data Schema
 
-CaseZero follows a **storage-first** model. The CaseGen Azure Function produces the entire case package (`case.json`, `evidence/*.json`, audio, video, reports) and writes it to **Azure Blob Storage**, which becomes the single source of truth for narrative content. The Web API streams that JSON to the frontend, while **Azure SQL Database** tracks only the relational state tied to players, sessions, and telemetry.
+CaseZero follows a **storage-first** model. The implemented `functions/CaseGen.Functions` durable pipeline generates canonical **case.json v2** bundles natively (see [CASE JSON v2 spec](../../CASE_JSON_V2_SPEC.md) and [JSON Schema](../../../schemas/case.schema.json)). The .NET 9 isolated worker publishes player-facing assets to **Azure Blob Storage** and writes `case.json` **last** as the bundle's commit marker. The .NET 8 Web API reads published bundles from storage, while **Azure SQL Database** keeps only relational player, auth, session, and telemetry state.
 
 ### Responsibility split
 
-- **Azure Blob Storage**: immutable case manifests, suspect sheets, evidence assets, localized strings, forensic results. Each `cases/{caseId}` folder can be versioned simply by publishing a new prefix.
-- **Azure SQL Database (SQL Server)**: ASP.NET Identity tables plus player state (sessions, progress, unlocks, submissions, emails, achievements). No narrative text or gameplay assets are duplicated here.
+- **Azure Blob Storage**: published `case.json` v2 bundles, PDFs, images, audio, and other player-facing assets. A bundle is only discoverable/playable after `case.json` exists.
+- **Azure Table Storage**: durable job/orchestration state and generation progress tracking.
+- **Azure SQL Database (SQL Server)**: ASP.NET Identity tables plus player state (sessions, progress, unlocks, submissions, forensic requests, emails, achievements). No canonical case narrative or solution content is duplicated here.
 - **Optional in-memory cache (Redis)**: stores recently requested `case.json` payloads keyed by `CaseId:CaseVersion` to reduce blob fetches.
 
 ### Generation & consumption flow
 
-1. **CaseGen.Functions** generates the case and uploads it to the Storage Account.
-2. The backend optionally records a pointer to the blob in SQL (catalog entry) and emits publication events.
-3. The frontend requests `case.json` through the API (which streams the blob) and persists the player’s progress to SQL using only `CaseId` and `CaseVersion` as foreign keys.
-4. When a new revision ships, only the blob changes; existing sessions keep their stored version until they finish or a migration runs.
+1. **CaseV2GenerationOrchestrator** starts a Durable Functions case-generation job.
+2. **CaseBibleTask** creates the private typed source of truth (victim, suspects, timeline, solution) before player-facing content is drafted.
+3. Each stage loads a dedicated markdown prompt from `functions/CaseGen.Functions/agents/case-v2/` via `AgentPromptCatalog`; **CaseGraph** is refreshed as stages complete, and the orchestrator retries failed stages with exponential backoff.
+4. **JobPhaseReporter** / `GenerationProgressCatalog` / `JobPhaseStatus` publish granular progress that the admin `/case-generation` UI polls and displays.
+5. **SolverTask** attempts to solve the case using only player-visible clues, and **CaseV2FinalValidation** rejects the run if the solver confidence score is below **0.90** or if schema / consistency / locale / parity gates fail.
+6. **CaseV2BlobPublisher** uploads non-`case.json` assets first and writes `case.json` last. That final write is the bundle-level commit marker that makes the case discoverable to the API.
 
 ### Lightweight case catalog (optional)
 
@@ -464,6 +451,8 @@ CREATE TABLE UserAchievements (
 
 ## 8.6 API Endpoints
 
+> **Implementation note:** The routes and payloads in this section are illustrative documentation, not a frozen contract. The live backend is the .NET 8 Web API, and the current gameplay semantics use the shared seven-level enum (`Rookie`, `Detective`, `Detective2`, `Sergeant`, `Lieutenant`, `Captain`, `Commander`) plus cumulative graded-correct promotion rules instead of XP-based rank thresholds.
+
 ### Authentication
 
 **POST /api/auth/register**
@@ -496,8 +485,8 @@ Response: 200 OK
 {
   "userId": "uuid",
   "username": "alex_detective",
-  "rank": "Detective I",
-  "xp": 3250,
+  "rank": "Detective",
+  "gradedCorrectCases": 4,
   "token": "jwt-token",
   "refreshToken": "refresh-token"
 }
@@ -524,7 +513,7 @@ Response: 200 OK
 **GET /api/cases**
 ```
 Query params:
-- difficulty: Easy|Medium|Hard|Expert (optional)
+- difficulty: Rookie|Detective|Detective2|Sergeant|Lieutenant|Captain|Commander (optional)
 - status: Published|Active|Solved (optional)
 - page: int (default 1)
 - pageSize: int (default 20)
@@ -535,7 +524,7 @@ Response: 200 OK
     {
       "caseId": "CASE-2024-001",
       "title": "The Downtown Office Murder",
-      "difficulty": "Medium",
+      "difficulty": "Sergeant",
       "estimatedTimeHours": 4.5,
       "suspectCount": 3,
       "documentCount": 12,
@@ -556,7 +545,7 @@ Response: 200 OK
 {
   "caseId": "CASE-2024-001",
   "title": "The Downtown Office Murder",
-  "difficulty": "Medium",
+  "difficulty": "Sergeant",
   "caseData": { /* Full case.json */ },
   "userSession": {
     "sessionId": "uuid",
@@ -693,16 +682,17 @@ Response: 200 OK
 {
   "submissionId": "uuid",
   "isCorrect": true,
-  "xpAwarded": 450,
+  "gradedCorrectResolveAwarded": 1,
   "feedback": {
     "summary": "Excellent work, Detective!",
     "culpritCorrect": true,
     "keyEvidenceCited": true,
     "explanationQuality": "thorough"
   },
-  "newRank": "Detective I",
+  "newRank": "Sergeant",
   "rankUp": false,
-  "progressToNextRank": 79
+  "gradedCorrectCases": 18,
+  "nextRankThreshold": 28
 }
 ```
 
@@ -711,7 +701,7 @@ Response: 200 OK
 {
   "submissionId": "uuid",
   "isCorrect": false,
-  "xpAwarded": 0,
+  "gradedCorrectResolveAwarded": 0,
   "attemptsRemaining": 2,
   "feedback": {
     "summary": "Your conclusion does not match the evidence.",
@@ -734,9 +724,9 @@ Response: 200 OK
 {
   "userId": "uuid",
   "username": "alex_detective",
-  "rank": "Detective I",
-  "xp": 3250,
-  "xpToNextRank": 1750,
+  "rank": "Lieutenant",
+  "gradedCorrectCases": 28,
+  "nextRankThreshold": 44,
   "stats": {
     "casesSolved": 12,
     "casesFailed": 2,
@@ -751,7 +741,7 @@ Response: 200 OK
       "title": "The Warehouse Fire",
       "status": "Solved",
       "attempts": 1,
-      "xpEarned": 900
+      "gradedCorrectResolve": 1
     }
   ]
 }
@@ -763,9 +753,9 @@ Response: 200 OK
 {
   "overall": { /* stats */ },
   "byDifficulty": {
-    "Easy": { "solved": 4, "failed": 0, "successRate": 100 },
-    "Medium": { "solved": 5, "failed": 1, "successRate": 83.3 },
-    "Hard": { "solved": 3, "failed": 1, "successRate": 75 }
+    "Rookie": { "solved": 2, "failed": 0, "successRate": 100 },
+    "Detective": { "solved": 4, "failed": 1, "successRate": 80 },
+    "Sergeant": { "solved": 3, "failed": 1, "successRate": 75 }
   }
 }
 ```
@@ -809,7 +799,7 @@ Response: 200 OK
 {
   "sub": "user-uuid",
   "username": "alex_detective",
-  "rank": "Detective I",
+  "rank": "Detective",
   "email": "alex@example.com",
   "iat": 1699876800,
   "exp": 1699880400
@@ -838,12 +828,14 @@ Response: 200 OK
 
 ---
 
-## 8.8 Real-Time Forensics Implementation
+## 8.8 Asynchronous Forensics Implementation
 
 ### Azure Function Timer Worker
 
 **Function:** `ForensicTimerWorker`  
 **Trigger:** Timer (runs every 5 minutes)
+
+> **Implementation note:** This section describes the repository's wait-duration forensic model. These requests complete asynchronously after a timer-based delay; they are **not** live-streaming telemetry.
 
 **Logic:**
 ```csharp
@@ -877,10 +869,10 @@ public async Task Run([TimerTrigger("0 */5 * * * *")] TimerInfo timer)
 ```
 
 **Why This Works:**
-- Runs independently of web API
+- Runs independently of the Web API
+- Models delayed forensic turnaround rather than live streaming
 - Scales automatically
 - Fault-tolerant (retries)
-- No polling from client needed
 
 ---
 
@@ -1084,6 +1076,12 @@ services.AddCors(options => {
 
 ### Environments
 
+> **Current implementation:** the repository has a development deployment workflow
+> (`.github/workflows/cd-dev.yml`) and a manually triggered infrastructure workflow
+> (`.github/workflows/infrastructure-3tier.yml`). The staging slots, production
+> blue-green flow, automatic rollback, and manual production approval described
+> below are target architecture, not currently implemented automation.
+
 **Development:**
 - Local machines
 - Docker Compose for dependencies
@@ -1264,8 +1262,9 @@ _logger.LogInformation(
 ### Local Development
 
 **Prerequisites:**
-- Node.js 18+
-- .NET 9 SDK
+- Node.js 20+
+- **.NET 8 SDK** for `backend/CaseZeroApi`
+- **.NET 9 SDK** for `functions/CaseGen.Functions` and `functions/CaseGen.Functions.Tests` (must remain .NET 9)
 - Docker Desktop (optional)
 - Access to Azure SQL Database **or** local SQL Server (Azure SQL Edge / container)
 
@@ -1276,16 +1275,21 @@ cd frontend
 npm install
 npm run dev
 
-# Backend
-cd backend
+# Backend API (.NET 8)
+cd backend/CaseZeroApi
 dotnet restore
 dotnet run
+
+# Case generation functions (.NET 9)
+cd ../../functions/CaseGen.Functions
+dotnet restore
 
 # Database (optional via Docker)
 docker run -e 'ACCEPT_EULA=Y' -e 'SA_PASSWORD=YourStrong!Pass123' \
   -p 1433:1433 -d mcr.microsoft.com/mssql/server:2022-latest
 
 # Apply EF migrations against the configured instance
+cd ../../backend/CaseZeroApi
 dotnet ef database update
 ```
 
@@ -1350,12 +1354,9 @@ dotnet test
 ### Backend
 
 **Production:**
-- Microsoft.AspNetCore.App
-- Microsoft.EntityFrameworkCore
-- Microsoft.EntityFrameworkCore.SqlServer
-- Microsoft.AspNetCore.Authentication.JwtBearer
-- Serilog
-- Azure.Storage.Blobs
+- **Web API:** Microsoft.AspNetCore.App, ASP.NET Identity, Microsoft.EntityFrameworkCore.SqlServer, Microsoft.AspNetCore.Authentication.JwtBearer
+- **Case generation functions:** Microsoft.Azure.Functions.Worker, Durable Functions extension, Azure.Storage.Blobs, Azure.Data.Tables, Azure OpenAI client SDK
+- **Shared services:** Serilog
 
 **Development:**
 - xUnit
@@ -1395,10 +1396,9 @@ dotnet test
 - JWT with refresh tokens
 
 **Deployment:**
-- Blue-green deployment
-- Automated staging deployment
-- Manual production approval
-- Rollback capability
+- Automated development deployment through `cd-dev.yml`
+- Manual dev/prod infrastructure operations through `infrastructure-3tier.yml`
+- Blue-green production deployment and automatic rollback remain roadmap items
 
 **Monitoring:**
 - Azure Application Insights

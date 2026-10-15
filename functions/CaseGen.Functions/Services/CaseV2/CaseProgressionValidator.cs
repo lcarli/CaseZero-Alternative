@@ -24,12 +24,6 @@ public static class CaseProgressionValidator
     {
         var assets = draft.AssetFull.Concat(draft.ResultAssets).ToList();
         var emails = draft.FollowUpEmails.Concat(draft.ResultEmails).ToList();
-        if (draft.Bible is not null)
-            emails.Add(new EvidenceEmail
-            {
-                Id = "email.briefing", Visibility = "initial",
-                Attachments = draft.Bible.Sources.Single(s => s.Id == "email.briefing").Attachments
-            });
         var allInitial = string.Equals(draft.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase);
         var visibleAssets = assets.Where(a => allInitial || a.Visibility == "initial").Select(a => a.Id).ToHashSet();
         var visibleEmails = emails.Where(e => allInitial || e.Visibility == "initial").Select(e => e.Id).Append("email.briefing").ToHashSet();

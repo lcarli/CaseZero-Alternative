@@ -2,36 +2,92 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import styled, { keyframes } from 'styled-components'
 import { ArrowLeft, Star as Sparkles, AlertCircle, CheckCircle as CheckCircle2, Loader as Loader2 } from 'react-feather'
-import { caseGenerationApi, type GenerateCaseRequest, type GenerateCaseStatus } from '../services/api'
+import {
+  caseGenerationApi,
+  type GenerateCaseRequest,
+  type GenerateCaseStatus,
+  type GenerationStageProgress
+} from '../services/api'
 import { useLanguage } from '../contexts/LanguageContext'
 import type { Translations } from '../types/i18n'
 
-const PHASES: { id: string; label: keyof Translations }[] = [
-  { id: 'plotOutline',                  label: 'generationPhasePlot' },
-  { id: 'caseBible',                    label: 'generationPhaseCaseBible' },
-  { id: 'suspectCards',                 label: 'generationPhaseSuspects' },
-  { id: 'assetPlan',                    label: 'generationPhaseAssetPlan' },
-  { id: 'assetsAndTimelineAndBriefing', label: 'generationPhaseAssets' },
-  { id: 'forensicsPlan',                label: 'generationPhaseForensicsPlan' },
-  { id: 'outcomesAndInitialEmails',     label: 'generationPhaseOutcomes' },
-  { id: 'mechanicalRules',              label: 'generationPhaseMechanicalRules' },
-  { id: 'rulesAndSolutionSkeleton',     label: 'generationPhaseSolution' },
-  { id: 'questionsAndExplanation',      label: 'generationPhaseQuestions' },
-  { id: 'consistency',                  label: 'generationPhaseConsistency' },
-  { id: 'autoFixSchema',                label: 'generationPhaseAutoFix' },
-  { id: 'redTeamAndSolver',             label: 'generationPhaseReview' },
-  { id: 'refineCase',                   label: 'generationPhaseRefine' },
-  { id: 'revalidateRepair',             label: 'generationPhaseRepairReview' },
-  { id: 'qualityGate',                  label: 'generationPhaseQualityGate' },
-  { id: 'renderAssets',                 label: 'generationPhaseRender' },
-  { id: 'verifyBundle',                 label: 'generationPhaseVerifyBundle' },
-  { id: 'preparePublication',           label: 'generationPhasePreparePublication' },
-  { id: 'publishToBlob',                label: 'generationPhasePublish' },
-  { id: 'persistCase',                  label: 'generationPhasePersist' }
+const STAGE_IDS = [
+  'caseDesign', 'graphConstruction', 'evidenceProduction', 'forensicWorkflow',
+  'solutionDesign', 'deterministicValidation', 'solutionWitness', 'advisoryReview',
+  'targetedRepair', 'finalValidation', 'finalization'
 ]
 
-const STATUS_LABELS: Record<GenerateCaseStatus['status'], keyof Translations> = {
-  queued: 'generationQueued', running: 'running', done: 'completed', failed: 'failed'
+const STAGE_KEYS: Record<string, keyof Translations> = {
+  caseDesign: 'stageCaseDesign',
+  graphConstruction: 'stageGraphConstruction',
+  evidenceProduction: 'stageEvidenceProduction',
+  forensicWorkflow: 'stageForensicWorkflow',
+  solutionDesign: 'stageSolutionDesign',
+  deterministicValidation: 'stageDeterministicValidation',
+  solutionWitness: 'stageSolutionWitness',
+  advisoryReview: 'stageAdvisoryReview',
+  targetedRepair: 'stageTargetedRepair',
+  finalValidation: 'stageFinalValidation',
+  finalization: 'stageFinalization'
+}
+
+interface DiagnosticPhase {
+  id: string
+  label: keyof Translations
+  aliases?: string[]
+}
+
+const DIAGNOSTIC_PHASES: DiagnosticPhase[] = [
+  { id: 'caseBible', label: 'generationPhaseCaseBible' },
+  { id: 'plotOutline', label: 'generationPhasePlot' },
+  { id: 'suspectCards', label: 'generationPhaseSuspects' },
+  { id: 'assetPlan', label: 'generationPhaseAssetPlan' },
+  { id: 'assetsAndTimelineAndBriefing', label: 'generationPhaseAssets' },
+  { id: 'forensicsPlan', label: 'generationPhaseForensicsPlan' },
+  { id: 'outcomesAndInitialEmails', label: 'generationPhaseOutcomes' },
+  { id: 'mechanicalRules', label: 'generationPhaseMechanicalRules' },
+  { id: 'rulesAndSolutionSkeleton', label: 'generationPhaseSolution' },
+  { id: 'questionsAndExplanation', label: 'generationPhaseQuestions' },
+  { id: 'consistency', label: 'generationPhaseConsistency' },
+  { id: 'autoFixSchema', label: 'generationPhaseAutoFix' },
+  { id: 'redTeamAndSolver', label: 'generationPhaseReview' },
+  { id: 'prepareMaterials', label: 'generationPhasePrepareMaterials' },
+  { id: 'playerInvestigation', label: 'generationPhasePlayerInvestigation' },
+  { id: 'blockingReview', label: 'generationPhaseBlockingReview' },
+  { id: 'refineCase', label: 'generationPhaseRefine', aliases: ['targetedRepair'] },
+  { id: 'revalidateRepair', label: 'generationPhaseRepairReview' },
+  { id: 'qualityGate', label: 'generationPhaseQualityGate' },
+  { id: 'renderAssets', label: 'generationPhaseRender' },
+  { id: 'verifyBundle', label: 'generationPhaseVerifyBundle' },
+  { id: 'preparePublication', label: 'generationPhasePreparePublication' },
+  { id: 'publishToBlob', label: 'generationPhasePublish' },
+  { id: 'persistCase', label: 'generationPhasePersist', aliases: ['persist'] }
+]
+
+const CASE_DESIGN_SUBPHASES = ['caseBible', 'plotOutline', 'suspectCards'] as const
+
+const PHASE_KEYS: Record<string, keyof Translations> = {
+  ...Object.fromEntries(DIAGNOSTIC_PHASES.flatMap(phase =>
+    [phase.id, ...(phase.aliases ?? [])].map(id => [id, phase.label]))),
+  caseBible: 'phaseCaseBible',
+  plotOutline: 'phasePlotOutline',
+  suspectCards: 'phaseSuspectCards'
+}
+
+const LEGACY_STAGE: Record<string, string> = {
+  caseBible: 'caseDesign', plotOutline: 'caseDesign', suspectCards: 'caseDesign',
+  assetPlan: 'graphConstruction', assetsAndTimelineAndBriefing: 'evidenceProduction',
+  rookieInitialEvidence: 'evidenceProduction', forensicsPlan: 'forensicWorkflow',
+  outcomesAndInitialEmails: 'forensicWorkflow', mechanicalRules: 'solutionDesign',
+  rulesAndSolutionSkeleton: 'solutionDesign', questionsAndExplanation: 'solutionDesign',
+  consistency: 'deterministicValidation', autoFixSchema: 'deterministicValidation',
+  redTeamAndSolver: 'solutionWitness', prepareMaterials: 'solutionWitness',
+  playerInvestigation: 'solutionWitness', blockingReview: 'finalValidation',
+  refineCase: 'targetedRepair', targetedRepair: 'targetedRepair',
+  revalidateRepair: 'targetedRepair', qualityGate: 'finalValidation',
+  redTeamRerun: 'advisoryReview', renderAssets: 'finalization', verifyBundle: 'finalization',
+  preparePublication: 'finalization', publishToBlob: 'finalization',
+  persistCase: 'finalization', persist: 'finalization'
 }
 
 const VERDICT_LABELS: Record<string, keyof Translations> = {
@@ -229,10 +285,32 @@ const PhaseRow = styled.li<{ $state: 'done' | 'current' | 'pending' | 'skipped' 
   border-radius: 10px;
   background: ${p =>
     p.$state === 'current' ? 'rgba(56, 189, 248, 0.12)' :
-    p.$state === 'failed'  ? 'rgba(239, 68, 68, 0.12)' :
+    p.$state === 'failed'  ? 'rgba(239, 68, 68, 0.1)' :
     p.$state === 'done'    ? 'rgba(15, 23, 42, 0.5)' :
                              'transparent'};
-  color: ${p => p.$state === 'pending' ? '#475569' : '#cbd5e1'};
+  color: ${p => p.$state === 'pending' || p.$state === 'skipped' ? '#64748b' : '#cbd5e1'};
+`
+const SubphaseList = styled.ul`
+  grid-column: 2 / -1;
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0 0 0 0.25rem;
+  display: grid;
+  gap: 0.3rem;
+`
+const SubphaseRow = styled.li<{ $state: 'done' | 'current' | 'pending' | 'skipped' | 'failed' }>`
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-left: 2px solid ${p =>
+    p.$state === 'current' ? '#38bdf8' :
+    p.$state === 'done' ? '#22c55e' :
+    p.$state === 'failed' ? '#ef4444' :
+    'rgba(100, 116, 139, 0.35)'};
+  color: ${p => p.$state === 'pending' || p.$state === 'skipped' ? '#64748b' : '#cbd5e1'};
+  font-size: 0.8rem;
 `
 const Mono = styled.code`
   font-family: 'JetBrains Mono', monospace;
@@ -277,6 +355,16 @@ const ErrorBox = styled.div.attrs({ role: 'alert' })`
   gap: 0.5rem;
 `
 
+const RetryBox = styled.div`
+  margin-top: 1rem;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  font-size: 0.85rem;
+  color: #fcd34d;
+`
+
 const DIFFICULTIES: { value: string; label: keyof Translations }[] = [
   { value: 'Rookie', label: 'generationRankRookie' },
   { value: 'Detective', label: 'detective' },
@@ -298,7 +386,7 @@ const POLL_INTERVAL_MS = 2500
 
 const CaseGenerationPage = () => {
   const navigate = useNavigate()
-  const { t, currentLanguage } = useLanguage()
+  const { currentLanguage, t } = useLanguage()
   const [form, setForm] = useState<GenerateCaseRequest>({
     difficulty: 'Rookie',
     requiredRank: 'Rookie',
@@ -366,29 +454,22 @@ const CaseGenerationPage = () => {
       setJobId(res.jobId)
       pollOnce(res.jobId)
     } catch (err) {
-      if (mounted.current)
-        setError(err instanceof Error ? err.message : t('generationStartError'))
+      if (mounted.current) setError(err instanceof Error ? err.message : t('generationStartError'))
     } finally {
       if (mounted.current) setSubmitting(false)
     }
   }
 
-  const currentPhaseIndex = (() => {
-    if (!status?.currentPhase) return -1
-    return PHASES.findIndex(p => p.id === status.currentPhase)
-  })()
   const terminal = status?.status === 'done' || status?.status === 'failed'
   const result = status?.result
   const report = result?.Quality
   const quality = report && Array.isArray(report.Issues) && report.Issues.every(issue => issue != null) ? report : null
-  const completedCount = terminal
-    ? PHASES.filter(p => result?.StageLatencyMs?.[p.id] !== undefined).length
-    : Math.max(0, currentPhaseIndex)
-  const pct = status?.status === 'done' ? 100 : (completedCount / PHASES.length) * 100
-  const currentPhase = PHASES.find(p => p.id === status?.currentPhase)
+  const playerVisibleEvaluation = quality?.SolverMode === 'player-visible'
+  const phaseLatency = (phase: DiagnosticPhase) =>
+    [phase.id, ...(phase.aliases ?? [])].map(id => result?.StageLatencyMs?.[id]).find(ms => ms !== undefined)
   const artifactFailure = quality?.Issues.find(issue => issue.Blocking &&
     ['bundle_invalid', 'asset_integrity_failed', 'asset_file_missing'].includes(issue.Code))
-  const persistencePhase = result?.StageLatencyMs?.persistCase !== undefined || result?.StageLatencyMs?.preparePublication === undefined
+  const persistencePhase = result?.StageLatencyMs?.persistCase !== undefined || result?.StageLatencyMs?.persist !== undefined || result?.StageLatencyMs?.preparePublication === undefined
     ? 'persistCase' : 'preparePublication'
   const failedPhase = !result ? null
     : artifactFailure ? artifactFailure.Area === 'publication' ? 'publishToBlob'
@@ -400,9 +481,58 @@ const CaseGenerationPage = () => {
     : quality?.Issues.some(issue => issue.Blocking && ['persistence_failed', 'publication_conflict'].includes(issue.Code)) ? persistencePhase
     : quality?.Issues.some(issue => issue.Blocking && issue.Code === 'repair_rejected') ? 'revalidateRepair'
     : quality?.Issues.some(issue => issue.Blocking && ['repair_invalid', 'repair_unavailable'].includes(issue.Code)) ? 'refineCase'
-    : 'qualityGate'
+    : status?.currentPhase ?? (quality?.Approved === false ? 'qualityGate' : null)
   const booleanLabel = (value: boolean | undefined) =>
     t(value === undefined ? 'generationUnknown' : value ? 'generationYes' : 'generationNo')
+
+  const stages: GenerationStageProgress[] = (() => {
+    if (status?.stages?.length) return status.stages
+    const currentId = status?.currentStageId ?? (status?.currentPhase ? LEGACY_STAGE[status.currentPhase] ?? status.currentPhase : undefined)
+    const currentIndex = currentId ? STAGE_IDS.indexOf(currentId) : -1
+    const recordedStages = new Set(Object.keys(result?.StageLatencyMs ?? {}).map(phase => LEGACY_STAGE[phase] ?? phase))
+    return STAGE_IDS.map((id, index) => {
+      const failed = status?.status === 'failed' && id === (failedPhase ? LEGACY_STAGE[failedPhase] ?? failedPhase : currentId)
+      return {
+        id,
+        attempt: status?.currentAttempt ?? 1,
+        status: failed ? 'failed' : terminal
+          ? recordedStages.has(id) ? 'completed' : 'skipped'
+          : index < currentIndex ? 'completed' : index === currentIndex ? 'running' : 'pending'
+      }
+    })
+  })()
+  const pct = status?.progressPercent ?? (terminal && !status?.stages?.length
+    ? status?.status === 'done' ? 100
+      : DIAGNOSTIC_PHASES.filter(phase => phaseLatency(phase) !== undefined).length / DIAGNOSTIC_PHASES.length * 100
+    : stages.filter(stage => stage.status === 'completed' || stage.status === 'skipped').length / stages.length * 100)
+  const stageLabel = (id: string) => STAGE_KEYS[id] ? t(STAGE_KEYS[id]) : id
+  const phaseLabel = (id: string) => PHASE_KEYS[id] ? t(PHASE_KEYS[id]) : stageLabel(LEGACY_STAGE[id] ?? id)
+  const caseDesignSubphaseState = (
+    phase: typeof CASE_DESIGN_SUBPHASES[number],
+    stageStatus: GenerationStageProgress['status']
+  ): 'done' | 'current' | 'pending' | 'skipped' | 'failed' => {
+    if (stageStatus === 'completed') return 'done'
+    if (stageStatus === 'skipped') return 'skipped'
+    if (stageStatus === 'pending') return 'pending'
+
+    const currentIndex = status?.currentPhase
+      ? CASE_DESIGN_SUBPHASES.indexOf(status.currentPhase as typeof CASE_DESIGN_SUBPHASES[number])
+      : -1
+    const phaseIndex = CASE_DESIGN_SUBPHASES.indexOf(phase)
+    if (stageStatus === 'failed') return phaseIndex === currentIndex ? 'failed' : phaseIndex < currentIndex ? 'done' : 'pending'
+    if (currentIndex < 0) return 'pending'
+    return phaseIndex < currentIndex ? 'done' : phaseIndex === currentIndex ? 'current' : 'pending'
+  }
+  const currentAttempt = status?.currentAttempt ?? status?.result?.AttemptCount ?? 1
+  const maxAttempts = status?.maxAttempts ?? status?.result?.MaxAttempts ?? 1
+  const previousAttempts = status?.attempts?.filter(attempt => attempt.number < currentAttempt) ?? []
+  const statusLabel = (value: GenerateCaseStatus['status'] | 'skipped') => ({
+    queued: t('generationQueued'),
+    running: t('running'),
+    done: t('completed'),
+    failed: t('failed'),
+    skipped: t('generationSkipped')
+  })[value]
 
   const update = <K extends keyof GenerateCaseRequest>(k: K, v: GenerateCaseRequest[K]) =>
     setForm(prev => ({ ...prev, [k]: v }))
@@ -411,7 +541,7 @@ const CaseGenerationPage = () => {
     <Page>
       <TopBar>
         <Title><Sparkles size={22} />{t('generateNewCase')}</Title>
-        <BackButton onClick={() => navigate('/dashboard')}><ArrowLeft size={16} />{t('dashboard')}</BackButton>
+        <BackButton onClick={() => navigate('/dashboard')}><ArrowLeft size={16} />{t('backToDashboard')}</BackButton>
       </TopBar>
 
       {!jobId && (
@@ -430,7 +560,7 @@ const CaseGenerationPage = () => {
               <Label>
                 {t('language')}
                 <Select value={form.language ?? currentLanguage} onChange={e => update('language', e.target.value)}>
-                  {LANGUAGES.map(l => <option key={l.value} value={l.value}>{t(l.label)} ({l.value})</option>)}
+                  {LANGUAGES.map(language => <option key={language.value} value={language.value}>{t(language.label)} ({language.value})</option>)}
                 </Select>
               </Label>
             </Row>
@@ -483,31 +613,83 @@ const CaseGenerationPage = () => {
               {status?.status === 'done' && <CheckCircle2 size={14} />}
               {status?.status === 'failed' && <AlertCircle size={14} />}
               {(status?.status === 'running' || !status) && <Spin size={14} />}
-              {t(STATUS_LABELS[status?.status ?? 'queued'])}
-              {currentPhase ? ` · ${t(currentPhase.label)}` : ''}
+              {statusLabel(status?.status ?? 'queued')}
+              {(status?.currentStageId || status?.currentPhase)
+                ? ` · ${status.currentPhase ? phaseLabel(status.currentPhase) : stageLabel(status.currentStageId!)}`
+                : ''}
             </StatusBadge>
           </div>
 
           <ProgressBar><ProgressFill $pct={pct} /></ProgressBar>
 
+          <div style={{ marginTop: '0.75rem', color: '#94a3b8', fontSize: '0.85rem' }}>
+            {t('generationAttempt')} {currentAttempt} / {maxAttempts}
+          </div>
+
+          {status?.nextRetryAt && (
+            <RetryBox>
+              <div style={{ fontWeight: 600 }}>{t('generationRetryScheduled')}</div>
+              <div>{new Date(status.nextRetryAt).toLocaleTimeString(currentLanguage)}</div>
+              {status.retryReason && <div style={{ marginTop: '0.35rem' }}>{status.retryReason}</div>}
+            </RetryBox>
+          )}
+
+          {previousAttempts.length > 0 && (
+            <div style={{ marginTop: '1rem' }}>
+              <div style={{ color: '#94a3b8', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {t('generationAttemptHistory')}
+              </div>
+              <PhaseList>
+                {previousAttempts.map(attempt => (
+                  <PhaseRow key={attempt.number} $state={attempt.status === 'completed' ? 'done' : 'failed'}>
+                    {attempt.status === 'completed'
+                      ? <CheckCircle2 size={16} color="#22c55e" />
+                      : <AlertCircle size={16} color="#ef4444" />}
+                    <span>{t('generationAttempt')} {attempt.number} · {attempt.status === 'completed' ? t('completed') : t('failed')}</span>
+                    {attempt.startedAt && attempt.completedAt && (
+                      <Mono>{((new Date(attempt.completedAt).getTime() - new Date(attempt.startedAt).getTime()) / 1000).toFixed(1)}s</Mono>
+                    )}
+                  </PhaseRow>
+                ))}
+              </PhaseList>
+            </div>
+          )}
+
           <PhaseList>
-            {PHASES.map((p, idx) => {
-              const ms = result?.StageLatencyMs?.[p.id]
-              const state = terminal && status?.status === 'failed' && p.id === failedPhase ? 'failed' : terminal
-                ? ms !== undefined ? 'done' : 'skipped'
-                : idx === currentPhaseIndex ? 'current' : 'pending'
+            {stages.map(stage => {
+              const state =
+                stage.status === 'completed' ? 'done' :
+                stage.status === 'running' ? 'current' :
+                stage.status
+              const ms = stage.durationMs
               return (
-                <PhaseRow key={p.id} $state={state} aria-label={`${t(p.label)}: ${t(state === 'done' ? 'completed' : state === 'failed' ? 'failed' : state === 'current' ? 'running' : 'generationNotRun')}`}>
+                <PhaseRow key={stage.id} $state={state}>
                   {state === 'done' && <CheckCircle2 size={16} color="#22c55e" />}
                   {state === 'current' && <Spin size={16} color="#38bdf8" />}
-                  {state === 'failed' && <AlertCircle size={16} color="#fca5a5" />}
+                  {state === 'failed' && <AlertCircle size={16} color="#ef4444" />}
                   {(state === 'pending' || state === 'skipped') && <span />}
-                  <span>{t(p.label)}</span>
                   <span>
-                    {ms !== undefined && <Mono>{(ms / 1000).toFixed(1)}s</Mono>}
-                    {state === 'skipped' && t('generationNotRun')}
-                    {state === 'failed' && <>{ms !== undefined && ' · '}{t('failed')}</>}
+                    {stageLabel(stage.id)}
+                    {state === 'skipped' && ` · ${statusLabel('skipped')}`}
+                    {stage.attempt > 1 && ` · ${t('generationAttempt')} ${stage.attempt}`}
                   </span>
+                  {ms != null && <Mono>{(ms / 1000).toFixed(1)}s</Mono>}
+                  {stage.id === 'caseDesign' && (
+                    <SubphaseList>
+                      {CASE_DESIGN_SUBPHASES.map(phase => {
+                        const subphaseState = caseDesignSubphaseState(phase, stage.status)
+                        return (
+                          <SubphaseRow key={phase} $state={subphaseState}>
+                            {subphaseState === 'done' && <CheckCircle2 size={13} color="#22c55e" />}
+                            {subphaseState === 'current' && <Spin size={13} color="#38bdf8" />}
+                            {subphaseState === 'failed' && <AlertCircle size={13} color="#ef4444" />}
+                            {(subphaseState === 'pending' || subphaseState === 'skipped') && <span />}
+                            <span>{phaseLabel(phase)}</span>
+                          </SubphaseRow>
+                        )
+                      })}
+                    </SubphaseList>
+                  )}
                 </PhaseRow>
               )
             })}
@@ -515,6 +697,29 @@ const CaseGenerationPage = () => {
 
           {terminal && result && (
             <>
+              <details open>
+                <summary>{t('generationTechnicalDetails')}</summary>
+                <PhaseList>
+                  {DIAGNOSTIC_PHASES.map(phase => {
+                    const ms = phaseLatency(phase)
+                    const state = status?.status === 'failed' && (phase.id === failedPhase || phase.aliases?.includes(failedPhase ?? ''))
+                      ? 'failed' : ms !== undefined ? 'done' : 'skipped'
+                    return (
+                      <PhaseRow key={phase.id} $state={state} aria-label={`${t(phase.label)}: ${t(state === 'done' ? 'completed' : state === 'failed' ? 'failed' : 'generationNotRun')}`}>
+                        {state === 'done' && <CheckCircle2 size={16} color="#22c55e" />}
+                        {state === 'failed' && <AlertCircle size={16} color="#fca5a5" />}
+                        {state === 'skipped' && <span />}
+                        <span>{t(phase.label)}</span>
+                        <span>
+                          {ms !== undefined && <Mono>{(ms / 1000).toFixed(1)}s</Mono>}
+                          {state === 'skipped' && t('generationNotRun')}
+                          {state === 'failed' && <>{ms !== undefined && ' · '}{t('failed')}</>}
+                        </span>
+                      </PhaseRow>
+                    )
+                  })}
+                </PhaseList>
+              </details>
               <SummaryGrid>
                 <Stat><StatLbl>{t('generationCaseId')}</StatLbl><StatVal style={{ fontSize: '0.95rem' }}><Mono>{result.CaseId}</Mono></StatVal></Stat>
                 <Stat><StatLbl>{t('generationApproved')}</StatLbl><StatVal>{booleanLabel(quality?.Approved)}</StatVal></Stat>
@@ -536,9 +741,16 @@ const CaseGenerationPage = () => {
                 <Stat><StatLbl>{t('generationBundleBytes')}</StatLbl><StatVal>{result.Bundle?.TotalBytes ?? t('generationUnknown')}</StatVal></Stat>
                 {result.Repair?.Attempted && <Stat><StatLbl>{t('generationRepairAccepted')}</StatLbl><StatVal>{booleanLabel(result.Repair.Accepted)}</StatVal></Stat>}
                 <Stat><StatLbl>{t('generationRedTeamVerdict')}</StatLbl><StatVal style={{ fontSize: '0.95rem' }}>{t(VERDICT_LABELS[result.RedTeamVerdict ?? ''] ?? 'generationUnknown')}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationGraphValidation')}</StatLbl><StatVal>{booleanLabel(result.GraphValidationPassed)}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationSolutionWitness')}</StatLbl><StatVal>{booleanLabel(result.SolverSucceeded)}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationRepairOperations')}</StatLbl><StatVal>{result.RepairOperationCount ?? 0}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationFirstPass')}</StatLbl><StatVal>{booleanLabel(result.FirstPassSuccess)}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationAttempt')}</StatLbl><StatVal>{result.AttemptCount ?? currentAttempt} / {result.MaxAttempts ?? maxAttempts}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationSolverScore')}</StatLbl><StatVal>{result.SolverScore?.toFixed(2) ?? t('generationUnknown')}</StatVal></Stat>
+                <Stat><StatLbl>{t('generationAdvisoryFindings')}</StatLbl><StatVal>{Object.values(result.SpecialistFindingsByCategory ?? {}).reduce((sum, count) => sum + count, 0)}</StatVal></Stat>
               </SummaryGrid>
-              <p>{t('generationQualityScope')}</p>
-              <p>{t('generationSolverDiagnostic')}</p>
+              <p>{t(playerVisibleEvaluation ? 'generationPlayerQualityScope' : 'generationQualityScope')}</p>
+              <p>{t(playerVisibleEvaluation ? 'generationPlayerInvestigationScope' : 'generationSolverDiagnostic')}</p>
               {result.Bundle && (
                 <details>
                   <summary>{t('generationBundleId')}</summary>
@@ -576,6 +788,9 @@ const CaseGenerationPage = () => {
                   </ul>
                 </div>
               )}
+              <Button style={{ marginTop: '1rem' }} onClick={() => navigate('/dashboard')}>
+                <CheckCircle2 size={16} />{t('backToDashboard')}
+              </Button>
             </>
           )}
 

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace CaseZeroApi.Middleware;
@@ -18,6 +19,7 @@ public class IdValidationMiddleware
     private static readonly Regex SuspectIdPattern = new Regex(@"^suspect\.[a-zA-Z0-9_\-\.]+$", RegexOptions.Compiled);
     private static readonly Regex CaseIdPattern = new Regex(@"^(case_[a-zA-Z0-9_\-]+|CASE-[0-9]{8}-[a-f0-9]{8})$", RegexOptions.Compiled);
     private static readonly Regex NoFindingsEmailIdPattern = new Regex(@"^no-findings-[a-f0-9\-]+$", RegexOptions.Compiled);
+    private static readonly Regex ForensicNoFindingsEmailIdPattern = new Regex(@"\Aforensic-([1-9][0-9]{0,9})-no-findings\z", RegexOptions.Compiled);
     private static readonly Regex AttachmentIdPattern = new Regex(@"^attachment\.[a-zA-Z0-9_\-\.]+$", RegexOptions.Compiled);
 
     // Whitelist de valores de rota que não são IDs (endpoints específicos)
@@ -125,8 +127,11 @@ public class IdValidationMiddleware
     private static bool IsValidEmailId(string? emailId)
     {
         if (string.IsNullOrWhiteSpace(emailId)) return false;
-        // Aceitar tanto email.xxx quanto no-findings-xxx
-        return EmailIdPattern.IsMatch(emailId) || NoFindingsEmailIdPattern.IsMatch(emailId);
+        if (EmailIdPattern.IsMatch(emailId) || NoFindingsEmailIdPattern.IsMatch(emailId)) return true;
+
+        // Match only canonical positive Int32 request IDs emitted by ForensicRequestProcessor.
+        var match = ForensicNoFindingsEmailIdPattern.Match(emailId);
+        return match.Success && int.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out _);
     }
 
     private static bool IsValidSuspectId(string? suspectId)

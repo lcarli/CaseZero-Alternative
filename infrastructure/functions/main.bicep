@@ -39,11 +39,17 @@ param containerNames array = [
 @description('Key Vault URI from shared infrastructure')
 param keyVaultUri string
 
+@description('Key Vault Resource ID from shared infrastructure (used to grant the Function App MI access to secrets)')
+param keyVaultId string
+
 @description('Application Insights Connection String from shared infrastructure')
 param appInsightsConnectionString string = ''
 
 @description('Application Insights Instrumentation Key from shared infrastructure')
 param appInsightsInstrumentationKey string = ''
+
+@description('Resource ID of the subnet used for Function App regional VNet integration (empty to disable)')
+param functionVnetSubnetId string = ''
 
 // Variables
 var tags = {
@@ -71,12 +77,12 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.17.1' = {
     skuName: storageSku
     kind: 'StorageV2'
     allowSharedKeyAccess: true
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'Disabled'
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
     networkAcls: {
       bypass: 'AzureServices'
-      defaultAction: 'Allow'
+      defaultAction: 'Deny'
     }
     blobServices: {
       containers: [for containerName in containerNames: {
@@ -128,6 +134,7 @@ module functionApp 'br/public:avm/res/web/site:0.14.0' = {
     httpsOnly: true
     clientAffinityEnabled: false
     publicNetworkAccess: 'Enabled'
+    virtualNetworkSubnetId: empty(functionVnetSubnetId) ? null : functionVnetSubnetId
     managedIdentities: {
       systemAssigned: true
     }
@@ -186,6 +193,10 @@ module functionApp 'br/public:avm/res/web/site:0.14.0' = {
           value: storageConnectionString
         }
         {
+          name: 'CaseGeneratorStorage__AccountName'
+          value: storageAccountName
+        }
+        {
           name: 'CaseGeneratorStorage__CasesContainer'
           value: 'cases'
         }
@@ -202,20 +213,61 @@ module functionApp 'br/public:avm/res/web/site:0.14.0' = {
           value: 'CaseGeneratorHub'
         }
         {
-          name: 'AzureOpenAI__Endpoint'
-          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/azure-openai-endpoint/)'
+          name: 'LLM__UseAzureFoundry'
+          value: 'true'
         }
         {
-          name: 'AzureOpenAI__ApiKey'
-          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/azure-openai-api-key/)'
+          name: 'AzureFoundry__Endpoint'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/azure-foundry-endpoint/)'
         }
         {
-          name: 'AzureOpenAI__DeploymentName'
-          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/azure-openai-deployment-name/)'
+          name: 'AzureFoundry__ApiKey'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/azure-foundry-api-key/)'
+        }
+        {
+          name: 'AzureFoundry__ModelName'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/azure-foundry-model-name/)'
+        }
+        {
+          name: 'AzureFoundry__ImageDeploymentName'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/azure-foundry-image-deployment-name/)'
         }
       ]
     }
     tags: tags
+  }
+}
+
+// ==============================================================================
+// Forensic Request Queue
+// ==============================================================================
+// Pre-create the queue used by the API (ForensicQueueService) so the API can
+// run with least-privilege RBAC (Storage Queue Data Message Sender) without
+// needing queue-management permissions at startup.
+resource queueService 'Microsoft.Storage/storageAccounts/queueServices@2023-05-01' = {
+  parent: existingStorageAccount
+  name: 'default'
+  dependsOn: [storageAccount]
+}
+
+resource forensicRequestsQueue 'Microsoft.Storage/storageAccounts/queueServices/queues@2023-05-01' = {
+  parent: queueService
+  name: 'forensic-requests'
+}
+
+// ==============================================================================
+// RBAC - Grant Function App MI access to Key Vault secrets
+// ==============================================================================
+// Shares the same module used by the API layer. The Function App's MI needs
+// "Key Vault Secrets User" so it can resolve the @Microsoft.KeyVault(...)
+// references in AzureFoundry__* app settings.
+module functionsKeyVaultRoleAssignment '../api/keyvault-rbac.bicep' = {
+  name: 'functions-keyvault-rbac-deployment'
+  scope: resourceGroup(split(keyVaultId, '/')[2], split(keyVaultId, '/')[4])
+  params: {
+    keyVaultId: keyVaultId
+    principalId: functionApp.outputs.systemAssignedMIPrincipalId!
+    principalType: 'ServicePrincipal'
   }
 }
 

@@ -44,8 +44,23 @@ param appInsightsConnectionString string = ''
 @description('Application Insights Instrumentation Key from shared infrastructure')
 param appInsightsInstrumentationKey string = ''
 
-@description('CORS allowed origins')
-param corsAllowedOrigins array = ['*']
+@description('CORS allowed origins surfaced into app settings as Cors__AllowedOrigins__N. Defaults to local dev only; the orchestrator should pass the SWA origin for deployed environments. App Service-level CORS is intentionally left empty so the .NET middleware is the single source of truth (App Service CORS does not support credentials, which SignalR requires).')
+param corsAllowedOrigins array = [
+  'http://localhost:5173'
+  'https://localhost:5173'
+]
+
+@description('Function App base URL the API proxies case-generation requests to (e.g. https://casegen-func-dev.azurewebsites.net). Wired from the functions layer output by the orchestrator.')
+param caseGeneratorFunctionBaseUrl string = ''
+
+@description('Storage Account name the API reads case bundles from via managed identity. Wired from the functions layer output by the orchestrator.')
+param caseGeneratorStorageAccountName string = ''
+
+@description('Storage Account Resource ID for the case bundles storage (used to scope the RBAC assignment cross-RG).')
+param caseGeneratorStorageAccountId string = ''
+
+@description('Resource ID of the subnet used for API App Service regional VNet integration (empty to disable)')
+param apiVnetSubnetId string = ''
 
 var tags = {
   Environment: environment
@@ -92,6 +107,12 @@ module apiAppService 'br/public:avm/res/web/site:0.14.0' = {
     serverFarmResourceId: appServicePlan.outputs.resourceId
     httpsOnly: true
     clientAffinityEnabled: false
+    virtualNetworkSubnetId: empty(apiVnetSubnetId) ? null : apiVnetSubnetId
+    // Route-all is intentionally left disabled: only RFC1918 traffic (the storage
+    // and SQL private endpoints in the peered VNet) is routed through the VNet.
+    // Enabling it would force all egress (SQL gateway redirect, Key Vault,
+    // App Insights) through the VNet and break connectivity.
+    vnetRouteAllEnabled: false
     managedIdentities: {
       systemAssigned: true
     }
@@ -103,11 +124,15 @@ module apiAppService 'br/public:avm/res/web/site:0.14.0' = {
       scmMinTlsVersion: '1.2'
       http20Enabled: true
       healthCheckPath: '/health'
+      // CORS is owned by the .NET middleware (Cors:AllowedOrigins from app
+      // settings). App Service-level CORS is intentionally empty: it does not
+      // support `credentials: include`, which SignalR requires, and any value
+      // here overrides whatever the middleware emits.
       cors: {
-        allowedOrigins: corsAllowedOrigins
+        allowedOrigins: []
         supportCredentials: false
       }
-      appSettings: [
+      appSettings: concat([
         {
           name: 'ASPNETCORE_ENVIRONMENT'
           value: environment == 'prod' ? 'Production' : (environment == 'staging' ? 'Staging' : 'Development')
@@ -160,7 +185,26 @@ module apiAppService 'br/public:avm/res/web/site:0.14.0' = {
           name: 'IpRateLimiting__GeneralRules__0__Limit'
           value: environment == 'prod' ? '100' : '200'
         }
-      ]
+        {
+          name: 'CaseGenerator__FunctionBaseUrl'
+          value: caseGeneratorFunctionBaseUrl
+        }
+        {
+          name: 'CaseGeneratorStorage__AccountName'
+          value: caseGeneratorStorageAccountName
+        }
+        {
+          name: 'CaseGeneratorStorage__BundlesContainer'
+          value: 'bundles'
+        }
+        {
+          name: 'CaseGeneratorStorage__CasesContainer'
+          value: 'cases'
+        }
+      ], map(range(0, length(corsAllowedOrigins)), i => {
+        name: 'Cors__AllowedOrigins__${i}'
+        value: corsAllowedOrigins[i]
+      }))
       // Connection Strings
       connectionStrings: [
         {
@@ -184,6 +228,24 @@ module keyVaultRoleAssignment 'keyvault-rbac.bicep' = {
     keyVaultId: keyVaultId
     principalId: apiAppService.outputs.systemAssignedMIPrincipalId!
     principalType: 'ServicePrincipal'
+  }
+}
+
+// ==============================================================================
+// RBAC - Grant API App Service access to Case Generator Storage
+// ==============================================================================
+// API reads case bundles (Storage Blob Data Reader) and enqueues forensic
+// requests (Storage Queue Data Message Sender — send-only, queue pre-created
+// by Bicep). Deployed cross-RG into the storage account's resource group.
+module storageRoleAssignment 'storage-rbac.bicep' = if (!empty(caseGeneratorStorageAccountId)) {
+  name: 'api-storage-rbac-deployment'
+  scope: resourceGroup(split(caseGeneratorStorageAccountId, '/')[2], split(caseGeneratorStorageAccountId, '/')[4])
+  params: {
+    storageAccountName: caseGeneratorStorageAccountName
+    principalId: apiAppService.outputs.systemAssignedMIPrincipalId!
+    principalType: 'ServicePrincipal'
+    assignBlobReader: true
+    assignQueueMessageSender: true
   }
 }
 

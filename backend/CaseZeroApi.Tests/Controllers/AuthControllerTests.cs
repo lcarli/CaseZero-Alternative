@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using CaseZeroApi.Controllers;
+using CaseZeroApi.Data;
 using CaseZeroApi.Models;
 using CaseZeroApi.DTOs;
 using CaseZeroApi.Services;
@@ -28,6 +30,10 @@ namespace CaseZeroApi.Tests.Controllers
             // Mock Users property to return empty queryable by default
             var emptyUsers = new List<User>().AsQueryable();
             _mockUserManager.Setup(x => x.Users).Returns(emptyUsers);
+            _mockUserManager.Setup(x => x.AddToRoleAsync(It.IsAny<User>(), UserRoles.Player))
+                .ReturnsAsync(IdentityResult.Success);
+            _mockUserManager.Setup(x => x.GetRolesAsync(It.IsAny<User>()))
+                .ReturnsAsync([UserRoles.Player]);
             
             var contextAccessor = new Mock<Microsoft.AspNetCore.Http.IHttpContextAccessor>();
             var claimsFactory = new Mock<Microsoft.AspNetCore.Identity.IUserClaimsPrincipalFactory<User>>();
@@ -37,12 +43,18 @@ namespace CaseZeroApi.Tests.Controllers
             // _mockEmailService = new Mock<IEmailService>(); // OBSOLETE
             _mockLogger = new Mock<ILogger<AuthController>>();
 
+            var dbOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseInMemoryDatabase($"AuthControllerTests-{Guid.NewGuid()}")
+                .Options;
+            var db = new ApplicationDbContext(dbOptions);
+
             _controller = new AuthController(
                 _mockUserManager.Object,
                 _mockSignInManager.Object,
                 _mockJwtService.Object,
                 // _mockEmailService.Object, // OBSOLETE
-                _mockLogger.Object);
+                _mockLogger.Object,
+                db);
         }
 
         [Fact]
@@ -76,6 +88,9 @@ namespace CaseZeroApi.Tests.Controllers
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult);
+            _mockUserManager.Verify(
+                manager => manager.AddToRoleAsync(It.IsAny<User>(), UserRoles.Player),
+                Times.Once);
         }
 
         [Fact]
@@ -138,7 +153,7 @@ namespace CaseZeroApi.Tests.Controllers
             _mockSignInManager.Setup(x => x.CheckPasswordSignInAsync(user, request.Password, false))
                 .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Success);
 
-            _mockJwtService.Setup(x => x.GenerateToken(user))
+            _mockJwtService.Setup(x => x.GenerateToken(user, It.IsAny<IEnumerable<string>>()))
                 .Returns("test-jwt-token");
 
             // Act
@@ -146,7 +161,13 @@ namespace CaseZeroApi.Tests.Controllers
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.NotNull(okResult);
+            var response = Assert.IsType<LoginResponseDto>(okResult.Value);
+            Assert.Contains(UserRoles.Player, response.User.Roles);
+            _mockJwtService.Verify(
+                service => service.GenerateToken(
+                    user,
+                    It.Is<IEnumerable<string>>(roles => roles.Contains(UserRoles.Player))),
+                Times.Once);
         }
 
         [Fact]

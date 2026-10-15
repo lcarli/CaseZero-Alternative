@@ -1,6 +1,6 @@
 # 09 — Esquema de Dados
 
-> **Canônico v2.** Esta página é um **resumo de design** do esquema. A especificação técnica autoritativa é [`docs/CASE_JSON_V2_SPEC.md`](../docs/CASE_JSON_V2_SPEC.md) (acompanhada do JSON Schema em `schemas/case.schema.json`).
+> **Canônico v2.** Esta página é um **resumo de design** do esquema. A especificação técnica autoritativa é [`docs/CASE_JSON_V2_SPEC.md`](../../CASE_JSON_V2_SPEC.md) (acompanhada do JSON Schema em `schemas/case.schema.json`).
 
 ## 9.1 Princípios
 

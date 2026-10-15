@@ -14,6 +14,7 @@ public interface ICaseV2BlobPublisher
 {
     /// <summary>Whether the publisher has a connection string and a container configured.</summary>
     bool IsConfigured { get; }
+    Task<string?> GetPublicationETagAsync(string caseId, CancellationToken ct = default);
 
     /// <summary>
     /// Publishes a verified immutable bundle, then conditionally commits case.json.
@@ -26,7 +27,8 @@ public interface ICaseV2BlobPublisher
 /// Mirrors the freshly-generated case (case.json + assets/*) to Azure Blob Storage so the
 /// site's CaseV2StorageService (running on a different host in production) can pick it up
 /// from the shared `bundles` container. In local dev it can be disabled by leaving the
-/// connection string empty. Configured storage failures propagate to the quality gate.
+/// connection string empty. When publishing is configured, upload failures are surfaced so
+/// the generation job cannot report success for an incomplete bundle.
 /// </summary>
 public class CaseV2BlobPublisher : ICaseV2BlobPublisher
 {
@@ -39,6 +41,12 @@ public class CaseV2BlobPublisher : ICaseV2BlobPublisher
     {
         _logger = logger;
         _container = configuration["CaseGeneratorStorage:BundlesContainer"] ?? "bundles";
+        if (configuration.GetValue("CaseGenV2:DisableBlobPublishing", false))
+        {
+            IsConfigured = false;
+            _logger.LogInformation("CaseV2BlobPublisher disabled by configuration");
+            return;
+        }
         try
         {
             _client = client ?? BlobServiceClientFactory.Create(configuration);
@@ -73,6 +81,7 @@ public class CaseV2BlobPublisher : ICaseV2BlobPublisher
                 var local = Path.Combine(bundle.CaseDirectory, file.RelativePath.Replace('/', Path.DirectorySeparatorChar));
                 await UploadImmutableAsync(blob, local, file.MimeType, file.SizeBytes, file.Sha256, file.AssetId, bundle, ct);
             }
+
             var manifestBlob = container.GetBlobClient($"{caseId}/{bundle.ManifestRelativePath}");
             await UploadImmutableAsync(manifestBlob, bundle.ManifestPath, "application/json", new FileInfo(bundle.ManifestPath).Length,
                 bundle.ManifestSha256, "manifest", bundle, ct);
@@ -80,7 +89,8 @@ public class CaseV2BlobPublisher : ICaseV2BlobPublisher
 
             if (previous?.Metadata.TryGetValue("bundleid", out var previousBundle) == true && previousBundle == bundle.Manifest.BundleId)
             {
-                await VerifyRemoteAsync(caseBlob, "application/json", Encoding.UTF8.GetByteCount(bundle.CaseJson), bundle.CaseJsonSha256, "case.json", bundle, ct);
+                await VerifyRemoteAsync(caseBlob, "application/json", Encoding.UTF8.GetByteCount(bundle.CaseJson), bundle.CaseJsonSha256,
+                    "case.json", bundle, ct);
             }
             else
             {
@@ -107,6 +117,7 @@ public class CaseV2BlobPublisher : ICaseV2BlobPublisher
                     await VerifyRemoteAsync(caseBlob, "application/json", Encoding.UTF8.GetByteCount(bundle.CaseJson), bundle.CaseJsonSha256, "case.json", bundle, ct);
                 }
             }
+
             committed = true;
             var published = bundle.Manifest.Files.Count + 2;
             _logger.LogInformation("Published verified bundle {BundleId} revision {Revision} for case {CaseId} ({N} blobs)",
@@ -116,9 +127,17 @@ public class CaseV2BlobPublisher : ICaseV2BlobPublisher
         finally
         {
             if (!committed)
-                _logger.LogWarning("Uncommitted or uncertain bundle {BundleId} retained under {CaseId}/{Path}; no previous assets were overwritten",
+                _logger.LogWarning("Uncommitted or uncertain bundle {BundleId} retained under {CaseId}/{Path}; previous assets were not overwritten",
                     bundle.Manifest.BundleId, caseId, bundle.BundleRelativePath);
         }
+    }
+
+    public async Task<string?> GetPublicationETagAsync(string caseId, CancellationToken ct = default)
+    {
+        if (!IsConfigured || _client is null) return null;
+        var blob = _client.GetBlobContainerClient(_container).GetBlobClient($"{caseId}/case.json");
+        try { return (await blob.GetPropertiesAsync(cancellationToken: ct)).Value.ETag.ToString(); }
+        catch (RequestFailedException exception) when (exception.Status == 404) { return null; }
     }
 
     private static async Task UploadImmutableAsync(BlobClient blob, string localFile, string contentType, long size, string checksum,

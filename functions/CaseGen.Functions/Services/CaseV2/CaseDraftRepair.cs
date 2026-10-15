@@ -76,8 +76,86 @@ public sealed class CaseDraftRepair
         return candidate;
     }
 
+    public static void ValidateProtected(CaseDraft original, CaseDraft candidate)
+    {
+        void Same(object? before, object? after, string field) =>
+            Require(JsonNode.DeepEquals(JsonSerializer.SerializeToNode(before, CaseDraft.CanonicalJsonOptions),
+                JsonSerializer.SerializeToNode(after, CaseDraft.CanonicalJsonOptions)), $"Repair must preserve {field}.");
+        Same(original.CaseBible, candidate.CaseBible, "the immutable canonical CaseBible");
+        Require(original.CaseId == candidate.CaseId && original.CulpritId == candidate.CulpritId,
+            "Repair must preserve caseId and culpritId.");
+        Same(original.Request, candidate.Request, "the generation request");
+        Same(original.Blueprint, candidate.Blueprint, "canonical blueprint truth and clue/decoy assignments");
+        Same(original.AssetStubs, candidate.AssetStubs, "source and portfolio assignments");
+        Same(original.SuspectStubs, candidate.SuspectStubs, "canonical suspect identities");
+        Same(original.ForensicStubs, candidate.ForensicStubs, "planned forensic inputs, findings and matches");
+        Same(original.AnalysisTypes, candidate.AnalysisTypes, "the forensic method contract");
+        Same(original.QuestionTopics, candidate.QuestionTopics, "question source assignments");
+        Same(original.CaseGraph, candidate.CaseGraph, "canonical graph truth and source assignments");
+        Same(original.EvidenceGraph, candidate.EvidenceGraph, "evidence ownership");
+        Same(original.Metadata.Title, candidate.Metadata.Title, "metadata.title");
+        Same(original.Metadata.Location, candidate.Metadata.Location, "canonical location");
+        Same(original.Metadata.IncidentDate, candidate.Metadata.IncidentDate, "canonical incident time");
+        Same(original.Metadata.OpenedAt, candidate.Metadata.OpenedAt, "canonical case-open time");
+        Same(original.Metadata.Victim, candidate.Metadata.Victim, "canonical victim identity");
+        Same(original.Metadata.Difficulty, candidate.Metadata.Difficulty, "difficulty");
+        Same(original.Metadata.RequiredRank, candidate.Metadata.RequiredRank, "required rank");
+        Same(new { original.Briefing.From, original.Briefing.Subject },
+            new { candidate.Briefing.From, candidate.Briefing.Subject }, "briefing sender and subject");
+        Same(original.Timeline, candidate.Timeline, "the historical source timeline");
+        Same(original.TemporalEvents, candidate.TemporalEvents, "scheduled discovery payloads");
+        CheckIdentities(candidate.RequiredEvidenceIds, original.RequiredEvidenceIds, "required evidence");
+        CheckIdentities(candidate.RequiredAnalysisIds, original.RequiredAnalysisIds, "required analyses");
+        CheckIdentities(candidate.Questions.Select(q => q.Id), original.Questions.Select(q => q.Id), "questions");
+        CheckIdentities(candidate.SuspectFull.Select(s => s.Id), original.SuspectFull.Select(s => s.Id), "suspects");
+        foreach (var suspect in candidate.SuspectFull)
+        {
+            var previous = original.SuspectFull.Single(s => s.Id == suspect.Id);
+            Same(new { previous.Name, previous.Age, previous.Occupation, previous.Relationship, previous.Alibi, previous.AlibiVerified },
+                new { suspect.Name, suspect.Age, suspect.Occupation, suspect.Relationship, suspect.Alibi, suspect.AlibiVerified },
+                $"suspect identity and attributed alibi '{suspect.Id}'");
+        }
+        CheckIdentities(candidate.AssetFull.Select(a => a.Id), original.AssetFull.Select(a => a.Id), "initial asset");
+        CheckIdentities(candidate.ResultAssets.Select(a => a.Id), original.ResultAssets.Select(a => a.Id), "result asset");
+        foreach (var asset in candidate.AssetFull.Concat(candidate.ResultAssets))
+        {
+            var previous = original.AssetFull.Concat(original.ResultAssets).Single(a => a.Id == asset.Id);
+            Same(new { previous.Title, previous.Type, previous.Visibility, previous.EvidenceRole, previous.SubjectSuspectId, previous.ImagePurpose },
+                new { asset.Title, asset.Type, asset.Visibility, asset.EvidenceRole, asset.SubjectSuspectId, asset.ImagePurpose },
+                $"asset identity and visibility '{asset.Id}'");
+        }
+        CheckIdentities(candidate.FollowUpEmails.Select(e => e.Id), original.FollowUpEmails.Select(e => e.Id), "initial email");
+        CheckIdentities(candidate.ResultEmails.Select(e => e.Id), original.ResultEmails.Select(e => e.Id), "result email");
+        foreach (var email in candidate.FollowUpEmails.Concat(candidate.ResultEmails))
+        {
+            var previous = original.FollowUpEmails.Concat(original.ResultEmails).Single(e => e.Id == email.Id);
+            Same(new { previous.From, previous.Subject, previous.SentAt, previous.Visibility, previous.Attachments },
+                new { email.From, email.Subject, email.SentAt, email.Visibility, email.Attachments },
+                $"email sender, issue time, attachments and visibility '{email.Id}'");
+        }
+        CheckIdentities(candidate.ForensicFull.Select(Pair), original.ForensicFull.Select(Pair), "forensic pair");
+        foreach (var outcome in candidate.ForensicFull)
+        {
+            var previous = original.ForensicFull.Single(f => Pair(f) == Pair(outcome));
+            Same(new { previous.Findings, previous.MatchedSuspectId, previous.MatchedAssetId, previous.ResultAssetId, previous.ResultEmailId },
+                new { outcome.Findings, outcome.MatchedSuspectId, outcome.MatchedAssetId, outcome.ResultAssetId, outcome.ResultEmailId },
+                $"forensic findings, matches and reveal references '{Pair(outcome)}'");
+        }
+        foreach (var question in candidate.Questions)
+        {
+            var previous = original.Questions.Single(q => q.Id == question.Id);
+            Require(question.CorrectOptionId == previous.CorrectOptionId && question.Weight == previous.Weight,
+                $"Repair must preserve the correct answer and weight for '{question.Id}'.");
+            Same(previous.Options, question.Options, $"question options and answer content '{question.Id}'");
+        }
+        Same(original.Rules.Where(r => r.Actions.Any(a => a.Type != "send_notification")).ToList(),
+            candidate.Rules.Where(r => r.Actions.Any(a => a.Type != "send_notification")).ToList(),
+            "mechanical reveal, alibi and suspect-state rules");
+    }
+
     public static void Validate(CaseDraft candidate, CaseDraft baseline, string publicSchema)
     {
+        ValidateProtected(baseline, candidate);
         var (schemas, definitions) = ComponentSchemas(publicSchema);
         var components = candidate.GetComponents();
         var properties = new JObject();
@@ -91,9 +169,7 @@ public sealed class CaseDraftRepair
         StructuredJson.Validate(components.ToJsonString(), StructuredJson.ParseSchema(schema.ToString()));
         Require(candidate.CaseId == baseline.CaseId && candidate.CulpritId == baseline.CulpritId,
             "Repair must preserve caseId and culpritId.");
-        Require(JsonNode.DeepEquals(JsonSerializer.SerializeToNode(candidate.Bible, CaseDraft.CanonicalJsonOptions),
-            JsonSerializer.SerializeToNode(baseline.Bible, CaseDraft.CanonicalJsonOptions)), "Repair must preserve the canonical CaseBible.");
-        if (candidate.Bible is not null)
+        if (candidate.CaseBible is not null)
         {
             Require(candidate.Metadata.Location == baseline.Metadata.Location &&
                 candidate.Metadata.IncidentDate == baseline.Metadata.IncidentDate && candidate.Metadata.OpenedAt == baseline.Metadata.OpenedAt &&
@@ -109,8 +185,8 @@ public sealed class CaseDraftRepair
         CheckIdentities(candidate.Questions.Select(q => q.Id), baseline.Questions.Select(q => q.Id), "questions");
         CheckIdentities(candidate.ForensicFull.Select(Pair), baseline.ForensicFull.Select(Pair), "forensic pairs");
         CheckIdentities(candidate.AnalysisTypes.Select(t => t.Type), baseline.AnalysisTypes.Select(t => t.Type), "analysis types");
-        MicrotaskValidation.Equal(candidate.Metadata.Difficulty, candidate.Request.Difficulty ?? "Detective", "metadata.difficulty");
-        MicrotaskValidation.Equal(candidate.Metadata.RequiredRank, candidate.Request.RequiredRank ?? candidate.Request.Difficulty ?? "Detective", "metadata.requiredRank");
+        MicrotaskValidation.Equal(candidate.Metadata.Difficulty, DifficultyProfileCatalog.Get(candidate.Request.Difficulty).Name, "metadata.difficulty");
+        MicrotaskValidation.Equal(candidate.Metadata.RequiredRank, CaseBibleNormalizer.CanonicalRequiredRank(candidate), "metadata.requiredRank");
         if (candidate.Request.Title is not null) MicrotaskValidation.Equal(candidate.Metadata.Title, candidate.Request.Title, "metadata.title");
         if (candidate.Request.Location is not null) MicrotaskValidation.Equal(candidate.Metadata.Location, candidate.Request.Location, "metadata.location");
         Require(DateTimeOffset.Parse(candidate.Metadata.OpenedAt, CultureInfo.InvariantCulture) >
@@ -126,7 +202,7 @@ public sealed class CaseDraftRepair
             if (candidate.AssetFull.Contains(asset))
             {
                 Require(asset.BodyDoc is not null || asset.Type is "photo" or "audio", "Initial documents require bodyDoc.");
-                var expected = candidate.Bible?.Sources.Single(s => s.Id == asset.Id).Visibility ?? "initial";
+                var expected = candidate.AssetStubs.Single(s => s.Id == asset.Id).Visibility;
                 MicrotaskValidation.Equal(asset.Visibility, expected, "investigation asset visibility");
             }
         }
@@ -180,6 +256,8 @@ public sealed class CaseDraftRepair
                 "Temporal event payload is empty.");
         }
         CheckIdentities(candidate.TemporalEvents.Select(e => e.Id), baseline.TemporalEvents.Select(e => e.Id), "temporal events");
+        if (candidate.CaseBible is not null)
+            CaseBibleValidator.Authored(candidate);
     }
 
     private static void Replace(CaseDraft draft, Change change)
@@ -267,8 +345,8 @@ public sealed class CaseDraftRepair
         foreach (var asset in before.AssetFull.Concat(before.ResultAssets).Where(a => changed.Contains(a.Id)))
         {
             required.UnionWith(before.FollowUpEmails.Concat(before.ResultEmails).Where(e => e.Attachments.Contains(asset.Id)).Select(e => e.Id));
-            if (before.Bible is not null
-                ? before.Bible.Sources.Single(s => s.Id == "email.briefing").Attachments.Contains(asset.Id)
+            if (before.CaseBible is not null
+                ? CaseBibleAuthorship.BriefingAttachmentIds(before).Contains(asset.Id)
                 : before.AssetFull.Take(2).Any(a => a.Id == asset.Id))
                 required.Add("briefing");
             if (before.RequiredEvidenceIds.Contains(asset.Id)) required.Add("solution");
@@ -325,13 +403,13 @@ public sealed class CaseDraftRepair
         ((JArray)solution["required"]!).Add("explanationSupport");
         return (new Dictionary<string, JObject>
         {
-            ["metadata"] = (JObject)Micro(MicrotaskSchemas.PlotOutline)["properties"]!["metadata"]!,
+            ["metadata"] = Micro(MicrotaskSchemas.Metadata),
             ["suspect"] = Micro(MicrotaskSchemas.SuspectCard), ["asset"] = Micro(MicrotaskSchemas.AssetCard),
             ["email"] = (JObject)Micro(MicrotaskSchemas.InitialEmails)["properties"]!["emails"]!["items"]!,
             ["forensic"] = forensic, ["briefing"] = Micro(MicrotaskSchemas.BriefingEmail),
             ["timeline"] = (JObject)Micro(MicrotaskSchemas.Timeline)["properties"]!["timeline"]!,
             ["temporalEvents"] = (JObject)Micro(MicrotaskSchemas.Timeline)["properties"]!["temporalEvents"]!,
-            ["analysisTypes"] = (JObject)Micro(MicrotaskSchemas.CaseBible)["properties"]!["analysisTypes"]!,
+            ["analysisTypes"] = (JObject)Micro(MicrotaskSchemas.ForensicsPlan)["properties"]!["analysisTypes"]!,
             ["rules"] = rules, ["solution"] = solution, ["caseBible"] = Micro(MicrotaskSchemas.CaseBible)
         }, definitions);
     }

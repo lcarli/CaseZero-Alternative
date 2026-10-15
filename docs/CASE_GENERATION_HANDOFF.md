@@ -1,172 +1,148 @@
-# Retomada: geracao de casos e piloto Rookie
+# Retomada: CaseGen, reconciliacao e publicacao DEV
 
-**Atualizado:** 2026-10-14. **Branch:** `lcarli/feat-casegen-quality-gate`.
+**Branch:** `lcarli/feat-casegen-quality-gate`.
+**Estado:** trabalho salvo para continuar em outra maquina; ainda nao pronto para deploy.
 
-Este documento e o ponto de retomada em outra maquina ou conversa. O plano
-completo esta em [CASE_GENERATION_IMPLEMENTATION_PLAN.md](CASE_GENERATION_IMPLEMENTATION_PLAN.md);
-o fluxo atual esta em [CASE_GENERATION_PIPELINE.md](CASE_GENERATION_PIPELINE.md).
-Os numeros PR 01-10 sao entregas do plano, nao pull requests ja abertos/mergeados.
+Este e o ponto de retomada. O usuario pediu commit/push antes de mudar de
+computador. A publicacao sera por CI/CD ou pela maquina autorizada a acessar o
+tenant. Nao tentar autenticar neste computador nem mudar permissoes, politicas,
+rede ou autenticacao do modelo.
 
-## Estado da implementacao
+## Decisoes que devem ser preservadas
 
-| Entrega | Estado salvo nesta branch |
-|---------|--------------------------|
-| 01 | Gate de qualidade bloqueante e status de falha coerente entre Functions e UI. |
-| 02 | Contratos fechados, validacao local das microtarefas e retries limitados. |
-| 03 | Draft canonico e reparo atomico direcionado, seguido de recompilacao/revisao. |
-| 04 | Bundles imutaveis, manifest/checksums e publicacao condicional. |
-| 05 | Pericia real, relogio persistido e descoberta cumulativa na API/frontend. |
-| 06 | CaseBible privada, autoria restrita, grafo de provas e suporte ancorado. |
-| 07-10 | Planejados: blind-solver, skills de runtime/dificuldade, materiais variados e operacao/checkpoints. |
+- Incorporar `origin/main` (`ff78eb5`) somente na feature. A main nao foi alterada.
+- Usar a CaseBible rica de main como arquitetura canonica, com os gates,
+  autoria restrita, reparos protegidos e bundles imutaveis da feature.
+- Concluir a arquitetura e a validacao offline antes de uma unica publicacao.
+- Publicar **somente** `casegen-func-dev`, no resource group
+  `casezero-func-dev-rg`, preservando recursos e app settings existentes.
+- Functions e testes permanecem em **.NET SDK 9**; API permanece em .NET 8.
+- Nao publicar API/frontend, aplicar migrations ou fazer merge na main.
+- Nao trocar silenciosamente o provider por managed identity: preservar a
+  autenticacao por chave existente, que o usuario confirmou funcionar no Azure.
+- O piloto e separado do deploy: **um Rookie, pt-BR**, com modelo real e custo
+  autorizado, ID novo e publicacao desabilitada. Nao iniciar Detective ou lotes.
 
-Nao houve deploy, merge na main, publicacao de caso de piloto ou aplicacao da
-migration a um banco real. Antes de publicar a API do PR 05, avaliar/aplicar a
-migration aditiva `PersistForensicGameTimeAndTriggerHistory` no processo normal
-de deploy; nao aplica-la apenas para executar o console abaixo.
+## O que esta implementado
 
-Na preparacao deste handoff passaram 335 testes das Functions (.NET 9),
-106 testes de servicos da API (.NET 8), 66 testes frontend selecionados e os
-builds frontend/runner. O lint dos arquivos alterados ainda aponta nove erros
-preexistentes, reproduzidos tambem no commit-base `9cb2218`: seis de Fast Refresh
-em `CaseContext.tsx` e tres de `no-explicit-any` em `services/api.ts`.
-Nao foram corrigidos como parte desta entrega. Isso nao e uma avaliacao de um
-caso real nem prova de jogabilidade completa.
+| Area | Implementacao atual |
+|------|---------------------|
+| Fonte canonica | Uma CaseBible rica; autores recebem apenas observacoes atribuidas da sua fonte, nao culpado/gabarito. |
+| Qualidade | Schema unico versionado; contratos locais; veto explicito do revisor preservado; reparos nao mudam verdade, respostas ou achados periciais. |
+| Materiais | 21 layouts, incluindo jornal, revista, bilhete, diario e escala; cabecalhos/assinaturas completos nos quatro idiomas. |
+| PDFs reais | Extracao do arquivo produzido, conferindo todo conteudo autorado e citacao atribuida completa. Corrigida a substituicao de hifens/dois-pontos por glifos privados do Inter, sem normalizar fatos incorretos para aprova-los. |
+| Investigacao | Blind investigator usa materiais publicos, acoes oferecidas e relogio virtual; testemunha de grafo permanece apenas diagnostica. Scoring compartilhado entre Functions/API. |
+| Progressao | Historico cumulativo, anexos, pericias pendentes/concluidas, emails sem achados e acoes de apresentacao. IDs sinteticos de email seguem o Int32 positivo do produtor real. |
+| Skills/runtime | Seis skills carregadas; identidade de provider/deployments, codigo, prompts/schema; teto de saida enviado ao SDK real atraves do wrapper; falhas mantem estimativas conservadoras, imagens registram unidades/uso desconhecido. |
+| Checkpoints | Sete macroetapas privadas e imutaveis; checksum; vinculo job/request/predecessor; limites de 20 MiB; limpeza dos workspaces; replay de etapa confirmada sem nova chamada. |
+| Execucao incerta | Reserva privada gravada antes da etapa. Sem checkpoint confirmado, nao repetir automaticamente uma etapa que pode ter consumido chamadas pagas. Relatorio de falha e uso fica no armazenamento privado quando possivel; reserva permanece mesmo se esse relatorio falhar. |
 
-## Decisao imediata do usuario
+Uma reserva ou estimativa de tokens nao e fatura. O custo real de uma chamada
+sem resposta e de imagens pode continuar desconhecido. A retomada confirma
+etapas concluidas; nao garante recuperar/reexecutar uma etapa interrompida.
 
-O usuario autorizou chamadas ao modelo real. Comecar por **um unico Rookie em
-pt-BR**, analisar o resultado e so considerar Detective se o Rookie passar.
-Nao iniciar lotes ou implementar PR 07-10 antes dessa analise.
+## Validacao mais recente e bloqueadores
 
-O piloto deve usar o gerador e os renderers reais, com ID/diretorio novos e
-**publicacao desabilitada**. Nao enfraquecer contratos, gates ou limites de retry
-para fabricar um sucesso. Um bloqueio real do pipeline tambem e um resultado a
-ser analisado.
+A ultima execucao completa offline das Functions teve **702 testes: 682
+passaram e 20 falharam**, sem testes ignorados. Compilacao das Functions/testes
+em net9.0 concluida. Os novos testes de PDF real, simulador, SDK limitado e
+execucao de checkpoints passaram nessa execucao.
 
-### Bloqueio encontrado
+As falhas completas estao nos testes de RedTeam, contratos periciais,
+AssetPortfolio, normalizacao da Bible, TaskRunner, status e fixtures de
+solver/golden/Phase9; um cenario de revisor indisponivel agora esgota o teto
+conservador de tokens. Reproduzir com o comando abaixo, nao considerar essas
+falhas resolvidas ou a suite verde. Migrar expectativas obsoletas (aprovacao
+somente pelo grafo, fabricacao/renomeacao de fatos) sem enfraquecer gates; separar
+isso de bugs reais de contrato/validacao.
 
-Nenhum modelo retornou conteudo e nenhum caso/PDF/imagem foi gerado:
+Passaram tambem 20 integracoes selecionadas da API (scoring e email pericial
+sem achados) e o build frontend. Isso nao e suite completa da API/frontend.
+Os resultados historicos de `11afbcc` (335 Functions, 106 API, 66 frontend)
+nao certificam esta reconciliacao.
 
-1. O provider normal leu a chave local, mas o endpoint respondeu
-   `HTTP 403 AuthenticationTypeDisabled`: autenticacao por chave desativada.
-2. Uma tentativa isolada via Entra usou o tenant padrao errado.
-3. Com o tenant configurado, a credencial local estava expirada
-   (`AADSTS700082`); o login interativo foi interrompido.
+Pendencias antes de publicar:
 
-O usuario vai verificar a configuracao do recurso no portal a partir de uma
-sessao com acesso ao tenant. Se permitido pela organizacao, o recurso precisa
-ter `disableLocalAuth=false` para aceitar a chave existente. A propagacao nao
-e imediata. Se Azure Policy proibir chaves, nao remover/contornar a politica:
-alinhar uma alternativa autorizada com o usuario.
+1. Resolver as falhas completas e confirmar suites afetadas, incluindo API/frontend.
+2. Fechar admissao atomica global: o starter ainda tem singleton best-effort e
+   pode prosseguir quando a consulta falha.
+3. Provar cancelamento/terminacao e a barreira final de publicacao, inclusive
+   corrida com activity em andamento; nao basta cancelar o token local.
+4. Validar o store Blob real com round-trip/checksum/tamanho/concorrencia e
+   reservas. Os testes de execucao usam um store em memoria.
+5. Fechar compilacoes com imagens embutidas e regressao contra citacao parcial
+   ou suporte emprestado de outra fonte.
+6. Resolver compatibilidade de orchestrator/versao e exigir ausencia de jobs
+   ativos antes do deploy.
+7. Preparar e validar uma rota de CI/CD **Functions-only**.
 
-Nao houve mudanca de permissoes, politicas ou rede no Azure. O runner versionado
-usa o provider normal por chave; nao depende dos experimentos Entra da sessao
-anterior. Nao assumir que apenas ter um `TenantId` configura autenticacao Entra
-no provider atual.
+O workflow atual `.github/workflows/cd-dev.yml` publica a pilha completa e
+nao tem seletor Functions-only. **Nao o disparar como esta.**
+A `.azure/deployment-plan.md` continua Draft.
 
-## Retomar na outra maquina
+## Retomar no outro computador
 
-1. Buscar e fazer checkout de `lcarli/feat-casegen-quality-gate`.
-2. Instalar/usar **.NET SDK 9** para Functions, testes e piloto.
-3. Recriar localmente `functions/CaseGen.Functions/local.settings.json` com
-   credenciais autorizadas. Esse arquivo e ignorado e nao viaja pelo Git.
-4. Confirmar com o usuario a resolucao do bloqueio de autenticacao e executar
-   **uma** geracao no diretorio novo escolhido.
+Com a worktree local limpa (nao descartar trabalho local):
 
-O console aceita configuracao na raiz e em `Values`, incluindo chaves com
-`:` ou `__`; variaveis de ambiente podem sobrescreve-las. Exemplo de estrutura,
-**somente com placeholders**:
-
-```json
-{
-  "Values": {
-    "AzureFoundry__Endpoint": "https://RESOURCE.openai.azure.com/openai/v1/",
-    "AzureFoundry__ApiKey": "REPLACE_LOCALLY_DO_NOT_COMMIT",
-    "AzureFoundry__ModelName": "TEXT_DEPLOYMENT",
-    "AzureFoundry__ImageDeploymentName": "IMAGE_DEPLOYMENT"
-  }
-}
+```bash
+git fetch origin
+git switch lcarli/feat-casegen-quality-gate
+git pull --ff-only
+git rev-parse HEAD
 ```
 
-Usar os deployments do recurso correto. Nao colar chaves na conversa, gravar
-segredos em prompts ou comitar configuracoes locais, `bin`, `obj` ou traces.
-O build das Functions pode copiar configuracao local para sua saida; nao
-compartilhar o diretorio de build como se fosse um pacote publico.
+Usar .NET SDK 9 e manter chamadas reais desabilitadas durante a validacao:
 
-Da raiz do repositorio, em Bash ou PowerShell:
-
-```text
-dotnet run --project tools/CaseGen.Pilot/CaseGen.Pilot.csproj -- . ../casezero-pilot-rookie-001
+```bash
+CASEZERO_RUN_REAL_GENERATION=0 dotnet test functions/CaseGen.Functions.Tests/CaseGen.Functions.Tests.csproj --verbosity minimal
 ```
 
-O primeiro argumento e a raiz do repositorio. O segundo e um diretorio **ainda
-inexistente**, preferencialmente fora do repositorio e nunca a pasta de casos
-de producao. Usar outro nome para cada execucao; nao sobrescrever resultados.
-O tema inicial e um furto nao violento em um museu ficticio de Curitiba.
+Em PowerShell, definir `$env:CASEZERO_RUN_REAL_GENERATION = "0"` e executar
+o mesmo `dotnet test` sem o prefixo Bash.
 
-O runner instancia `AzureFoundryLLMProvider` explicitamente (nunca o mock),
-usa os templates/renderers de producao, um reporter local e um publicador
-desabilitado que lanca erro se chamado. `writeToDisk=true` e necessario para
-renderizar; `false` nao produz os documentos para inspecao.
+Prompt sugerido para a nova conversa:
 
-### Artefatos e resultado
+> Continue a partir de docs/CASE_GENERATION_HANDOFF.md nesta branch. Termine
+> as pendencias e a validacao sem enfraquecer gates nem inventar fatos.
+> Functions/testes devem ficar em .NET SDK 9; preserve os quatro idiomas.
+> Depois prepare e valide uma publicacao somente das Functions para
+> casegen-func-dev, resource group casezero-func-dev-rg, por CI/CD ou por esta
+> maquina autorizada. Nao publique API/frontend, nao aplique migrations,
+> nao modifique permissoes/rede/autenticacao nem a main. Mostre o plano
+> validado antes de executar o deploy. O piloto real Rookie pt-BR deve ser
+> separado, isolado, com ID novo e publicacao de caso desabilitada.
 
-| Artefato | Conteudo |
-|----------|----------|
-| `request.json`, `execution.json` | Request efetiva e modo de execucao, sem copiar credenciais. |
-| `phase.json`, `phases.jsonl` | Fase atual e historico local. |
-| `calls/` | Prompts, schemas, respostas brutas, uso e duracao de cada chamada. |
-| `prepared_assets_*`, `draft_*`, `review_*`, `consistency_*` | Material/drafts capturados quando a geracao chega a essas etapas. |
-| `response.json`, `candidate.case.json` | Resultado e candidato, inclusive quando reprovado pelo gate. |
-| `failure.json` | Falha de execucao, incluindo fase, quando o pipeline foi iniciado. |
-| `usage.json` | Chamadas concluidas/falhas, tokens retornados e duracao; nao e uma fatura. |
-| `rendering.json`, `rendered-evidence/` | Diagnosticos e copias de arquivos renderizados, preservadas antes da limpeza de staging. |
-| `cases/<caseId>/` | Caso local somente se aprovado e persistido, com bundle verificado. |
+## Publicacao e piloto: somente depois dos bloqueadores
 
-Exit codes: `0` aprovado/persistido localmente; `1` falha de execucao;
-`2` bloqueio de qualidade; `64` argumentos invalidos. Nem toda falha chega a
-produzir todos os arquivos. Nao interpretar a mera existencia de
-`candidate.case.json` ou de PDFs parciais como aprovacao/publicacao.
+Confirmar subscription, tenant, runtime net9.0/dotnet-isolated, armazenamento
+privado e nomes/presenca dos app settings sem exibir valores secretos.
+Preservar a chave existente no Azure; `local.settings.json` e ignorado e nunca
+deve entrar no pacote/Git. Verificar que nao ha jobs Durable ativos.
 
-Os traces brutos da maquina anterior ficaram apenas na sessao local. Eles nao
-sao dependencia para retomar: o codigo do runner e o diagnostico sem segredos
-estao nesta branch. A antiga ferramenta sintetica `casegen-audit` da sessao nao
-e compativel com o gerador atual e nao deve ser usada como piloto real.
+Para CI/CD, implementar um caminho manual Functions-only reutilizando as
+credenciais e o environment DEV existentes, mantendo defaults full-stack
+inalterados. Deve falhar se o app/pacote nao existir e nao executar migrations,
+deploy API/frontend ou chamadas ao modelo. Validar o pacote e registrar
+o resultado no plano antes de disparar.
 
-## Analise obrigatoria apos o piloto
+Se for necessario publicar da outra maquina, preparar/validar primeiro o
+pacote e o contexto Azure, depois usar o mecanismo suportado pelo Function App
+existente. Nao executar comandos de deploy copiados sem confirmar plano,
+subscription e compatibilidade do hosting.
 
-Comparar a Bible/plano com o texto integral entregue: documentos, tabelas,
-transcricoes, emails, perfis, perguntas e explicacao. Conferir identidade,
-autoria/conhecimento, datas de evento/emissao/abertura, alegacoes intencionais,
-limites periciais e suficiencia do conjunto de provas.
+O runner `tools/CaseGen.Pilot` permanece como ferramenta local opt-in, mas
+o usuario confirmou que **o teste real deve acontecer na Function Azure**.
+Nao voltar a tentativas locais de chave/Entra nem usar o runner local como
+substituto para o piloto remoto.
 
-Inspecionar os PDFs reais, nao apenas `description`, `bodyDoc` ou prompts de
-imagem. Quando disponiveis, `pdftotext` e `pdftoppm` ajudam na extracao e revisao
-visual. Avaliar variacao, legibilidade e realismo; labels tecnicos/idiomas
-indevidos ou documentos repetitivos sao achados, nao motivos para ignorar gates.
+Antes da invocacao remota, assegurar um modo isolado de diagnostico que gere
+os PDFs/imagens sem publicar/listar o caso. `writeToDisk=false` e preview
+e **nao renderiza materiais**, portanto nao substitui esse modo. Nao presumir
+que o endpoint atual ja oferece toda a isolacao necessaria.
 
-Se o pipeline falhar antes de renderizar, analisar request/resposta original,
-retry e contrato especifico. Distinguir erro de modelo, contrato/prompt fragil,
-inconsistencia real e falha de provider/runtime. Nao repetir indefinidamente.
+Depois analisar Bible, texto integral, arquivos efetivos, identidade/autoria,
+datas, alegacoes intencionais, certeza pericial e suficiencia das provas.
+Uma falha de qualidade tambem e resultado valido; nao repetir indefinidamente.
+Somente considerar Detective depois de Rookie aprovado e analisado.
 
-Limites importantes:
-
-- Trechos `support` ancorados provam presenca textual, nao equivalencia semantica.
-- O solver atual e **diagnostico**, nao executa uma investigacao completa.
-- Rookie usa `all_initial`: sucesso nao comprova descoberta gated.
-- Imagens geradas nao podem ser prova decisiva apenas pelo texto de seu prompt.
-- Nenhum caso real aprovado foi demonstrado ate este handoff.
-
-## Depois da analise
-
-Se Rookie passar, considerar um Detective separado para exercitar descoberta
-gated, solicitacao pericial, prazos, resultados e envio de solucao. Corrigir
-primeiro problemas comprovados pelo piloto, sem implementar varios PRs no escuro.
-
-Retomar entao o plano: PR 07 (blind-solver/paridade de jogo), PR 08 (skills de
-runtime e budgets de dificuldade), PR 09 (jornais, revistas, bilhetes e outros
-layouts originais), PR 10 (checkpoints, telemetria e operacao).
-
-Manter Functions/testes em .NET 9, API em .NET 8, contrato publico v2 e os
-quatro idiomas da UI (`pt-BR`, `en-US`, `es-ES`, `fr-FR`). Nao publicar, aplicar
-migrations ou fazer merge/deploy automaticamente como parte deste piloto.
+**Nenhum deploy ou caso real aprovado foi demonstrado nesta branch.**

@@ -169,15 +169,29 @@ ConnectionStrings__DefaultConnection=Data Source=casezero.db (SQLite) or SQL Ser
 JwtSettings__SecretKey=@Microsoft.KeyVault(SecretUri=...)
 APPINSIGHTS_INSTRUMENTATIONKEY=<auto>
 APPLICATIONINSIGHTS_CONNECTION_STRING=<auto>
+CaseGenerator__FunctionBaseUrl=https://<func-app>.azurewebsites.net
+CaseGeneratorStorage__AccountName=<storage-account>           # managed identity
+CaseGeneratorStorage__BundlesContainer=bundles
+CaseGeneratorStorage__CasesContainer=cases
 ```
+
+The API uses System-Assigned Managed Identity to read case bundles
+(`Storage Blob Data Reader`) and to enqueue forensic requests
+(`Storage Queue Data Message Sender`). The `forensic-requests` queue is
+pre-created by the functions layer so the API runs with least-privilege RBAC.
 
 #### Functions (.NET 9.0)
 ```
 FUNCTIONS_EXTENSION_VERSION=~4
 FUNCTIONS_WORKER_RUNTIME=dotnet-isolated
-CaseGeneratorStorage__ConnectionString=<auto>
-AzureOpenAI__Endpoint=@Microsoft.KeyVault(SecretUri=...)
-AzureOpenAI__ApiKey=@Microsoft.KeyVault(SecretUri=...)
+CaseGeneratorStorage__AccountName=<storage-account>           # managed identity
+CaseGeneratorStorage__BundlesContainer=bundles
+CaseGeneratorStorage__CasesContainer=cases
+LLM__UseAzureFoundry=true
+AzureFoundry__Endpoint=@Microsoft.KeyVault(SecretUri=...)
+AzureFoundry__ApiKey=@Microsoft.KeyVault(SecretUri=...)
+AzureFoundry__ModelName=@Microsoft.KeyVault(SecretUri=...)
+AzureFoundry__ImageDeploymentName=@Microsoft.KeyVault(SecretUri=...)
 KeyVault__VaultUri=<auto>
 ```
 
@@ -199,21 +213,26 @@ az keyvault secret set \
   --name jwt-signing-key \
   --value "<generate-secure-key-32-chars>"
 
-# Azure OpenAI credentials
+# Azure AI Foundry credentials (used by the Case Generator)
 az keyvault secret set \
   --vault-name <keyvault-name> \
-  --name azure-openai-endpoint \
-  --value "https://<your-openai-resource>.openai.azure.com/"
+  --name azure-foundry-endpoint \
+  --value "https://<your-foundry-resource>.cognitiveservices.azure.com/"
 
 az keyvault secret set \
   --vault-name <keyvault-name> \
-  --name azure-openai-api-key \
+  --name azure-foundry-api-key \
   --value "<your-api-key>"
 
 az keyvault secret set \
   --vault-name <keyvault-name> \
-  --name azure-openai-deployment-name \
-  --value "gpt-4o"
+  --name azure-foundry-model-name \
+  --value "gpt-5.2"
+
+az keyvault secret set \
+  --vault-name <keyvault-name> \
+  --name azure-foundry-image-deployment-name \
+  --value "gpt-image-2"
 ```
 
 ## 📊 Cost Estimation

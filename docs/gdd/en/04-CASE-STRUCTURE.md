@@ -1,6 +1,6 @@
 # 04 — Case Structure
 
-> **Canonical v2.** The technical shape of `case.json` v2 is specified in [`docs/CASE_JSON_V2_SPEC.md`](../docs/CASE_JSON_V2_SPEC.md). This chapter only covers the **game-design** rationale behind that shape. Any older document referencing `evidences[]`, `unlockLogic`, `documents[]` or `forensicReports[]` is stale and should be ignored.
+> **Canonical v2.** The technical shape of `case.json` v2 is specified in [`docs/CASE_JSON_V2_SPEC.md`](../../CASE_JSON_V2_SPEC.md). This chapter only covers the **game-design** rationale behind that shape. Any older document referencing `evidences[]`, `unlockLogic`, `documents[]` or `forensicReports[]` is stale and should be ignored.
 
 ## 4.1 Overview
 
@@ -102,4 +102,4 @@ Each `tevt.*` fires at `triggerAtMinutes` of game time since `openedAt`. The ser
 
 ## 4.9 Generating a case
 
-The generation pipeline lives in `functions/CaseGen.Functions/` (Azure Functions, .NET 9). It must emit a `case.json` that validates against `schemas/case.schema.json`. Migrating the pipeline to emit v2 is on the roadmap (chapter 12).
+**Implemented.** The generation pipeline lives in `functions/CaseGen.Functions/` (Azure Functions, .NET 9, Durable Functions orchestration) and emits `case.json` **v2 natively** — there is no migration pending. The `CaseV2GenerationOrchestrator` drives a multi-stage flow: a **Case Bible** stage establishes the private, typed source of truth for the case; subsequent stages call **external LLM agent prompts** (markdown prompt files under `functions/CaseGen.Functions/agents/case-v2/`) to expand plot, evidence, suspects, and documents; a **CaseGraph** keeps a projected consistency graph of entities and references across stages; a **solver** stage attempts to solve the case from the generated clues and the run is rejected if its score falls below the **0.90** threshold. The orchestrator retries failed stages with backoff and reports **phase progress** to the job status endpoint throughout the run. Before publication the bundle passes multiple **validation** gates (schema, Case Bible consistency, graph, proof, forensic, evidence, difficulty, locale, solver, specialist review, rookie regression, parity). Publication to Blob Storage uploads assets first and writes `case.json` **last**, since it is the bundle's commit marker — a case cannot be discovered by the API until its `case.json` exists, so partially-generated bundles never become visible.

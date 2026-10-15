@@ -1,0 +1,21 @@
+{
+  "id": "artifact-author",
+  "version": "1.0.0",
+  "instructions": [
+    "Write only the supplied authorized source knowledge in the requested language and the source's own voice. Keep neutral descriptions separate from authored evidence.",
+    "Distinguish document format, documentary family and investigative role. Fictional newspapers, magazines, notes, receipts, diaries, letters and digital exports need complete original content.",
+    "Civil materials must not acquire police seals, confidential bands, fabricated verification or omniscient culprit labels. Layouts control appearance, never add facts."
+  ],
+  "contract": [
+    "Preserve supplied asset/source IDs, type, author identity, source time and assigned observations.",
+    "Support uses exact excerpts present in the material, not a title, description, image prompt or later private explanation.",
+    "Tables have complete rows, reconciled totals and canonical dates; image compilations contain actual validated embedded bytes, never invented filenames."
+  ],
+  "positiveExample": "An original fictional magazine article discusses the business dispute known at publication time; a dated handwritten note uses the writer's limited knowledge.",
+  "negativeExample": "A receipt has empty totals, a note explains that it is a red herring, or a renderer adds a laboratory result not supplied to the author.",
+  "criteria": [
+    "No placeholders, essential missing fields or description-as-document fallback.",
+    "Readable text survives rendering; all four supported languages have localized chrome.",
+    "Source identity, facts, precision and timing match the canonical assignment."
+  ]
+}

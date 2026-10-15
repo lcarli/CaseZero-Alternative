@@ -16,6 +16,9 @@ namespace CaseZeroApi.Models
         public EmailType Type { get; set; } = EmailType.General;
         public string? Attachments { get; set; } // JSON array of attachment info
         public bool IsSystemGenerated { get; set; } = false;
+        // Structured payload for system-generated e-mails (e.g. promotion notices),
+        // letting the inbox UI render localized content. Null for regular e-mails.
+        public string? MetadataJson { get; set; }
         
         // Navigation properties
         public virtual User ToUser { get; set; } = null!;

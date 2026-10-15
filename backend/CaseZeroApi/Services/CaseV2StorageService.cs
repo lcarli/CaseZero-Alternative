@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Azure.Core;
 using Azure.Storage.Blobs;
 using CaseZeroApi.Models.CaseV2;
 using Microsoft.Extensions.Caching.Memory;
@@ -26,14 +27,10 @@ public class CaseV2StorageService : ICaseV2StorageService
         ICaseV2SanitizerService sanitizer,
         ILogger<CaseV2StorageService> logger,
         IMemoryCache cache,
-        IWebHostEnvironment env)
+        IWebHostEnvironment env,
+        TokenCredential credential)
     {
-        var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
-            ?? configuration["AzureWebJobsStorage"]
-            ?? Environment.GetEnvironmentVariable("AzureWebJobsStorage")
-            ?? "UseDevelopmentStorage=true";
-
-        _blobServiceClient = new BlobServiceClient(connectionString);
+        _blobServiceClient = CaseGeneratorStorageFactory.CreateBlobServiceClient(configuration, credential);
         _sanitizer = sanitizer;
         _logger = logger;
         _cache = cache;
@@ -45,7 +42,12 @@ public class CaseV2StorageService : ICaseV2StorageService
         // before the SDK gives up. The dev override appsettings.Local.json sets this to
         // false so the dashboard just uses the filesystem. Production keeps it on.
         _useBlobStorage = configuration.GetValue("CaseGenV2:UseBlobStorage", true);
-        _logger.LogInformation("CaseV2StorageService _useBlobStorage = {Value}", _useBlobStorage);
+        var authMode = CaseGeneratorStorageFactory.UsesManagedIdentity(configuration)
+            ? "ManagedIdentity"
+            : "ConnectionString";
+        _logger.LogInformation(
+            "CaseV2StorageService initialised. UseBlobStorage={UseBlobStorage} Auth={Auth} Container={Container}",
+            _useBlobStorage, authMode, _bundlesContainer);
     }
 
     public async Task<List<CaseV2Metadata2>> ListCasesAsync(CancellationToken ct = default)
@@ -83,7 +85,10 @@ public class CaseV2StorageService : ICaseV2StorageService
             try
             {
                 var container = _blobServiceClient.GetBlobContainerClient(_bundlesContainer);
-                await container.CreateIfNotExistsAsync(cancellationToken: ct);
+                // NOTE: deliberately do NOT call CreateIfNotExistsAsync here. The API
+                // uses a least-privilege Storage Blob Data Reader role under managed
+                // identity, which cannot create containers. The bundles container is
+                // created by the Functions infrastructure (Bicep).
                 await foreach (var item in container.GetBlobsByHierarchyAsync(delimiter: "/", cancellationToken: ct))
                 {
                     if (!item.IsPrefix) continue;

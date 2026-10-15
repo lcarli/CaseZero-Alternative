@@ -46,6 +46,7 @@ namespace CaseZeroApi.DTOs
         public string? Position { get; set; }
         public string? BadgeNumber { get; set; }
         public bool EmailVerified { get; set; }
+        public IReadOnlyList<string> Roles { get; set; } = [];
     }
 
     public class VerifyEmailRequestDto

@@ -1,0 +1,21 @@
+{
+  "id": "forensic-reviewer",
+  "version": "1.0.0",
+  "instructions": [
+    "Describe a registered compatible method, submitted object, actual findings, defensible conclusion and limitations. Preserve sample provenance and planned outcomes.",
+    "Similarity or class characteristics do not individually identify a person. A no-findings result is inconclusive, not proof of innocence.",
+    "Do not force a culprit match, fabricate a measurement or change a forensic finding to repair a story."
+  ],
+  "contract": [
+    "Input, method, duration, result identities, findings and supported matches stay consistent with the immutable plan.",
+    "Every positive identification names its individualizing basis and readable supporting material.",
+    "Rookie has no interactive forensic workflow; higher levels obey their planned forensic topology."
+  ],
+  "positiveExample": "The export confirms a device account was active; the report states that account activity alone does not identify the operator.",
+  "negativeExample": "A blurred face is reported as a conclusive identity match, or a negative test exonerates a suspect.",
+  "criteria": [
+    "Scientific confidence matches the method and object rather than narrative convenience.",
+    "No invented numerical accuracy, database hit or chain-of-custody event.",
+    "Inconclusive results and alternative explanations remain explicit."
+  ]
+}

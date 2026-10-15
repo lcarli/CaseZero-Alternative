@@ -120,6 +120,71 @@ export interface Translations {
   noRecentActivity: string;
   noDataAvailable: string;
   viewDossier: string;
+  resolvedBadge: string;
+  activityResolved: string;
+  activityResolvedUngraded: string;
+  activityAttempted: string;
+  activityAttemptedUngraded: string;
+  filterByDifficulty: string;
+  allDifficulties: string;
+  hideResolvedCases: string;
+  noCasesMatchFilters: string;
+  // Dashboard widgets
+  casesByDifficulty: string;
+  promotionProgress: string;
+  currentRank: string;
+  nextRank: string;
+  casesToNextRank: string;
+  maxRankReached: string;
+  viewProfile: string;
+  // Rank display names (aligned with backend DetectiveRank)
+  rankRook: string;
+  rankDetective: string;
+  rankDetective2: string;
+  rankSergeant: string;
+  rankLieutenant: string;
+  rankCaptain: string;
+  rankCommander: string;
+  // Promotion notification (submit banner + in-game e-mail)
+  promotionToastTitle: string;
+  promotionToastBody: string;
+  promotionEmailSubject: string;
+  promotionEmailBody: string;
+  // Global inbox
+  inboxTitle: string;
+  inboxEmpty: string;
+  inboxMarkRead: string;
+  inboxUnread: string;
+  // Profile page
+  profileTitle: string;
+  profileBackToDashboard: string;
+  profileAgentSection: string;
+  profileLastPromotion: string;
+  profileNeverPromoted: string;
+  profileCaseHistory: string;
+  profileColCase: string;
+  profileColDifficulty: string;
+  profileColAttempts: string;
+  profileColBestScore: string;
+  profileColOutcome: string;
+  profileColLastAttempt: string;
+  profileOutcomeResolved: string;
+  profileOutcomeResolvedUngraded: string;
+  profileOutcomeNotResolved: string;
+  profileScoreByDifficulty: string;
+  profileScoreColPlayed: string;
+  profileScoreColResolved: string;
+  profileScoreColAvg: string;
+  profileSubmissionsTimeline: string;
+  profileRankHistory: string;
+  profileRankInitial: string;
+  profileCategoryBreakdown: string;
+  profileCategoryCulprit: string;
+  profileCategoryEvidence: string;
+  profileCategoryAnalysis: string;
+  profileCategoryQuestions: string;
+  profileCategoryNoData: string;
+  profileCategorySampleSize: string;
   
   // Footer
   currentLanguage: string;
@@ -442,6 +507,48 @@ export interface Translations {
   stepRuleValidate: string;
   stepRedTeam: string;
   stepPackage: string;
+  generationLanguage: string;
+  generationTitleOptional: string;
+  generationLocationOptional: string;
+  generationThemeOptional: string;
+  generationCaseIdOptional: string;
+  generationSeedOptional: string;
+  generationStarting: string;
+  generationJob: string;
+  generationQueued: string;
+  generationSkipped: string;
+  generationAttempt: string;
+  generationAttemptHistory: string;
+  generationRetryScheduled: string;
+  generationSolverScore: string;
+  generationUnknownError: string;
+  generationPollError: string;
+  generationStartError: string;
+  generationAnother: string;
+  generationValidationErrors: string;
+  generationGraphValidation: string;
+  generationSolutionWitness: string;
+  generationRepairOperations: string;
+  generationFirstPass: string;
+  generationAdvisoryFindings: string;
+  generationPassed: string;
+  generationNotPassed: string;
+  generationYes: string;
+  generationNo: string;
+  stageCaseDesign: string;
+  stageGraphConstruction: string;
+  stageEvidenceProduction: string;
+  stageForensicWorkflow: string;
+  stageSolutionDesign: string;
+  stageDeterministicValidation: string;
+  stageSolutionWitness: string;
+  stageAdvisoryReview: string;
+  stageTargetedRepair: string;
+  stageFinalValidation: string;
+  stageFinalization: string;
+  phaseCaseBible: string;
+  phasePlotOutline: string;
+  phaseSuspectCards: string;
   generationTitle: string;
   generationOptional: string;
   generationTitlePlaceholder: string;
@@ -454,16 +561,7 @@ export interface Translations {
   generationRandom: string;
   generationSaveLocally: string;
   generationPreviewHelp: string;
-  generationStarting: string;
-  generationJob: string;
-  generationQueued: string;
-  generationPollError: string;
-  generationStartError: string;
-  generationUnknownError: string;
-  generationAnother: string;
   generationNotRun: string;
-  generationYes: string;
-  generationNo: string;
   generationUnknown: string;
   generationApproved: string;
   generationPersisted: string;
@@ -472,7 +570,6 @@ export interface Translations {
   generationPreview: string;
   generationPublishedMode: string;
   generationLocalOnly: string;
-  generationValidationErrors: string;
   generationPdfsRendered: string;
   generationImagesRendered: string;
   generationAssetsSkipped: string;
@@ -496,6 +593,8 @@ export interface Translations {
   generationReviewRejected: string;
   generationSolverDiagnostic: string;
   generationQualityScope: string;
+  generationPlayerInvestigationScope: string;
+  generationPlayerQualityScope: string;
   generationQualityIssues: string;
   generationQualityIssue: string;
   generationBlocking: string;
@@ -535,6 +634,9 @@ export interface Translations {
   generationPhaseConsistency: string;
   generationPhaseAutoFix: string;
   generationPhaseReview: string;
+  generationPhasePrepareMaterials: string;
+  generationPhasePlayerInvestigation: string;
+  generationPhaseBlockingReview: string;
   generationPhaseRefine: string;
   generationPhaseRepairReview: string;
   generationPhaseQualityGate: string;
@@ -550,6 +652,26 @@ export interface Translations {
   generationLanguagePortuguese: string;
   generationLanguageSpanish: string;
   generationLanguageFrench: string;
+
+  // Case email and attachment discovery
+  emailInbox: string;
+  emailMessages: string;
+  emailEmpty: string;
+  emailLoading: string;
+  emailFrom: string;
+  emailTo: string;
+  emailDate: string;
+  emailAttachments: string;
+  emailAttachmentFallback: string;
+  emailAttachmentId: string;
+  emailAlreadyInFiles: string;
+  emailDownloadToFiles: string;
+  emailDownloading: string;
+  emailInFiles: string;
+  emailDownload: string;
+  emailSelect: string;
+  emailOpenError: string;
+  emailDownloadError: string;
   
   // Pinboard
   pinboard: string;
@@ -582,6 +704,8 @@ export interface Translations {
   submitCaseSuspectLabel: string;
   submitCaseEvidenceLabel: string;
   submitCaseAnalysisLabel: string;
+  submitCaseAnalysisLoading: string;
+  submitCaseAnalysisEmpty: string;
   submitCaseQuestionsHeader: string;
   submitCaseSubmitButton: string;
   submitCaseAttemptsRemaining: string;
@@ -593,7 +717,22 @@ export interface Translations {
   submitCaseBreakdownEvidence: string;
   submitCaseBreakdownAnalysis: string;
   submitCaseBreakdownQuestions: string;
+  submitCaseFeedbackCorrect: string;
+  submitCaseFeedbackCorrectUngraded: string;
+  submitCaseFeedbackIncorrectRetry: string;
+  submitCaseFeedbackIncorrectLastGraded: string;
+  submitCaseFeedbackIncorrectUngraded: string;
+  submitCaseUngradedBanner: string;
   submitCaseExplanationHeader: string;
+  submitCaseSuspectsEmpty: string;
+  submitCaseProgressTitle: string;
+  submitCaseProgressSuspect: string;
+  submitCaseProgressEvidence: string;
+  submitCaseProgressAnalysis: string;
+  submitCaseProgressQuestions: string;
+  submitCaseProgressReady: string;
+  submitCaseProgressMissingSuspect: string;
+  submitCaseProgressMissingQuestions: string;
 
   // Dashboard V2
   dashboardRequiredRank: string;

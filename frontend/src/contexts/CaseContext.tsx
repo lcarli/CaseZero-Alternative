@@ -48,12 +48,17 @@ interface CaseContextValue {
   isLoading: boolean
   error: string | null
   loadCase: (caseId: string) => Promise<void>
-  refreshCase: () => Promise<void>
   viewAsset: (assetId: string) => Promise<void>
   openEmail: (emailId: string) => Promise<void>
   viewSuspect: (suspectId: string) => Promise<void>
   submitCase: (payload: SubmitCaseRequest) => Promise<SubmitCaseResult>
   postGameTime: (min: number) => Promise<void>
+  // Refetch the sanitized case from the server (e.g., after a download
+  // unlocks an attachment asset) without resetting submission/notifications.
+  refreshCase: () => Promise<void>
+  // Locally reveal an entity in CaseEngine state. Useful for SignalR-driven
+  // reveals where the revealed entity is already present in state.case.
+  applyReveal: (entityType: 'email' | 'asset' | 'suspect', entityId: string) => void
   // Back-compat: legacy TimeSync uses this. Accepts a Date.
   updateGameTime: (newTime: Date) => void
 }
@@ -179,6 +184,7 @@ export const CaseProvider: React.FC<{ children: ReactNode; caseId?: string }> = 
     viewSuspect: (id) => engine.viewSuspect(id),
     submitCase: (payload) => engine.submitCase(payload),
     postGameTime,
+    applyReveal: (entityType, id) => engine.applyReveal(entityType, id),
     updateGameTime,
   }
 

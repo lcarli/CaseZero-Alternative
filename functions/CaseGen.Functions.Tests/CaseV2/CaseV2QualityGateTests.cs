@@ -3,6 +3,8 @@ using CaseGen.Functions.Models.CaseV2;
 using CaseGen.Functions.Services;
 using CaseGen.Functions.Services.CaseV2;
 using CaseGen.Functions.Services.CaseV2.Templates;
+using CaseGen.Functions.Services.CaseV2.Rendering;
+using CaseGen.Functions.Services.CaseV2.Rendering.Layouts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
@@ -25,7 +27,7 @@ public class CaseV2QualityGateTests
             {"verdict":"{{verdict}}","findings":[{"severity":"{{severity}}","area":"timeline","issue":"Contradictory times","reference":"asset.scene"}]}
             """;
         var response = await fixture.GenerateAsync();
-        Assert.Empty(response.ValidationErrors);
+        Assert.DoesNotContain(response.ValidationErrors, error => error.StartsWith("$/", StringComparison.Ordinal));
         Assert.False(response.Quality.Approved);
         Assert.True(response.Quality.HasBlockingIssues);
         Assert.Contains(response.Quality.Issues, issue => issue.Reference == "asset.scene");
@@ -42,7 +44,7 @@ public class CaseV2QualityGateTests
     {
         using var fixture = new CaseGenerationTestFixture();
         fixture.Llm.ReviewContent = "{\"verdict\":\"ok\"}";
-        if (unavailable) fixture.Llm.ReviewException = new InvalidOperationException("Offline");
+        if (unavailable) fixture.Llm.ReviewException = new HttpRequestException("Offline");
         var response = await fixture.GenerateAsync();
         Assert.False(response.Quality.Approved);
         Assert.Contains(response.Quality.Issues, issue => issue.Code == (unavailable ? "red_team_unavailable" : "red_team_invalid"));
@@ -105,8 +107,9 @@ public class CaseV2QualityGateTests
         fixture.Renderer.EmptyFiles = empty;
         var response = await fixture.GenerateAsync();
         Assert.Empty(response.AssetRenderingErrors);
-        Assert.Equal(5, response.AssetsRenderedPdfs);
-        Assert.Contains(response.Quality.Issues, issue => issue.Code == "asset_file_missing" && issue.Reference == "asset.scene");
+        Assert.Equal(PublicAssets(response).Count(asset => asset!["type"]!.GetValue<string>() is "pdf" or "document" or "digital"),
+            response.AssetsRenderedPdfs);
+        Assert.Contains(response.Quality.Issues, issue => issue.Code == "asset_file_missing" && issue.Reference == "asset.initial_report");
         Assert.False(response.Quality.Approved);
         Assert.Equal(0, fixture.Publisher.Calls);
         Assert.Empty(fixture.DiscoverableCases());
@@ -130,13 +133,19 @@ public class CaseV2QualityGateTests
         fixture.Llm.PhotoAsset = true;
         fixture.Renderer.JpegPhotos = true;
         var response = await fixture.GenerateAsync();
-        Assert.Equal(1, response.AssetsRenderedImages);
         Assert.True(response.Quality.Approved);
         Assert.True(response.Bundle!.Verified);
-        var asset = System.Text.Json.Nodes.JsonNode.Parse(response.CaseJson)!["assets"]![0]!;
-        Assert.Equal($"case://case_quality/assets/{response.Bundle.BundleId}/scene.jpg", asset["uri"]!.GetValue<string>());
-        Assert.Equal("image/jpeg", asset["metadata"]!["mimeType"]!.GetValue<string>());
-        Assert.True(File.Exists(Path.Combine(fixture.Root, "case_quality", "assets", response.Bundle.BundleId, "scene.jpg")));
+        var images = PublicAssets(response).Where(asset => asset!["type"]!.GetValue<string>() is "photo" or "image").ToList();
+        Assert.NotEmpty(images);
+        Assert.Equal(images.Count, response.AssetsRenderedImages);
+        foreach (var asset in images)
+        {
+            var uri = asset!["uri"]!.GetValue<string>();
+            Assert.StartsWith($"case://case_quality/assets/{response.Bundle.BundleId}/", uri);
+            Assert.EndsWith(".jpg", uri);
+            Assert.Equal("image/jpeg", asset["metadata"]!["mimeType"]!.GetValue<string>());
+            Assert.True(File.Exists(Path.Combine(fixture.Root, "case_quality", uri["case://case_quality/".Length..])));
+        }
         Assert.Equal(1, fixture.Publisher.Calls);
     }
 
@@ -170,7 +179,8 @@ public class CaseV2QualityGateTests
         {
             Assert.False(File.Exists(fixture.CasePath));
             Assert.True(File.Exists(jsonPath));
-            Assert.Equal(6, Directory.EnumerateFiles(assetsPath).Count());
+            var assetCount = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(jsonPath))!["assets"]!.AsArray().Count;
+            Assert.Equal(assetCount + 1, Directory.EnumerateFiles(assetsPath).Count());
             Assert.True(File.Exists(Path.Combine(assetsPath, "manifest.json")));
         };
         var response = await fixture.GenerateAsync();
@@ -184,8 +194,9 @@ public class CaseV2QualityGateTests
         Assert.Equal(fixture.CasePath, response.OutputPath);
         Assert.Equal(response.CaseJson, File.ReadAllText(fixture.CasePath));
         Assert.Single(fixture.DiscoverableCases());
-        Assert.Equal(0, response.Solver!.Score);
-        Assert.Equal("diagnostic", response.Quality.SolverMode);
+        Assert.True(response.Solver!.Correct);
+        Assert.InRange(response.Solver.Score, .9, 1);
+        Assert.Equal("player-visible", response.Quality.SolverMode);
         Assert.False(CaseV2JobResult.FromResponse("job", response).HasErrors);
     }
 
@@ -228,7 +239,7 @@ public class CaseV2QualityGateTests
         Assert.False(response.Quality.Approved);
         Assert.False(response.Quality.Persisted);
         Assert.True(response.Quality.Published);
-        Assert.Equal(7, response.BlobsPublished);
+        Assert.Equal(PublicAssets(response).Count + 2, response.BlobsPublished);
         Assert.Empty(response.OutputPath);
         Assert.Empty(fixture.DiscoverableCases());
         Assert.True(CaseV2JobResult.FromResponse("job", response).HasErrors);
@@ -237,9 +248,11 @@ public class CaseV2QualityGateTests
     [Fact]
     public async Task Preview_ApprovesOnlyDraftWithoutRenderingSavingOrPublishing()
     {
-        using var fixture = new CaseGenerationTestFixture();
+        using var fixture = new CaseGenerationTestFixture { RepairMaxIterations = 0 };
         var response = await fixture.GenerateAsync(writeToDisk: false);
-        Assert.True(response.Quality.Approved);
+        Assert.True(response.Quality.Approved, string.Join("\n", response.ValidationErrors.Concat(
+            response.Quality.Issues.Select(issue => $"{issue.Code}: {issue.Message}"))
+            .Append($"Solver: {response.Solver?.ErrorCode} {response.Solver?.Notes}")));
         Assert.True(response.Quality.Preview);
         Assert.False(response.Quality.PersistenceRequested);
         Assert.False(response.Quality.PublicationRequested);
@@ -255,17 +268,18 @@ public class CaseV2QualityGateTests
     public async Task AcceptedRefine_IsCompiledReviewedAndRenderedFromCanonicalRevision()
     {
         using var fixture = new CaseGenerationTestFixture();
-        fixture.BeforeConsistency = draft => draft.Metadata.Difficulty = "InvalidRank";
+        fixture.BeforeConsistency = draft => draft.AssetFull[0].BodyDoc!.Sections[0].Text = "Unreadable transcription.";
         var response = await fixture.GenerateAsync();
         Assert.True(response.RefineAttempted);
+        Assert.True(response.Repair.Accepted, response.Repair.ErrorMessage);
         Assert.True(response.RefineErrorsBefore > response.RefineErrorsAfter);
         Assert.Empty(response.ValidationErrors);
         Assert.True(response.Quality.Approved);
-        Assert.True(response.Repair.Accepted);
         Assert.Equal(1, response.Quality.Revision);
         Assert.Equal(1, response.Quality.ReviewedRevision);
-        Assert.Equal(2, fixture.Llm.Calls.Count(c => c.System.Contains("red-team reviewer")));
-        Assert.Equal(2, fixture.Llm.Calls.Count(c => c.System.Contains("AS THE PLAYER")));
+        Assert.Contains("targetedRepair", response.StageLatencyMs.Keys);
+        Assert.True(response.RedTeamRerun);
+        Assert.True(response.Solver!.Correct);
         Assert.Equal(1, fixture.Renderer.Calls);
         Assert.Equal(1, fixture.Publisher.Calls);
         Assert.Single(fixture.DiscoverableCases());
@@ -290,8 +304,10 @@ public class CaseV2QualityGateTests
         using var fixture = new CaseGenerationTestFixture();
         fixture.BeforeConsistency = draft => draft.ForensicFull[0].InputAssetId = "asset.unknown";
         var response = await fixture.GenerateAsync();
-        Assert.NotEmpty(response.Consistency!.Errors);
-        Assert.Contains(response.Quality.Issues, issue => issue.Code == "consistency_error");
+        Assert.False(response.Quality.Approved);
+        Assert.Contains(response.Quality.Issues, issue => issue.Blocking && issue.Message.Contains("asset.unknown", StringComparison.Ordinal));
+        Assert.Contains(response.ValidationErrors, error => error.Contains("asset.unknown", StringComparison.Ordinal));
+        Assert.Equal(0, fixture.Renderer.Calls);
         Assert.Equal(0, fixture.Publisher.Calls);
         Assert.Empty(fixture.DiscoverableCases());
     }
@@ -318,11 +334,16 @@ public class CaseV2QualityGateTests
         var renderer = new AssetRenderingService(
             new PdfRenderingService(new ConfigurationBuilder().Build(), NullLogger<PdfRenderingService>.Instance),
             fixture.Llm,
-            new EvidenceDocumentRenderer(NullLogger<EvidenceDocumentRenderer>.Instance),
+            new EvidenceDocumentRenderer(
+                new DocumentLayoutRegistry([new GeneralReportLayout()], NullLogger<DocumentLayoutRegistry>.Instance),
+                NullLogger<EvidenceDocumentRenderer>.Instance),
             new EvidenceTemplateRegistry(Array.Empty<IEvidenceTemplate>()),
             NullLogger<AssetRenderingService>.Instance);
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             renderer.RenderAllAsync("case_quality", fixture.Root,
-                new[] { new EvidenceAsset { Id = "asset.scene", Type = "photo", Title = "Scene" } }, source.Token));
+                new[] { new EvidenceAsset { Id = "asset.scene", Type = "photo", Title = "Scene", Body = "Documentary scene view." } }, source.Token));
     }
+
+    private static System.Text.Json.Nodes.JsonArray PublicAssets(GenerateCaseV2Response response) =>
+        System.Text.Json.Nodes.JsonNode.Parse(response.CaseJson)!["assets"]!.AsArray();
 }

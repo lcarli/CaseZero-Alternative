@@ -1,0 +1,213 @@
+{
+  "Correct": true,
+  "Score": 1,
+  "CulpritScore": 0.4,
+  "EvidenceScore": 0.2,
+  "AnalysisScore": 0.2,
+  "QuestionsScore": 0.2,
+  "Attempt": {
+    "suspectId": "suspect.ryan_abad",
+    "evidenceIds": [
+      "asset.suspect_interview",
+      "asset.access_log",
+      "asset.call_log",
+      "asset.bank_statement"
+    ],
+    "analysisIds": [],
+    "observationIds": [
+      "observation.badge_to_person_suspect_interview",
+      "observation.cage_access_log_access_log",
+      "observation.decoy_suspicion_gavin_holt_access_log",
+      "observation.decoy_verification_gavin_holt_call_log",
+      "observation.no_ticket_for_issue_call_log",
+      "observation.spreadsheet_version_history_bank_statement"
+    ],
+    "answers": [
+      {
+        "questionId": "q.badge_access_times",
+        "optionId": "opt.191218_192109_192603"
+      },
+      {
+        "questionId": "q.no_ticket_for_asset",
+        "optionId": "opt.zero_tickets_found"
+      },
+      {
+        "questionId": "q.spreadsheet_save_actor_time",
+        "optionId": "opt.rabad_191844"
+      }
+    ],
+    "rationale": "Deterministic CaseGraph proof witness"
+  },
+  "LogicalProofPassed": true,
+  "NarrativeSimulationPassed": true,
+  "Trace": {
+    "Entries": [
+      {
+        "Sequence": 1,
+        "Kind": 0,
+        "ActionId": "inspect:asset.access_log",
+        "TargetId": "asset.access_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 2,
+        "Kind": 0,
+        "ActionId": "inspect:asset.bank_statement",
+        "TargetId": "asset.bank_statement",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 3,
+        "Kind": 0,
+        "ActionId": "inspect:asset.call_log",
+        "TargetId": "asset.call_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 4,
+        "Kind": 0,
+        "ActionId": "inspect:asset.evidence_log",
+        "TargetId": "asset.evidence_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 5,
+        "Kind": 0,
+        "ActionId": "inspect:asset.suspect_interview",
+        "TargetId": "asset.suspect_interview",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 6,
+        "Kind": 0,
+        "ActionId": "inspect:email.facilities_preservation_lc2",
+        "TargetId": "email.facilities_preservation_lc2",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 7,
+        "Kind": 0,
+        "ActionId": "inspect:email.maya_lin_missing_report",
+        "TargetId": "email.maya_lin_missing_report",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 8,
+        "Kind": 0,
+        "ActionId": "inspect:email.servicedesk_zero_tickets",
+        "TargetId": "email.servicedesk_zero_tickets",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 9,
+        "Kind": 4,
+        "ActionId": "accuse:suspect.ryan_abad",
+        "TargetId": "suspect.ryan_abad",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": [
+          "observation.badge_to_person_suspect_interview",
+          "observation.cage_access_log_access_log",
+          "observation.decoy_suspicion_gavin_holt_access_log",
+          "observation.decoy_verification_gavin_holt_call_log",
+          "observation.no_ticket_for_issue_call_log",
+          "observation.spreadsheet_version_history_bank_statement"
+        ]
+      },
+      {
+        "Sequence": 10,
+        "Kind": 5,
+        "ActionId": "answer:q.badge_access_times",
+        "TargetId": "q.badge_access_times",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 11,
+        "Kind": 5,
+        "ActionId": "answer:q.no_ticket_for_asset",
+        "TargetId": "q.no_ticket_for_asset",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 12,
+        "Kind": 5,
+        "ActionId": "answer:q.spreadsheet_save_actor_time",
+        "TargetId": "q.spreadsheet_save_actor_time",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      }
+    ],
+    "FinalReachableSourceIds": [
+      "asset.access_log",
+      "asset.bank_statement",
+      "asset.call_log",
+      "asset.evidence_log",
+      "asset.suspect_interview",
+      "email.facilities_preservation_lc2",
+      "email.maya_lin_missing_report",
+      "email.servicedesk_zero_tickets"
+    ],
+    "FinalReachableObservationIds": [
+      "observation.asset_context_evidence_log",
+      "observation.asset_context_suspect_interview",
+      "observation.badge_to_person_suspect_interview",
+      "observation.cage_access_log_access_log",
+      "observation.decoy_suspicion_elena_soto_suspect_interview",
+      "observation.decoy_suspicion_gavin_holt_access_log",
+      "observation.decoy_verification_elena_soto_suspect_interview",
+      "observation.decoy_verification_gavin_holt_call_log",
+      "observation.inventory_issued_entry_evidence_log",
+      "observation.inventory_issued_entry_suspect_interview",
+      "observation.no_ticket_for_issue_call_log",
+      "observation.spreadsheet_version_history_bank_statement"
+    ],
+    "LogicalProofPassed": true,
+    "NarrativeSimulationPassed": true
+  },
+  "Notes": null
+}

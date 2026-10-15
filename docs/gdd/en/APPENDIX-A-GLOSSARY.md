@@ -15,7 +15,7 @@ A milestone or accomplishment that awards the player with recognition and potent
 A set of HTTP endpoints that allow the frontend to communicate with the backend server. CaseZero's REST API handles authentication, case data retrieval, forensic requests, and solution submission. See **[Chapter 08 - Technical Architecture]** for endpoint specifications.
 
 ### ASP.NET Core
-An open-source, cross-platform web framework by Microsoft used to build the CaseZero backend API. Version 9.0 is specified for the project. See **[Chapter 08 - Technical Architecture]** for technology stack rationale.
+An open-source, cross-platform web framework by Microsoft used to build the CaseZero backend API. The current Web API targets **.NET 8**, while the separate case-generation Azure Functions project targets **.NET 9**. See **[Chapter 08 - Technical Architecture]** for the split architecture.
 
 ### Authentication
 The process of verifying a user's identity through username/email and password. CaseZero uses JWT (JSON Web Tokens) for stateless authentication. See **[Chapter 08 - Technical Architecture]** for authentication flow.
@@ -24,16 +24,16 @@ The process of verifying a user's identity through username/email and password. 
 The process of determining what actions an authenticated user is permitted to perform. CaseZero uses role-based authorization (currently "Player" role, with future "Admin" and "ContentCreator" roles planned).
 
 ### Azure App Service
-Microsoft's cloud platform-as-a-service (PaaS) for hosting web applications. CaseZero's backend API runs on Azure App Service Linux. See **[Chapter 08 - Technical Architecture]** for deployment strategy.
+Microsoft's cloud platform-as-a-service (PaaS) for hosting web applications. In this GDD it appears as a possible operational hosting target for the backend, but the repository-grounded facts are the .NET 8 Web API and the separate .NET 9 Functions app rather than a single mandatory App Service topology. See **[Chapter 08 - Technical Architecture]**.
 
 ### Azure Blob Storage
-Microsoft's cloud object storage service for unstructured data. CaseZero stores PDF documents, evidence photos, and forensic reports in blob storage. Uses Hot tier for active cases, Cool tier for archive. See **[Chapter 08 - Technical Architecture]**.
+Microsoft's cloud object storage service for unstructured data. CaseZero publishes canonical `case.json` v2 bundles and player-facing assets to Blob Storage, with `case.json` written last as the bundle commit marker. See **[Chapter 08 - Technical Architecture]**.
 
 ### Azure CDN (Content Delivery Network)
-A distributed network of servers that delivers static content to users from geographically nearby locations. CaseZero uses Azure CDN to serve case assets (PDFs, images) with low latency globally. See **[Chapter 08 - Technical Architecture]**.
+A distributed network of servers that delivers static content from geographically nearby locations. In this GDD it is a deployment/design option for serving case assets, not a repository-verified requirement of the current implementation. See **[Chapter 08 - Technical Architecture]**.
 
 ### Azure Functions
-Microsoft's serverless compute service for running event-driven code. CaseZero uses Azure Functions with Timer Triggers to process forensic analysis completions every 5 minutes. See **[Chapter 08 - Technical Architecture]** for real-time forensics implementation.
+Microsoft's serverless compute service for running event-driven code. CaseZero uses an **Azure Functions isolated worker on .NET 9** for the implemented Durable case-generation pipeline, and also for timer-based asynchronous forensic processing. See **[Chapter 08 - Technical Architecture]**.
 
 ---
 
@@ -59,7 +59,7 @@ A complete murder mystery scenario that the player must solve. Each case include
 The in-game application/interface where players view documents and evidence. Named metaphorically as a "detective's case file folder." Includes Document Viewer (PDF.js), Evidence Gallery, and Case Files List. See **[Chapter 07 - User Interface]**.
 
 ### case.json
-The master data file that defines a complete case. JSON format containing metadata, victim, crime, location, suspects, evidence, documents, forensic analyses, timeline, and solution. Stored in PostgreSQL JSONB column. See **[Chapter 09 - Data Schema & Models]** for complete schema.
+The canonical master data file that defines a complete case. The current repository uses **case.json v2** as the only supported case format; it is published to Blob Storage and written last as the bundle commit marker. See **[Chapter 09 - Data Schema & Models]** and the CASE JSON v2 specification.
 
 ### Case Session
 A persistent record of a player's progress on a specific case, including session ID, case ID, user ID, start time, completion status, time spent, and submitted solution. Enables players to resume cases across devices. See **[Chapter 09 - Data Schema & Models]**.
@@ -96,10 +96,10 @@ A simple object used to transfer data between application layers, typically betw
 Key engagement metrics. DAU measures unique users per day, MAU measures unique users per month. Target ratio for CaseZero is 25-30% (indicates healthy retention). See **[Chapter 12 - Product Roadmap]** for success metrics.
 
 ### Detective Rank
-A progression tier based on total XP earned. Ranks include Cadet (0 XP), Junior Detective (5,000 XP), Detective (20,000 XP), Senior Detective (50,000 XP), Lead Detective (100,000 XP), Chief Inspector (200,000 XP), Legendary Detective (500,000 XP). See **[Chapter 06 - Player Progression]**.
+The implemented progression tier used for both detective rank and case difficulty. Current ranks are `Rookie`, `Detective`, `Detective2`, `Sergeant`, `Lieutenant`, `Captain`, and `Commander`; promotions are based on cumulative graded-correct case resolves (0, 3, 8, 16, 28, 44, 65), not XP thresholds. See **[Chapter 06 - Player Progression]**.
 
 ### Difficulty
-A case classification indicating complexity and challenge level. Four tiers: Easy (fewer suspects, clearer clues), Medium (moderate complexity), Hard (multiple red herrings, complex timeline), Expert (highly complex, subtle clues). See **[Chapter 04 - Case Structure]** for difficulty calibration.
+A case classification indicating complexity and challenge level. The implemented system uses the same seven-level enum as detective rank: `Rookie`, `Detective`, `Detective2`, `Sergeant`, `Lieutenant`, `Captain`, `Commander`. Older Easy/Medium/Hard/Expert terminology in the GDD is historical design guidance, not the live enum. See **[Chapter 04 - Case Structure]** for difficulty calibration.
 
 ### DNA Analysis
 A forensic analysis type that examines biological evidence (blood, hair, saliva) to identify individuals through genetic matching. Longest forensic request (24 hours base time). See **[Chapter 03 - Core Mechanics]**.
@@ -109,10 +109,10 @@ A forensic analysis type that examines biological evidence (blood, hair, saliva)
 ## E
 
 ### E2E Testing (End-to-End Testing)
-Testing methodology that validates complete user workflows from start to finish in a production-like environment. CaseZero uses Playwright for E2E testing. See **[Chapter 11 - Testing Strategy]** for test flows.
+Testing methodology that validates complete user workflows from start to finish in a production-like environment. Playwright is the planned CaseZero E2E framework, but it is not currently installed or run in CI. See **[Chapter 11 - Testing Strategy]** for the proposed flows.
 
 ### EF Core (Entity Framework Core)
-Microsoft's object-relational mapping (ORM) framework for .NET. Version 9.0 used in CaseZero to interact with PostgreSQL database. See **[Chapter 08 - Technical Architecture]**.
+Microsoft's object-relational mapping (ORM) framework for .NET. CaseZero uses EF Core with SQL-backed persistence in the .NET 8 backend API; the canonical case payload itself lives in Blob Storage rather than in PostgreSQL JSONB. See **[Chapter 08 - Technical Architecture]**.
 
 ### Evidence
 Physical or digital items related to the crime that players can examine. Types include Physical Evidence (weapon, clothing), Documents (subset of evidence that are readable), Photos, Forensic Samples (analyzed via Forensics Lab), and Digital Evidence (future expansion). See **[Chapter 04 - Case Structure]**.
@@ -121,7 +121,7 @@ Physical or digital items related to the crime that players can examine. Types i
 The UI component in Case Files that displays all evidence items as a visual grid with thumbnails, names, and descriptions. Players click to enlarge images. See **[Chapter 07 - User Interface]**.
 
 ### XP (Experience Points)
-Points awarded for solving cases, used to calculate Detective Rank. Base XP varies by difficulty: Easy 150, Medium 300, Hard 600, Expert 1200. Bonuses awarded for first attempt (+50%), time efficiency (+10-20%), and no hints (+20%). See **[Chapter 06 - Player Progression]**.
+A historical design term used in older progression drafts. The current implemented promotion rules use cumulative graded-correct case resolves instead of XP thresholds for detective-rank advancement. See **[Chapter 06 - Player Progression]**.
 
 ---
 
@@ -134,7 +134,7 @@ A forensic analysis type that compares fingerprints found at the crime scene wit
 A .NET library for building strongly-typed validation rules. CaseZero uses FluentValidation to validate case.json data, API request DTOs, and user submissions. See **[Chapter 09 - Data Schema & Models]**.
 
 ### Forensic Analysis
-A scientific examination of evidence performed by specialists. In CaseZero, players request forensic analyses via the Forensics Lab, wait for real-time completion, then review the generated PDF report. Types: DNA, Fingerprints, Toxicology, Ballistics, Digital Forensics (future). See **[Chapter 03 - Core Mechanics]**.
+A scientific examination of evidence performed by specialists. In CaseZero, players request forensic analyses via the Forensics Lab, wait for asynchronous/timer-based completion, then review the generated PDF report. Types include DNA, Fingerprints, Toxicology, and Ballistics, with additional disciplines remaining future-facing design space. See **[Chapter 03 - Core Mechanics]**.
 
 ### Forensic Request
 A player-initiated action to analyze evidence. Creates a database record with request ID, case ID, user ID, evidence ID, analysis type, request timestamp, completion timestamp, status (Pending/Completed/Failed), and report URL. See **[Chapter 09 - Data Schema & Models]**.
@@ -177,7 +177,7 @@ Testing methodology that validates interactions between multiple system componen
 A lightweight data-interchange format. CaseZero uses JSON for case.json files, API request/response bodies, and Redux state. See **[Chapter 09 - Data Schema & Models]**.
 
 ### JSONB
-PostgreSQL's binary JSON data type that allows efficient storage and querying of JSON documents. CaseZero stores case.json in JSONB column for flexible schema and fast querying. See **[Chapter 08 - Technical Architecture]**.
+A PostgreSQL data type for storing JSON documents efficiently. In the current CaseZero repository this is a **historical/deprecated design term**: canonical `case.json` v2 bundles live in Blob Storage, not in PostgreSQL JSONB columns. See **[Chapter 08 - Technical Architecture]**.
 
 ### JSON Schema
 A vocabulary for validating JSON document structure. CaseZero defines a JSON Schema for case.json to ensure content validity. See **[Chapter 09 - Data Schema & Models]**.
@@ -203,7 +203,7 @@ A future planned feature allowing players to search document text for specific w
 Testing methodology that evaluates system performance under expected and peak user loads. CaseZero uses Artillery to simulate concurrent users. See **[Chapter 11 - Testing Strategy]**.
 
 ### Localization (L10n)
-The process of adapting software for different languages and regions. CaseZero MVP is English-only; French, Spanish, Portuguese, German planned for Year 1 expansion. See **[Chapter 10 - Content Pipeline]** for localization strategy.
+The process of adapting software for different languages and regions. The current frontend already supports `en-US`, `pt-BR`, `es-ES`, and `fr-FR`, and the case-generation pipeline validates locale-specific output before publication. Additional locales remain planned expansion. See **[Chapter 10 - Content Pipeline]** for localization strategy.
 
 ---
 
@@ -240,16 +240,16 @@ A programming technique that converts data between incompatible type systems (e.
 ## P
 
 ### PDF.js
-Mozilla's open-source JavaScript library for rendering PDF documents in the browser without plugins. CaseZero uses PDF.js to display document evidence. See **[Chapter 07 - User Interface]** and **[Chapter 08 - Technical Architecture]**.
+Mozilla's open-source JavaScript library for rendering PDF documents in the browser without plugins. It appeared in the original design, but the current frontend does not include the PDF.js package. See **[Chapter 07 - User Interface]** and **[Chapter 08 - Technical Architecture]**.
 
 ### Playwright
-A browser automation framework for end-to-end testing. Supports Chrome, Firefox, Safari. CaseZero uses Playwright for E2E test flows. See **[Chapter 11 - Testing Strategy]**.
+A browser automation framework for end-to-end testing. Supports Chrome, Firefox, and Safari. It is the planned framework for CaseZero E2E flows, not a currently installed dependency. See **[Chapter 11 - Testing Strategy]**.
 
 ### PostgreSQL
-An open-source relational database management system. Version 15+ used for CaseZero, hosted on Azure Database for PostgreSQL. Chosen for JSONB support and strong ACID guarantees. See **[Chapter 08 - Technical Architecture]**.
+An open-source relational database management system. In the current CaseZero repository this is a **historical/deprecated design reference**: the live backend uses Azure SQL / SQL Server-backed persistence instead of PostgreSQL. See **[Chapter 08 - Technical Architecture]**.
 
 ### PWA (Progressive Web App)
-A web application that uses modern web capabilities to provide app-like experiences (offline support, push notifications, installability). CaseZero implements Service Worker for offline case viewing. See **[Chapter 08 - Technical Architecture]**.
+A web application that uses modern web capabilities to provide app-like experiences (offline support, push notifications, installability). PWA and Service Worker support remain roadmap concepts; they are not implemented in the current frontend. See **[Chapter 08 - Technical Architecture]**.
 
 ---
 
@@ -266,13 +266,13 @@ A checkpoint in the development/release process that must pass specific criteria
 ## R
 
 ### React
-A JavaScript library for building user interfaces developed by Meta. Version 18+ used for CaseZero frontend. See **[Chapter 08 - Technical Architecture]**.
+A JavaScript library for building user interfaces developed by Meta. CaseZero currently uses React 19. See **[Chapter 08 - Technical Architecture]**.
 
 ### React Router
-A routing library for React applications. Version 6 used for navigation between pages (Dashboard, Case Files, Forensics Lab, Submit Solution, Profile). See **[Chapter 08 - Technical Architecture]**.
+A routing library for React applications. CaseZero currently uses React Router 7 for application navigation and protected routes. See **[Chapter 08 - Technical Architecture]**.
 
 ### Redux Toolkit
-The official, opinionated toolset for efficient Redux development. CaseZero uses Redux Toolkit for frontend state management with slices for auth, cases, documents, evidence, forensics, notes, UI. See **[Chapter 08 - Technical Architecture]**.
+The official, opinionated toolset for Redux development. It was selected in the original design, but the current CaseZero frontend uses React Context and hooks instead. See **[Chapter 08 - Technical Architecture]**.
 
 ### REST API (Representational State Transfer)
 An architectural style for web services using HTTP methods (GET, POST, PUT, DELETE) and resource-based URLs. CaseZero backend exposes a RESTful API. See **[Chapter 08 - Technical Architecture]**.
@@ -288,7 +288,7 @@ The maximum acceptable amount of data loss measured in time. CaseZero's RPO is 2
 ## S
 
 ### Service Worker
-A JavaScript script that runs in the background, separate from the web page, enabling features like offline support and push notifications. CaseZero implements Service Worker to cache case data for offline viewing. See **[Chapter 08 - Technical Architecture]**.
+A JavaScript script that runs in the background, separate from the web page, enabling features like offline support and push notifications. Service Worker support is a CaseZero roadmap concept and is not implemented in the current frontend. See **[Chapter 08 - Technical Architecture]**.
 
 ### Session
 See **Case Session**.
@@ -307,7 +307,7 @@ A person of interest in the murder investigation. Each case includes 2-8 suspect
 ## T
 
 ### Tailwind CSS
-A utility-first CSS framework for rapidly building custom user interfaces. CaseZero uses Tailwind CSS for styling with custom theme configuration. See **[Chapter 08 - Technical Architecture]**.
+A utility-first CSS framework for building user interfaces. It appeared in the original design, but the current CaseZero frontend uses styled-components and application CSS instead. See **[Chapter 08 - Technical Architecture]**.
 
 ### Timeline
 A chronological sequence of events before, during, and after the murder. Each event has timestamp (date/time or relative description), event description, and participants. Players reconstruct the timeline to understand the crime. See **[Chapter 04 - Case Structure]**.
@@ -332,7 +332,7 @@ Content created by players rather than the development team. Year 2+ roadmap inc
 Testing methodology that validates individual functions/components in isolation. CaseZero uses Vitest (frontend) and xUnit (backend) for unit testing. Target coverage: ≥80%. See **[Chapter 11 - Testing Strategy]**.
 
 ### User Progress
-A persistent record of a player's overall achievement, including total XP, current rank, cases solved, total time played, hints used, achievements earned, and statistics. See **[Chapter 09 - Data Schema & Models]**.
+A persistent record of a player's overall achievement, including current rank, cumulative graded-correct resolves, cases solved, total time played, hints used, achievements earned, and statistics. See **[Chapter 09 - Data Schema & Models]**.
 
 ### UX (User Experience)
 The overall experience a person has when interacting with a product. CaseZero prioritizes immersive UX through authentic document design, realistic forensics, and pressure-free investigation. See **[Chapter 01 - Game Concept]** for design philosophy.

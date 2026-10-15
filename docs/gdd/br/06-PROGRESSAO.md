@@ -6,6 +6,17 @@
 
 ---
 
+> ### ⚠️ Status de implementação
+>
+> Este capítulo é a **visão de design original** para a progressão e é, em sua maior parte, **aspiracional** — a maior parte dele (a escada de 8 patentes, a fórmula de XP, a promoção baseada em XP, as estimativas de horas/casos) **não** foi implementada como descrito. Trate-o como uma **referência de meta de design / roadmap**, não como uma descrição do jogo em produção.
+>
+> **O que está realmente implementado hoje** (`backend/CaseZeroApi/Models/User.cs`, `backend/CaseZeroApi/Services/PromotionRules.cs`, `schemas/case.schema.json`):
+> - **7 patentes/níveis de dificuldade**, compartilhados entre casos e detetives: `Rookie → Detective → Detective2 → Sergeant → Lieutenant → Captain → Commander`.
+> - A promoção **não é baseada em XP**. Ela é dirigida pelo número **cumulativo de casos resolvidos com avaliação correta** desde a criação da conta, com limiares fixos: Rookie = 0, Detective = 3, Detective2 = 8, Sergeant = 16, Lieutenant = 28, Captain = 44, Commander = 65 casos resolvidos.
+> - Não existe número de XP, fórmula de XP por dificuldade, nem sistema de bônus/penalidade de XP por tentativa no código atual.
+>
+> O restante deste capítulo (§6.3–§6.9) descreve o **sistema de 8 patentes/baseado em XP como originalmente concebido**. Ele é mantido para fins de histórico de design e iterações futuras; não trate os nomes específicos de patentes ("Detetive Sênior", "Detetive Mestre" etc.), os números de XP ou as estimativas de horas abaixo como fatos atuais.
+
 ## 6.1 Visão Geral
 
 Este capítulo define o **sistema de progressão por patentes de detetive** — como os jogadores avançam na carreira, desbloqueiam novos casos e acompanham sua maestria investigativa. O objetivo é transmitir sensação de carreira real, não de “level” gamificado.

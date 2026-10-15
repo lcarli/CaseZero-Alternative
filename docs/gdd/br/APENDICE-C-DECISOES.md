@@ -238,9 +238,9 @@ Cada entrada segue esta estrutura:
 
 ### DEC-2024-006: Plataforma Web-First (Não Desktop/Mobile Nativo)
 
-**Data**: novembro de 2024  
-**Categoria**: Técnica  
-**Status**: Aprovada  
+**Data**: novembro de 2024
+**Categoria**: Técnica
+**Status**: ⚠️ **Superada pela implementação** — o frontend atual usa React Context e hooks; Redux Toolkit não está instalado. Esta entrada é mantida como justificativa histórica de design.
 **Decisão**: Desenvolver CaseZero como aplicação web (React + ASP.NET Core) focada em navegadores desktop/tablet, e não como app nativo desktop ou mobile.
 
 **Contexto**: Escolher plataforma principal do MVP. Considerar recursos, complexidade de deploy e alcance do público-alvo.
@@ -281,9 +281,9 @@ Cada entrada segue esta estrutura:
 
 ### DEC-2024-007: PostgreSQL com JSONB (Não NoSQL)
 
-**Data**: novembro de 2024  
-**Categoria**: Técnica  
-**Status**: Aprovada  
+**Data**: novembro de 2024
+**Categoria**: Técnica
+**Status**: ⚠️ **Superada pela implementação** — o backend em produção usa **SQL Server** (produção) / SQLite (dev local) via EF Core para dados relacionais/de sessão, mais **Azure Blob Storage** para `case.json` e assets do caso — ou seja, a opção 4 abaixo ("SQL Separado + Blob Storage"), não PostgreSQL+JSONB. Esta entrada é mantida como contexto histórico da racional original.
 **Decisão**: Usar PostgreSQL com coluna JSONB para armazenar case.json, ao invés de banco puramente NoSQL (MongoDB, CosmosDB).
 
 **Contexto**: Necessidade de guardar dados relacionais (usuários, sessões) E documentos case.json flexíveis.
@@ -530,7 +530,7 @@ Cada entrada segue esta estrutura:
 
 **Data**: novembro de 2024  
 **Categoria**: Conteúdo  
-**Status**: Aprovada  
+**Status**: ⚠️ **Superada pela implementação** — o enum `Difficulty`/`DetectiveRank` em produção (`schemas/case.schema.json`, `backend/CaseZeroApi/Models/User.cs`) tem **sete** níveis — `Rookie, Detective, Detective2, Sergeant, Lieutenant, Captain, Commander` — compartilhados entre dificuldade de caso e patente de detetive, não a escala de quatro níveis Easy/Medium/Hard/Expert descrita abaixo. Esta entrada é mantida como contexto histórico da racional original.
 **Decisão**: Implementar quatro níveis de dificuldade, e não três ou cinco.
 
 **Contexto**: Garantir progressão clara que contemple novatos e veteranos sem opções de menos ou demais.
@@ -825,7 +825,7 @@ Cada entrada segue esta estrutura:
 
 **Data**: novembro de 2024  
 **Categoria**: Negócios, Conteúdo  
-**Status**: Aprovada  
+**Status**: ⚠️ **Superada pela implementação** — o frontend em produção já é lançado com **quatro idiomas de UI** (`en-US`, `pt-BR`, `es-ES`, `fr-FR`), não apenas inglês. Esta entrada é mantida como contexto histórico da racional original.
 **Decisão**: MVP lança apenas em inglês; localizações em francês, espanhol, português e alemão entram no Ano 1 (meses 7-12).
 
 **Contexto**: Equilibrar alcance internacional com timeline e orçamento do MVP. Localização é cara e demorada.
@@ -856,7 +856,7 @@ Cada entrada segue esta estrutura:
 - Capítulo 10 (Pipeline de Conteúdo) – Estratégia, timeline e orçamento de localização
 - Capítulo 12 (Roadmap) – Francês (meses 7-9), Espanhol/Português/Alemão (meses 10-12)
 - Negócios – Foco inicial em mercados anglófonos, expansão no Ano 1
-- Infraestrutura – i18n preparado (react-i18next), mas apenas en-US no lançamento
+- Infraestrutura – ⚠️ Superado: o frontend em produção usa uma camada de i18n própria (`frontend/src/locales/`, `frontend/src/types/i18n.ts`), não react-i18next, e já é lançado com **quatro idiomas** (`en-US`, `pt-BR`, `es-ES`, `fr-FR`) em vez de apenas en-US
 
 **Decisões Relacionadas**: DEC-2024-015, DEC-2024-019
 

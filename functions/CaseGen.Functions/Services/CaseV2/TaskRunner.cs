@@ -27,30 +27,24 @@ public static class TaskRunner
         int maxRetries = 1,
         Action<T>? validate = null)
     {
-        if (maxRetries is < 0 or > 1)
-            throw new ArgumentOutOfRangeException(nameof(maxRetries), "Only zero or one retry is allowed.");
-        ct.ThrowIfCancellationRequested();
+        if (maxRetries is < 0 or > 2)
+            throw new ArgumentOutOfRangeException(nameof(maxRetries), "Microtasks allow at most two contract retries.");
         var schema = StructuredJson.ParseSchema(jsonSchema);
-        var prompt = userPrompt;
+        systemPrompt = CaseGenerationRuntime.SystemPrompt(taskName, systemPrompt);
+        var effectiveUserPrompt = userPrompt;
         for (int attempt = 0; attempt <= maxRetries; attempt++)
         {
             ct.ThrowIfCancellationRequested();
             try
             {
-                var raw = await llm.GenerateStructuredResponseAsync(
-                    systemPrompt + "\nWrite case content in the language specified by the request/draft. Keep identifiers and enum values unchanged.",
-                    prompt, jsonSchema, ct);
-                ct.ThrowIfCancellationRequested();
+                var raw = await CaseGenerationRuntime.StructuredAsync(
+                    llm, logger, taskName, systemPrompt, effectiveUserPrompt, jsonSchema, attempt + 1, ct);
                 StructuredJson.Validate(raw.Content, schema);
                 var parsed = JsonSerializer.Deserialize<T>(raw.Content, JsonOpts);
                 if (parsed is null) throw new TaskContractException("Response deserialized to null.");
                 validate?.Invoke(parsed);
                 ct.ThrowIfCancellationRequested();
                 return parsed;
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
             }
             catch (Exception ex) when (IsRetryable(ex))
             {
@@ -66,9 +60,12 @@ public static class TaskRunner
                 if (ex is TaskContractException or JsonException or Newtonsoft.Json.JsonException)
                 {
                     var error = ex.Message.Length > 4000 ? ex.Message[..4000] : ex.Message;
-                    prompt = $"{userPrompt}\n\nThe previous attempt failed validation: {error}\n" +
-                        "Correct this specific error. Preserve the supplied IDs, facts, and intended answer. Emit the complete JSON object only.";
+                    effectiveUserPrompt = $"{userPrompt}\n\nThe previous attempt failed validation: {error}\n" +
+                        "Correct this specific error. Preserve supplied IDs, facts, and intended answers. " +
+                        "Return the complete JSON object, using compact values and no redundant prose.";
                 }
+                else
+                    await Task.Delay(TimeSpan.FromMilliseconds(250 * Math.Pow(2, attempt)), ct);
             }
         }
         throw new InvalidOperationException($"{taskName} exhausted its bounded attempts.");

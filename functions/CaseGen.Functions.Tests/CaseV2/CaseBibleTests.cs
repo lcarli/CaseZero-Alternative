@@ -2,445 +2,447 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using CaseGen.Functions.Models.CaseV2;
 using CaseGen.Functions.Services.CaseV2;
+using CaseGen.Functions.Services.CaseV2.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace CaseGen.Functions.Tests.CaseV2;
 
-public class CaseBibleTests(CanonicalDraftFixture baseline) : IClassFixture<CanonicalDraftFixture>
+public class CaseBibleTests(CanonicalDraftFixture baseline, ITestOutputHelper output) : IClassFixture<CanonicalDraftFixture>
 {
     [Fact]
-    public async Task CanonicalPlanningPrecedesAuthors_AndPrivateProvenanceNeverEntersPublicJson()
+    public void ProductionHasExactlyOneRichCanonicalBible()
     {
-        using var fixture = new CaseGenerationTestFixture();
-        var response = await fixture.GenerateAsync();
-        Assert.True(response.Quality.Published);
-        var calls = fixture.Llm.Calls.ToList();
-        var planning = calls.FindIndex(c => c.System.Contains("**canonical CaseBible**"));
-        Assert.True(planning > 0);
-        Assert.All(calls.Where(IsAuthor), call =>
+        var canonical = Assert.Single(typeof(CaseBible).Assembly.GetTypes().Where(t => t.Name == "CaseBible"));
+        Assert.Equal(typeof(CaseBible), canonical);
+        Assert.Null(typeof(CaseDraft).GetProperty("Bible"));
+    }
+
+    [Fact]
+    public void CanonicalPlanningPrecedesAllSourceScopedAuthors()
+    {
+        var calls = baseline.Provider.Calls.ToList();
+        var planning = calls.FindIndex(c => c.System.Contains("**canonical CaseBible**", StringComparison.Ordinal));
+        Assert.Equal(0, planning);
+        foreach (var call in calls.Where(IsAuthor))
         {
             Assert.True(calls.IndexOf(call) > planning);
-            Assert.DoesNotContain("\"culpritId\"", call.User);
-            Assert.DoesNotContain("\"isCulprit\"", call.User);
-            Assert.DoesNotContain("\"truthStatus\"", call.User);
-            Assert.DoesNotContain("fact.crime", call.User);
-            Assert.DoesNotContain(CaseBibleTestData.Create().Facts[0].Statement, call.User);
-        });
-        Assert.DoesNotContain(calls, c => c.System.Contains("**initial evidence assets**") ||
-            c.System.Contains("**forensics layer**") || c.System.Contains("**skeleton**") || c.System.Contains("**narrative timeline**"));
-        Assert.Contains("caseBible", response.StageLatencyMs.Keys);
-        foreach (var field in new[] { "caseBible", "support", "explanationSupport", "knownFactIds", "truthStatus", "crimeFactId", "isPrivate", "decisive" })
-            Assert.DoesNotContain($"\"{field}\"", response.CaseJson);
-        Assert.DoesNotContain("fact.crime", response.CaseJson);
-        Assert.Equal("2.0", JsonNode.Parse(response.CaseJson)!["version"]!.GetValue<string>());
-        Assert.Contains(calls, c => c.System.Contains("red-team reviewer") && c.User.Contains("\"caseBible\""));
+            foreach (var privateField in new[] { "culpritId", "isCulprit", "truthStatus", "privateSummary", "backgroundPrivate", "conclusionFactId", "correctOptionId" })
+                Assert.DoesNotContain($"\"{privateField}\"", call.User);
+            Assert.DoesNotContain(baseline.Draft.CaseBible!.Incident.PrivateSummary, call.User);
+        }
+        Assert.Contains(calls, c => c.System.Contains("**forensics layer**", StringComparison.Ordinal));
+        Assert.Contains(calls, c => c.System.Contains("**skeleton**", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void SourceContextContainsOnlyAuthorizedFactsAndAttributedClaims()
+    public void SourceContextContainsOnlyAssignedRawObservationsAndPublicIdentities()
     {
         var context = JsonNode.Parse(CaseBibleAuthorship.Context(baseline.Draft, "suspect.jordan"))!;
-        Assert.Empty(context["facts"]!.AsArray());
-        Assert.Single(context["claims"]!.AsArray());
-        Assert.Equal("claim.jordan_alibi", context["claims"]![0]!["id"]!.GetValue<string>());
-        Assert.Null(context["claims"]![0]!["truthStatus"]);
-        Assert.Null(context["sources"]![0]!["discovery"]);
-        Assert.Null(context["sources"]![0]!["role"]);
-        var receipt = CaseBibleAuthorship.Context(baseline.Draft, "asset.receipt");
-        Assert.Contains("fact.riley_exclusion", receipt);
-        Assert.DoesNotContain("fact.backup", receipt);
-        Assert.DoesNotContain("fact.record\"", receipt);
-        Assert.DoesNotContain("fact.crime", receipt);
+        Assert.Null(context["facts"]);
+        Assert.Null(context["solution"]);
+        Assert.Null(context["metadata"]!["incidentDate"]);
+        Assert.DoesNotContain("person.culprit", context.ToJsonString());
+        var observation = Assert.Single(context["observations"]!.AsArray());
+        Assert.Equal("observation.stated_alibi_jordan", observation!["id"]!.GetValue<string>());
+        Assert.StartsWith("jordan:", observation["statement"]!.GetValue<string>());
+        Assert.Null(observation["reliability"]);
+        Assert.Null(observation["factId"]);
+        var record = CaseBibleAuthorship.Context(baseline.Draft, "asset.initial_report");
+        Assert.Contains("observation.endpoint_owner", record);
+        Assert.DoesNotContain("observation.forensic_link", record);
+        Assert.DoesNotContain("observation.action_session", record);
+        Assert.DoesNotContain("source.forensic_result", record);
     }
 
     [Fact]
-    public async Task CollectiveProofIsValidWithoutAForensicSuspectMatch()
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.TransformResponse = (system, _, node) =>
-        {
-            if (!system.Contains("**canonical CaseBible**")) return node;
-            node["outcomes"]![0]!["matchedSuspectId"] = null;
-            node["outcomes"]![0]!["matchBasis"] = "none";
-            return node;
-        };
-        var response = await fixture.GenerateAsync();
-        Assert.True(response.Quality.Approved);
-        Assert.True(response.Quality.Published);
-        Assert.Null(JsonNode.Parse(response.CaseJson)!["forensicOutcomes"]![0]!["matchedSuspectId"]);
-    }
-
-    [Fact]
-    public async Task IndependentlyPlannedMatchesAreNotRejectedByAnExactlyOneHeuristic()
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.TransformResponse = (system, _, node) =>
-        {
-            if (!system.Contains("**canonical CaseBible**")) return node;
-            var bible = node.Deserialize<CaseBible>(CaseDraft.CanonicalJsonOptions)!;
-            var outcome = JsonSerializer.Deserialize<CaseForensicPlan>(JsonSerializer.Serialize(bible.Outcomes[0]))!;
-            outcome.AnalysisType = "DocumentAuthenticity";
-            outcome.ResultAssetId = "asset.report_auth";
-            outcome.ResultEmailId = "email.lab_auth";
-            bible.Outcomes.Add(outcome);
-            foreach (var original in bible.Sources.Where(s => s.Kind is "result_asset" or "result_email").ToList())
-            {
-                var source = JsonSerializer.Deserialize<CaseSourcePlan>(JsonSerializer.Serialize(original))!;
-                source.Id = source.Kind == "result_asset" ? outcome.ResultAssetId : outcome.ResultEmailId;
-                source.Discovery!.AnalysisType = outcome.AnalysisType;
-                if (source.Kind == "result_email") source.Attachments = [outcome.ResultAssetId];
-                bible.Sources.Add(source);
-            }
-            return JsonSerializer.SerializeToNode(bible)!;
-        };
-        var response = await fixture.GenerateAsync();
-        Assert.True(response.Quality.Published, string.Join("\n", response.Quality.Issues.Select(i => i.Message)));
-        Assert.Equal(2, JsonNode.Parse(response.CaseJson)!["forensicOutcomes"]!.AsArray()
-            .Count(o => o!["matchedSuspectId"]!.GetValue<string>() == "suspect.jordan"));
-    }
-
-    [Fact]
-    public async Task PlannedInitialEmailAndNestedNonForensicDiscoveryAreAuthoredWithoutPromotingEvidence()
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.TransformResponse = (system, _, node) =>
-        {
-            if (!system.Contains("**canonical CaseBible**")) return node;
-            var bible = node.Deserialize<CaseBible>(CaseDraft.CanonicalJsonOptions)!;
-            bible.Sources.Add(new()
-            {
-                Id = "email.witness", Kind = "email", Type = "email", Title = "Records follow-up",
-                Role = "Initial records notice", AuthorEntityId = "entity.investigator", From = "Records <records@example.invalid>",
-                RecordedAt = "2025-01-01T09:00:00Z", FactIds = ["fact.context"], Attachments = ["asset.access_log"]
-            });
-            var statement = bible.Sources.Single(s => s.Id == "asset.statement");
-            statement.Visibility = "hidden";
-            statement.Discovery = new()
-            {
-                Type = "multiple_conditions", Operator = "AND",
-                Conditions =
-                [
-                    new() { Type = "email_opened", EmailId = "email.witness" },
-                    new() { Type = "asset_viewed", AssetId = "asset.access_log" }
-                ]
-            };
-            bible.Chronology[1].SourceId = "asset.scene";
-            bible.ProofSets[0].FactIds.Add("fact.context");
-            bible.ProofSets[0].SourceIds.Add(statement.Id);
-            bible.ExplanationFactIds.Add("fact.context");
-            return JsonSerializer.SerializeToNode(bible)!;
-        };
-        var response = await fixture.GenerateAsync();
-        Assert.True(response.Quality.Published, string.Join("\n", response.Quality.Issues.Select(i => i.Message)));
-        var json = JsonNode.Parse(response.CaseJson)!;
-        Assert.Equal("hidden", json["assets"]!.AsArray().Single(a => a!["id"]!.GetValue<string>() == "asset.statement")!["visibility"]!.GetValue<string>());
-        var email = json["emails"]!.AsArray().Single(e => e!["id"]!.GetValue<string>() == "email.witness")!;
-        Assert.Contains("An access discrepancy", email["body"]!.GetValue<string>());
-        Assert.Equal("asset.access_log", email["attachments"]![0]!.GetValue<string>());
-        var rule = json["rules"]!.AsArray().Single(r => r!["ruleId"]!.GetValue<string>() == "rule.discover_asset_statement")!;
-        Assert.Equal("AND", rule["trigger"]!["operator"]!.GetValue<string>());
-        var author = Assert.Single(fixture.Llm.Calls.Where(c => c.System.Contains("0-3 OPTIONAL")));
-        Assert.DoesNotContain("fact.backup", author.User);
-        Assert.DoesNotContain("culpritId", author.User);
-    }
-
-    [Fact]
-    public async Task DocumentaryProofCanBePublishedWithoutRequiringForensicAnalysis()
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.TransformResponse = (system, _, node) =>
-        {
-            if (!system.Contains("**canonical CaseBible**")) return node;
-            var bible = node.Deserialize<CaseBible>(CaseDraft.CanonicalJsonOptions)!;
-            MakeDocumentary(bible);
-            return JsonSerializer.SerializeToNode(bible)!;
-        };
-        var response = await fixture.GenerateAsync();
-        Assert.True(response.Quality.Published, string.Join("\n", response.Quality.Issues.Select(i => i.Message)));
-        var json = JsonNode.Parse(response.CaseJson)!;
-        Assert.NotEmpty(json["forensicsDefaults"]!["analysisTypes"]!.AsArray());
-        Assert.Empty(json["forensicOutcomes"]!.AsArray());
-        Assert.Empty(json["solution"]!["requiredAnalysisIds"]!.AsArray());
-        Assert.DoesNotContain(fixture.Llm.Calls, c => c.System.Contains("**detailed forensic outcome**"));
-    }
-
-    [Fact]
-    public async Task NoFindingsCanExistWithoutBecomingProofOrExoneration()
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.TransformResponse = (system, _, node) =>
-        {
-            if (!system.Contains("**canonical CaseBible**")) return node;
-            var bible = node.Deserialize<CaseBible>(CaseDraft.CanonicalJsonOptions)!;
-            MakeDocumentary(bible);
-            bible.AnalysisTypes = [new() { Type = "DigitalForensics", DurationMinutes = 15, AvailableFor = ["pdf"] }];
-            bible.Facts.Add(new()
-            {
-                Id = "fact.no_findings", Kind = "no_findings", Statement = "The recovered copy contains no usable deleted entry.",
-                EntityIds = ["entity.records"]
-            });
-            bible.Outcomes =
-            [
-                new()
-                {
-                    InputAssetId = "asset.access_log", AnalysisType = "DigitalForensics", FactIds = ["fact.no_findings"],
-                    Limitations = "No recovered entry does not establish who used the terminal or prove innocence."
-                }
-            ];
-            return JsonSerializer.SerializeToNode(bible)!;
-        };
-        var response = await fixture.GenerateAsync();
-        Assert.True(response.Quality.Published, string.Join("\n", response.Quality.Issues.Select(i => i.Message)));
-        var outcome = JsonNode.Parse(response.CaseJson)!["forensicOutcomes"]![0]!;
-        Assert.False(outcome["findings"]!.GetValue<bool>());
-        Assert.Null(outcome["resultAssetId"]);
-        Assert.Null(outcome["matchedSuspectId"]);
-    }
-
-    [Fact]
-    public async Task AnAttributedAlibiIsNotAutomaticallyVerified()
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.TransformResponse = (system, _, node) =>
-        {
-            if (!system.Contains("**canonical CaseBible**")) return node;
-            node["alibis"]![1]!["verifiedFactIds"] = new JsonArray();
-            node["alibis"]![1]!["sourceIds"] = new JsonArray();
-            return node;
-        };
-        var response = await fixture.GenerateAsync(writeToDisk: false);
-        Assert.True(response.Quality.Approved);
-        var suspect = JsonNode.Parse(response.CaseJson)!["suspects"]!.AsArray().Single(s => s!["id"]!.GetValue<string>() == "suspect.riley")!;
-        Assert.False(suspect["alibiVerified"]!.GetValue<bool>());
-    }
-
-    [Theory]
-    [InlineData("pt-BR", "Intervalo estimado")]
-    [InlineData("en-US", "Estimated window")]
-    [InlineData("es-ES", "Intervalo estimado")]
-    [InlineData("fr-FR", "Plage estim\u00e9e")]
-    public void ChronologyPreservesEstimatedWindowsAndAttributedDisagreement(string language, string label)
+    public void DisputedObservationIsNotReplacedWithItsCanonicalValue()
     {
         var draft = baseline.Draft.Copy();
-        draft.Request.Language = language;
-        var fact = draft.Bible!.Facts.Single(f => f.Id == "fact.context");
-        fact.Time = CaseBibleTestData.Window("08:40", "08:50");
-        fact.Time.Precision = "estimate";
-        foreach (var source in draft.Bible.Sources.Where(s => s.FactIds.Contains(fact.Id) && s.Kind != "briefing"))
-            source.RecordedAt = "2025-01-01T08:50:00Z";
-        draft.Bible.Chronology.Add(new()
-        {
-            ReferenceId = "claim.jordan_alibi", SourceId = "suspect.jordan", Source = "witness"
-        });
-        CaseBibleValidator.Plan(draft, draft.Bible);
-        var timeline = CaseBibleAuthorship.Timeline(draft);
-        Assert.Contains(label, timeline[1].Event);
-        Assert.Contains(fact.Time.Latest, timeline[1].Event);
-        Assert.False(timeline[1].Verified);
-        Assert.StartsWith("jordan:", timeline[2].Event);
-        Assert.False(timeline[2].Verified);
-    }
-
-    [Theory]
-    [InlineData("private_disclosure")]
-    [InlineData("crime_location")]
-    [InlineData("victim_identity")]
-    [InlineData("author_knowledge")]
-    [InlineData("source_predates_fact")]
-    [InlineData("future_initial_source")]
-    [InlineData("crime_after_opening")]
-    [InlineData("invalid_time_precision")]
-    [InlineData("accurate_claim_disagrees")]
-    [InlineData("unrelated_identification")]
-    [InlineData("similarity_match")]
-    [InlineData("no_findings_alibi")]
-    [InlineData("unrelated_alibi")]
-    [InlineData("self_verified_alibi")]
-    [InlineData("uncovered_question")]
-    [InlineData("photo_question")]
-    [InlineData("missing_report_attachment")]
-    [InlineData("discovery_cycle")]
-    public void CanonicalPlanRejectsBrokenProvenanceBeforeAuthorship(string defect)
-    {
-        var draft = baseline.Draft.Copy();
-        var bible = draft.Bible!;
-        var log = bible.Sources.Single(s => s.Id == "asset.access_log");
-        var backup = bible.Facts.Single(f => f.Id == "fact.backup");
-        switch (defect)
-        {
-            case "private_disclosure": log.FactIds.Add("fact.crime"); break;
-            case "crime_location": bible.Entities.Single(e => e.Id == "entity.location").Name = "A different city"; break;
-            case "victim_identity": draft.Metadata.Victim = new() { Name = "Unplanned victim", Age = 30, Occupation = "employee" }; break;
-            case "author_knowledge": log.FactIds.Add("fact.backup"); break;
-            case "source_predates_fact": log.RecordedAt = "2025-01-01T08:00:00Z"; break;
-            case "future_initial_source": log.RecordedAt = "2025-01-01T09:30:00Z"; break;
-            case "crime_after_opening": bible.Facts[0].Time = CaseBibleTestData.Exact("10:00"); break;
-            case "invalid_time_precision": bible.Facts[0].Time!.Latest = "2025-01-01T08:20:00Z"; break;
-            case "accurate_claim_disagrees": bible.Claims[1].Time = CaseBibleTestData.Window("07:00", "07:30"); break;
-            case "unrelated_identification": backup.EntityIds = ["entity.records"]; break;
-            case "similarity_match": bible.Outcomes[0].MatchBasis = "similarity"; backup.Kind = "similarity"; backup.Decisive = false; break;
-            case "no_findings_alibi": bible.Facts.Single(f => f.Id == "fact.riley_exclusion").Kind = "no_findings"; break;
-            case "unrelated_alibi": bible.Facts.Single(f => f.Id == "fact.riley_exclusion").EntityIds = ["suspect.sam"]; break;
-            case "self_verified_alibi":
-                var receipt = bible.Sources.Single(s => s.Id == "asset.receipt");
-                receipt.AuthorEntityId = "suspect.riley";
-                bible.Entities.Single(e => e.Id == "suspect.riley").KnownFactIds.Add("fact.sam_exclusion");
-                break;
-            case "uncovered_question": bible.Questions[0].SourceIds = ["asset.statement"]; break;
-            case "photo_question":
-                var scene = bible.Sources.Single(s => s.Id == "asset.scene");
-                scene.Type = "photo"; scene.FactIds.Add("fact.record"); bible.Questions[0].SourceIds = [scene.Id]; break;
-            case "missing_report_attachment": bible.Sources.Single(s => s.Id == "email.lab_access").Attachments.Clear(); break;
-            case "discovery_cycle":
-                log.Visibility = "hidden";
-                log.Discovery = new() { Type = "asset_viewed", AssetId = "asset.report_access" };
-                bible.Sources.Single(s => s.Id == "email.briefing").Attachments.Clear();
-                bible.Chronology[0] = new()
-                {
-                    ReferenceId = "fact.riley_exclusion", SourceId = "asset.receipt", Source = "investigation"
-                };
-                break;
-        }
-        Assert.Throws<TaskContractException>(() => CaseBibleValidator.Plan(draft, bible));
-    }
-
-    [Theory]
-    [InlineData("**full profile**")]
-    [InlineData("**detail card**")]
-    [InlineData("**detailed forensic outcome**")]
-    [InlineData("ONLY the briefing email")]
-    [InlineData("ONE multiple-choice question")]
-    [InlineData("post-mortem explanation")]
-    public async Task MissingContentSupportFailsAtItsAuthoringTask(string target)
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.TransformResponse = (system, _, node) =>
-        {
-            if (system.Contains(target)) node["support"] = new JsonArray();
-            return node;
-        };
-        await Assert.ThrowsAsync<TaskContractException>(() => fixture.GenerateAsync());
-        Assert.DoesNotContain(fixture.Llm.Calls, c => c.System.Contains("red-team reviewer"));
-        Assert.Equal(0, fixture.Renderer.Calls);
-        Assert.Equal(0, fixture.Publisher.Calls);
+        var observation = draft.CaseBible!.Observations.Single(o => o.Id == "observation.endpoint_owner");
+        observation.ObservedValue = "an uncertain workstation";
+        observation.Statement = "The custodian tentatively recalls a different workstation; the recollection is disputed.";
+        observation.Reliability = ObservationReliability.Disputed;
+        var context = CaseBibleAuthorship.Context(draft, "asset.initial_report");
+        Assert.Contains(observation.Statement, context);
+        Assert.Contains(observation.ObservedValue, context);
+        Assert.DoesNotContain("\"canonicalValue\"", context);
+        Assert.DoesNotContain("\"truthStatus\"", context);
     }
 
     [Fact]
-    public async Task ListingDescriptionCannotStandInForDeliveredEvidence()
+    public async Task PlotAuthorDoesNotReceiveThePrivatePlanningTheme()
     {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.TransformResponse = (system, _, node) =>
-        {
-            if (system.Contains("**detail card**")) node["support"]![0]!["excerpt"] = node["description"]!.GetValue<string>();
-            return node;
-        };
-        var error = await Assert.ThrowsAsync<TaskContractException>(() => fixture.GenerateAsync());
-        Assert.Contains("not present in the actual content", error.Message);
-        Assert.Equal(0, fixture.Publisher.Calls);
+        var draft = baseline.Draft.Copy();
+        draft.Request.Theme = "PRIVATE_ROOT_PLANNING_HINT_NOT_A_SOURCE_OBSERVATION";
+        var provider = new TestCaseLlmProvider();
+        await new PlotOutlineTask(provider, NullLogger.Instance).RunAsync(draft, default);
+        Assert.DoesNotContain(draft.Request.Theme, Assert.Single(provider.Calls).User);
     }
 
     [Fact]
-    public async Task AnchoredExcerptStillRequiresSemanticComparisonWithTheCanonicalFact()
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.TransformResponse = (system, _, node) =>
-        {
-            if (system.Contains("**detail card**") && node["id"]!.GetValue<string>() == "asset.scene")
-                node["support"]![0]!["excerpt"] = "scene";
-            return node;
-        };
-        fixture.Llm.ReviewContent = """
-            {"verdict":"reject","findings":[{"severity":"high","area":"evidence","issue":"The cited title does not substantiate fact.context","reference":"asset.scene"}]}
-            """;
-        var response = await fixture.GenerateAsync();
-        Assert.False(response.Quality.Approved);
-        var review = Assert.Single(fixture.Llm.Calls.Where(c => c.System.Contains("red-team reviewer")));
-        Assert.Contains("\"excerpt\":\"scene\"", review.User);
-        Assert.Contains("\"statement\":\"An access discrepancy was reported at 08:45.\"", review.User);
-        Assert.Contains("Compare EVERY support excerpt", review.System);
-        Assert.Equal(0, fixture.Publisher.Calls);
-    }
-
-    [Theory]
-    [InlineData("discovery")]
-    [InlineData("analysis_definition")]
-    [InlineData("answer")]
-    [InlineData("alibi")]
-    [InlineData("requirements")]
-    [InlineData("stale_support")]
-    public void AuthoredDraftCannotDriftFromTheApprovedPlan(string defect)
+    public void SourceCannotKnowAnObservationRecordedAfterItsIssueTime()
     {
         var draft = baseline.Draft.Copy();
-        switch (defect)
-        {
-            case "discovery": draft.Rules[0].Trigger = new() { Type = "time_elapsed", AtMinutes = 0 }; break;
-            case "analysis_definition": draft.AnalysisTypes[0].DurationMinutes++; break;
-            case "answer": draft.Questions[0].Options.Single(o => o.Id == draft.Questions[0].CorrectOptionId).Label = "An unsupported alternative"; break;
-            case "alibi": draft.SuspectFull[0].AlibiVerified = true; break;
-            case "requirements": draft.RequiredEvidenceIds.RemoveAt(0); break;
-            case "stale_support": draft.AssetFull.Single(a => a.Id == "asset.access_log").BodyDoc!.Sections[0].Text = "A replacement without the planned observation."; break;
-        }
+        var observation = draft.CaseBible!.Observations.Single(o => o.Id == "observation.endpoint_owner");
+        var source = draft.CaseBible.Sources.Single(s => s.Id == observation.SourceId);
+        observation.ObservedAt = DateTimeOffset.Parse(source.RecordedAt!).AddMinutes(1).ToString("o");
+        Assert.Throws<TaskContractException>(() => CaseBibleAuthorship.Context(draft, "asset.initial_report"));
+        Assert.Contains(CaseBibleValidator.Validate(draft.CaseBible, "Detective", "en-US", true).Issues,
+            issue => issue.Code == "observation_after_source");
+    }
+
+    [Fact]
+    public void BriefingCannotReceiveAFutureLabFindingEvenIfItIsPublic()
+    {
+        var draft = baseline.Draft.Copy();
+        draft.CaseBible!.InvestigationConstraints.OpeningObservationIds.Add("observation.forensic_link");
+        Assert.Throws<TaskContractException>(() => CaseBibleAuthorship.Context(draft, "email.briefing"));
+        Assert.Contains(CaseBibleValidator.Validate(draft.CaseBible, "Detective", "en-US", true).Issues,
+            issue => issue.Code == "opening_observation_unavailable");
+    }
+
+    [Fact]
+    public void InitialDocumentCannotQuoteARecordCreatedAfterCaseOpening()
+    {
+        var draft = baseline.Draft.Copy();
+        draft.CaseBible!.Sources.Single(s => s.Id == "source.endpoint_record").RecordedAt =
+            DateTimeOffset.Parse(draft.Metadata.OpenedAt).AddHours(1).ToString("o");
+        Assert.Throws<TaskContractException>(() => CaseBibleAuthorship.Context(draft, "asset.initial_report"));
+        Assert.Contains(CaseBibleValidator.Validate(draft.CaseBible, "Detective", "en-US", true).Issues,
+            issue => issue.Code == "clue_source_unavailable_at_opening");
+    }
+
+    [Fact]
+    public void DescriptionAndMarkdownCannotStandInForReadableDocumentSupport()
+    {
+        var draft = baseline.Draft.Copy();
+        var asset = draft.AssetFull.Single(a => a.Id == "asset.initial_report");
+        asset.Description = CaseBibleAuthorship.Text(asset);
+        asset.Body = asset.Description;
+        asset.BodyDoc!.Sections.Clear();
+        Assert.Throws<TaskContractException>(() => CaseBibleAuthorship.Asset(draft, asset));
+    }
+
+    [Fact]
+    public void ExactSupportMustAppearInTheBodyAndRetainTheFullAttributedObservation()
+    {
+        var draft = baseline.Draft.Copy();
+        var asset = draft.AssetFull.Single(a => a.Id == "asset.initial_report");
+        asset.Support[0].Excerpt = "An unsupported invented identity assertion.";
+        Assert.Throws<TaskContractException>(() => CaseBibleAuthorship.Asset(draft, asset));
+
+        var suspect = draft.SuspectFull.Single(s => s.Id == "suspect.jordan");
+        suspect.Support[0].Excerpt = suspect.Alibi!;
+        suspect.Background = suspect.Alibi;
+        Assert.Throws<TaskContractException>(() => CaseBibleAuthorship.Suspect(draft, suspect));
+    }
+
+    [Fact]
+    public void PhotoPromptsCannotBeRequiredReadableProof()
+    {
+        var draft = baseline.Draft.Copy();
+        var asset = draft.AssetFull.Single(a => a.Id == "asset.initial_report");
+        var support = asset.Support;
+        asset.Type = "photo";
+        asset.Body = CaseBibleAuthorship.Text(asset);
+        asset.BodyDoc = null;
+        Assert.DoesNotContain(CaseBibleAuthorship.ReadableMaterials(draft), m => m.Id == asset.Id);
+        Assert.Throws<TaskContractException>(() => CaseBibleAuthorship.SupportFromMaterials(draft, support, [asset.Id], "question"));
+    }
+
+    [Fact]
+    public void QuestionAnswerAndExplanationMustUseActualReachableReadableExcerpts()
+    {
+        var draft = baseline.Draft.Copy();
+        CaseBibleValidator.Authored(draft);
+        var question = draft.Questions[0];
+        question.Options.Single(o => o.Id == question.CorrectOptionId).Label = "An answer absent from every source.";
+        Assert.Throws<TaskContractException>(() => CaseBibleValidator.Authored(draft));
+        draft = baseline.Draft.Copy();
+        draft.ExplanationSupport[0].Excerpt = "An invented source quotation.";
         Assert.Throws<TaskContractException>(() => CaseBibleValidator.Authored(draft));
     }
 
     [Fact]
-    public void CanonicalRequirementsAreNotSilentlyDroppedByConsistency()
+    public void AnObservationIdCannotLaunderUnassignedProseIntoAnswerSupport()
     {
         var draft = baseline.Draft.Copy();
-        draft.RequiredEvidenceIds.Add("asset.unknown");
-        draft.RequiredAnalysisIds.Add("asset.access_log:UnknownAnalysis");
-        var report = new ConsistencyValidator(NullLogger<ConsistencyValidator>.Instance).Validate(draft);
-        Assert.True(report.HasErrors);
-        Assert.Contains("asset.unknown", draft.RequiredEvidenceIds);
-        Assert.Contains("asset.access_log:UnknownAnalysis", draft.RequiredAnalysisIds);
-        Assert.DoesNotContain(report.AutoFixes, f => f.Contains("dropped"));
+        var asset = draft.AssetFull.Single(a => a.Id == "asset.initial_report");
+        const string inventedClaim = "An invented claim not established by any assigned source observation.";
+        asset.BodyDoc!.Sections.Add(new EvidenceSection { Kind = "narrative", Text = inventedClaim });
+        var support = new CaseContentSupport { ReferenceId = asset.Support[0].ReferenceId, Excerpt = inventedClaim };
+        Assert.Throws<TaskContractException>(() => CaseBibleAuthorship.SupportFromMaterials(draft, [support], [asset.Id], "question"));
     }
 
     [Fact]
-    public void RepairSchemaExcludesCaseBible_AndDirectReplacementIsRejectedAtomically()
+    public void DependentCitationsCannotStripAttributionFromAnAlibiClaim()
     {
-        var original = baseline.Draft.ToReviewJson();
-        var schema = CaseDraftRepair.BuildSchema(baseline.Draft, PublicSchema());
-        var targets = JsonNode.Parse(schema)!["properties"]!["changes"]!["items"]!["oneOf"]!.AsArray()
-            .Select(n => n!["properties"]!["target"]!["enum"]![0]!.GetValue<string>());
-        Assert.DoesNotContain("caseBible", targets);
-        var changedBible = baseline.Draft.Copy().Bible!;
-        changedBible.Facts[0].Statement = "Replace the original criminal act.";
-        var repair = new CaseDraftRepair
+        var draft = baseline.Draft.Copy();
+        var alibi = draft.SuspectFull.Single(s => s.Id == "suspect.jordan").Alibi!;
+        var support = new CaseContentSupport { ReferenceId = "observation.stated_alibi_jordan", Excerpt = alibi };
+        Assert.Throws<TaskContractException>(() => CaseBibleAuthorship.SupportFromMaterials(
+            draft, [support], ["asset.interview_jordan"], "explanation"));
+    }
+
+    [Fact]
+    public void CollectiveForensicProofDoesNotNeedAnIndividualSuspectMatch()
+    {
+        var draft = baseline.Draft.Copy();
+        Assert.NotEmpty(draft.ForensicStubs);
+        Assert.All(draft.ForensicStubs, outcome => Assert.Null(outcome.MatchedSuspectId));
+        Assert.All(draft.ForensicFull, outcome => Assert.Null(outcome.MatchedSuspectId));
+        ForensicsPlanTask.ValidatePlan(draft, draft.AnalysisTypes, draft.ForensicStubs);
+        CaseBibleValidator.Authored(draft);
+    }
+
+    [Theory]
+    [InlineData("unknown_input", "Forensic transform 'asset.unknown:")]
+    [InlineData("unknown_method", ":UnknownMethod' must match exactly one frozen forensic plan")]
+    [InlineData("missing_plan", "must match exactly one frozen forensic plan")]
+    [InlineData("duplicate_plan", "forensic plans contains duplicate ID")]
+    [InlineData("duplicate_outcome", "authored forensic transforms contains duplicate ID")]
+    [InlineData("missing_input", "Forensic input material '")]
+    [InlineData("missing_report", "Forensic report '")]
+    [InlineData("duplicate_report", "Forensic report '")]
+    [InlineData("missing_email", "Forensic delivery email '")]
+    [InlineData("duplicate_email", "Forensic delivery email '")]
+    [InlineData("changed_findings", "cannot change planned findings or attribution")]
+    [InlineData("changed_attribution", "cannot change planned findings or attribution")]
+    public void InvalidAuthoredForensicReferencesProduceActionableContractErrors(string defect, string expected)
+    {
+        var draft = baseline.Draft.Copy();
+        var outcome = draft.ForensicFull[0];
+        switch (defect)
         {
-            Changes = [new() { Target = "caseBible", Reason = "Rewrite truth.", Value = JsonSerializer.SerializeToElement(changedBible) }]
-        };
-        Assert.Throws<TaskContractException>(() => repair.Apply(baseline.Draft, PublicSchema()));
-        Assert.Equal(original, baseline.Draft.ToReviewJson());
+            case "unknown_input": outcome.InputAssetId = "asset.unknown"; break;
+            case "unknown_method": outcome.AnalysisType = "UnknownMethod"; break;
+            case "missing_plan": draft.ForensicStubs.Clear(); break;
+            case "duplicate_plan": draft.ForensicStubs.Add(draft.ForensicStubs[0]); break;
+            case "duplicate_outcome": draft.ForensicFull.Add(outcome); break;
+            case "missing_input": draft.AssetFull.RemoveAll(a => a.Id == outcome.InputAssetId); break;
+            case "missing_report": draft.ResultAssets.RemoveAll(a => a.Id == outcome.ResultAssetId); break;
+            case "duplicate_report": draft.ResultAssets.Add(draft.ResultAssets.Single(a => a.Id == outcome.ResultAssetId)); break;
+            case "missing_email": draft.ResultEmails.RemoveAll(e => e.Id == outcome.ResultEmailId); break;
+            case "duplicate_email": draft.ResultEmails.Add(draft.ResultEmails.Single(e => e.Id == outcome.ResultEmailId)); break;
+            case "changed_findings": outcome.Findings = !outcome.Findings; break;
+            case "changed_attribution": outcome.MatchedSuspectId = "suspect.riley"; break;
+        }
+        var before = JsonSerializer.Serialize(draft, CaseDraft.CanonicalJsonOptions);
+
+        var error = Assert.Throws<TaskContractException>(() => CaseBibleValidator.Authored(draft));
+
+        Assert.Contains(expected, error.Message);
+        Assert.Equal(before, JsonSerializer.Serialize(draft, CaseDraft.CanonicalJsonOptions));
+    }
+
+    [Theory]
+    [InlineData("missing_clue", "Proof clue 'clue.unknown'")]
+    [InlineData("duplicate_clue", "must identify exactly one canonical clue")]
+    [InlineData("missing_topic", "must identify exactly one assigned topic")]
+    [InlineData("duplicate_topic", "must identify exactly one assigned topic")]
+    public void InvalidAuthoredProofReferencesProduceActionableContractErrors(string defect, string expected)
+    {
+        var draft = baseline.Draft.Copy();
+        switch (defect)
+        {
+            case "missing_clue": draft.CaseBible!.DifficultyIntent.ProofPaths[0].ClueIds.Add("clue.unknown"); break;
+            case "duplicate_clue": draft.CaseBible!.DifficultyIntent.Clues.Add(draft.CaseBible.DifficultyIntent.Clues[0]); break;
+            case "missing_topic": draft.QuestionTopics.Clear(); break;
+            case "duplicate_topic": draft.QuestionTopics.Add(draft.QuestionTopics[0]); break;
+        }
+
+        var error = Assert.Throws<TaskContractException>(() => CaseBibleValidator.Authored(draft));
+
+        Assert.Contains(expected, error.Message);
     }
 
     [Fact]
-    public void IndependentCopyDoesNotShareTheProtectedGraph()
+    public void ForensicPlanCannotMoveAResultToAnotherCompatibleButUnassignedInputOwner()
     {
         var draft = baseline.Draft.Copy();
-        draft.Bible!.Facts[0].Statement = "Changed only in the candidate.";
-        Assert.NotEqual(draft.Bible.Facts[0].Statement, baseline.Draft.Bible!.Facts[0].Statement);
-        Assert.Throws<TaskContractException>(() => CaseDraftRepair.Validate(draft, baseline.Draft, PublicSchema()));
+        var outcome = draft.ForensicStubs[0];
+        var original = draft.CaseGraph.AssetSpecs.Single(s => s.Id == outcome.InputAssetId);
+        var unrelated = draft.CaseGraph.AssetSpecs.First(s => s.Id != outcome.InputAssetId && s.AssetType == original.AssetType);
+        unrelated.ContainedObjectIds.Add(outcome.InputObjectId);
+        unrelated.ContainedObjectTypes[outcome.InputObjectId] = original.ContainedObjectTypes[outcome.InputObjectId];
+        outcome.InputAssetId = unrelated.Id;
+        Assert.Throws<TaskContractException>(() => ForensicsPlanTask.ValidatePlan(draft, draft.AnalysisTypes, draft.ForensicStubs));
     }
 
-    private static bool IsAuthor(TestLlmCall call) => new[]
+    [Fact]
+    public void PrivateCanonicalIdentityDoesNotTurnAnUncertainRawFindingIntoAMatch()
     {
-        "**full profile**", "**detail card**", "**detailed forensic outcome**", "ONLY the briefing email",
-        "0-3 OPTIONAL", "ONLY the narrative", "ONE multiple-choice question", "post-mortem explanation"
-    }.Any(call.System.Contains);
-
-    private static string PublicSchema() => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Schemas", "case.v2.schema.json"));
-
-    private static void MakeDocumentary(CaseBible bible)
-    {
-        bible.Sources.RemoveAll(s => s.Kind is "result_asset" or "result_email");
-        bible.Outcomes.Clear();
-        var statement = bible.Sources.Single(s => s.Id == "asset.statement");
-        statement.FactIds.Add("fact.backup");
-        bible.Entities.Single(e => e.Id == statement.AuthorEntityId).KnownFactIds.Add("fact.backup");
-        bible.ProofSets[0].SourceIds = ["asset.access_log", statement.Id];
-        bible.ProofSets[0].AnalysisIds.Clear();
-        bible.Questions[1].SourceIds = [statement.Id];
+        var draft = baseline.Draft.Copy();
+        var outcome = draft.ForensicStubs[0];
+        var observation = CaseBibleAuthorship.OutcomeObservations(draft, outcome).First();
+        var fact = draft.CaseBible!.Facts.Single(f => f.Id == observation.FactId);
+        fact.ObjectId = draft.CaseBible.Incident.CulpritPersonId;
+        observation.ObservedValue = draft.CaseBible.People.Single(p => p.SuspectId == "suspect.riley").Id;
+        observation.Reliability = ObservationReliability.Disputed;
+        outcome.MatchedSuspectId = draft.CulpritId;
+        Assert.Throws<TaskContractException>(() => ForensicsPlanTask.ValidatePlan(draft, draft.AnalysisTypes, draft.ForensicStubs));
     }
+
+    [Fact]
+    public void NoFindingsCannotClaimProducedObservations()
+    {
+        var draft = baseline.Draft.Copy();
+        draft.ForensicStubs[0].Findings = false;
+        draft.ForensicStubs[0].SupportsClueIds.Clear();
+        var error = Assert.Throws<TaskContractException>(() => ForensicsPlanTask.ValidatePlan(draft, draft.AnalysisTypes, draft.ForensicStubs));
+        Assert.Contains("cannot claim produced observations", error.Message);
+    }
+
+    [Fact]
+    public void SupportedCatalogMethodStillRequiresCanonicalCasePermission()
+    {
+        var draft = baseline.Draft.Copy();
+        var method = ForensicMethodCatalog.Get("DigitalForensics");
+        draft.AnalysisTypes.Add(new ForensicsAnalysisType
+        {
+            Type = method.Id, DurationMinutes = 5, AvailableFor = method.AcceptedAssetTypes.ToList()
+        });
+        Assert.Throws<TaskContractException>(() => ForensicsPlanTask.ValidatePlan(draft, draft.AnalysisTypes, draft.ForensicStubs));
+        draft.CaseBible!.DifficultyIntent.ForensicOpportunities[0].MethodHint = method.Id;
+        Assert.Contains(CaseBibleValidator.Validate(draft.CaseBible, "Detective", "en-US", true).Issues,
+            issue => issue.Code == "forensic_method_not_allowed");
+    }
+
+    [Theory]
+    [InlineData("visualSimilarity")]
+    [InlineData("noFindings")]
+    public void NoFindingsOrSimilarityCannotBecomeDecisiveProofOrExoneration(string predicate)
+    {
+        var bible = CaseBibleTestData.ValidDetectiveBible();
+        bible.Facts.Single(f => f.Id == "fact.forensic_link").Predicate = predicate;
+        Assert.Contains(CaseBibleValidator.Validate(bible, "Detective", "en-US", true).Issues,
+            issue => issue.Code == "unsupported_decisive_proof");
+        var verification = bible.DifficultyIntent.DecoyArcs[0].VerificationObservationIds[0];
+        var factId = bible.Observations.Single(o => o.Id == verification).FactId;
+        bible.Facts.Single(f => f.Id == factId).Predicate = predicate;
+        Assert.Contains(CaseBibleValidator.Validate(bible, "Detective", "en-US", true).Issues,
+            issue => issue.Code == "unsupported_exoneration");
+    }
+
+    [Fact]
+    public void AttributedAlibiIsNotSelfVerified()
+    {
+        var draft = baseline.Draft.Copy();
+        var suspect = draft.SuspectFull.Single(s => s.Id == "suspect.jordan");
+        Assert.False(suspect.AlibiVerified);
+        suspect.AlibiVerified = true;
+        Assert.Throws<TaskContractException>(() => CaseBibleAuthorship.Suspect(draft, suspect));
+    }
+
+    [Fact]
+    public void EveryProfileAlibiHasARealReachableRecordedInterview()
+    {
+        var draft = baseline.Draft.Copy();
+        foreach (var suspect in draft.SuspectFull)
+        {
+            var interview = draft.AssetFull.Single(a => a.Id == $"asset.interview_{suspect.Id["suspect.".Length..]}");
+            Assert.Contains(interview.Support, s => s.ReferenceId == $"observation.stated_alibi_{suspect.Id["suspect.".Length..]}");
+            Assert.Contains($"{suspect.Name}: {suspect.Alibi}", CaseBibleAuthorship.Text(interview));
+        }
+        draft.AssetFull.Single(a => a.Id == "asset.interview_sam").Visibility = "hidden";
+        foreach (var email in draft.FollowUpEmails.Where(e => e.Support.Any(s => s.ReferenceId == "observation.stated_alibi_sam")))
+            email.Visibility = "hidden";
+        var error = Assert.Throws<TaskContractException>(() => CaseBibleValidator.Authored(draft));
+        Assert.Contains("Alibi claim 'suspect.sam'", error.Message);
+    }
+
+    [Fact]
+    public void FutureTestimonyCannotLeakAnAlibiIntoAnInitialProfile()
+    {
+        var draft = baseline.Draft.Copy();
+        var source = draft.CaseBible!.Sources.Single(s => s.Id == "source.statement_jordan");
+        source.RecordedAt = DateTimeOffset.Parse(draft.Metadata.OpenedAt).AddHours(1).ToString("o");
+        Assert.Throws<TaskContractException>(() => CaseBibleAuthorship.ProfileContext(draft, "suspect.jordan"));
+        Assert.Contains(CaseBibleValidator.Validate(draft.CaseBible, "Detective", "en-US", true).Issues,
+            issue => issue.Code == "alibi_source_missing");
+    }
+
+    [Theory]
+    [InlineData("en-US", "neither identity nor innocence")]
+    [InlineData("pt-BR", "não estabelece identidade nem inocência")]
+    [InlineData("es-ES", "no establece identidad ni inocencia")]
+    [InlineData("fr-FR", "ni l’identité ni l’innocence")]
+    public void NoFindingsLimitationsAreExplicitInAllFourLocales(string language, string expected)
+    {
+        Assert.Contains(expected, ForensicOutcomeTask.NoFindingsText(language), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RookieDifficultyAndRequiredRankAreIndependent()
+    {
+        var draft = CaseBibleTestData.ProjectedRookieDraft();
+        draft.Request.RequiredRank = "commander";
+        CaseBibleNormalizer.ProjectIntoDraft(draft);
+        Assert.Equal("Rookie", draft.Metadata.Difficulty);
+        Assert.Equal("Commander", draft.Metadata.RequiredRank);
+        Assert.Equal("commander", draft.Request.RequiredRank);
+        Assert.True(DifficultyProfileCatalog.Get(draft).AllEvidenceInitial);
+        Assert.Empty(draft.CaseBible!.DifficultyIntent.ForensicOpportunities);
+        Assert.True(CaseBibleValidator.Validate(draft, true).IsValid);
+    }
+
+    [Fact]
+    public async Task ExistingBibleCannotBeRegeneratedByARepeatPlanningCall()
+    {
+        var draft = baseline.Draft.Copy();
+        var original = JsonSerializer.Serialize(draft.CaseBible, CaseDraft.CanonicalJsonOptions);
+        var provider = new TestCaseLlmProvider();
+        await new CaseBibleTask(provider, NullLogger.Instance).RunAsync(draft, default);
+        CaseBibleNormalizer.ProjectIntoDraft(draft);
+        Assert.Empty(provider.Calls);
+        Assert.Equal(original, JsonSerializer.Serialize(draft.CaseBible, CaseDraft.CanonicalJsonOptions));
+    }
+
+    [Fact]
+    public async Task CanonicalFixtureSupportsABlindInvestigationOfRealReadableMaterials()
+    {
+        var draft = baseline.Draft.Copy();
+        var texts = await new TestAssetRenderer().ReadPreparedDocumentsAsync(draft.AssetFull.Concat(draft.ResultAssets));
+        var result = await new SolverTask(baseline.Provider, NullLogger.Instance).RunAsync(draft, default, texts);
+        Assert.True(result.Correct, JsonSerializer.Serialize(result, CaseDraft.CanonicalJsonOptions));
+    }
+
+    [Theory]
+    [InlineData("observation.endpoint_owner")]
+    [InlineData("observation.action_session")]
+    [InlineData("observation.forensic_link")]
+    public void CanonicalSupportedExcerptsResolveToTheirGraphObservationAliases(string referenceId)
+    {
+        var draft = baseline.Draft;
+        var asset = draft.AssetFull.Concat(draft.ResultAssets).Single(a => a.Support.Any(s => s.ReferenceId == referenceId));
+        var support = asset.Support.Single(s => s.ReferenceId == referenceId);
+        var canonical = draft.CaseBible!.Observations.Single(o => o.Id == referenceId);
+        var graph = Assert.Single(draft.CaseGraph.Observations.Where(o => o.SourceAssetId == asset.Id && o.FactId == canonical.FactId));
+        Assert.Equal(referenceId, CaseBibleAuthorship.ResolveObservation(draft, graph).Id);
+        Assert.Same(asset.Support, ((CaseAuthoredContent)asset).Support);
+        Assert.Equal(typeof(CaseAuthoredContent), typeof(EvidenceAsset).GetProperty(nameof(EvidenceAsset.Support))!.DeclaringType);
+        output.WriteLine(JsonSerializer.Serialize(new
+        {
+            citation = new { sourceId = asset.Id, quote = support.Excerpt },
+            support = new { support.ReferenceId },
+            graph = new { graph.Id, graph.FactId, graph.SourceAssetId }
+        }, CaseDraft.CanonicalJsonOptions));
+    }
+
+    [Fact]
+    public async Task PublicJsonV2OmitsTheBibleAndAllPrivateSupportProvenance()
+    {
+        using var fixture = new CaseGenerationTestFixture();
+        var response = await fixture.GenerateAsync(writeToDisk: false);
+        Assert.True(response.Quality.Approved, string.Join("\n", response.Quality.Issues.Select(i => i.Message)));
+        Assert.Equal("2.0", JsonNode.Parse(response.CaseJson)!["version"]!.GetValue<string>());
+        foreach (var field in new[] { "caseBible", "support", "explanationSupport", "truthStatus", "privateSummary", "authorPersonId", "canonicalValue" })
+            Assert.DoesNotContain($"\"{field}\"", response.CaseJson);
+    }
+
+    private static bool IsAuthor(TestLlmCall call) =>
+        new[] { "**outline**", "**full profile**", "**detail card**", "**detailed forensic outcome**", "ONLY the briefing email", "0-3 OPTIONAL", "ONE multiple-choice question", "post-mortem explanation" }
+            .Any(marker => call.System.Contains(marker, StringComparison.Ordinal));
 }

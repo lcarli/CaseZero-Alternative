@@ -1,0 +1,299 @@
+{
+  "Correct": true,
+  "Score": 1,
+  "CulpritScore": 0.4,
+  "EvidenceScore": 0.2,
+  "AnalysisScore": 0.2,
+  "QuestionsScore": 0.2,
+  "Attempt": {
+    "suspectId": "suspect.linh_tran",
+    "evidenceIds": [
+      "asset.access_log",
+      "asset.bank_statement",
+      "asset.gps_track",
+      "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+    ],
+    "analysisIds": [
+      "asset.medical_report:MetadataAnalysis"
+    ],
+    "observationIds": [
+      "observation.action_file_metadata_access_log",
+      "observation.action_wms_batch_bank_statement",
+      "observation.benefit_courier_pickup_gps_track",
+      "observation.decoy_suspicion_rafael_ibarra_gps_track",
+      "observation.decoy_verification_owen_delgado_bank_statement",
+      "observation.decoy_verification_rafael_ibarra_access_log",
+      "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "observation.identity_badge_linh_access_log"
+    ],
+    "answers": [
+      {
+        "questionId": "q.gate_pickup_details",
+        "optionId": "opt.peninsula_sameday_ret_exc_1187_5521"
+      },
+      {
+        "questionId": "q.key_timestamps_sequence",
+        "optionId": "opt.badge_024118_wms_031200_pickup_0406"
+      },
+      {
+        "questionId": "q.wms_batch_identifiers",
+        "optionId": "opt.adj_20260318_0312_rpt_floor_mz_pc_03"
+      }
+    ],
+    "rationale": "Deterministic CaseGraph proof witness"
+  },
+  "LogicalProofPassed": true,
+  "NarrativeSimulationPassed": true,
+  "Trace": {
+    "Entries": [
+      {
+        "Sequence": 1,
+        "Kind": 0,
+        "ActionId": "inspect:asset.access_log",
+        "TargetId": "asset.access_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 2,
+        "Kind": 0,
+        "ActionId": "inspect:asset.bank_statement",
+        "TargetId": "asset.bank_statement",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 3,
+        "Kind": 0,
+        "ActionId": "inspect:asset.chat_export",
+        "TargetId": "asset.chat_export",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 4,
+        "Kind": 0,
+        "ActionId": "inspect:asset.email_export",
+        "TargetId": "asset.email_export",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 5,
+        "Kind": 0,
+        "ActionId": "inspect:asset.gps_track",
+        "TargetId": "asset.gps_track",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 6,
+        "Kind": 0,
+        "ActionId": "inspect:asset.medical_report",
+        "TargetId": "asset.medical_report",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 7,
+        "Kind": 0,
+        "ActionId": "inspect:asset.surveillance_still",
+        "TargetId": "asset.surveillance_still",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 8,
+        "Kind": 0,
+        "ActionId": "inspect:asset.witness_statement",
+        "TargetId": "asset.witness_statement",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 9,
+        "Kind": 0,
+        "ActionId": "inspect:email.inventory_mailbox_context",
+        "TargetId": "email.inventory_mailbox_context",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 10,
+        "Kind": 0,
+        "ActionId": "inspect:email.ops_manager_preservation_notice",
+        "TargetId": "email.ops_manager_preservation_notice",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 11,
+        "Kind": 0,
+        "ActionId": "inspect:email.security_rounds_context",
+        "TargetId": "email.security_rounds_context",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 12,
+        "Kind": 2,
+        "ActionId": "action.analysis_medical_report_metadataanalysis",
+        "TargetId": "asset.medical_report",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [
+          "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+          "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        ],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 13,
+        "Kind": 0,
+        "ActionId": "inspect:asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "TargetId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 14,
+        "Kind": 0,
+        "ActionId": "inspect:email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "TargetId": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 15,
+        "Kind": 4,
+        "ActionId": "accuse:suspect.linh_tran",
+        "TargetId": "suspect.linh_tran",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": [
+          "observation.action_file_metadata_access_log",
+          "observation.action_wms_batch_bank_statement",
+          "observation.benefit_courier_pickup_gps_track",
+          "observation.decoy_suspicion_rafael_ibarra_gps_track",
+          "observation.decoy_verification_owen_delgado_bank_statement",
+          "observation.decoy_verification_rafael_ibarra_access_log",
+          "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+          "observation.identity_badge_linh_access_log"
+        ]
+      },
+      {
+        "Sequence": 16,
+        "Kind": 5,
+        "ActionId": "answer:q.gate_pickup_details",
+        "TargetId": "q.gate_pickup_details",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 17,
+        "Kind": 5,
+        "ActionId": "answer:q.key_timestamps_sequence",
+        "TargetId": "q.key_timestamps_sequence",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 18,
+        "Kind": 5,
+        "ActionId": "answer:q.wms_batch_identifiers",
+        "TargetId": "q.wms_batch_identifiers",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      }
+    ],
+    "FinalReachableSourceIds": [
+      "asset.access_log",
+      "asset.bank_statement",
+      "asset.chat_export",
+      "asset.email_export",
+      "asset.gps_track",
+      "asset.medical_report",
+      "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "asset.surveillance_still",
+      "asset.witness_statement",
+      "email.inventory_mailbox_context",
+      "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "email.ops_manager_preservation_notice",
+      "email.security_rounds_context"
+    ],
+    "FinalReachableObservationIds": [
+      "observation.action_file_metadata_access_log",
+      "observation.action_wms_batch_bank_statement",
+      "observation.benefit_courier_pickup_gps_track",
+      "observation.context_variance_chat_export",
+      "observation.context_variance_email_export",
+      "observation.context_variance_medical_report",
+      "observation.context_variance_witness_statement",
+      "observation.decoy_suspicion_maya_kline_witness_statement",
+      "observation.decoy_suspicion_owen_delgado_chat_export",
+      "observation.decoy_suspicion_owen_delgado_surveillance_still",
+      "observation.decoy_suspicion_rafael_ibarra_gps_track",
+      "observation.decoy_suspicion_rafael_ibarra_medical_report",
+      "observation.decoy_verification_maya_kline_email_export",
+      "observation.decoy_verification_owen_delgado_bank_statement",
+      "observation.decoy_verification_rafael_ibarra_access_log",
+      "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "observation.identity_badge_linh_access_log",
+      "observation.identity_badge_linh_surveillance_still"
+    ],
+    "LogicalProofPassed": true,
+    "NarrativeSimulationPassed": true
+  },
+  "Notes": null
+}

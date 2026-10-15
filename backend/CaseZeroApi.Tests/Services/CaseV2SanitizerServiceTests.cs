@@ -143,6 +143,36 @@ public class CaseV2SanitizerServiceTests : IDisposable
     // SanitizeForUserAsync() — session-aware
     // ──────────────────────────────────────────────────────────────
 
+    [Theory]
+    [InlineData("all_initial", "Detective")]
+    [InlineData("gated", "Rookie")]
+    public async Task SanitizeForUser_AllInitialAndRookie_KeepHiddenFlaggedSuspects(string unlockMode, string requiredRank)
+    {
+        var caseData = BuildFixtureCase();
+        caseData.Metadata.UnlockMode = unlockMode;
+        caseData.Metadata.RequiredRank = requiredRank;
+
+        var result = await _sut.SanitizeForUserAsync(caseData, UserId, CaseId);
+
+        Assert.Contains(result.Assets, a => a.Id == "asset.hidden_1");
+        Assert.Contains(result.Emails, e => e.Id == "email.hidden_1");
+        Assert.Contains(result.Suspects, s => s.Id == "suspect.hidden_1" && s.Visibility == "hidden");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("INITIAL")]
+    public async Task SanitizeForUser_LegacySuspectVisibility_IsVisibleWithoutRevealingExplicitlyHiddenSuspects(string? visibility)
+    {
+        var caseData = BuildFixtureCase();
+        caseData.Suspects[0].Visibility = visibility!;
+
+        var result = await _sut.SanitizeForUserAsync(caseData, UserId, CaseId);
+
+        Assert.Equal("suspect.initial_1", Assert.Single(result.Suspects).Id);
+    }
+
     [Fact]
     public async Task SanitizeForUser_HiddenAsset_NotRevealedInSession_IsFiltered()
     {

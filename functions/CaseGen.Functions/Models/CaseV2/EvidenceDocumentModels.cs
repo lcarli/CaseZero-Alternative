@@ -16,6 +16,12 @@ public class EvidenceDocument
     /// FileListing, ForensicReport, InterviewTranscript, GeneralReport.</summary>
     [JsonPropertyName("layout")] public string Layout { get; set; } = "GeneralReport";
 
+    /// <summary>BCP-47 language tag (en-US, pt-BR, es-ES, fr-FR). Drives the
+    /// localized chrome strings the renderer writes around the LLM body.
+    /// Propagated from <c>CaseGenerationRequest.Language</c> when emitting
+    /// the asset; defaults to en-US so older artifacts stay valid.</summary>
+    [JsonPropertyName("language")] public string Language { get; set; } = "en-US";
+
     [JsonPropertyName("title")] public string Title { get; set; } = string.Empty;
     [JsonPropertyName("subtitle")] public string? Subtitle { get; set; }
     [JsonPropertyName("classification")] public string Classification { get; set; } = "CONFIDENTIAL · INTERNAL USE ONLY";

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using CaseZero.Scoring;
 using CaseZeroApi.Data;
 using CaseZeroApi.Models;
 using CaseZeroApi.Models.CaseV2;
@@ -10,15 +11,18 @@ public class SolutionService : ISolutionService
 {
     private readonly ApplicationDbContext _context;
     private readonly ICaseV2StorageService _storage;
+    private readonly IPromotionService _promotion;
     private readonly ILogger<SolutionService> _logger;
 
     public SolutionService(
         ApplicationDbContext context,
         ICaseV2StorageService storage,
+        IPromotionService promotion,
         ILogger<SolutionService> logger)
     {
         _context = context;
         _storage = storage;
+        _promotion = promotion;
         _logger = logger;
     }
 
@@ -31,11 +35,21 @@ public class SolutionService : ISolutionService
         var sol = caseData.Solution;
         var rules = sol.PartialCreditRules ?? new CaseV2PartialCreditRules();
 
-        var previousAttempts = await _context.CaseSubmissions
+        // A previously-shipped throw on previousAttempts >= MaxAttempts was removed:
+        // the case is no longer "locked" once N graded attempts have been used. The
+        // player can keep submitting to try and reveal the culprit, but those extra
+        // submissions are saved with Graded = false and do not affect promotion.
+        var gradedAttemptsUsed = await _context.CaseSubmissions
+            .CountAsync(s => s.CaseId == caseId && s.SubmittedByUserId == userId && s.Graded, ct);
+        var totalPreviousAttempts = await _context.CaseSubmissions
             .CountAsync(s => s.CaseId == caseId && s.SubmittedByUserId == userId, ct);
 
-        if (previousAttempts >= sol.MaxAttempts)
-            throw new MaxAttemptsExceededException(sol.MaxAttempts);
+        // This submission is graded only if the player hasn't already used all
+        // graded attempts before this one.
+        var graded = gradedAttemptsUsed < sol.MaxAttempts;
+
+        var isRookieCase = IsRookieDifficulty(caseData.Metadata.Difficulty)
+                        || IsRookieDifficulty(caseData.Metadata.RequiredRank);
 
         var evidenceIds = request.EvidenceIds;
         var analysisIds = request.AnalysisIds;
@@ -54,56 +68,31 @@ public class SolutionService : ISolutionService
             analysisIds = request.AnalysisIds.Where(performed.Contains).ToArray();
         }
 
-        // Culprit
+        var score = SubmissionScoring.Evaluate(
+            sol.CulpritId,
+            request.SuspectId,
+            sol.RequiredEvidenceIds,
+            evidenceIds,
+            sol.RequiredAnalysisIds,
+            analysisIds,
+            sol.Questions.Select(q => new ScoredQuestion(q.Id, q.CorrectOptionId, q.Weight ?? 1.0)).ToArray(),
+            request.Answers.Select(a => new SubmittedAnswer(a.QuestionId, a.OptionId)),
+            new SubmissionWeights(rules.CulpritWeight, rules.EvidenceWeight, rules.AnalysisWeight, rules.QuestionsWeight),
+            sol.MinimumScore,
+            rookieAnalysisCredit: isRookieCase);
+
         var culpritCorrect = string.Equals(request.SuspectId, sol.CulpritId, StringComparison.Ordinal);
-        var culpritScore = culpritCorrect ? rules.CulpritWeight : 0.0;
+        var culpritScore = score.Culprit;
+        var evidenceScore = score.Evidence;
+        var analysisScore = score.Analysis;
+        var questionsScore = score.Questions;
+        var total = score.RawTotal;
+        var correct = score.Correct;
 
-        // Evidence
-        double evidenceScore;
-        if (sol.RequiredEvidenceIds.Count == 0)
-        {
-            evidenceScore = rules.EvidenceWeight;
-        }
-        else
-        {
-            var hits = evidenceIds.Intersect(sol.RequiredEvidenceIds, StringComparer.Ordinal).Count();
-            evidenceScore = rules.EvidenceWeight * ((double)hits / sol.RequiredEvidenceIds.Count);
-        }
-
-        // Analysis
-        double analysisScore;
-        if (sol.RequiredAnalysisIds.Count == 0)
-        {
-            analysisScore = rules.AnalysisWeight;
-        }
-        else
-        {
-            var hits = analysisIds.Intersect(sol.RequiredAnalysisIds, StringComparer.Ordinal).Count();
-            analysisScore = rules.AnalysisWeight * ((double)hits / sol.RequiredAnalysisIds.Count);
-        }
-
-        // Questions
-        double questionsScore = 0.0;
-        if (sol.Questions.Count > 0)
-        {
-            double totalWeight = 0, gained = 0;
-            foreach (var q in sol.Questions)
-            {
-                var w = q.Weight ?? 1.0;
-                totalWeight += w;
-                var answer = request.Answers.FirstOrDefault(a => a.QuestionId == q.Id);
-                if (answer is not null && string.Equals(answer.OptionId, q.CorrectOptionId, StringComparison.Ordinal))
-                    gained += w;
-            }
-            if (totalWeight > 0)
-                questionsScore = rules.QuestionsWeight * (gained / totalWeight);
-        }
-
-        var total = culpritScore + evidenceScore + analysisScore + questionsScore;
-        var correct = total >= sol.MinimumScore;
-
-        var attemptNumber = previousAttempts + 1;
-        var attemptsRemaining = Math.Max(0, sol.MaxAttempts - attemptNumber);
+        var attemptNumber = totalPreviousAttempts + 1;
+        // attemptsRemaining counts only graded attempts left, post-submission.
+        var gradedAttemptsAfter = gradedAttemptsUsed + (graded ? 1 : 0);
+        var attemptsRemaining = Math.Max(0, sol.MaxAttempts - gradedAttemptsAfter);
 
         // Ensure Case row exists for FK constraint
         await EnsureCaseRowAsync(caseId, caseData, ct);
@@ -122,33 +111,74 @@ public class SolutionService : ISolutionService
             IsCorrectSuspect = culpritCorrect,
             IsValidEvidence = evidenceScore > 0,
             Score = total * 100.0,
+            CulpritScore = culpritScore,
+            EvidenceScore = evidenceScore,
+            AnalysisScore = analysisScore,
+            QuestionsScore = questionsScore,
             EvaluatedAt = DateTime.UtcNow,
             RequestPayloadJson = JsonSerializer.Serialize(request),
-            AttemptNumber = attemptNumber
+            AttemptNumber = attemptNumber,
+            Graded = graded
         };
         _context.CaseSubmissions.Add(submission);
         await _context.SaveChangesAsync(ct);
 
-        var showExplanation = correct || attemptsRemaining == 0;
+        // Career progression: graded submissions update the player's stats and may
+        // trigger a promotion. The sync is idempotent (rank derives purely from the
+        // resolved-case count), so re-submissions never double-count.
+        PromotionInfo? promotionInfo = null;
+        if (graded)
+        {
+            try
+            {
+                var outcome = await _promotion.SyncAsync(userId, ct);
+                if (outcome.Promoted)
+                    promotionInfo = new PromotionInfo(
+                        true, outcome.PreviousRank.ToString(), outcome.NewRank.ToString());
+            }
+            catch (Exception ex)
+            {
+                // A promotion failure must not fail the submission itself.
+                _logger.LogError(ex, "Promotion sync failed for user {UserId} on case {CaseId}", userId, caseId);
+            }
+        }
 
-        var feedback = correct
-            ? "Case solved. Strong reasoning."
-            : attemptsRemaining == 0
-                ? "Case unresolved. Out of attempts."
-                : $"Not quite. You have {attemptsRemaining} attempt(s) remaining.";
+        // The player chose "unlimited_ungraded": the explanation is only revealed
+        // when the case is actually solved. Running out of graded attempts no
+        // longer auto-spoils the answer — the player can keep trying ungraded.
+        var showExplanation = correct;
+
+        var feedbackCode = (correct, graded) switch
+        {
+            (true, true)   => "correct",
+            (true, false)  => "correct_ungraded",
+            (false, true)  => attemptsRemaining == 0 ? "incorrect_last_graded" : "incorrect_attempts_remaining",
+            (false, false) => "incorrect_ungraded",
+        };
 
         return new SubmitCaseResult(
             correct,
-            Math.Round(total, 4),
+            score.RoundedTotal,
             new ScoreBreakdown(
                 Math.Round(culpritScore, 4),
                 Math.Round(evidenceScore, 4),
                 Math.Round(analysisScore, 4),
                 Math.Round(questionsScore, 4)),
+            new ScoreWeights(
+                Math.Round(rules.CulpritWeight, 4),
+                Math.Round(rules.EvidenceWeight, 4),
+                Math.Round(rules.AnalysisWeight, 4),
+                Math.Round(rules.QuestionsWeight, 4)),
             attemptsRemaining,
-            feedback,
-            showExplanation ? sol.Explanation : null);
+            graded,
+            feedbackCode,
+            showExplanation ? sol.Explanation : null,
+            promotionInfo);
     }
+
+    private static bool IsRookieDifficulty(string? value)
+        => !string.IsNullOrEmpty(value)
+            && string.Equals(value, "Rookie", StringComparison.OrdinalIgnoreCase);
 
     private async Task EnsureCaseRowAsync(string caseId, CaseV2 caseData, CancellationToken ct)
     {

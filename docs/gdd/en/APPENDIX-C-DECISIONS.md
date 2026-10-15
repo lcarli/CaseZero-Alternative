@@ -217,9 +217,9 @@ Each decision entry follows this structure:
 
 ### DEC-2024-006: Web-First Platform (Not Native Desktop/Mobile)
 
-**Date**: November 2024  
-**Category**: Technical  
-**Status**: Approved  
+**Date**: November 2024
+**Category**: Technical
+**Status**: ⚠️ **Superseded by implementation** — the current frontend uses React Context and hooks; Redux Toolkit is not installed. This entry is retained as historical design rationale.
 **Decision**: CaseZero will be developed as a web application (React + ASP.NET Core) targeting desktop/tablet browsers, not as a native desktop or mobile app.
 
 **Context**: Choosing primary platform for MVP launch. Must consider development resources, deployment complexity, and target audience reach.
@@ -256,9 +256,9 @@ Each decision entry follows this structure:
 
 ### DEC-2024-007: PostgreSQL with JSONB (Not NoSQL)
 
-**Date**: November 2024  
-**Category**: Technical  
-**Status**: Approved  
+**Date**: November 2024
+**Category**: Technical
+**Status**: ⚠️ **Superseded by implementation** — the shipped backend uses **SQL Server** (production) / SQLite (local dev) via EF Core for relational/session data, plus **Azure Blob Storage** for `case.json` and case assets — i.e., option 4 below ("Separate SQL + Blob Storage"), not PostgreSQL+JSONB. This entry is kept for historical context on the original rationale.
 **Decision**: Use PostgreSQL with JSONB column for case.json storage, not a pure NoSQL database (MongoDB, CosmosDB).
 
 **Context**: Need to store structured relational data (users, sessions) AND flexible case.json documents efficiently.
@@ -481,7 +481,7 @@ Each decision entry follows this structure:
 
 **Date**: November 2024  
 **Category**: Content  
-**Status**: Approved  
+**Status**: ⚠️ **Superseded by implementation** — the shipped `Difficulty`/`DetectiveRank` enum (`schemas/case.schema.json`, `backend/CaseZeroApi/Models/User.cs`) has **seven** levels — `Rookie, Detective, Detective2, Sergeant, Lieutenant, Captain, Commander` — shared between case difficulty and detective rank, not the four-tier Easy/Medium/Hard/Expert scale described below. This entry is kept for historical context on the original rationale.
 **Decision**: Implement four difficulty tiers, not three or five.
 
 **Context**: Need clear difficulty progression that accommodates casual players and hardcore enthusiasts without too many or too few options.
@@ -748,7 +748,7 @@ Each decision entry follows this structure:
 
 **Date**: November 2024  
 **Category**: Business, Content  
-**Status**: Approved  
+**Status**: ⚠️ **Superseded by implementation** — the shipped frontend already ships with **four UI locales** (`en-US`, `pt-BR`, `es-ES`, `fr-FR`), not English-only. This entry is kept for historical context on the original rationale.
 **Decision**: Launch MVP in English only, add French, Spanish, Portuguese, German localizations in Year 1 (Months 7-12).
 
 **Context**: Balancing international reach with MVP timeline and budget. Localization is expensive and time-consuming.
@@ -775,7 +775,7 @@ Each decision entry follows this structure:
 - Chapter 10 (Content Pipeline) - Localization strategy, timeline, budget
 - Chapter 12 (Roadmap) - French Month 7-9, Spanish/Portuguese/German Months 10-12
 - Business - MVP targets English-speaking markets, international expansion Year 1
-- Infrastructure - i18n support built into frontend (react-i18next), but only English locale at launch
+- Infrastructure - ⚠️ Superseded: the shipped frontend uses a custom i18n layer (`frontend/src/locales/`, `frontend/src/types/i18n.ts`), not react-i18next, and ships with **four locales** (`en-US`, `pt-BR`, `es-ES`, `fr-FR`) rather than English-only
 
 **Related Decisions**: DEC-2024-015, DEC-2024-019
 

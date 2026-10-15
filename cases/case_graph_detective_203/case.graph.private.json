@@ -1,0 +1,1010 @@
+{
+  "Origin": "Generated",
+  "Entities": [
+    {
+      "id": "person.derek_yazzie",
+      "kind": "Person",
+      "displayName": "Derek Yazzie",
+      "attributes": {}
+    },
+    {
+      "id": "person.lena_hart",
+      "kind": "Person",
+      "displayName": "Lena Hart",
+      "attributes": {}
+    },
+    {
+      "id": "person.mara_kline",
+      "kind": "Person",
+      "displayName": "Mara Kline",
+      "attributes": {}
+    },
+    {
+      "id": "person.owen_schultz",
+      "kind": "Person",
+      "displayName": "Owen Schultz",
+      "attributes": {}
+    },
+    {
+      "id": "organization.case_context",
+      "kind": "Organization",
+      "displayName": "The Three-Quote Addendum",
+      "attributes": {}
+    },
+    {
+      "id": "document.accesslog_ccb_north_doors_20260318",
+      "kind": "Document",
+      "displayName": "Access-Control Export: CCB North Doors Badge Events (2026-03-18 Evening) \u2014 document.accesslog_ccb_north_doors_20260318",
+      "attributes": {}
+    },
+    {
+      "id": "account.badge_id_1173",
+      "kind": "Account",
+      "displayName": "Access-Control Export: CCB North Doors Badge Events (2026-03-18 Evening) \u2014 account.badge_id_1173",
+      "attributes": {}
+    },
+    {
+      "id": "transaction.access_event_owen_entry_1803",
+      "kind": "Transaction",
+      "displayName": "Access-Control Export: CCB North Doors Badge Events (2026-03-18 Evening) \u2014 transaction.access_event_owen_entry_1803",
+      "attributes": {}
+    },
+    {
+      "id": "transaction.access_event_owen_exit_1831",
+      "kind": "Transaction",
+      "displayName": "Access-Control Export: CCB North Doors Badge Events (2026-03-18 Evening) \u2014 transaction.access_event_owen_exit_1831",
+      "attributes": {}
+    },
+    {
+      "id": "document.bank_statement_owen_schultz_202603",
+      "kind": "Document",
+      "displayName": "Bank Statement: Owen Schultz (March 2026 Extract) \u2014 document.bank_statement_owen_schultz_202603",
+      "attributes": {}
+    },
+    {
+      "id": "account.bank_account_owen_primary_checking",
+      "kind": "Account",
+      "displayName": "Bank Statement: Owen Schultz (March 2026 Extract) \u2014 account.bank_account_owen_primary_checking",
+      "attributes": {}
+    },
+    {
+      "id": "document.call_log_victim_city_mobile_20260318",
+      "kind": "Document",
+      "displayName": "Call Detail Record: Victim City Mobile (2026-03-18 16:00\u201322:00) \u2014 document.call_log_victim_city_mobile_20260318",
+      "attributes": {}
+    },
+    {
+      "id": "account.victim_city_mobile_number",
+      "kind": "Account",
+      "displayName": "Call Detail Record: Victim City Mobile (2026-03-18 16:00\u201322:00) \u2014 account.victim_city_mobile_number",
+      "attributes": {}
+    },
+    {
+      "id": "communication.cdr_outgoing_call_to_owen_1851",
+      "kind": "Communication",
+      "displayName": "Call Detail Record: Victim City Mobile (2026-03-18 16:00\u201322:00) \u2014 communication.cdr_outgoing_call_to_owen_1851",
+      "attributes": {}
+    },
+    {
+      "id": "document.chat_export_teams_procurement_it_014_20260318",
+      "kind": "Document",
+      "displayName": "Teams Chat Export: Channel \u201CProcurement-IT-014\u201D (2026-03-18 17:30\u201319:00) \u2014 document.chat_export_teams_procurement_it_014_20260318",
+      "attributes": {}
+    },
+    {
+      "id": "session.teams_channel_procurement_it_014",
+      "kind": "Session",
+      "displayName": "Teams Chat Export: Channel \u201CProcurement-IT-014\u201D (2026-03-18 17:30\u201319:00) \u2014 session.teams_channel_procurement_it_014",
+      "attributes": {}
+    },
+    {
+      "id": "communication.chat_msg_lena_1809_on_a_call",
+      "kind": "Communication",
+      "displayName": "Teams Chat Export: Channel \u201CProcurement-IT-014\u201D (2026-03-18 17:30\u201319:00) \u2014 communication.chat_msg_lena_1809_on_a_call",
+      "attributes": {}
+    },
+    {
+      "id": "document.custody_form_mad_ws_04419",
+      "kind": "Document",
+      "displayName": "IT Asset Custody Record: Workstation MAD-WS-04419 Assignment \u2014 document.custody_form_mad_ws_04419",
+      "attributes": {}
+    },
+    {
+      "id": "object.workstation_mad_ws_04419",
+      "kind": "PhysicalObject",
+      "displayName": "IT Asset Custody Record: Workstation MAD-WS-04419 Assignment \u2014 object.workstation_mad_ws_04419",
+      "attributes": {}
+    },
+    {
+      "id": "document.email_export_ifb_2026_it_014_addendum2_thread",
+      "kind": "Document",
+      "displayName": "City Email Export: IFB 2026-IT-014 Addendum 2 Distribution (Victim Mailbox) \u2014 document.email_export_ifb_2026_it_014_addendum2_thread",
+      "attributes": {}
+    },
+    {
+      "id": "communication.email_msg_addendum2_sent_1826",
+      "kind": "Communication",
+      "displayName": "City Email Export: IFB 2026-IT-014 Addendum 2 Distribution (Victim Mailbox) \u2014 communication.email_msg_addendum2_sent_1826",
+      "attributes": {}
+    },
+    {
+      "id": "object.attachment_addendum2_laptoprefresh_pdf",
+      "kind": "PhysicalObject",
+      "displayName": "City Email Export: IFB 2026-IT-014 Addendum 2 Distribution (Victim Mailbox) \u2014 object.attachment_addendum2_laptoprefresh_pdf",
+      "attributes": {}
+    },
+    {
+      "id": "communication.email_msg_vendor_reply_1839",
+      "kind": "Communication",
+      "displayName": "City Email Export: IFB 2026-IT-014 Addendum 2 Distribution (Victim Mailbox) \u2014 communication.email_msg_vendor_reply_1839",
+      "attributes": {}
+    },
+    {
+      "id": "document.witness_statement_neighbor_20260319",
+      "kind": "Document",
+      "displayName": "Witness Statement: Neighbor Who Called 911 (2026-03-18) \u2014 document.witness_statement_neighbor_20260319",
+      "attributes": {}
+    }
+  ],
+  "SuspectReferences": [
+    {
+      "suspectId": "suspect.derek_yazzie",
+      "personEntityId": "person.derek_yazzie"
+    },
+    {
+      "suspectId": "suspect.lena_hart",
+      "personEntityId": "person.lena_hart"
+    },
+    {
+      "suspectId": "suspect.mara_kline",
+      "personEntityId": "person.mara_kline"
+    },
+    {
+      "suspectId": "suspect.owen_schultz",
+      "personEntityId": "person.owen_schultz"
+    }
+  ],
+  "Facts": [
+    {
+      "Id": "fact.clue_action_unfamiliar_editor_session",
+      "Predicate": "identity_action_unfamiliar_editor_session",
+      "SubjectId": "person.owen_schultz",
+      "ObjectId": null,
+      "LiteralValue": "The PDF properties for \u201CAddendum2_LaptopRefresh.pdf\u201D list Producer \u201CMicrosoft Print to PDF\u201D and an embedded Author field \u201Coschultz,\u201D with CreationDate \u201C2026-03-18 18:12:44.\u201D",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_alibi_building_entry",
+      "Predicate": "action_alibi_building_entry",
+      "SubjectId": "person.owen_schultz",
+      "ObjectId": null,
+      "LiteralValue": "Badging logs show \u201COWEN SCHULTZ\u201D used badge ID ending \u201C-1173\u201D to enter \u201CCCB 215 Martin Luther King Jr Blvd - North Doors\u201D at 2026-03-18 18:03 and exit at 18:31.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_benefit_vendor_message",
+      "Predicate": "benefit_benefit_vendor_message",
+      "SubjectId": "person.derek_yazzie",
+      "ObjectId": null,
+      "LiteralValue": "Vendor reply email from \u201Cd.yazzie@badgerstatetech.com\u201D at 2026-03-18 18:39 includes the line \u201CThanks\u2014this spec aligns with the model we quoted (BST-14G).\u201D",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_bid_context_addendum",
+      "Predicate": "context_bid_context_addendum",
+      "SubjectId": "organization.case_context",
+      "ObjectId": null,
+      "LiteralValue": "The procurement file shows \u201CAddendum 2 - Laptop Refresh\u201D was distributed on 2026-03-18 at 18:26 (email subject: \u201CIFB 2026-IT-014 Addendum 2 Clarification\u201D).",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_forensic_b_to_a_mapping",
+      "Predicate": "forensicAttribution_forensic_b_to_a_mapping",
+      "SubjectId": "person.owen_schultz",
+      "ObjectId": null,
+      "LiteralValue": "Forensic review of MAD-WS-04419 finds Windows registry key \u201CHKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU\u201D containing entry \u2018b\u2019 = \u2018AcroRd32.exe /p /h \u201CC:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.docx\u201D\u2019 with MRUList \u201Cba,\u201D and the corresponding \u201CLastWriteTime\u201D is 2026-03-18 18:12:40.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.clue_identity_workstation_owner",
+      "Predicate": "identity_identity_workstation_owner",
+      "SubjectId": "organization.case_context",
+      "ObjectId": null,
+      "LiteralValue": "City IT inventory record lists workstation asset tag \u201CMAD-WS-04419\u201D assigned to the victim, with last logged-in user shown as \u201CEVELYN.PARK\u201D on 2026-03-18 16:58.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.culprit_owen_schultz",
+      "Predicate": "isCulprit",
+      "SubjectId": "person.owen_schultz",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_bridge_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "Predicate": "proofBridge_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "SubjectId": "person.owen_schultz",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_join_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "Predicate": "forensicJoin_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "SubjectId": "person.owen_schultz",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_bridge_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "Predicate": "proofBridge_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "SubjectId": "person.owen_schultz",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.proof_join_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "Predicate": "forensicJoin_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "SubjectId": "person.owen_schultz",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_suspicion_derek_yazzie",
+      "Predicate": "decoySuspicion",
+      "SubjectId": "person.derek_yazzie",
+      "ObjectId": null,
+      "LiteralValue": "The vendor contact pushed for the restrictive specification and could have coordinated the addendum manipulation.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_verification_derek_yazzie",
+      "Predicate": "decoyVerification",
+      "SubjectId": "person.derek_yazzie",
+      "ObjectId": null,
+      "LiteralValue": "Email thread shows \u201Cd.yazzie@badgerstatetech.com\u201D sent a message at 2026-03-18 15:11 stating \u201CHappy to answer questions,\u201D and the first email containing the restrictive line originates from the victim\u2019s account at 18:26 with attachment \u201CAddendum2_LaptopRefresh.pdf.\u201D",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_derek_yazzie",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.derek_yazzie",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_suspicion_lena_hart",
+      "Predicate": "decoySuspicion",
+      "SubjectId": "person.lena_hart",
+      "ObjectId": null,
+      "LiteralValue": "A colleague working on comparisons may have edited the addendum to simplify scoring or protect a preferred vendor.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_verification_lena_hart",
+      "Predicate": "decoyVerification",
+      "SubjectId": "person.lena_hart",
+      "ObjectId": null,
+      "LiteralValue": "Teams chat export shows \u201CLena Hart\u201D posting at 2026-03-18 18:09 in channel \u201CProcurement-IT-014\u201D: \u201CI\u2019m on a call\u2014back in ~30,\u201D and her calendar shows \u201CVendor demo - Zoom\u201D from 18:00\u201318:30 with meeting ID \u201C845 221 9031.\u201D",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_lena_hart",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.lena_hart",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_suspicion_mara_kline",
+      "Predicate": "decoySuspicion",
+      "SubjectId": "person.mara_kline",
+      "ObjectId": null,
+      "LiteralValue": "The procurement officer had authority to issue addenda and may have directed last-minute changes to force a particular outcome.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.decoy_verification_mara_kline",
+      "Predicate": "decoyVerification",
+      "SubjectId": "person.mara_kline",
+      "ObjectId": null,
+      "LiteralValue": "Email headers show Mara Kline emailed the victim at 2026-03-18 17:22: \u201CDo not send any addendum tonight\u2014hold for my review in the morning,\u201D and her badge log shows entry to CCB at 07:54 and exit at 17:11 on 2026-03-18 with no later entries.",
+      "LiteralType": "String",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    },
+    {
+      "Id": "fact.excluded_mara_kline",
+      "Predicate": "excludedFromCrime",
+      "SubjectId": "person.mara_kline",
+      "ObjectId": null,
+      "LiteralValue": "true",
+      "LiteralType": "Boolean",
+      "LiteralUnit": null,
+      "EventId": null,
+      "Visibility": "Public",
+      "TruthStatus": "Confirmed"
+    }
+  ],
+  "Events": [],
+  "Sources": [
+    {
+      "Id": "asset.access_log",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.alibi_building_entry_access_log",
+        "observation.decoy_verification_mara_kline_access_log"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_alibi_building_entry",
+        "fact.decoy_verification_mara_kline"
+      ],
+      "EvidentiaryOriginId": "asset.access_log",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.bank_statement",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.action_unfamiliar_editor_session_bank_statement"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_action_unfamiliar_editor_session"
+      ],
+      "EvidentiaryOriginId": "asset.bank_statement",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.call_log",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.decoy_suspicion_mara_kline_call_log"
+      ],
+      "ClaimedFactIds": [
+        "fact.decoy_suspicion_mara_kline"
+      ],
+      "EvidentiaryOriginId": "asset.call_log",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.chat_export",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.decoy_suspicion_lena_hart_chat_export",
+        "observation.decoy_verification_lena_hart_chat_export"
+      ],
+      "ClaimedFactIds": [
+        "fact.decoy_suspicion_lena_hart",
+        "fact.decoy_verification_lena_hart"
+      ],
+      "EvidentiaryOriginId": "asset.chat_export",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.custody_form",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.identity_workstation_owner_custody_form"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_identity_workstation_owner"
+      ],
+      "EvidentiaryOriginId": "asset.custody_form",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.email_export",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.benefit_vendor_message_email_export",
+        "observation.bid_context_addendum_email_export",
+        "observation.decoy_suspicion_derek_yazzie_email_export",
+        "observation.decoy_verification_derek_yazzie_email_export"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_benefit_vendor_message",
+        "fact.clue_bid_context_addendum",
+        "fact.decoy_suspicion_derek_yazzie",
+        "fact.decoy_verification_derek_yazzie"
+      ],
+      "EvidentiaryOriginId": "asset.email_export",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.witness_statement",
+      "Kind": "Asset",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "asset.witness_statement",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "asset.report_metadata_device_correlation_mad_ws_04419",
+      "Kind": "Asset",
+      "ObservationIds": [
+        "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+      ],
+      "ClaimedFactIds": [
+        "fact.clue_forensic_b_to_a_mapping"
+      ],
+      "EvidentiaryOriginId": "asset.report_metadata_device_correlation_mad_ws_04419",
+      "AvailableAt": "AfterForensic",
+      "RevealPrerequisiteIds": [
+        "action.analysis_custody_form_metadataanalysis"
+      ],
+      "Required": false
+    },
+    {
+      "Id": "email.ccb_security_preservation_notice",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "email.ccb_security_preservation_notice",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "email.lena_hart_vendor_demo_window",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "email.lena_hart_vendor_demo_window",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "email.mara_kline_hold_instruction",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "email.mara_kline_hold_instruction",
+      "AvailableAt": "Initial",
+      "RevealPrerequisiteIds": [],
+      "Required": false
+    },
+    {
+      "Id": "email.lab_metadata_device_correlation_mad_ws_04419",
+      "Kind": "Email",
+      "ObservationIds": [],
+      "ClaimedFactIds": [],
+      "EvidentiaryOriginId": "asset.report_metadata_device_correlation_mad_ws_04419",
+      "AvailableAt": "AfterForensic",
+      "RevealPrerequisiteIds": [
+        "action.analysis_custody_form_metadataanalysis"
+      ],
+      "Required": false
+    }
+  ],
+  "AssetSpecs": [
+    {
+      "Id": "asset.access_log",
+      "ArchetypeId": "access_log",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.alibi_building_entry_access_log",
+        "observation.decoy_verification_mara_kline_access_log"
+      ],
+      "ContainedObjectIds": [
+        "document.accesslog_ccb_north_doors_20260318",
+        "account.badge_id_1173",
+        "transaction.access_event_owen_entry_1803",
+        "transaction.access_event_owen_exit_1831"
+      ],
+      "ContainedObjectTypes": {
+        "document.accesslog_ccb_north_doors_20260318": "AccessRecord",
+        "account.badge_id_1173": "AccessRecord",
+        "transaction.access_event_owen_entry_1803": "AccessRecord",
+        "transaction.access_event_owen_exit_1831": "AccessRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "AccessLog"
+    },
+    {
+      "Id": "asset.bank_statement",
+      "ArchetypeId": "bank_statement",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.action_unfamiliar_editor_session_bank_statement"
+      ],
+      "ContainedObjectIds": [
+        "document.bank_statement_owen_schultz_202603",
+        "account.bank_account_owen_primary_checking"
+      ],
+      "ContainedObjectTypes": {
+        "document.bank_statement_owen_schultz_202603": "FinancialRecord",
+        "account.bank_account_owen_primary_checking": "FinancialRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "BankStatement"
+    },
+    {
+      "Id": "asset.call_log",
+      "ArchetypeId": "call_log",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.decoy_suspicion_mara_kline_call_log"
+      ],
+      "ContainedObjectIds": [
+        "document.call_log_victim_city_mobile_20260318",
+        "account.victim_city_mobile_number",
+        "communication.cdr_outgoing_call_to_owen_1851"
+      ],
+      "ContainedObjectTypes": {
+        "document.call_log_victim_city_mobile_20260318": "CommunicationRecord",
+        "account.victim_city_mobile_number": "CommunicationRecord",
+        "communication.cdr_outgoing_call_to_owen_1851": "CommunicationRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "CallLog"
+    },
+    {
+      "Id": "asset.chat_export",
+      "ArchetypeId": "chat_export",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.decoy_suspicion_lena_hart_chat_export",
+        "observation.decoy_verification_lena_hart_chat_export"
+      ],
+      "ContainedObjectIds": [
+        "document.chat_export_teams_procurement_it_014_20260318",
+        "session.teams_channel_procurement_it_014",
+        "communication.chat_msg_lena_1809_on_a_call"
+      ],
+      "ContainedObjectTypes": {
+        "document.chat_export_teams_procurement_it_014_20260318": "CommunicationRecord",
+        "session.teams_channel_procurement_it_014": "CommunicationRecord",
+        "communication.chat_msg_lena_1809_on_a_call": "CommunicationRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "ChatExport"
+    },
+    {
+      "Id": "asset.custody_form",
+      "ArchetypeId": "custody_form",
+      "AssetType": "document",
+      "ObservationIds": [
+        "observation.identity_workstation_owner_custody_form"
+      ],
+      "ContainedObjectIds": [
+        "document.custody_form_mad_ws_04419",
+        "object.workstation_mad_ws_04419"
+      ],
+      "ContainedObjectTypes": {
+        "document.custody_form_mad_ws_04419": "Document",
+        "object.workstation_mad_ws_04419": "Document"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "CustodyForm"
+    },
+    {
+      "Id": "asset.email_export",
+      "ArchetypeId": "email_export",
+      "AssetType": "digital",
+      "ObservationIds": [
+        "observation.benefit_vendor_message_email_export",
+        "observation.bid_context_addendum_email_export",
+        "observation.decoy_suspicion_derek_yazzie_email_export",
+        "observation.decoy_verification_derek_yazzie_email_export"
+      ],
+      "ContainedObjectIds": [
+        "document.email_export_ifb_2026_it_014_addendum2_thread",
+        "communication.email_msg_addendum2_sent_1826",
+        "object.attachment_addendum2_laptoprefresh_pdf",
+        "communication.email_msg_vendor_reply_1839"
+      ],
+      "ContainedObjectTypes": {
+        "document.email_export_ifb_2026_it_014_addendum2_thread": "CommunicationRecord",
+        "communication.email_msg_addendum2_sent_1826": "CommunicationRecord",
+        "object.attachment_addendum2_laptoprefresh_pdf": "CommunicationRecord",
+        "communication.email_msg_vendor_reply_1839": "CommunicationRecord"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "EmailExport"
+    },
+    {
+      "Id": "asset.witness_statement",
+      "ArchetypeId": "witness_statement",
+      "AssetType": "document",
+      "ObservationIds": [],
+      "ContainedObjectIds": [
+        "document.witness_statement_neighbor_20260319"
+      ],
+      "ContainedObjectTypes": {
+        "document.witness_statement_neighbor_20260319": "Document"
+      },
+      "Visibility": "Initial",
+      "LayoutId": "WitnessStatement"
+    }
+  ],
+  "DecoyArcs": [
+    {
+      "SuspectId": "suspect.derek_yazzie",
+      "SuspicionObservationIds": [
+        "observation.decoy_suspicion_derek_yazzie_email_export"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_verification_derek_yazzie_email_export"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_derek_yazzie",
+      "MustBePlayerReachable": true
+    },
+    {
+      "SuspectId": "suspect.lena_hart",
+      "SuspicionObservationIds": [
+        "observation.decoy_suspicion_lena_hart_chat_export"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_verification_lena_hart_chat_export"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_lena_hart",
+      "MustBePlayerReachable": true
+    },
+    {
+      "SuspectId": "suspect.mara_kline",
+      "SuspicionObservationIds": [
+        "observation.decoy_suspicion_mara_kline_call_log"
+      ],
+      "VerificationObservationIds": [
+        "observation.decoy_verification_mara_kline_access_log"
+      ],
+      "ResolutionDerivationId": "derivation.exclude_mara_kline",
+      "MustBePlayerReachable": true
+    }
+  ],
+  "ForensicTransforms": [
+    {
+      "Id": "forensic.custody_form_metadataanalysis",
+      "MethodId": "MetadataAnalysis",
+      "InputAssetId": "asset.custody_form",
+      "InputObjectId": "document.custody_form_mad_ws_04419",
+      "ReferenceSampleObjectId": null,
+      "ChainOfCustodyObservationId": "observation.identity_workstation_owner_custody_form",
+      "ProducedObservationIds": [
+        "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+      ],
+      "ProducedProperties": [
+        "DeviceCorrelation"
+      ],
+      "LimitationKeys": [
+        "operator_not_proven",
+        "metadata_can_be_modified"
+      ],
+      "ResultAssetId": "asset.report_metadata_device_correlation_mad_ws_04419",
+      "ResultEmailId": "email.lab_metadata_device_correlation_mad_ws_04419",
+      "ResultLayoutId": "ForensicReport"
+    }
+  ],
+  "Observations": [
+    {
+      "Id": "observation.action_unfamiliar_editor_session_bank_statement",
+      "FactId": "fact.clue_action_unfamiliar_editor_session",
+      "SourceAssetId": "asset.bank_statement",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.alibi_building_entry_access_log",
+      "FactId": "fact.clue_alibi_building_entry",
+      "SourceAssetId": "asset.access_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.benefit_vendor_message_email_export",
+      "FactId": "fact.clue_benefit_vendor_message",
+      "SourceAssetId": "asset.email_export",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.bid_context_addendum_email_export",
+      "FactId": "fact.clue_bid_context_addendum",
+      "SourceAssetId": "asset.email_export",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "FactId": "fact.clue_forensic_b_to_a_mapping",
+      "SourceAssetId": "asset.report_metadata_device_correlation_mad_ws_04419",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": "DeviceCorrelation"
+    },
+    {
+      "Id": "observation.identity_workstation_owner_custody_form",
+      "FactId": "fact.clue_identity_workstation_owner",
+      "SourceAssetId": "asset.custody_form",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_derek_yazzie_email_export",
+      "FactId": "fact.decoy_suspicion_derek_yazzie",
+      "SourceAssetId": "asset.email_export",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_verification_derek_yazzie_email_export",
+      "FactId": "fact.decoy_verification_derek_yazzie",
+      "SourceAssetId": "asset.email_export",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_lena_hart_chat_export",
+      "FactId": "fact.decoy_suspicion_lena_hart",
+      "SourceAssetId": "asset.chat_export",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_verification_lena_hart_chat_export",
+      "FactId": "fact.decoy_verification_lena_hart",
+      "SourceAssetId": "asset.chat_export",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_suspicion_mara_kline_call_log",
+      "FactId": "fact.decoy_suspicion_mara_kline",
+      "SourceAssetId": "asset.call_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "Circumstantial",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    },
+    {
+      "Id": "observation.decoy_verification_mara_kline_access_log",
+      "FactId": "fact.decoy_verification_mara_kline",
+      "SourceAssetId": "asset.access_log",
+      "EvidentiaryOriginId": null,
+      "Fidelity": "DirectRecord",
+      "Reliability": "Verified",
+      "Visibility": "Public",
+      "ForensicProperty": null
+    }
+  ],
+  "Derivations": [
+    {
+      "Id": "derivation.proof_bridge_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "PremiseIds": [
+        "observation.action_unfamiliar_editor_session_bank_statement"
+      ],
+      "Rule": "IdentityMatch",
+      "ConclusionFactId": "fact.proof_bridge_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.proof_join_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "PremiseIds": [
+        "derivation.proof_bridge_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+      ],
+      "Rule": "CrossSourceCorroboration",
+      "ConclusionFactId": "fact.proof_join_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.culprit_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "PremiseIds": [
+        "derivation.proof_join_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.culprit_owen_schultz",
+      "SupportsSuspectId": "suspect.owen_schultz",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.proof_bridge_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "PremiseIds": [
+        "observation.alibi_building_entry_access_log"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.proof_bridge_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.proof_join_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "PremiseIds": [
+        "derivation.proof_bridge_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+      ],
+      "Rule": "CrossSourceCorroboration",
+      "ConclusionFactId": "fact.proof_join_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "SupportsSuspectId": null,
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.culprit_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "PremiseIds": [
+        "derivation.proof_join_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+      ],
+      "Rule": "ActionAttribution",
+      "ConclusionFactId": "fact.culprit_owen_schultz",
+      "SupportsSuspectId": "suspect.owen_schultz",
+      "IsCulpritConclusion": true
+    },
+    {
+      "Id": "derivation.exclude_derek_yazzie",
+      "PremiseIds": [
+        "observation.decoy_verification_derek_yazzie_email_export"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_derek_yazzie",
+      "SupportsSuspectId": "suspect.derek_yazzie",
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.exclude_lena_hart",
+      "PremiseIds": [
+        "observation.decoy_verification_lena_hart_chat_export"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_lena_hart",
+      "SupportsSuspectId": "suspect.lena_hart",
+      "IsCulpritConclusion": false
+    },
+    {
+      "Id": "derivation.exclude_mara_kline",
+      "PremiseIds": [
+        "observation.decoy_verification_mara_kline_access_log"
+      ],
+      "Rule": "Exclusion",
+      "ConclusionFactId": "fact.excluded_mara_kline",
+      "SupportsSuspectId": "suspect.mara_kline",
+      "IsCulpritConclusion": false
+    }
+  ],
+  "EventOrderConstraints": [],
+  "TravelWindows": [],
+  "Actions": [
+    {
+      "Id": "action.analysis_custody_form_metadataanalysis",
+      "Kind": "RequestAnalysis",
+      "CompletesAt": "AfterForensic",
+      "PrerequisiteSourceIds": [
+        "asset.custody_form"
+      ],
+      "PrerequisiteActionIds": [],
+      "RevealsSourceIds": [
+        "asset.report_metadata_device_correlation_mad_ws_04419",
+        "email.lab_metadata_device_correlation_mad_ws_04419"
+      ],
+      "AnalysisId": "asset.custody_form:MetadataAnalysis",
+      "Required": false
+    }
+  ],
+  "RequiredSourceIds": [],
+  "RequiredAnalysisIds": []
+}

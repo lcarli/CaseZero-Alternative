@@ -78,6 +78,16 @@ public class MockLLMProvider : ILLMProvider
         return "Resposta gerada pelo sistema de IA para fins de demonstração.";
     }
 
+    public async Task<LLMResponse> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema,
+        int maximumOutputTokens, CancellationToken cancellationToken = default)
+    {
+        if (maximumOutputTokens <= 0) throw new ArgumentOutOfRangeException(nameof(maximumOutputTokens));
+        var response = await GenerateStructuredResponseAsync(systemPrompt, userPrompt, jsonSchema, cancellationToken);
+        if (response.Usage!.CompletionTokens > maximumOutputTokens)
+            throw new InvalidOperationException("Synthetic response exceeds the requested output-token allowance.");
+        return response;
+    }
+
     private string GenerateMockStructuredResponse(string systemPrompt, string userPrompt, string jsonSchema)
     {
         // Generate structured JSON responses based on the schema and prompts

@@ -12,6 +12,7 @@ import EmailVerificationPage from './pages/EmailVerificationPage'
 import DashboardPage from './pages/DashboardPage'
 import DesktopPage from './pages/DesktopPage'
 import CaseGenerationPage from './pages/CaseGenerationPage'
+import ProfilePage from './pages/ProfilePage'
 
 function App() {
   return (
@@ -45,8 +46,16 @@ function App() {
                 <Route
                   path="/case-generation"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requiredRole="ADMIN">
                       <CaseGenerationPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
                     </ProtectedRoute>
                   }
                 />

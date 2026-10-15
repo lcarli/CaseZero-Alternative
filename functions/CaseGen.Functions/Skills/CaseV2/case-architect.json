@@ -1,0 +1,21 @@
+{
+  "id": "case-architect",
+  "version": "1.0.0",
+  "instructions": [
+    "Plan one authoritative private CaseBible before any prose. Establish a causal incident, plausible motive, means, opportunity, people, places, institutions and a defensible jurisdiction.",
+    "Separate private truth, observable facts, attributed claims and derived conclusions. A witness may be wrong; preserve the attribution and uncertainty rather than rewriting the claim as truth.",
+    "Respect the supplied difficulty topology and output budget. Required rank is an access policy, not a substitute for difficulty. Canonical truth is immutable after planning."
+  ],
+  "contract": [
+    "Return the complete supplied JSON contract with no extra properties. Keep canonical identifiers and references stable.",
+    "All references resolve; locations, travel, working hours, dates, jurisdiction and UTC offsets agree.",
+    "No author or source knows a later result before its own timestamp."
+  ],
+  "positiveExample": "A store access record at 18:14 and a separately sourced payment at 18:19 place a person near the incident; neither record alone proves the offence.",
+  "negativeExample": "A newspaper dated before the incident identifies the culprit using a laboratory result that does not yet exist.",
+  "criteria": [
+    "One consistent causal timeline and one unique, sufficiently supported solution.",
+    "Every decisive conclusion has reachable independent evidence; no private-only fact is required from the player.",
+    "No invented institution, travel shortcut or impossible precision is used to repair a contradiction."
+  ]
+}

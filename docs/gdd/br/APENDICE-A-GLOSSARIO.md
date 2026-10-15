@@ -18,7 +18,7 @@ Conjunto de endpoints HTTP que permite ao frontend se comunicar com o backend. A
 
 ### ASP.NET Core
 
-Framework web open source e multiplataforma da Microsoft usado para construir a API backend do CaseZero. A versão 9.0 é a especificada para o projeto. Consulte **[Capítulo 08 - Arquitetura Técnica]** para a justificativa da stack.
+Framework web open source e multiplataforma da Microsoft usado para construir a API backend do CaseZero. A Web API atual usa **.NET 8**, enquanto o projeto separado de Azure Functions para geração de casos usa **.NET 9**. Consulte **[Capítulo 08 - Arquitetura Técnica]** para a arquitetura dividida.
 
 ### Autenticação
 
@@ -30,19 +30,19 @@ Processo que determina quais ações um usuário autenticado pode executar. O Ca
 
 ### Azure App Service
 
-Plataforma como serviço (PaaS) da Microsoft para hospedar aplicações web. A API backend do CaseZero roda em Azure App Service Linux. Consulte **[Capítulo 08 - Arquitetura Técnica]** para a estratégia de deploy.
+Plataforma como serviço (PaaS) da Microsoft para hospedar aplicações web. Neste GDD ela aparece como um possível alvo operacional de hospedagem do backend, mas os fatos ancorados no repositório são a Web API em .NET 8 e o app separado de Functions em .NET 9, e não uma topologia única obrigatória em App Service. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ### Azure Blob Storage
 
-Serviço de armazenamento de objetos da Microsoft para dados não estruturados. O CaseZero armazena PDFs, fotos de evidência e laudos forenses em blob storage. Utiliza tier Hot para casos ativos e Cool para arquivo. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
+Serviço de armazenamento de objetos da Microsoft para dados não estruturados. O CaseZero publica bundles canônicos de `case.json` v2 e assets voltados ao jogador no Blob Storage, com o `case.json` sendo gravado por último como commit marker do bundle. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ### Azure CDN (Content Delivery Network)
 
-Rede distribuída de servidores que entrega conteúdo estático a partir de locais geográficos próximos ao usuário. O CaseZero usa Azure CDN para servir assets de casos (PDFs, imagens) com baixa latência global. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
+Rede distribuída de servidores que entrega conteúdo estático a partir de locais geográficos próximos ao usuário. Neste GDD ela aparece como opção de deploy/design para servir assets, não como requisito verificado do repositório atual. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ### Azure Functions
 
-Serviço serverless da Microsoft para executar código orientado a eventos. O CaseZero usa Azure Functions com Timer Triggers para processar conclusões de perícias a cada 5 minutos. Consulte **[Capítulo 08 - Arquitetura Técnica]** para a implementação de perícias em tempo real.
+Serviço serverless da Microsoft para executar código orientado a eventos. O CaseZero usa um **Azure Functions isolated worker em .NET 9** para o pipeline durável já implementado de geração de casos, e também para o processamento forense assíncrono baseado em timer. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ---
 
@@ -74,7 +74,7 @@ Aplicativo/interface in-game onde os jogadores visualizam documentos e evidênci
 
 ### case.json
 
-Arquivo mestre que define um caso completo. Estrutura JSON contendo metadata, vítima, crime, local, suspeitos, evidências, documentos, perícias, linha do tempo e solução. Armazenado em coluna JSONB do PostgreSQL. Consulte **[Capítulo 09 - Esquema de Dados & Modelos]** para o schema completo.
+Arquivo mestre canônico que define um caso completo. O repositório atual usa **case.json v2** como único formato de caso suportado; ele é publicado no Blob Storage e gravado por último como commit marker do bundle. Consulte **[Capítulo 09 - Esquema de Dados & Modelos]** e a especificação CASE JSON v2.
 
 ### Sessão de Caso
 
@@ -122,11 +122,11 @@ Métricas-chave de engajamento. DAU mede usuários únicos por dia; MAU, por mê
 
 ### Patente de Detetive (Detective Rank)
 
-Tier de progressão baseado no XP total. Inclui Cadete (0 XP), Detetive Júnior (5.000 XP), Detetive (20.000 XP), Detetive Sênior (50.000 XP), Detetive Líder (100.000 XP), Inspetor-Chefe (200.000 XP), Detetive Lendário (500.000 XP). Consulte **[Capítulo 06 - Progressão do Jogador]**.
+Tier de progressão implementado que também é usado para a dificuldade dos casos. As patentes atuais são `Rookie`, `Detective`, `Detective2`, `Sergeant`, `Lieutenant`, `Captain` e `Commander`; as promoções são baseadas em casos corretos avaliados cumulativos (0, 3, 8, 16, 28, 44, 65), e não em thresholds de XP. Consulte **[Capítulo 06 - Progressão do Jogador]**.
 
 ### Dificuldade
 
-Classificação que indica a complexidade do caso. Quatro níveis: Easy (menos suspeitos, pistas claras), Medium (complexidade moderada), Hard (várias falsas pistas, linha do tempo intrincada) e Expert (altamente complexo, pistas sutis). Consulte **[Capítulo 04 - Estrutura de Caso]**.
+Classificação que indica a complexidade do caso. O sistema implementado usa o mesmo enum de sete níveis da patente do detetive: `Rookie`, `Detective`, `Detective2`, `Sergeant`, `Lieutenant`, `Captain`, `Commander`. A terminologia antiga Easy/Medium/Hard/Expert no GDD é orientação histórica de design, não o enum live. Consulte **[Capítulo 04 - Estrutura de Caso]**.
 
 ### Análise de DNA (DNA Analysis)
 
@@ -138,11 +138,11 @@ Tipo de perícia que examina evidências biológicas (sangue, cabelo, saliva) pa
 
 ### Testes E2E (End-to-End Testing)
 
-Metodologia que valida fluxos completos do usuário em ambiente semelhante à produção. O CaseZero usa Playwright para testes E2E. Consulte **[Capítulo 11 - Estratégia de Testes]**.
+Metodologia que valida fluxos completos do usuário em ambiente semelhante à produção. Playwright é o framework E2E planejado para o CaseZero, mas não está instalado nem executa no CI atual. Consulte **[Capítulo 11 - Estratégia de Testes]** para os fluxos propostos.
 
 ### EF Core (Entity Framework Core)
 
-ORM da Microsoft para .NET. Versão 9.0 usada no CaseZero para interagir com PostgreSQL. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
+ORM da Microsoft para .NET. O CaseZero usa EF Core com persistência em SQL no backend em .NET 8; o payload canônico do caso, por sua vez, vive no Blob Storage, e não em JSONB do PostgreSQL. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ### Evidência
 
@@ -154,7 +154,7 @@ Componente de UI no Case Files que exibe evidências em grade, com miniaturas, n
 
 ### XP (Experience Points)
 
-Pontos concedidos ao resolver casos, usados para calcular Patente. XP base varia conforme dificuldade: Easy 150, Medium 300, Hard 600, Expert 1200. Bônus por primeira tentativa (+50%), eficiência de tempo (+10-20%) e sem dicas (+20%). Consulte **[Capítulo 06 - Progressão do Jogador]**.
+Termo histórico de design usado em rascunhos antigos de progressão. As regras de promoção implementadas atualmente usam casos corretos avaliados cumulativos em vez de thresholds de XP para avançar a patente. Consulte **[Capítulo 06 - Progressão do Jogador]**.
 
 ---
 
@@ -170,7 +170,7 @@ Biblioteca .NET para construir regras de validação fortemente tipadas. O CaseZ
 
 ### Análise Forense
 
-Exame científico de evidências feito por especialistas. No CaseZero, o jogador solicita perícias via Forensics Lab, aguarda o processamento em tempo real e revisa o PDF gerado. Tipos: DNA, Impressões Digitais, Toxicologia, Balística e Forense Digital (futuro). Consulte **[Capítulo 03 - Mecânicas Centrais]**.
+Exame científico de evidências feito por especialistas. No CaseZero, o jogador solicita perícias via Forensics Lab, aguarda a conclusão assíncrona/baseada em timer e então revisa o PDF gerado. Os tipos incluem DNA, Impressões Digitais, Toxicologia e Balística, com disciplinas adicionais permanecendo como espaço futuro de design. Consulte **[Capítulo 03 - Mecânicas Centrais]**.
 
 ### Requisição Forense (Forensic Request)
 
@@ -222,7 +222,7 @@ Formato leve de troca de dados. O CaseZero usa JSON para case.json, payloads da 
 
 ### JSONB
 
-Tipo de dado binário JSON do PostgreSQL que permite armazenamento e consultas eficientes. O CaseZero guarda case.json em coluna JSONB para schema flexível e consultas rápidas. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
+Tipo de dado do PostgreSQL para armazenar documentos JSON com eficiência. No repositório atual do CaseZero, este é um **termo histórico/deprecated de design**: os bundles canônicos de `case.json` v2 vivem no Blob Storage, e não em colunas JSONB do PostgreSQL. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ### JSON Schema
 
@@ -254,7 +254,7 @@ Metodologia que avalia performance sob cargas esperada e de pico. O CaseZero usa
 
 ### Localização (L10n)
 
-Processo de adaptação para diferentes idiomas e regiões. O MVP do CaseZero é apenas em inglês; Francês, Espanhol, Português e Alemão estão planejados para expansão no Ano 1. Consulte **[Capítulo 10 - Pipeline de Conteúdo]** para a estratégia.
+Processo de adaptação para diferentes idiomas e regiões. O frontend atual já suporta `en-US`, `pt-BR`, `es-ES` e `fr-FR`, e o pipeline de geração de casos valida a saída específica por locale antes da publicação. Locales adicionais seguem como expansão planejada. Consulte **[Capítulo 10 - Pipeline de Conteúdo]** para a estratégia.
 
 ---
 
@@ -298,19 +298,19 @@ Técnica que converte dados entre sistemas de tipos diferentes (ex.: objetos C# 
 
 ### PDF.js
 
-Biblioteca JavaScript open source da Mozilla para renderizar PDFs no navegador sem plugins. O CaseZero usa PDF.js para exibir documentos. Consulte **[Capítulo 07 - Interface do Usuário]** e **[Capítulo 08 - Arquitetura Técnica]**.
+Biblioteca JavaScript open source da Mozilla para renderizar PDFs no navegador sem plugins. Ela aparecia no design original, mas o frontend atual não inclui o pacote PDF.js. Consulte **[Capítulo 07 - Interface do Usuário]** e **[Capítulo 08 - Arquitetura Técnica]**.
 
 ### Playwright
 
-Framework de automação de navegadores para testes end-to-end. Suporta Chrome, Firefox e Safari. O CaseZero usa Playwright para fluxos E2E. Consulte **[Capítulo 11 - Estratégia de Testes]**.
+Framework de automação de navegadores para testes end-to-end. Suporta Chrome, Firefox e Safari. É o framework planejado para os fluxos E2E do CaseZero, não uma dependência atualmente instalada. Consulte **[Capítulo 11 - Estratégia de Testes]**.
 
 ### PostgreSQL
 
-Banco de dados relacional open source. Versão 15+ hospedada no Azure Database for PostgreSQL. Escolhido pelo suporte ao JSONB e garantias ACID. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
+Banco de dados relacional open source. No repositório atual do CaseZero este é um **referencial histórico/deprecated de design**: o backend live usa persistência em Azure SQL / SQL Server em vez de PostgreSQL. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ### PWA (Progressive Web App)
 
-Aplicação web com experiência semelhante a app (modo offline, push, instalável). O CaseZero implementa Service Worker para visualização offline de casos. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
+Aplicação web com experiência semelhante a app (modo offline, push, instalável). PWA e Service Worker permanecem conceitos de roadmap; não estão implementados no frontend atual. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ---
 
@@ -330,15 +330,15 @@ Checkpoint no fluxo de desenvolvimento/deploy que exige critérios específicos 
 
 ### React
 
-Biblioteca JavaScript do Meta para construção de UIs. Versão 18+ usada no frontend do CaseZero. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
+Biblioteca JavaScript do Meta para construção de UIs. O CaseZero usa atualmente React 19. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ### React Router
 
-Biblioteca de roteamento para React. Versão 6 usada na navegação (Dashboard, Case Files, Forensics Lab, Submit Solution, Perfil). Consulte **[Capítulo 08 - Arquitetura Técnica]**.
+Biblioteca de roteamento para React. O CaseZero usa atualmente React Router 7 para navegação e rotas protegidas. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ### Redux Toolkit
 
-Toolset oficial para desenvolvimento eficiente com Redux. O CaseZero usa Redux Toolkit para gerenciar estado (slices de auth, cases, documents, evidence, forensics, notes, ui). Consulte **[Capítulo 08 - Arquitetura Técnica]**.
+Toolset oficial para desenvolvimento com Redux. Foi escolhido no design original, mas o frontend atual do CaseZero usa React Context e hooks. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ### REST API (Representational State Transfer)
 
@@ -358,7 +358,7 @@ Quantidade máxima de dados, em tempo, que pode ser perdida. O RPO do CaseZero �
 
 ### Service Worker
 
-Script JavaScript que roda em background, habilitando modo offline e push. O CaseZero usa Service Worker para cache de dados de casos offline. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
+Script JavaScript que roda em background, habilitando modo offline e push. O suporte a Service Worker é um conceito de roadmap do CaseZero e não está implementado no frontend atual. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ### Sessão
 
@@ -382,7 +382,7 @@ Pessoa de interesse na investigação. Cada caso possui 2-8 suspeitos com nome, 
 
 ### Tailwind CSS
 
-Framework CSS utilitário para construir UIs rapidamente. O CaseZero utiliza Tailwind com configuração de tema customizada. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
+Framework CSS utilitário para construir UIs rapidamente. Aparecia no design original, mas o frontend atual do CaseZero usa styled-components e CSS da aplicação. Consulte **[Capítulo 08 - Arquitetura Técnica]**.
 
 ### Linha do Tempo (Timeline)
 
@@ -414,7 +414,7 @@ Metodologia que valida funções/componentes em isolamento. O CaseZero usa Vites
 
 ### Progresso do Usuário (User Progress)
 
-Registro persistente das conquistas gerais do jogador, incluindo XP total, patente atual, casos resolvidos, tempo jogado, dicas usadas, conquistas obtidas e estatísticas. Consulte **[Capítulo 09 - Esquema de Dados & Modelos]**.
+Registro persistente das conquistas gerais do jogador, incluindo patente atual, casos corretos avaliados cumulativos, casos resolvidos, tempo jogado, dicas usadas, conquistas obtidas e estatísticas. Consulte **[Capítulo 09 - Esquema de Dados & Modelos]**.
 
 ### UX (User Experience)
 

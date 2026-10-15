@@ -6,19 +6,21 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.DurableTask;
 using Microsoft.DurableTask.Client;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace CaseGen.Functions.Functions.CaseV2;
 
 /// <summary>
 /// Async job pattern for v2 case generation. HTTP starter returns 202 + jobId,
-/// orchestrator delegates to a single long-running activity, and a GET endpoint
+/// orchestrator checkpoints seven coarse stages in private blob storage, and a GET endpoint
 /// composes Durable runtime status + per-phase blob status so callers can poll.
 /// </summary>
 public class CaseV2GenerationOrchestrator
 {
     public const string OrchestratorName = "CaseV2GenerationOrchestrator";
     public const string ActivityName = "CaseV2GenerateActivity";
+    public const string StageActivityName = "CaseV2GenerateStageActivity";
     public const string JobIdPrefix = "casev2-";
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -39,22 +41,121 @@ public class CaseV2GenerationOrchestrator
         var logger = context.CreateReplaySafeLogger<CaseV2GenerationOrchestrator>();
         logger.LogInformation("[CaseV2] Orchestration {InstanceId} started for jobId={JobId}", context.InstanceId, input.JobId);
 
-        // Single activity wraps the whole generator. Splitting per-phase would give better
-        // crash recovery but requires refactoring CaseV2GeneratorService — deferred (see plan.md).
-        var result = await context.CallActivityAsync<CaseV2JobResult>(ActivityName, input);
+        CaseCheckpointReference? checkpoint = null;
+        CaseV2JobResult? result = null;
+        foreach (var stage in Enum.GetValues<CaseGenerationStage>())
+        {
+            var output = await context.CallActivityAsync<CaseStageResult>(StageActivityName,
+                new CaseStageInput(input.JobId, input.Request, stage, checkpoint));
+            checkpoint = output.Reference;
+            result = output.Result;
+            if (!output.Approved || result is not null) break;
+        }
 
         logger.LogInformation(
-            "[CaseV2] Orchestration {InstanceId} finished jobId={JobId} caseId={CaseId} hasErrors={HasErrors} validationErrors={Errors}",
-            context.InstanceId, input.JobId, result.CaseId, result.HasErrors, result.ValidationErrorsCount);
+            "[CaseV2] Orchestration {InstanceId} finished jobId={JobId} caseId={CaseId} errors={Errors}",
+            context.InstanceId, input.JobId, result!.CaseId, result.ValidationErrorsCount);
 
-        return result;
+        return result!;
     }
 }
 
 /// <summary>
 /// Input passed from starter → orchestrator → activity.
 /// </summary>
-public record CaseV2OrchestrationInput(GenerateCaseV2Request Request, string JobId);
+public record CaseV2OrchestrationInput(
+    GenerateCaseV2Request Request,
+    string JobId,
+    int Attempt = 1,
+    int MaxAttempts = 5);
+
+public sealed class CaseV2GenerateStageActivity(
+    ICaseV2GeneratorService generator,
+    ICaseGenerationCheckpointStore store,
+    IJobPhaseReporterFactory reporterFactory,
+    ILogger<CaseV2GenerateStageActivity> logger)
+{
+    [Function(CaseV2GenerationOrchestrator.StageActivityName)]
+    public async Task<CaseStageResult> RunAsync([ActivityTrigger] CaseStageInput input, FunctionContext context)
+    {
+        CaseGenerationCheckpoint.ValidateInput(input);
+        var ct = context.CancellationToken;
+        var reporter = reporterFactory.Create(input.JobId);
+        CaseGenerationCheckpoint? checkpoint = null;
+        var executionStarted = false;
+        try
+        {
+            var existing = await store.FindAsync(input.JobId, input.Stage, ct);
+            if (existing is not null)
+            {
+                var saved = await store.ReadAsync(existing, ct, restoreAssets: false);
+                saved.Bind(input, completed: true);
+                return Result(existing, saved);
+            }
+            checkpoint = input.Previous is null ? CaseGenerationCheckpoint.Create(input.Request)
+                : await store.ReadAsync(input.Previous, ct);
+            checkpoint.Bind(input);
+            executionStarted = await store.TryBeginStageAsync(input, checkpoint, ct);
+            if (!executionStarted)
+            {
+                existing = await store.FindAsync(input.JobId, input.Stage, ct);
+                if (existing is not null)
+                {
+                    var saved = await store.ReadAsync(existing, ct, restoreAssets: false);
+                    saved.Bind(input, completed: true);
+                    return Result(existing, saved);
+                }
+                throw new TaskContractException("Stage execution is in progress or its paid-call outcome is unconfirmed. Automatic re-execution is blocked.");
+            }
+            if (input.Previous is null)
+                await reporter.ReportAttemptStartedAsync(1, 1, ct);
+            checkpoint = await generator.GenerateStageAsync(checkpoint, input.Stage, reporter, ct);
+            var reference = await store.SaveAsync(input.JobId, checkpoint, ct);
+            var result = Result(reference, checkpoint);
+            if (result.Result is { } terminal)
+            {
+                if (terminal.HasErrors) await reporter.ReportFailedAsync(terminal.ErrorMessage!, ct);
+                else await reporter.ReportCompletedAsync(ct);
+            }
+            return result;
+        }
+        catch (Exception exception) when (exception is TaskContractException or CaseBibleValidationException
+            or CaseGenerationBudgetException or JsonException or IOException or Azure.RequestFailedException
+            or HttpRequestException or TimeoutException or OperationCanceledException)
+        {
+            logger.LogError(exception, "Generation checkpoint {Stage} failed for {JobId}", input.Stage, input.JobId);
+            if (executionStarted && checkpoint is not null)
+            {
+                using var failureTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                try { await store.RecordFailureAsync(input, checkpoint, exception.Message, failureTimeout.Token); }
+                catch (Exception reportException) when (reportException is IOException or Azure.RequestFailedException
+                    or HttpRequestException or TimeoutException or OperationCanceledException)
+                {
+                    logger.LogError(reportException, "Could not persist usage failure report; the private stage reservation remains for {JobId}", input.JobId);
+                }
+            }
+            await reporter.ReportFailedAsync(exception.Message, CancellationToken.None);
+            throw;
+        }
+        finally
+        {
+            try { checkpoint?.CleanupStaging(); }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(exception, "Could not clean the named checkpoint workspace for {JobId}", input.JobId);
+            }
+        }
+    }
+
+    private static CaseStageResult Result(CaseCheckpointReference reference, CaseGenerationCheckpoint checkpoint)
+    {
+        var approved = checkpoint.Response?.Quality.Approved ?? true;
+        var terminal = !approved || checkpoint.CompletedStage == CaseGenerationStage.Publication;
+        return new(reference, approved, terminal
+            ? CaseV2JobResult.FromResponse(reference.JobId, checkpoint.Response
+                ?? throw new TaskContractException("Terminal checkpoint has no evaluated response.")) : null);
+    }
+}
 
 /// <summary>
 /// Compact job result — large payload (full case.json, asset bytes) is in blob storage, not Durable state.
@@ -74,13 +175,32 @@ public record CaseV2JobResult(
     bool RefineAttempted,
     int RefineErrorsBefore,
     int RefineErrorsAfter,
+    int RefineIterations,
+    long InputTokens,
+    long OutputTokens,
+    bool CaseGraphEnabled,
+    FinalValidationReport? FinalValidation,
+    bool GraphValidationPassed,
+    bool FirstPassSuccess,
+    int RepairPlateauCount,
+    int RepairOperationCount,
+    bool SolverSucceeded,
+    int EvidenceLayoutDiversity,
+    List<string> EvidenceLayouts,
+    Dictionary<string, int> SpecialistFindingsByCategory,
     string? RedTeamVerdict,
+    string? RedTeamVerdictInitial,
+    List<string> RedTeamVerdictTrajectory,
+    bool RedTeamRerun,
+    int AttemptCount,
+    int MaxAttempts,
+    double SolverScore,
     CaseQualityReport? Quality = null,
     int AssetsSkipped = 0,
     CaseRepairReport? Repair = null,
     CaseBundleReport? Bundle = null)
 {
-    public static CaseV2JobResult FromResponse(string jobId, GenerateCaseV2Response response)
+    public static CaseV2JobResult FromResponse(string jobId, GenerateCaseV2Response response, int attempt = 1, int maxAttempts = 1)
     {
         var quality = response.Quality;
         var hasErrors = response.ValidationErrors.Count > 0 || response.AssetRenderingErrors.Count > 0
@@ -88,25 +208,30 @@ public record CaseV2JobResult(
             || (response.Bundle is not null && (!response.Bundle.Verified || response.Bundle.Revision != quality.Revision))
             || (quality.PersistenceRequested && !quality.Persisted)
             || (quality.PublicationRequested && !quality.Published);
-        var blockers = quality.Issues.Where(issue => issue.Blocking).ToList();
-        var messages = blockers
+        var messages = quality.Issues.Where(issue => issue.Blocking)
             .Select(issue => $"{issue.Code}: {issue.Message}")
+            .Concat(response.ValidationErrors)
+            .Concat(response.AssetRenderingErrors)
+            .Distinct(StringComparer.Ordinal)
             .ToList();
-        var reportedMessages = blockers.Select(issue => issue.Message).ToHashSet(StringComparer.Ordinal);
-        messages.AddRange(response.ValidationErrors.Concat(response.AssetRenderingErrors)
-            .Where(message => !reportedMessages.Contains(message))
-            .Distinct(StringComparer.Ordinal));
         var error = hasErrors
-            ? (messages.Count > 0
-                ? string.Join(" · ", messages)
-                : "Generation did not pass quality checks or complete the requested outputs.")
+            ? messages.Count > 0 ? string.Join(" · ", messages)
+                : "Generation did not pass quality checks or complete the requested outputs."
             : null;
-        return new CaseV2JobResult(
+        return new(
             jobId, response.CaseId, response.OutputPath, response.ValidationErrors.Count,
             response.AssetsRenderedPdfs, response.AssetsRenderedImages, response.BlobsPublished,
             hasErrors, error, response.StageLatencyMs, response.AutoFixesApplied,
             response.RefineAttempted, response.RefineErrorsBefore, response.RefineErrorsAfter,
-            response.RedTeam?.Verdict, quality, response.AssetsSkipped, response.Repair, response.Bundle);
+            response.RefineIterations, response.InputTokens, response.OutputTokens, response.CaseGraphEnabled,
+            response.FinalValidation,
+            response.FinalValidation?.Issues.All(issue => issue.Gate != FinalValidationGate.Graph || !issue.Blocking) == true,
+            !response.RefineAttempted && quality.Approved,
+            response.RepairPlateauCount, response.RepairOperationCount, response.Solver?.Correct == true,
+            response.EvidenceLayoutDiversity, response.EvidenceLayouts, response.SpecialistFindingsByCategory,
+            response.RedTeam?.Verdict, response.RedTeamInitial?.Verdict, response.RedTeamVerdictTrajectory,
+            response.RedTeamRerun, attempt, maxAttempts, response.Solver?.Score ?? 0,
+            quality, response.AssetsSkipped, response.Repair, response.Bundle);
     }
 }
 
@@ -138,19 +263,27 @@ public class CaseV2GenerateActivity
         var ct = ctx.CancellationToken;
         var reporter = _reporterFactory.Create(input.JobId);
 
-        await reporter.ReportStartedAsync(ct);
-        _logger.LogInformation("[CaseV2] Activity start jobId={JobId}", input.JobId);
+        await reporter.ReportAttemptStartedAsync(input.Attempt, input.MaxAttempts, ct);
+        _logger.LogInformation(
+            "[CaseV2] Activity start jobId={JobId} attempt={Attempt}/{MaxAttempts}",
+            input.JobId,
+            input.Attempt,
+            input.MaxAttempts);
 
         try
         {
             var response = await _generator.GenerateAsync(input.Request, reporter, ct);
 
-            var result = CaseV2JobResult.FromResponse(input.JobId, response);
+            var result = CaseV2JobResult.FromResponse(input.JobId, response, input.Attempt, input.MaxAttempts);
             if (result.HasErrors)
             {
-                _logger.LogWarning("[CaseV2] Activity completed with blockers jobId={JobId}: {Error}",
-                    input.JobId, result.ErrorMessage);
-                await reporter.ReportFailedAsync(result.ErrorMessage!, ct);
+                _logger.LogWarning("[CaseV2] Activity completed with validation errors jobId={JobId} errors={Count}",
+                    input.JobId, response.ValidationErrors.Count);
+                var error = result.ErrorMessage!;
+                if (input.Attempt < input.MaxAttempts)
+                    await reporter.ReportRetryScheduledAsync(error, RetryAt(input.Attempt), ct);
+                else
+                    await reporter.ReportFailedAsync(error, ct);
             }
             else
             {
@@ -158,6 +291,17 @@ public class CaseV2GenerateActivity
             }
 
             return result;
+        }
+        catch (Exception ex) when (input.Attempt < input.MaxAttempts && IsRetryable(ex))
+        {
+            _logger.LogWarning(
+                ex,
+                "[CaseV2] Retryable activity failure jobId={JobId} attempt={Attempt}/{MaxAttempts}",
+                input.JobId,
+                input.Attempt,
+                input.MaxAttempts);
+            await reporter.ReportRetryScheduledAsync(ex.Message, RetryAt(input.Attempt), CancellationToken.None);
+            return FailedAttempt(input, ex.Message);
         }
         catch (Exception ex)
         {
@@ -167,6 +311,53 @@ public class CaseV2GenerateActivity
             throw;
         }
     }
+
+    private static DateTimeOffset RetryAt(int attempt) =>
+        DateTimeOffset.UtcNow.AddSeconds(Math.Min(300, 15 * (1 << Math.Min(attempt - 1, 4))));
+
+    private static bool IsRetryable(Exception exception) =>
+        exception is CaseBibleValidationException
+        or TimeoutException
+        or HttpRequestException
+        || exception is Azure.RequestFailedException requestFailed
+        && (requestFailed.Status is 408 or 429 || requestFailed.Status >= 500)
+        || exception.InnerException is not null && IsRetryable(exception.InnerException);
+
+    private static CaseV2JobResult FailedAttempt(CaseV2OrchestrationInput input, string error) => new(
+        JobId: input.JobId,
+        CaseId: input.Request.CaseId ?? string.Empty,
+        OutputPath: string.Empty,
+        ValidationErrorsCount: 1,
+        AssetsRenderedPdfs: 0,
+        AssetsRenderedImages: 0,
+        BlobsPublished: 0,
+        HasErrors: true,
+        ErrorMessage: error,
+        StageLatencyMs: new Dictionary<string, double>(),
+        AutoFixesApplied: new List<string>(),
+        RefineAttempted: false,
+        RefineErrorsBefore: 0,
+        RefineErrorsAfter: 1,
+        RefineIterations: 0,
+        InputTokens: 0,
+        OutputTokens: 0,
+        CaseGraphEnabled: false,
+        FinalValidation: null,
+        GraphValidationPassed: false,
+        FirstPassSuccess: false,
+        RepairPlateauCount: 0,
+        RepairOperationCount: 0,
+        SolverSucceeded: false,
+        EvidenceLayoutDiversity: 0,
+        EvidenceLayouts: new List<string>(),
+        SpecialistFindingsByCategory: new Dictionary<string, int>(),
+        RedTeamVerdict: null,
+        RedTeamVerdictInitial: null,
+        RedTeamVerdictTrajectory: new List<string>(),
+        RedTeamRerun: false,
+        AttemptCount: input.Attempt,
+        MaxAttempts: input.MaxAttempts,
+        SolverScore: 0);
 }
 
 /// <summary>
@@ -176,10 +367,14 @@ public class CaseV2GenerateActivity
 public class StartCaseV2GenerationFunction
 {
     private readonly ILogger<StartCaseV2GenerationFunction> _logger;
+    private readonly IConfiguration _configuration;
 
-    public StartCaseV2GenerationFunction(ILogger<StartCaseV2GenerationFunction> logger)
+    public StartCaseV2GenerationFunction(
+        ILogger<StartCaseV2GenerationFunction> logger,
+        IConfiguration configuration)
     {
         _logger = logger;
+        _configuration = configuration;
     }
 
     [Function("StartCaseV2Generation")]
@@ -247,7 +442,11 @@ public class StartCaseV2GenerationFunction
         // 3) schedule the orchestration with an explicit, unique instanceId (== jobId)
         ct.ThrowIfCancellationRequested();
         var jobId = $"{CaseV2GenerationOrchestrator.JobIdPrefix}{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..6]}";
-        var input = new CaseV2OrchestrationInput(request, jobId);
+        var maxAttempts = int.TryParse(_configuration["CaseGenV2:JobMaxAttempts"], out var configuredMaxAttempts)
+                          && configuredMaxAttempts > 0
+            ? Math.Min(configuredMaxAttempts, 10)
+            : 5;
+        var input = new CaseV2OrchestrationInput(request, jobId, MaxAttempts: maxAttempts);
 
         try
         {
@@ -319,6 +518,15 @@ public class GetCaseV2JobStatusFunction
 
         // Pull blob phase (best-effort)
         string? currentPhase = null;
+        string? currentStageId = null;
+        string? pipelineVersion = null;
+        double? progressPercent = null;
+        object? stages = null;
+        object? attempts = null;
+        int? currentAttempt = null;
+        int? maxAttempts = null;
+        DateTimeOffset? nextRetryAt = null;
+        string? retryReason = null;
         string? blobError = null;
         try
         {
@@ -327,6 +535,39 @@ public class GetCaseV2JobStatusFunction
             if (blob is not null)
             {
                 currentPhase = blob.CurrentPhase;
+                currentStageId = blob.CurrentStageId;
+                pipelineVersion = blob.PipelineVersion;
+                progressPercent = blob.ProgressPercent;
+                stages = blob.Stages.Select(stage => new
+                {
+                    id = stage.Id,
+                    status = stage.Status,
+                    attempt = stage.Attempt,
+                    startedAt = stage.StartedAt,
+                    completedAt = stage.CompletedAt,
+                    durationMs = stage.DurationMs
+                }).ToArray();
+                attempts = blob.Attempts.Select(attempt => new
+                {
+                    number = attempt.Number,
+                    status = attempt.Status,
+                    startedAt = attempt.StartedAt,
+                    completedAt = attempt.CompletedAt,
+                    error = attempt.Error,
+                    stages = attempt.Stages.Select(stage => new
+                    {
+                        id = stage.Id,
+                        status = stage.Status,
+                        attempt = stage.Attempt,
+                        startedAt = stage.StartedAt,
+                        completedAt = stage.CompletedAt,
+                        durationMs = stage.DurationMs
+                    }).ToArray()
+                }).ToArray();
+                currentAttempt = blob.CurrentAttempt;
+                maxAttempts = blob.MaxAttempts;
+                nextRetryAt = blob.NextRetryAt;
+                retryReason = blob.RetryReason;
                 blobError = blob.Error;
             }
         }
@@ -341,18 +582,19 @@ public class GetCaseV2JobStatusFunction
         if (isTerminal)
         {
             currentPhase = null; // suppress stale phase on terminal states
-            if (metadata.RuntimeStatus == OrchestrationRuntimeStatus.Completed)
+            currentStageId = null;
+            if (status == "done")
             {
-                var completed = ResolveCompletedResult(metadata.SerializedOutput);
-                status = completed.Status;
-                result = completed.Result;
-                error = completed.Error;
-                if (status == "failed")
-                    _logger.LogWarning("Completed job {JobId} has a logical failure: {Error}", jobId, error);
+                var resolved = ResolveCompletedResult(metadata.SerializedOutput);
+                status = resolved.Status;
+                result = resolved.Result;
+                error = resolved.Error;
             }
-            else if (status == "failed")
+            if (status == "done")
+                progressPercent = 100;
+            if (status == "failed")
             {
-                error = ExtractFailureMessage(metadata, blobError);
+                error ??= ExtractFailureMessage(metadata, blobError);
                 _logger.LogWarning(
                     "Job {JobId} failed. FailureDetails present: {HasDetails}. ErrorType: {ErrorType}. Resolved error: {Error}",
                     jobId,
@@ -368,6 +610,15 @@ public class GetCaseV2JobStatusFunction
             jobId,
             status,
             currentPhase,
+            currentStageId,
+            pipelineVersion,
+            progressPercent,
+            stages,
+            attempts,
+            currentAttempt,
+            maxAttempts,
+            nextRetryAt,
+            retryReason,
             runtimeStatus = metadata.RuntimeStatus.ToString(),
             createdAt = metadata.CreatedAt,
             lastUpdatedAt = metadata.LastUpdatedAt,

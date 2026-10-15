@@ -1,0 +1,6 @@
+[
+  "fact.culprit|derivation.culprit_a|observation.identity_a|derivation.culprit_a",
+  "fact.culprit|derivation.culprit_b|observation.identity_b|derivation.culprit_b",
+  "fact.excluded_one|derivation.exclude_one|observation.decoy_one|derivation.exclude_one",
+  "fact.excluded_two|derivation.exclude_two|observation.decoy_two|derivation.exclude_two"
+]

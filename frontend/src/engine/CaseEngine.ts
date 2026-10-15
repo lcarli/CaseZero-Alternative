@@ -75,14 +75,14 @@ export class CaseEngine {
   async loadCase(caseId: string): Promise<void> {
     try {
       const caseData = await this.apiClient.getCase(caseId)
-      const visibleAssets = caseData.assets
-      const visibleEmails = caseData.emails
-      const visibleSuspects = caseData.suspects
+      // Trust the sanitized response from the backend: it already includes
+      // entities that are 'initial' OR session-unlocked (CaseSessionVisible*).
+      // Re-filtering by static visibility here would discard session unlocks.
       this.setState({
         case: caseData,
-        visibleAssets,
-        visibleEmails,
-        visibleSuspects,
+        visibleAssets: caseData.assets,
+        visibleEmails: caseData.emails,
+        visibleSuspects: caseData.suspects,
         notifications: caseData.notifications ?? [],
         submission: {
           attemptsUsed: 0,
@@ -95,15 +95,25 @@ export class CaseEngine {
     }
   }
 
-  async refreshCase(): Promise<void> {
-    const caseId = this.state.case?.caseId
+  // Refetch the sanitized case to pick up session-visibility changes
+  // (e.g., after a user downloads an email attachment, which unlocks an
+  // asset server-side). Preserves submission/notifications state.
+  async refreshCase(caseId = this.state.case?.caseId): Promise<void> {
     if (!caseId) return
-    const data = await this.apiClient.getCase(caseId)
-    if (this.state.case?.caseId !== caseId) return
-    this.setState({
-      case: data, visibleAssets: data.assets, visibleEmails: data.emails,
-      visibleSuspects: data.suspects, notifications: data.notifications ?? [],
-    })
+    try {
+      const caseData = await this.apiClient.getCase(caseId)
+      if (this.state.case?.caseId !== caseId) return
+      this.setState({
+        case: caseData,
+        visibleAssets: caseData.assets,
+        visibleEmails: caseData.emails,
+        visibleSuspects: caseData.suspects,
+        notifications: caseData.notifications ?? this.state.notifications,
+      })
+    } catch (err) {
+      console.error('CaseEngine.refreshCase failed:', err)
+      throw err
+    }
   }
 
   async viewAsset(assetId: string): Promise<void> {
@@ -144,7 +154,7 @@ export class CaseEngine {
     const result = await this.apiClient.submitCase(this.state.case.caseId, payload)
     this.setState({
       submission: {
-        attemptsUsed: this.state.submission.attemptsUsed + 1,
+        attemptsUsed: this.state.submission.maxAttempts - result.attemptsRemaining,
         maxAttempts: this.state.submission.maxAttempts,
         lastResult: result
       }

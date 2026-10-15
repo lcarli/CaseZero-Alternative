@@ -28,6 +28,7 @@ export interface User {
   position?: string
   badgeNumber?: string
   emailVerified: boolean
+  roles?: string[]
 }
 
 export interface Case {
@@ -120,7 +121,7 @@ export interface GeneratePoliceEmailResponse {
 
 // (Legacy v1 generation request shapes were here; replaced by the v2 GenerateCaseRequest below the new caseGenerationApi.)
 
-class ApiError extends Error {
+export class ApiError extends Error {
   public status: number
   
   constructor(status: number, message: string) {
@@ -132,11 +133,27 @@ class ApiError extends Error {
 
 // Token management
 const TOKEN_KEY = 'casezero_token'
+const USER_KEY = 'casezero_user'
 
 export const tokenStorage = {
   get: () => localStorage.getItem(TOKEN_KEY),
   set: (token: string) => localStorage.setItem(TOKEN_KEY, token),
   remove: () => localStorage.removeItem(TOKEN_KEY)
+}
+
+export const userStorage = {
+  get: (): User | null => {
+    const value = localStorage.getItem(USER_KEY)
+    if (!value) return null
+    try {
+      return JSON.parse(value) as User
+    } catch {
+      localStorage.removeItem(USER_KEY)
+      return null
+    }
+  },
+  set: (user: User) => localStorage.setItem(USER_KEY, JSON.stringify(user)),
+  remove: () => localStorage.removeItem(USER_KEY)
 }
 
 // Base fetch function with token handling
@@ -193,9 +210,12 @@ export const authApi = {
     
     // Store the token
     tokenStorage.set(response.token)
+    userStorage.set(response.user)
     
     return response
   },
+
+  me: async (): Promise<User> => apiFetch('/auth/me'),
   
   register: async (userData: RegisterRequest): Promise<{ message: string, policeEmail: string, personalEmail: string }> => {
     return apiFetch('/auth/register', {
@@ -230,6 +250,7 @@ export const authApi = {
   
   logout: () => {
     tokenStorage.remove()
+    userStorage.remove()
   },
   
   isAuthenticated: () => {
@@ -400,7 +421,7 @@ export interface GenerateCaseQualityReport {
   Persisted: boolean
   PublicationRequested: boolean
   Published: boolean
-  SolverMode: 'diagnostic'
+  SolverMode: 'diagnostic' | 'player-visible'
   Issues: GenerateCaseQualityIssue[]
 }
 
@@ -424,10 +445,39 @@ export interface GenerateCaseBundleReport {
   ManifestChecksum: string
 }
 
+export type GenerationStageStatus = 'pending' | 'running' | 'completed' | 'skipped' | 'failed'
+
+export interface GenerationStageProgress {
+  id: string
+  status: GenerationStageStatus
+  attempt: number
+  startedAt?: string | null
+  completedAt?: string | null
+  durationMs?: number | null
+}
+
+export interface GenerationAttemptProgress {
+  number: number
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  startedAt?: string | null
+  completedAt?: string | null
+  error?: string | null
+  stages: GenerationStageProgress[]
+}
+
 export interface GenerateCaseStatus {
   jobId: string
   status: 'queued' | 'running' | 'done' | 'failed'
   currentPhase?: string | null
+  currentStageId?: string | null
+  pipelineVersion?: string | null
+  progressPercent?: number | null
+  stages?: GenerationStageProgress[] | null
+  attempts?: GenerationAttemptProgress[] | null
+  currentAttempt?: number | null
+  maxAttempts?: number | null
+  nextRetryAt?: string | null
+  retryReason?: string | null
   runtimeStatus?: string
   createdAt?: string
   lastUpdatedAt?: string
@@ -447,7 +497,26 @@ export interface GenerateCaseStatus {
     RefineAttempted?: boolean
     RefineErrorsBefore?: number
     RefineErrorsAfter?: number
+    RefineIterations?: number
+    CaseGraphEnabled?: boolean
+    GraphValidationPassed?: boolean
+    FirstPassSuccess?: boolean
+    RepairPlateauCount?: number
+    RepairOperationCount?: number
+    SolverSucceeded?: boolean
+    SpecialistFindingsByCategory?: Record<string, number>
+    FinalValidation?: {
+      Score?: number
+      Passed?: boolean
+      Issues?: Array<{ Blocking?: boolean }>
+    } | null
     RedTeamVerdict?: string | null
+    RedTeamVerdictInitial?: string | null
+    RedTeamVerdictTrajectory?: string[] | null
+    RedTeamRerun?: boolean
+    AttemptCount?: number
+    MaxAttempts?: number
+    SolverScore?: number
     Quality?: GenerateCaseQualityReport | null
     AssetsSkipped?: number
     Repair?: GenerateCaseRepairReport | null
@@ -725,7 +794,7 @@ export const assetsApi = {
 export interface EmailDTO {
   emailId: string
   from: string
-  to: string
+  to: string | string[]
   subject: string
   content: string
   sentAt: string
@@ -772,11 +841,8 @@ export const emailsApi = {
   /**
    * Download email attachment (Task 50)
    */
-  downloadAttachment: async (caseId: string, emailId: string, assetId: string): Promise<void> => {
-    return apiFetch(`/cases/${caseId}/emails/${emailId}/attachments/${assetId}/download`, {
-      method: 'POST'
-    })
-  }
+  downloadAttachment: async (caseId: string, emailId: string, assetId: string): Promise<Blob> =>
+    casesV2Api.downloadAttachment(caseId, emailId, assetId)
 }
 
 // Task 51: Forensic Requests API
@@ -824,13 +890,16 @@ export const forensicsApi = {
 }
 
 // ── V2 Cases API ─────────────────────────────────────────────────────────────
-import type { CaseV2Sanitized, SubmitCaseRequest, SubmitCaseResult, CaseDashboardItem } from '../types/caseV2'
+import type { CaseV2Sanitized, SubmitCaseRequest, SubmitCaseResult, CaseDashboardItem, DashboardActivity, CasesByDifficultyBucket, PromotionProgress } from '../types/caseV2'
+import type { ProfileStats } from '../types/profile'
 
 export const casesV2Api = {
   getDashboard: async (): Promise<{
     cases: CaseDashboardItem[]
     stats?: { casesResolved: number; casesActive: number; successRate: number; averageRating: number }
-    recentActivities?: Array<{ description: string; date: string; type?: string; caseId?: string }>
+    casesByDifficulty?: CasesByDifficultyBucket[]
+    promotion?: PromotionProgress
+    recentActivities?: DashboardActivity[]
   }> =>
     apiFetch('/cases/dashboard'),
 
@@ -870,4 +939,25 @@ export const casesV2Api = {
     }),
 }
 
-export { ApiError }
+export const profileApi = {
+  getStats: async (): Promise<ProfileStats> => apiFetch('/profile/stats'),
+}
+
+export interface InboxEmail {
+  id: number
+  subject: string
+  content: string
+  preview?: string
+  type: string
+  priority: string
+  sentAt: string
+  isRead: boolean
+  metadataJson?: string
+}
+
+export const inboxApi = {
+  getInbox: async (): Promise<InboxEmail[]> => apiFetch('/inbox'),
+  getUnreadCount: async (): Promise<{ unread: number }> => apiFetch('/inbox/unread-count'),
+  markRead: async (id: number): Promise<void> =>
+    apiFetch(`/inbox/${id}/read`, { method: 'POST' }),
+}

@@ -1,444 +1,671 @@
 # Case Generation Pipeline
 
-The CaseZero case generator is an Azure Functions app (`CaseGen.Functions`, .NET 9
-isolated worker) that produces detective case bundles on demand. It is
-driven by a Durable Functions orchestration and a fine-grained **micro-task**
-LLM pipeline. Each case is a `case.json` v2 document plus a folder of rendered
-assets (PDFs and images) with an integrity manifest. Approved bundles can be published to the same blob
-container the website reads from. The current reviewer and diagnostic solver
-do not yet certify full narrative coherence or runtime playability.
+This document is the canonical architecture reference for Case v2 generation in `functions/CaseGen.Functions`.
+
+The public case format is documented in [`CASE_JSON_V2_SPEC.md`](./CASE_JSON_V2_SPEC.md), HTTP routes in [`API_COMPLETE.md`](./API_COMPLETE.md), and gameplay consumption in [`BACKEND_ARCHITECTURE.md`](./BACKEND_ARCHITECTURE.md).
+
+## Purpose
+
+The generator creates a complete detective dossier from a small request:
+
+- one selected language;
+- one of seven difficulty levels;
+- an optional title, theme, location, case ID, and seed;
+- a persistence choice.
+
+Generation does not translate one case into four languages. Every agent, document, rendered label, email, and player-facing field uses the language selected in the request.
+
+The central invariant is:
+
+> The Case Bible defines the fictional truth once. Every plot, suspect, document, observation, forensic result, rule, proof, question, and rendered asset must project from that truth.
+
+## Runtime architecture
+
+`CaseGen.Functions` is a .NET 9 Azure Functions isolated-worker application using Durable Functions.
+
+```mermaid
+flowchart TD
+    POST[POST /api/cases/v2/generate] --> START[StartCaseV2Generation]
+    START --> ORCH[Durable orchestrator]
+    ORCH -->|seven checkpointed stages| ACT[Stage activity]
+    ACT --> GEN[CaseV2GeneratorService]
+    GEN --> LLM[Azure Foundry text/image models]
+    GEN --> DISK[Local case directory]
+    GEN --> BLOB[Azure Blob bundles container]
+    STATUS[GET /api/cases/v2/jobs/jobId] --> DURABLE[Durable status]
+    STATUS --> PROGRESS[Per-job progress blob]
+```
+
+The reconciled orchestrator uses seven coarse activities: Planning, Authorship,
+Forensics, Solution, Evaluation, Rendering and Publication. Confirmed state is
+stored in immutable, checksummed private blobs; only compact references enter
+Durable history. References bind job, frozen request, immediate predecessor and
+harness definition. Restoring a terminal result does not download staged assets.
+
+A private reservation is written before executing a stage. A confirmed stage
+can replay without provider calls; a stage whose paid-call outcome is unknown
+is blocked rather than automatically regenerated. There is no whole-pipeline
+automatic retry in this path. The legacy whole-generation activity remains
+registered, so active-job/version compatibility must be resolved before deploy.
+The storage SDK and individual tasks retain their bounded retries.
+
+The starter's singleton check is still best-effort, and cancellation/termination
+publication races and real Blob-store integration coverage are unfinished.
+This is not yet a deployment-ready pipeline; see
+[`CASE_GENERATION_HANDOFF.md`](./CASE_GENERATION_HANDOFF.md).
+
+`JobPhaseReporter` writes best-effort progress independently of the activity result. Reporter failures never stop generation.
 
 ## Entry points
 
-- **`POST /api/cases/v2/generate`** — kicks off generation, returns `202 Accepted + jobId`.
-  Body fields (all optional; `{}` or an empty body uses the documented defaults):
-  ```json
-  {
-    "caseId": "case_002",
-    "title": "The River Drop",
-    "theme": "Body found at a dockyard under the morning fog",
-    "location": "Seattle, Washington",
-    "difficulty": "Detective",
-    "requiredRank": "Detective",
-    "language": "en-US",
-    "seed": 42,
-    "writeToDisk": true
-  }
-  ```
-- **`GET /api/cases/v2/jobs/{jobId}`** — poll status. Composes Durable runtime
-  status with a per-phase blob status published by `JobPhaseReporter`. While
-  running, returns `{ status: "running", currentPhase: "<stage>", ... }`. On
-  completion returns the result summary, including quality issues, actual
-  persistence/publication flags, validation counts, render counts, and refine
-  telemetry. A Durable `Completed` job with logical blockers is reported as
-  `status: "failed"` with its result and error preserved.
+| Method | Route | Behavior |
+|---|---|---|
+| `POST` | `/api/cases/v2/generate` | Schedules a Durable orchestration and returns `202` with a job ID |
+| `GET` | `/api/cases/v2/jobs/{jobId}` | Combines Durable runtime state with detailed stage progress and final result |
 
-A best-effort singleton check rejects concurrent runs with `409 Conflict` and
-the `jobId` of the in-flight job.
+Example request:
 
-Malformed JSON, duplicate/unknown properties, invalid types, unsupported ranks
-or languages, blank explicit hints, and invalid case IDs return **400** with
-`error: "invalid_request"` and an `errors` array. Bodies above **16 KiB** return
-**413**, `error: "request_too_large"`. Neither path schedules a Durable job or
-calls a model. Cancellation propagates instead of becoming a default request.
-Valid property names remain case-insensitive, but enum values are exact.
-
-Ranks are `Rookie`, `Detective`, `Detective2`, `Sergeant`, `Lieutenant`, `Captain`,
-and `Commander`. Languages are `pt-BR`, `en-US`, `es-ES`, and `fr-FR`.
-`difficulty` defaults to `Detective`, `requiredRank` to the difficulty,
-`language` to `en-US`, and `writeToDisk` to `true`. `seed` is an optional
-32-bit integer and is still metadata, not a reproducibility guarantee.
-Explicit `caseId`, `title`, `theme`, and `location` are limited to 128, 200,
-2000, and 300 characters respectively. A case ID may contain letters, digits,
-underscores, or hyphens; existing lowercase/prefix/hyphen normalization is
-preserved. The generation UI omits empty optional hints rather than sending
-an invalid explicit value.
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  POST /api/cases/v2/generate                                    │
-│        ↓                                                         │
-│  StartCaseV2GenerationFunction                                   │
-│        ↓ schedule                                                │
-│  CaseV2GenerationOrchestrator (durable, instanceId = jobId)     │
-│        ↓                                                         │
-│  CaseV2GenerateActivity                                          │
-│        ↓                                                         │
-│  CaseV2GeneratorService.GenerateAsync(request, reporter)         │
-│        ↓ micro-tasks → quality gate → isolated rendering          │
-│  verified manifest → immutable assets → conditional JSON commit  │
-└─────────────────────────────────────────────────────────────────┘
+```json
+{
+  "caseId": "case_harbor_423",
+  "title": "Optional title hint",
+  "theme": "A homicide at a harbor warehouse",
+  "location": "Seattle, Washington",
+  "difficulty": "Detective",
+  "requiredRank": "Detective",
+  "language": "en-US",
+  "seed": 423,
+  "writeToDisk": true
+}
 ```
 
-The website (`CaseZeroApi` → `CaseV2StorageService`) reads from the same
-`bundles` container in production. A successfully published bundle becomes
-visible when the dashboard cache refreshes. A preview or local-only run does
-not claim production publication.
+Supported difficulties:
 
-## The phases
+- `Rookie`
+- `Detective`
+- `Detective2`
+- `Sergeant`
+- `Lieutenant`
+- `Captain`
+- `Commander`
 
-`CaseV2GeneratorService` runs these stages in order. The phase name shown is
-what `JobPhaseReporter` publishes during execution so the GET status endpoint
-can show progress. Per-stage latencies are reported on completion.
+Supported locale profiles are `en-US`, `pt-BR`, `es-ES`, and `fr-FR`.
 
-| # | Phase | Role |
-|---|-------|------|
-| 1 | `plotOutline` | LLM establishes setting, victim, incident, suspect identities and private culprit choice |
-| 2 | `caseBible` | LLM plans canonical entities/facts/claims, author knowledge, source inventory, time windows, discovery, forensic methods, sufficient proof and supported answers; deterministic validation blocks invalid plans |
-| 3 | `suspectCards` | Parallel scoped authors write recorded profiles/statements; opening alibi verification follows independent supported evidence |
-| 4 | `assetsAndTimelineAndBriefing` | Parallel scoped asset/briefing authors; chronology is compiled from the Bible, preserving uncertainty and attribution |
-| 5 | `outcomesAndInitialEmails` | Parallel planned forensic conclusions/reports/emails and separately scoped initial email authors; no new source IDs or scientific matches |
-| 6 | `mechanicalRules` | **Deterministic** compilation of canonical hidden-source discovery, including non-forensic/nested conditions |
-| 7 | `rulesAndSolutionSkeleton` | Historical phase ID: the solution is already planned; LLM may add neutral notifications, not new discovery or verification |
-| 8 | `questionsAndExplanation` | Parallel supported questions and post-mortem explanation, with internal content excerpts |
-| 9 | `consistency` | **Deterministic** checks of authored support, canonical bindings, IDs, time precision, discovery and playable reachability |
-| 10 | Compilation *(no separate progress phase)* | Compile unchanged public `case.json` v2, excluding private Bible/support fields; validate public schema and canonical contracts |
-| 11 | `redTeamAndSolver` | Parallel full-body/Bible adversarial comparison and diagnostic-only player-visible solver |
-| 12 | `refineCase` *(conditional)* | One typed repair of supported prose/components, never of the locked facts/source graph |
-| 13 | `revalidateRepair` *(candidate only)* | Recheck support, preparation, consistency/compilation/contracts, then obtain fresh review/diagnostic solver |
-| 14 | `qualityGate` | Schema/consistency errors, blocking or unavailable review, revision mismatch, and unsuccessful repair block output |
-| 15 | `renderAssets` *(approved, non-preview only)* | Render reviewed documents without factual enrichment; report actual filenames/MIME and reject unsupported media |
-| 16 | `verifyBundle` *(non-preview only)* | Check bytes, size, MIME, SHA-256 and exact coverage; seal the manifest, materialize actual URIs, and revalidate public JSON |
-| 17 | `preparePublication` *(non-preview only)* | Acquire a local case-ID lock, copy only the new immutable bundle, and verify the destination before any remote commit |
-| 18 | `publishToBlob` *(configured, non-preview only)* | Create immutable assets/manifest, verify remote bytes, then conditionally commit `case.json`; conflicts/failures block the job |
-| 19 | `persistCase` *(non-preview only)* | Reverify the bundle and unchanged local JSON, then atomically replace only `case.json`; retain all prior assets |
+A best-effort singleton check searches for an active Case v2 orchestration created in the previous 24 hours. If one is found, the starter returns `409` with its job ID. This check reduces accidental concurrency but is not a transactional distributed lock.
 
-Conditional stages with no work are skipped. `assetPlan`, `forensicsPlan` and
-`autoFixSchema` remain recognized historical UI phases, not current generation
-calls. Independent replanning and JSON-only auto-fixing are no longer used.
-The UI uses the recorded stage timings rather than marking all terminal stages
-as completed. Stages without records are labeled accordingly.
+## Job progress model
 
-## Private CaseBible and supported authorship
+The public progress model is versioned as `canonical-harness-2`. It retains
+the `stages` and attempt-history shapes for compatibility.
 
-The Bible is planned and validated **before** parallel prose expansion. It
-records the private timed criminal act, canonical location/victim/entities,
-positive facts, attributed claims and their intentional disagreements. Every
-source declares its author, permitted facts/claims, issue time, stable identity,
-visibility, attachments and exact discovery condition. Authors receive only
-their source's facts/claims and relevant identity metadata, not the private
-culprit choice, crime fact, claim truth classifications or internal source role.
+| Public stage | Internal phases |
+|---|---|
+| `caseDesign` | `caseBible`, `plotOutline`, `suspectCards` |
+| `graphConstruction` | `assetPlan` |
+| `evidenceProduction` | `assetsAndTimelineAndBriefing`, `rookieInitialEvidence` |
+| `forensicWorkflow` | `forensicsPlan`, `outcomesAndInitialEmails` |
+| `solutionDesign` | `mechanicalRules`, `rulesAndSolutionSkeleton`, `questionsAndExplanation` |
+| `deterministicValidation` | `consistency`, `autoFixSchema` |
+| `solutionWitness` | `solutionWitness` |
+| `advisoryReview` | `advisoryReview` |
+| `targetedRepair` | `targetedRepair` |
+| `finalValidation` | `finalValidation` |
+| `finalization` | `renderAssets`, `publishToBlob` |
 
-Plans require 4-10 investigation assets, one profile per suspect and an opening
-briefing; result reports/emails are bound to their producing forensic pair.
-The unchanged v2 schema requires at least one available analysis method, but
-neither a positive lab result nor a required analysis is mandatory. Complementary
-documentary proof can suffice without a forensic suspect match. Individualizing
-identification must concern the matched entity; similarity or no findings cannot
-be decisive proof or independent alibi verification.
+Each public stage records status, attempt count, start/completion timestamps, and duration. The status endpoint also returns the exact internal `currentPhase`.
 
-Every authored source supplies internal `support: [{referenceId, excerpt}]`.
-The exact references must cover its approved facts/claims, and each excerpt
-must occur in actual delivered document sections or email/profile text, not
-merely a listing description. Questions and explanation similarly bind their
-supported answers/assertions. Verified alibis need independently authored,
-readable exclusion evidence, not a generated image prompt or a suspect's own
-assertion. Proof/question/alibi/explanation sources must be reachable in the
-planned **and** authored graph. Canonical requirements are not silently dropped.
+The job-level progress payload also returns `currentAttempt`, `maxAttempts`, `nextRetryAt`, `retryReason`, and `attempts`. Every attempt contains its own stage history, timestamps, status, and terminal error. Starting a new complete attempt does not erase earlier phases.
 
-Anchoring is **not semantic entailment**: a present quotation can still be
-misleading. The blocking red-team compares full material, excerpts and canonical
-facts, author knowledge, time precision and technical limitations, including
-unsupported decisive prose. This remains an LLM-based review, not a scientific
-or full runtime-playability guarantee. Image prompts cannot independently
-support decisive proof, question answers or verified alibis.
+Retries exist at two distinct levels:
 
-Chronology is deterministic, retains estimated/interval bounds in the narrative
-and labels claims as attributed/unverified. Source creation cannot precede its
-asserted observation; opening material must already exist. Rookie/all-initial
-plans also require result sources to exist by case opening. Source identity,
-sender, timestamps, attachments, findings, sufficient proof and answer text
-remain bound throughout expansion and repair. Bible-bound documents bypass
-templates that could invent observations; legacy unbound assets retain their
-existing one-time template behavior.
+1. `CaseBibleTask` can perform up to three semantic retries inside one complete attempt. These retries reuse actionable validation feedback to repair the canonical world before downstream generation begins.
+2. The staged Durable path reuses only confirmed checkpoints. Unconfirmed
+   executions are not automatically repeated, even when that sacrifices
+   availability to avoid unknown duplicate paid calls.
 
-The Bible and support fields are internal draft/review contracts. They are
-never added to public `case.json`, asset manifests or player APIs; its version
-and strict schema remain unchanged.
+## Canonical data layers
 
-## Microtask contracts and bounded calls
+The generator intentionally separates four representations.
 
-`MicrotaskSchemas` defines closed, typed schemas for every generation task.
-`TaskRunner` checks JSON syntax, duplicate properties, the full local schema,
-and task-specific invariants **before** deserializing/returning a draft update.
-Raw responses are capped at 256 KiB. Missing fields and unsupported enums do
-not become C# defaults; model output is not extracted from prose, converted
-to `{}`, or silently repaired by the provider.
+### 1. Case Bible
 
-`bodyDoc.sections` is discriminated: prose/callouts need text, tables need
-columns and rows, key/value sections need items, transcripts need entries,
-and code sections need content. Arrays and text are bounded, and every table
-row must have the same number of cells as its columns. Initial PDF/document/
-digital cards require `bodyDoc`; forensic reports may still use validated
-nonblank markdown for renderer compatibility.
-New plans support `photo`, `pdf`, `document`, and `digital`. Speech evidence is
-an explicitly authored document transcript (`InterviewTranscript`), not an
-advertised recording. Audio/video/unsupported types never emit placeholders;
-the public v2 schema and readers still support existing legacy media.
+`CaseBible` is the private, typed source of truth. It contains:
 
-Suspect/asset cards and questions must echo their upstream identity. IDs are
-rejected rather than renamed without reconciling references. Culprit flags,
-forensic pairs and supported asset types, result assets/emails, reachable
-solution evidence, required analyses, rule references (including nested
-conditions), option IDs, and the selected answer are checked before updating
-the draft. Invalid choices are never replaced with the first option; a
-missing culprit match is never converted into fabricated forensic evidence.
-This is contract enforcement, not full narrative or scientific review.
+- world, city, jurisdiction, time zone, and police agency;
+- institutions, locations, addresses, and travel times;
+- people, roles, relationships, employment, and work schedules;
+- devices, accounts, vehicles, and stable identifiers;
+- the private incident truth and culprit;
+- the chronological truth timeline;
+- evidence sources;
+- canonical facts;
+- source-bound observations;
+- clues and independent proof paths;
+- decoy arcs;
+- forensic opportunities;
+- intentional conflicts and their resolutions;
+- investigation constraints and facts that repairs must preserve.
 
-Critical microtasks and the red-team get at most **one retry** for a malformed
-contract or a transient provider failure (408, 429, 5xx/network/timeout).
-Contract retries include the specific error and preserve the supplied facts/
-IDs; permanent provider errors and cancellation do not retry. The diagnostic
-solver and the single refine pass have **no retries**. SDK retries are disabled
-so the task budget is not multiplied by hidden transport attempts. Parallel
-tasks are all awaited before leaving a phase.
+It is bounded rather than an unlimited metadata blob. Its structured-output schema limits collection sizes and enforces typed IDs so downstream prompts receive a manageable, referentially stable world model.
 
-Set `AzureFoundry:UseStructuredOutputs=true` (or the environment variable
-`AzureFoundry__UseStructuredOutputs=true`) only for a deployment supporting
-native JSON Schema output. The default is `false`. Native mode sets the SDK's
-`ResponseFormat` with `strict: true`, using a separate projection that removes
-unsupported native constraints and requires all fields. The original local
-schema, including those constraints, remains mandatory. Open schemas or
-schemas exceeding the compatible 100-property/five-object-level limits use
-the prompt path with an explicit warning; a case-sized repair schema may exceed
-these limits. An API rejection does not trigger an automatic weaker-mode
-fallback. Empty, refused, filtered, and token-truncated completions fail
-explicitly. No paid generation is needed for the synthetic regression suite.
+### 2. Case draft
 
-The public schema has a single source: `schemas/case.schema.json`. MSBuild
-links it into build **and publish** output as `Schemas/case.v2.schema.json`;
-do not maintain a Functions copy or overwrite source files in startup scripts.
+`CaseDraft` is the mutable orchestration workspace. It contains the Case Bible plus projected metadata, blueprint, suspect cards, asset plans, complete asset content, emails, forensic contracts, rules, solution, questions, and validation state.
 
-Local validation uses **JsonSchema.Net 7.4.0**, whose NuGet package has the MIT
-license, instead of the hourly-limited `Newtonsoft.Json.Schema`. `StructuredJson`
-shares the mechanism across microtasks, canonical repairs, and public-case
-validation: Draft 2020-12, mandatory format assertions, strict JSON parsing,
-duplicate rejection, and bounded diagnostics with JSON Pointer locations.
-The shared date-time format also checks actual calendar validity and explicit
-timezone syntax; the package's default regex alone accepts impossible dates.
-Historical timeline entries after case opening are deterministic blockers
-(preserving the existing one-minute tolerance); later gameplay events belong
-in `temporalEvents`, not the historical timeline.
-Regular `Newtonsoft.Json` remains only for schema construction/projection.
-The synthetic suite exercises more than 1,000 validations and concurrent reuse
-without weakening enforcement or splitting execution to bypass a quota.
+LLM tasks edit specific draft surfaces. They do not rewrite the entire final case document.
 
-The version pin is deliberate: newer JsonSchema.Net binary packages can carry
-additional maintenance-fee terms. Review package **and transitive** license
-terms before upgrading; do not assume the source MIT license is the only term
-governing a published binary. See the
-[adopted NuGet package](https://www.nuget.org/packages/JsonSchema.Net/7.4.0).
+### 3. Evidence graph and CaseGraph
 
-## Quality gate and output modes
+`EvidenceGraphCompiler` compiles the evolving evidence plan into claims and source relationships used during authoring.
 
-Playable progression is checked deterministically before approval. The fixed
-point starts from visible assets, initial emails (including the briefing) and
-suspects, then follows compatible forensic results, temporal payloads, email
-attachments and recursively evaluated rules. The generator and runtime share
-the `AND`/`OR` condition evaluator. A required item with only a circular reveal
-path is a blocker; validation no longer promotes hidden required evidence to
-`initial`. `Rookie`/`all_initial` visibility remains an intentional beginner
-mode, also honored by backend visibility and sanitization.
+`CaseGraph` is the typed logical model used for validation and deterministic play simulation. It contains:
 
-The runtime uses a server-owned, persisted 60x game clock for analysis durations
-and temporal events. Pauses preserve deadlines and accumulated events; completed
-analyses reveal their actual case documents/emails. The localized forensic UI
-uses visible v2 assets, case-configured analyses and backend requests, without
-simulated evidence/results. These operational regressions do not turn the
-diagnostic solver into a blind gameplay acceptance gate; that remains separate
-work.
+- entities and suspect references;
+- canonical facts and observations;
+- evidence sources and assigned observations;
+- derivations and culprit conclusions;
+- player actions and reveal dependencies;
+- forensic transforms;
+- decoy arcs;
+- required evidence and analysis IDs.
 
-The strict policy blocks `needs_review` and `reject`, any medium/high review
-finding (even alongside `verdict: "ok"`), and invalid/unavailable review.
-Only `ok` with no blocking findings can proceed. Low findings remain visible
-diagnostics. Reviewer JSON is validated locally before deserialization; omitted
-fields, invalid types/enums, duplicate properties, and fabricated success flags
-do not turn into approval.
+The graph is rebuilt after the solution skeleton because required evidence and analysis IDs are selected during that phase. It is also rebuilt after repairs.
 
-`result.Quality` is an additive job-result contract, not a change to `case.json`
-v2. It contains:
+### 4. Public Case v2 contract
 
-| Field | Meaning |
-|-------|---------|
-| `Approved` | This execution passed the applicable quality/output checks |
-| `Revision` / `ReviewedRevision` | Canonical content revision / application-stamped revision analyzed by the final reviewer |
-| `Preview` | `writeToDisk: false`: review the draft without rendering or storing files |
-| `PersistenceRequested` / `Persisted` | Whether local persistence was requested / actually completed |
-| `PublicationRequested` / `Published` | Whether storage publication was configured and requested / actually completed |
-| `SolverMode` | Always `diagnostic`; the solver score is not a publication prerequisite |
-| `Issues` | Stable `Code`, `Severity`, `Area`, optional `Reference`, original `Message`, and `Blocking` |
+The final player/runtime contract is `case.json`.
 
-Before artifact verification, files exist only in
-`<CasesBasePath>/.casegen-staging/<unique-workspace>/<caseId>/`.
-Local discovery checks direct child directories for `case.json`, so it cannot
-list these workspaces. Rejection and render failure leave an existing case
-unchanged and do not call the publisher. Workspaces are cleaned after use;
-local preparation copies only the new immutable bundle, never moves the prior
-case directory. Until the final JSON replacement, readers see the previous
-case or no case at all. An uncommitted local copy is cleaned only if current
-`case.json` does not reference it; prior files and hidden lock files are retained.
+When `CaseGenV2:CaseGraphEnabled=true`, `CaseGraphPublicContractCompiler` compiles the public contract from the canonical graph. The generator also builds the legacy projection and compares both surfaces for parity.
 
-The additive `result.Bundle` summary reports `BundleId`, `Revision`, `Verified`,
-`AssetsVerified`, `TotalBytes` (assets + manifest + JSON), and
-`ManifestChecksum`. Previews and historical results without a bundle report
-do not imply that file verification ran. Invalid/unverified or wrong-revision
-reports cannot override job failure with a legacy success flag.
+When the feature flag is false, the legacy assembler remains the public output, but the internal graph is still built for proof, reachability, solver, and quality validation.
 
-`writeToDisk: true` with an unconfigured publisher is an explicit local-only
-success. A configured publisher returning zero or failing is not a local-only
-success. Storage publication runs before local promotion, so a subsequent local
-failure can honestly report `Published: true`, `Persisted: false`, and a failed
-job. There is still no cross-storage transaction; each store has its own JSON
-commit point. Remote commit uncertainty is a failure, not an invented success,
-and cannot trigger deletion of potentially referenced artifacts.
+The feature flag defaults to `false`; deployments that require graph-compiled output must enable it explicitly.
 
-The GET endpoint checks the completed activity result instead of equating
-Durable `Completed` with success. It preserves the original result and issue
-references when returning `failed`. Missing/malformed completed results fail
-explicitly. Historical results without `Quality` retain their legacy
-validation/error outcome; the UI marks approval/publication flags unavailable
-rather than inferring them from counters.
+## Generation phases
 
-The generation UI is localized in `pt-BR`, `en-US`, `es-ES`, and `fr-FR`,
-including forms, phases, modes, issue labels, and severity. Original model and
-provider diagnostics remain available under the localized technical-details
-label; generated content is not silently translated.
+### 1. Case Bible
 
-## Artifact manifest and safe publication
+Internal phase: `caseBible`
 
-Every approved file-output run has a random immutable bundle ID, independent
-of the canonical content revision. A new generation can start at revision 0
-without colliding with a previous bundle. Final evidence URIs are
-`case://<caseId>/assets/<bundleId>/<actualFilename>`; unrendered previews use
-provisional extensionless references and never claim media exists.
+`CaseBibleTask` asks the model for one structured canonical world using difficulty-specific requirements and the forensic method catalog.
 
-`assets/<bundleId>/manifest.json` is an internal file contract:
-`{version, caseId, bundleId, revision, files:[{assetId, relativePath, mimeType,
-sizeBytes, sha256}]}`. Exactly one rendered file must cover each canonical/
-public asset. Duplicate IDs/names, extra files/directories, unsafe filenames,
-symlinks, missing/empty files, unsupported MIME/type combinations, extension
-mismatches, and changed bytes/metadata block output. Checks examine supported
-format signatures and basic terminators, not full PDF/image decoding or visual
-content. JPEG output produces a JPEG URI, never an assumed PNG URI.
+After each response:
 
-Public `assets[].checksum` and `metadata.mimeType/sizeBytes` come from the
-verified bytes. `gameMetadata.generation.bundleChecksum` is `sha256:<hash of
-the exact manifest bytes>`; `case.json` has a separately verified SHA-256,
-avoiding a circular manifest/JSON checksum. The manifest contains file
-descriptors, not authored bodies, hidden solution answers, or a new player API.
+1. Request overrides are applied so the selected language, location, and other explicit inputs win.
+2. `CaseBibleNormalizer` canonicalizes IDs, timestamps, UTC offsets, references, visibility, reciprocal device/account links, literal values, locations, and duplicate facts.
+3. `CaseBibleValidator` performs semantic and referential validation.
+4. On failure, the task can make up to three semantic attempts with actionable validation errors and compact-output guidance.
+5. If the final normalized result remains invalid, generation stops with `CaseBibleValidationException`.
 
-Blob publication uses create-only `If-None-Match: *` for all immutable files,
-SDK transfer checksums, and remote metadata/length/MIME checks followed by a
-streamed SHA-256 read-back. Existing names are reused only if their bytes and
-bundle/revision metadata match. `case.json` is uploaded last with the ETag from
-the bundle's first publication attempt (`If-Match`, or `If-None-Match: *` for a
-new case). That snapshot stays with the in-memory bundle during retries;
-a stale retry cannot roll back a newer commit. A lost successful commit
-response can be reconciled by verifying the same bundle's committed JSON.
-`BlobsPublished` counts published bundle objects, including verified objects
-reused on retry; it is not a count of new upload requests.
+Normalization must occur before semantic validation.
 
-Local writers hold an exclusive `.casegen-locks/<caseId>.lock`, verify the new
-copied bundle and original JSON checksum, and rename only the staged JSON over
-the final path on the same filesystem. Old bundles/legacy assets remain valid
-for cached readers. A conflict produces `publication_conflict` rather than
-overwriting another writer. Other stable artifact codes are `bundle_invalid`,
-`asset_integrity_failed`, and `asset_file_missing`.
+### 2. Plot projection
 
-There is no automatic retention/garbage collection of older or uncommitted
-remote bundles yet. On failed/uncertain publication, the owned prefix is
-logged and retained rather than risking deletion of a committed bundle.
-Do not delete historical assets merely because the newest JSON no longer
-references them. Persistent checkpoint recovery, full rendered-content
-inspection, and runtime playability remain separate deliveries.
+Internal phase: `plotOutline`
 
-## Canonical repair (one bounded pass)
+`PlotOutlineTask` projects the Bible into:
 
-`CaseDraft` is the single source for compilation, review, and rendering.
-Legacy templates prepare unbound documents before review, once per replaced
-document; Bible-bound documents preserve already authored canonical content.
-Red-team sees complete structured bodies, emails, temporal events, nested
-rules, questions, and explanation alongside the compiled `case.json`.
-Source authors receive restricted canonical contexts. The reviewer sees the
-private Bible and full material; the solver reads player-visible bodies but
-remains diagnostic.
+- public case metadata;
+- private incident blueprint;
+- suspect stubs;
+- clue ladder;
+- red-herring design;
+- locale/procedural context;
+- culprit ID.
 
-Structural errors, `needs_review`/`reject`, or medium/high findings can trigger
-one repair after a **successful** review. Invalid/unavailable review blocks
-the execution without attempting to rewrite content. The repair contract is
-closed and case-specific:
-`{baseRevision, changes:[{target, reason, value}]}`. `value` replaces one entire
-existing component. Duplicate/unknown targets, stale revisions, no-op repairs,
-invalid document sections/tables, and broken references are rejected.
+The task must reuse canonical people, locations, dates, identifiers, motives, alibis, and incident facts rather than invent replacements.
 
-The model must preserve the **locked CaseBible**, canonical location/victim/time
-windows, source plans/discovery, proof sets, answers, identities, request
-constraints, forensic pairs/findings/matches/result references and scoring.
-`caseBible` is excluded from editable targets. Prose repairs must retain
-canonical reference IDs and update their support/explanation excerpts to the
-new actual text; underlying truth cannot be rewritten to fit prose. Changing
-prose about suspects, narrative metadata, or timeline requires reconciling
-the dependent bodies, emails, conclusions, briefing, and solution in the same
-response. Changes in a forensic group require its outcome, report, email, and
-solution; attached emails/briefing and selected evidence have explicit
-dependencies too. Merely declaring a dependency is insufficient: its complete
-replacement is required, even when reconciliation leaves its facts unchanged.
+The Case Bible is validated again after projection. Projection mismatches are treated as blueprint defects, not permission to replace an otherwise valid Bible.
 
-Repairs apply to a deep copy. The candidate repeats preparation, consistency,
-canonical contracts, and public-schema compilation. A structurally valid
-candidate receives a **fresh** red-team review and diagnostic solver attempt.
-Acceptance requires no blocking issues, not a smaller schema-error count;
-semantic **0 -> 0** repair can therefore succeed. Review revision mismatch is
-blocking. Only acceptance switches the canonical draft, JSON, and reviewer
-together. Rejected candidates leave the original content and existing files
-unchanged, never render/publish, and do not start another repair pass.
+### 3. Suspect cards
 
-The additive `Repair` job report contains `Attempted`, `Accepted`,
-`BaseRevision`, `CandidateRevision`, actual `ChangedComponents`, original
-blockers, and explicit errors (`repair_invalid`, `repair_unavailable`,
-`repair_rejected`). `RefineAttempted`, before/after validation counts, and
-`RedTeamVerdict` remain compatible. `AutoFixesApplied` now reports draft
-consistency fixes, never independent changes to compiled JSON.
+Internal phase: `suspectCards`
 
-## Local development
+One `SuspectCardTask` runs per suspect in parallel. Each card expands the canonical person into the player-facing profile while preserving:
 
-The function reads from `local.settings.json` for the Azure OpenAI / Foundry
-keys and the storage connection string. Azurite stands in for blob in local
-dev. Configured but unavailable Azurite now fails publication explicitly.
-`CaseGenV2:CasesBasePath` must be writable; an explicit configured directory is
-created if necessary rather than silently falling back to another destination.
-On read-only Function App deployments, set it to a writable location such as
-`/tmp/casegen-cases` (local files there are ephemeral; blob publication is the
-production persistence mechanism).
-See [`RUNNING_FUNCTIONS_LOCALLY.md`](RUNNING_FUNCTIONS_LOCALLY.md) for the
-one-command bring-up and a worked example.
+- name, age, occupation, and relationship;
+- public motive and stated alibi;
+- background and dossier presentation;
+- canonical photo relationship.
+
+Private truth such as a verified culprit alibi state must not be exposed merely because it exists in the Bible.
+
+### 4. Asset portfolio and graph construction
+
+Internal phase: `assetPlan`
+
+`EvidenceArchetypeCatalog` first creates a deterministic dossier portfolio from the difficulty profile, seed, suspects, clue source types, decoys, and forensic needs.
+
+Every portfolio includes:
+
+- an initial incident report;
+- the required number of scene photographs;
+- a portrait for every suspect;
+- an interview for every suspect;
+- specialized evidence needed by digital or forensic clues;
+- contextual and corroborative filler selected from multiple evidence families.
+
+`AssetPlanTask` adapts these fixed slots to the case without removing the contractual dossier structure. `EvidenceGraphCompiler` then compiles the first evidence graph.
+
+### 5. Evidence production
+
+Internal phase: `assetsAndTimelineAndBriefing`
+
+The generator runs in parallel:
+
+- one `AssetCardTask` per planned asset;
+- deterministic `PlayerTimelineCompiler`;
+- `BriefingEmailTask`.
+
+Each asset prompt receives the exact canonical observations assigned to that asset. This prevents every interview, photograph, or report from being forced to contain every clue.
+
+Document-like assets produce structured `EvidenceDocument` content. The selected language is propagated to each document so PDF chrome, headings, page labels, letterheads, and signatures render consistently.
+
+The public timeline is compiled only from explicitly public Case Bible events and is checked for culprit-name leakage.
+
+### 6. Forensic workflow
+
+Internal phases: `forensicsPlan` and `outcomesAndInitialEmails`
+
+Rookie cases skip the interactive forensic workflow. Their complete solution path is available through the initial dossier.
+
+For every other difficulty:
+
+1. `ForensicsPlanTask` selects valid asset/analysis pairs from the forensic method catalog.
+2. `ForensicOutcomeTask` runs per planned analysis in parallel.
+3. Result assets and result emails are created when findings exist.
+4. `InitialEmailsTask` creates the initial communication set.
+5. At least one valid decisive attribution result is enforced for cases that require forensic progression.
+
+Forensic methods define accepted input object/asset types, producible properties, and limitations. A result may not claim a property the selected method cannot produce.
+
+After this phase, the evidence graph is recompiled.
+
+### 7. Mechanical rules
+
+Internal phase: `mechanicalRules`
+
+`MechanicalRulesBuilder` deterministically emits reveal rules from the forensic contracts. This avoids relying on the model to wire core reachability.
+
+Typical behavior:
+
+```text
+forensics_complete(input asset + analysis type)
+→ reveal result asset
+→ reveal result email
+```
+
+### 8. Solution and narrative rules
+
+Internal phase: `rulesAndSolutionSkeleton`
+
+Execution is sequential:
+
+1. `SolutionSkeletonTask` selects required evidence, required analyses, question topics, score constraints, and culprit.
+2. For non-Rookie cases, `RulesTask` adds narrative reveal behavior where needed.
+3. `CaseGraphProjection.RefreshGeneratedGraph` rebuilds graph requirements from the completed solution.
+
+Refreshing the graph here is mandatory. A graph compiled only before the solution exists cannot validate the actual required evidence path.
+
+### 9. Questions and explanation
+
+Internal phase: `questionsAndExplanation`
+
+Question tasks run in parallel by topic while `ExplanationTask` writes the post-solution explanation.
+
+Questions must cite reachable evidence provenance. Correct option IDs and the explanation remain inside the server-only `solution` section; the backend sanitizer removes them from the active player view.
+
+### 10. Deterministic consistency and assembly
+
+Internal phase: `consistency`
+
+`ConsistencyValidator` checks and may normalize cross-surface details before assembly.
+
+The generator then:
+
+1. prepares the canonical CaseGraph;
+2. assembles both legacy and graph-compiled public representations;
+3. selects the configured output mode;
+4. validates the JSON schema;
+5. validates Case Bible semantics;
+6. validates blueprint, evidence plan/content, forensic, locale, and difficulty contracts;
+7. validates graph/public parity when graph mode is enabled.
+
+If errors exist, `SchemaErrorAutoFixer` applies deterministic fixes for known mechanical defects, such as common ID-format drift, and validation runs again.
+
+### 11. Deterministic solution witness
+
+Internal phase: `solutionWitness`
+
+`SolverTask` is deterministic; it does not ask an LLM to guess the culprit.
+
+It:
+
+1. validates logical solvability;
+2. simulates a player inspecting available assets;
+3. performs comparisons and forensic requests as they become reachable;
+4. computes derivation closure over player-visible observations;
+5. identifies a valid culprit proof path;
+6. accuses the culprit using exact observation citations;
+7. answers generated questions;
+8. grades the attempt using the same scoring model as the backend.
+
+A case fails if the logical proof, narrative simulation, accusation citations, or final score does not pass. The blocking MVP quality threshold requires a solver score of at least `0.90`.
+
+### 12. Specialist advisory review
+
+Internal phase: `advisoryReview`
+
+Five specialist reviews run in parallel:
+
+- document fidelity;
+- scientific realism;
+- narrative/human behavior;
+- locale/procedural realism;
+- player experience.
+
+Each review receives a narrow surface plus the Case Bible. Deterministic validators seed the specialist reports with objective findings. LLM specialist findings are advisory medium-severity observations; deterministic high-severity findings are blocking.
+
+The historical `RedTeamTask` name remains as an adapter around this specialist system for API compatibility.
+
+Rookie verdict calibration may convert `needs_review` to `ok` when there are no high-severity findings and no more than the configured number of medium findings. The findings remain visible in telemetry.
+
+### 13. Targeted repair
+
+Internal phase: `targetedRepair`
+
+Repair runs when any of these remain:
+
+- deterministic validation errors;
+- a failed solver;
+- blocking specialist findings.
+
+`RepairCoordinator` maps each problem to its owning node/stage and invalidates only the required downstream surfaces.
+
+Examples:
+
+- a true Case Bible semantic defect may regenerate the Bible and all dependent projections;
+- a projection mismatch repairs the blueprint without discarding a valid Bible;
+- one defective asset can be rewritten without regenerating the whole portfolio;
+- forensic defects regenerate forensic outcomes and their dependent rules/solution;
+- solver failure repairs evidence/solution reachability.
+
+After each iteration:
+
+1. affected tasks rerun;
+2. the evidence graph and CaseGraph refresh;
+3. assembly and deterministic validation rerun;
+4. specialist review and solver rerun;
+5. quality is compared with the best prior deep snapshot.
+
+The loop:
+
+- uses per-node repair budgets;
+- freezes unaffected valid nodes;
+- records granular operations and plateaus;
+- stops after two non-improving iterations;
+- restores the best snapshot after regression;
+- restores the best snapshot if the LLM endpoint becomes temporarily unavailable;
+- is capped by the difficulty profile or `CaseGenV2:RepairMaxIterations`.
+
+The response fields named `RefineAttempted`, `RefineIterations`, and related metrics are retained for API compatibility. The active architecture performs owner-stage targeted repair, not wholesale final-JSON rewriting.
+
+### 14. Final validation
+
+Internal phase: `finalValidation`
+
+`CaseV2FinalValidator` is the final persistence gate. It aggregates:
+
+| Gate | Validates |
+|---|---|
+| `Schema` | Public `case.json` structure |
+| `CaseBible` | Canonical semantic/reference integrity |
+| `Graph` | Typed graph structure |
+| `Proof` | Culprit uniqueness, independent proof paths, premature leakage |
+| `Reachability` | Player can reach required observations and actions |
+| `Forensic` | Method/input/output correctness and decisive attribution |
+| `Evidence` | Portfolio, content, observation assignment, and visual requirements |
+| `Difficulty` | Required topology for the selected level |
+| `Locale` | Language, time, address, and procedural consistency |
+| `Solver` | Logical and narrative simulation success with citations |
+| `Specialist` | Remaining objective/advisory findings |
+| `RookieRegression` | Rookie-specific no-lab and initial-access guarantees |
+| `PublicParity` | Legacy/graph public contract equivalence when applicable |
+
+Only non-blocking issues may remain when persistence begins.
+
+### 15. Rendering and persistence
+
+Internal phase: `renderAssets`
+
+Persistence requires:
+
+```text
+writeToDisk = true
+AND zero accumulated validation errors
+AND zero blocking final-validation issues
+```
+
+`AssetRenderingService` materializes:
+
+- `pdf`, `document`, and `digital` assets as PDFs using QuestPDF;
+- `photo` and `image` assets through the configured image model.
+
+Visual evidence is no longer optional at the portfolio level. Every difficulty requires scene photographs and one portrait per suspect. Scene and suspect-portrait rendering failures are therefore mandatory failures:
+
+- the case is not written or published;
+- the incomplete case directory is deleted;
+- rendering errors are returned.
+
+Optional object or surveillance images may fail without being classified as mandatory visual failures, but their errors remain in telemetry.
+
+After successful rendering, generated filenames are written back into asset URIs and `case.json` is persisted.
+
+When graph mode is enabled, the local directory also receives private diagnostics:
+
+- `case.graph.private.json`
+- `validation-report.private.json`
+- `case.draft.private.json`
+- `rendered-text.private.json`
+- `solver-trace.private.json`
+
+These private diagnostics are not uploaded by `CaseV2BlobPublisher`.
+
+### 16. Blob publication
+
+Internal phase: `publishToBlob`
+
+When configured, `CaseV2BlobPublisher` uploads only:
+
+- `<caseId>/case.json`
+- `<caseId>/assets/*`
+
+to the configured bundles container.
+
+The backend's `CaseV2StorageService` reads this same layout.
+
+Assets are uploaded first and `<caseId>/case.json` is uploaded last. The final JSON is the bundle commit marker: the backend cannot discover a newly generated case until every referenced asset has been uploaded.
+
+When Blob publication is configured, upload failures are surfaced to the generation activity. The job cannot report success for an incomplete or unpublished production bundle. When publication is explicitly disabled or no storage configuration exists, generation can still complete as a local-only operation.
+
+## Difficulty contracts
+
+Difficulty changes dossier volume and reasoning topology, not just wording.
+
+| Difficulty | Assets | Investigative | Scene photos | Suspects | Analyses | Proof paths | Decoys | Derivation depth | Forensic hops | All initial |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| Rookie | 10–14 | 5–7 | 1–2 | 3–4 | 0 | 2 | 2 | 1–2 | 0 | Yes |
+| Detective | 12–16 | 6–8 | 1–2 | 3–4 | 1–2 | 2 | 2 | 3–4 | 1 | No |
+| Detective2 | 13–17 | 7–9 | 1–2 | 4–5 | 1–2 | 2 | 3 | 4–5 | 1 | No |
+| Sergeant | 14–18 | 8–10 | 2–3 | 4–5 | 1–3 | 2 | 3 | 4–6 | 1 | No |
+| Lieutenant | 15–19 | 8–11 | 2–3 | 4–6 | 2–3 | 3 | 3 | 5–7 | 2 | No |
+| Captain | 16–20 | 9–12 | 2–3 | 5–6 | 2–4 | 3 | 4 | 5–8 | 2 | No |
+| Commander | 17–22 | 10–13 | 2–4 | 5–6 | 2–4 | 3 | 4 | 6–9 | 3 | No |
+
+Higher levels additionally require more evidence families, cross-source correlations, reliability levels, optional analyses, meaningful investigation order, conflicting observations, partially overlapping proof paths, and deeper red-herring resolution.
+
+Proof-path independence is measured through distinct non-forensic evidentiary origins. Multiple paths cannot claim independence merely because they share the same decisive forensic result.
+
+## Prompt architecture
+
+All Case v2 LLM and image prompt templates live under:
+
+```text
+functions/CaseGen.Functions/agents/case-v2/
+```
+
+There are 42 Markdown files: system/user pairs for 21 prompt families.
+
+`AgentPromptCatalog`:
+
+- locates the prompt directory from build, working-directory, or repository layouts;
+- caches templates;
+- validates agent names;
+- verifies that every placeholder has a supplied value;
+- performs invariant-culture substitution;
+- throws when a prompt file or variable is missing.
+
+The project file copies prompts to both build and publish output. Runtime tasks reference prompt names such as `CaseBible`, `PlotOutline`, `AssetCard`, `ForensicOutcome`, `SpecialistReview`, and `ImageRenderScene`; prompt prose is not embedded in task code.
+
+Deterministic components such as timeline compilation, mechanical rules, graph validation, and solver simulation do not require prompts.
+
+## Output and telemetry
+
+The compact Durable job result includes:
+
+- case ID and local output path;
+- validation error count and message;
+- rendered PDF/image counts;
+- blob publication count;
+- stage latency;
+- deterministic auto-fixes;
+- repair/refine compatibility metrics;
+- input/output token counts;
+- graph-mode and final-validation results;
+- graph validation and first-pass success flags;
+- repair operations and plateau counts;
+- solver status;
+- evidence layout diversity;
+- specialist findings by category;
+- specialist/red-team verdict trajectory.
+
+Large generated content and asset bytes are not stored in Durable orchestration state.
+
+## Configuration
+
+| Key | Purpose |
+|---|---|
+| `AzureFoundry:Endpoint` | Azure Foundry endpoint |
+| `AzureFoundry:ModelName` | Structured text model deployment |
+| `AzureFoundry:ImageDeploymentName` | Image model deployment |
+| `AzureFoundry:ApiKey` | Model API credential |
+| `CaseGenV2:CaseGraphEnabled` | Emit graph-compiled public contract; defaults to `false` |
+| `CaseGenV2:CasesBasePath` | Local output root |
+| `CaseGenV2:DisableBlobPublishing` | Disable publication |
+| `CaseGenV2:JobMaxAttempts` | Complete Durable attempts per job; defaults to `5` and is capped at `10` |
+| `CaseGenV2:RepairMaxIterations` | Override difficulty repair limit |
+| `CaseGenV2:RookieMaxMediumFindings` | Rookie advisory verdict tolerance |
+| `CaseGeneratorStorage:AccountName` | Managed-identity storage account |
+| `CaseGeneratorStorage:ConnectionString` | Local/fallback storage connection |
+| `CaseGeneratorStorage:BundlesContainer` | Published bundle container, default `bundles` |
+
+Model and storage credentials must be supplied through configuration/environment, never committed.
+
+## Local validation
+
+Run the Case v2 test suite:
+
+```powershell
+dotnet test functions\CaseGen.Functions.Tests\CaseGen.Functions.Tests.csproj --filter "FullyQualifiedName~CaseGen.Functions.Tests.CaseV2"
+```
+
+Run real graph-mode generation without starting the Functions host:
+
+```powershell
+scripts\validate-casev2.ps1 `
+  -Mode DirectGenerate `
+  -Difficulty Detective `
+  -Seed 423 `
+  -Theme "harbor warehouse homicide" `
+  -Language en-US `
+  -CaseId case_bible_detective_423
+```
+
+Other harness modes:
+
+| Mode | Purpose |
+|---|---|
+| `Goldens` | Validate persisted golden artifacts |
+| `Artifact` | Validate one existing case directory |
+| `Generate` | Generate through a running Functions host and validate the result |
+| `DirectGenerate` | Invoke the real provider through the integration harness |
+| `Batch` | Generate a seed/theme matrix and aggregate quality telemetry |
+| `Full` | Run the complete CaseV2 test filter |
+
+Real generation is nondeterministic and can take several minutes or longer. Unit and golden tests should be used for fast structural validation; real generation is required before release for each difficulty whose behavior changed.
+
+Run a resumable sequential soak matrix:
+
+```powershell
+scripts\run-casev2-soak.ps1 `
+  -CasesPerDifficulty 3 `
+  -CooldownSeconds 60 `
+  -MaxAttempts 5 `
+  -Language en-US `
+  -ReportPath casev2-soak-report.json
+```
+
+The soak harness uses concurrency `1`, persists progress after every attempt, skips already-passed seeds when resumed, and applies exponential backoff. Successful case directories are removed after metrics are recorded unless `-KeepCases` is supplied.
+
+The July 24, 2026 soak test is the historical pre-remediation baseline. It completed 20 cases and cancelled one: fourteen passed, six failed after three attempts, and no rate limits were observed. Its 70% final pass rate and 40% first-attempt pass rate justified the normalization, solver gate, retry, progress, and publication changes described in this document. See [`CASE_GENERATION_SOAK_TEST_2026-07-24.md`](./CASE_GENERATION_SOAK_TEST_2026-07-24.md) for the original results and failed seeds.
+
+After remediation, all six previously failing seeds produced valid cases within five attempts:
+
+| Seed | Successful attempt |
+|---:|---:|
+| 1102 | 1 |
+| 2102 | 2 |
+| 3101 | 2 |
+| 5102 | 4 |
+| 6103 | 2 |
+| 7102 | 3 |
+
+A separate seven-difficulty matrix also passed:
+
+| Difficulty | Seed | Successful attempt | Solver score |
+|---|---:|---:|---:|
+| Rookie | 1101 | 1 | 1.00 |
+| Detective | 2101 | 1 | 1.00 |
+| Detective2 | 3101 | 1 | 1.00 |
+| Sergeant | 4101 | 2 | 0.95 |
+| Lieutenant | 5101 | 2 | 1.00 |
+| Captain | 6101 | 5 | 0.95 |
+| Commander | 7101 | 2 | 1.00 |
+
+No rate limits occurred, and every complete attempt emitted phase progress events. These results validate retry-assisted MVP generation; they do not imply that first-attempt reliability is perfect.
 
 ## Code map
 
-- `Functions/CaseV2/CaseV2GenerationOrchestrator.cs` — Durable orchestrator,
-  starter HTTP function, GET status function.
-- `Services/CaseV2/CaseV2GeneratorService.cs` — the multi-phase orchestrator
-  proper (the function above just bridges Durable).
-- `Services/CaseV2/CaseQualityGate.cs` — strict approval policy and rendering error checks.
-- `Services/CaseV2/CaseBundle.cs`, `CaseFileIntegrity.cs` — sealed manifests, actual public URIs/checksums, byte/coverage verification.
-- `Services/CaseV2/LocalCasePublication.cs` — case-ID locks, immutable local preparation, atomic JSON-only commits.
-- `Services/CaseV2/CaseDraft.cs`, `CaseDraftRepair.cs` — canonical snapshots, typed component repairs, identity/reference/dependency guards.
-- `Services/CaseV2/TaskRunner.cs`, `MicrotaskSchemas.cs`, `MicrotaskValidation.cs`,
-  `StructuredJson.cs` — validated task contracts, invariants, and bounded retries.
-- `Services/CaseV2/GenerationRequestValidator.cs` — HTTP/direct-call input validation.
-- `Services/StructuredOutputSchema.cs`, `AzureFoundryLLMProvider.cs` — optional
-  native response-format projection and explicit model-response failures.
-- `Models/CaseV2/CaseV2GenerationModels.cs` — typed quality issues and output flags.
-- `Services/CaseV2/Tasks/` — focused LLM tasks (`PlotOutlineTask`,
-  `SuspectCardTask`, `AssetPlanTask`, `RedTeamTask`, `SolverTask`,
-  `RefineCaseTask`, etc).
-- `Services/CaseV2/MechanicalRulesBuilder.cs` — deterministic rule emission.
-- `Services/CaseV2/ConsistencyValidator.cs` — deterministic cross-ref check.
-- `Services/CaseV2/SchemaErrorAutoFixer.cs` — standalone legacy ID-format
-  normaliser. Unit-tested in `CaseGen.Functions.Tests`.
-- `Services/CaseV2/AssetRenderingService.cs` — PDF/image materialisation.
-- `Services/CaseV2/CaseV2BlobPublisher.cs` — immutable uploads, remote integrity, idempotent conditional JSON publication.
-- `Services/CaseV2/JobPhaseReporter.cs` — per-phase status JSON in blob, read
-  by the GET status endpoint.
+| Path | Responsibility |
+|---|---|
+| `Functions/CaseV2/CaseV2GenerationOrchestrator.cs` | HTTP starter/status, Durable orchestrator, activity, compact result |
+| `Services/CaseV2/CaseV2GeneratorService.cs` | End-to-end phase orchestration |
+| `Services/CaseV2/CaseBible.cs` | Typed canonical world model and normalizer |
+| `Services/CaseV2/CaseBibleValidator.cs` | Bible semantic and reference validation |
+| `Services/CaseV2/Tasks/CaseBibleTask.cs` | Canonical-world generation and retry |
+| `Services/CaseV2/CaseGraph.cs` | Typed logical graph |
+| `Services/CaseV2/CaseGraphProjection.cs` | Bible/draft projection and graph refresh |
+| `Services/CaseV2/CaseGraphMigration.cs` | Graph feature flag, public compiler/parity, persistence gate |
+| `Services/CaseV2/CaseProofEngine.cs` | Proof closure, uniqueness, independence, reachability |
+| `Services/CaseV2/DifficultyProfileCatalog.cs` | Dossier and topology budgets for all levels |
+| `Services/CaseV2/EvidenceArchetypeCatalog.cs` | Deterministic dossier portfolio |
+| `Services/CaseV2/RepairCoordinator.cs` | Owner-stage repair and downstream regeneration |
+| `Services/CaseV2/GranularRepair.cs` | Node dependency index, operations, budgets, plateaus |
+| `Services/CaseV2/SpecialistReview.cs` | Deterministic and LLM specialist reviews |
+| `Services/CaseV2/CaseV2FinalValidation.cs` | Final validation and private diagnostics |
+| `Services/CaseV2/AssetRenderingService.cs` | PDF/image rendering |
+| `Services/CaseV2/CaseV2BlobPublisher.cs` | Public bundle publication |
+| `Services/CaseV2/JobPhaseReporter.cs` | Versioned progress document |
+| `Services/CaseV2/AgentPromptCatalog.cs` | External Markdown prompt loading |
+| `agents/case-v2/` | All Case v2 prompt templates |
+| `scripts/run-casev2-soak.ps1` | Resumable sequential real-generation soak matrix |

@@ -1,11 +1,9 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
-using CaseGen.Functions.Functions.CaseV2;
 using CaseGen.Functions.Models.CaseV2;
 using CaseGen.Functions.Services;
 using CaseGen.Functions.Services.CaseV2;
 using CaseGen.Functions.Services.CaseV2.Tasks;
-using CaseGen.Functions.Services.CaseV2.Templates;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -13,73 +11,52 @@ namespace CaseGen.Functions.Tests.CaseV2;
 
 public class CaseCanonicalRepairTests(CanonicalDraftFixture baseline) : IClassFixture<CanonicalDraftFixture>
 {
-    private const string RepairedFact = "The independently verified signed backup attributes the altered entry to an individual signing key assigned to jordan.";
-    private const string RepairedRecord = "At 08:15 the access log records an authenticated terminal session assigned to jordan saving the altered entry.";
-    private const string RepairedExplanation = RepairedRecord + " " + RepairedFact;
-    private const string BlockedReview = """
-        {"verdict":"needs_review","findings":[{"severity":"medium","area":"evidence","issue":"Report and email contradict the signed backup","reference":"asset.report_access"}]}
-        """;
-    private const string OkReview = """{"verdict":"ok","findings":[]}""";
+    private const string Note = "The source is presented as received; its recorded observations remain unchanged.";
+    private static string Schema => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Schemas", "case.v2.schema.json"));
+    private const string ReportId = "asset.report_initial_report_metadataanalysis";
+    private const string EmailId = "email.lab_initial_report_metadataanalysis";
+    private const string Pair = "asset.initial_report:MetadataAnalysis";
 
-    [Theory]
-    [InlineData("needs_review", "medium")]
-    [InlineData("reject", "high")]
-    [InlineData("ok", "medium")]
-    [InlineData("ok", "high")]
-    public async Task SemanticRepair_ZeroToZeroRevalidatesAndPublishesOneCanonicalRevision(string verdict, string severity)
+    [Fact]
+    public async Task SupportedPresentationRepairIsAtomicAndPreservesOneCanonicalTruth()
     {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.RepairResponse = RepairEvidence;
-        fixture.Llm.ReviewResponse = user => IsCandidate(user) ? OkReview : $$"""
-            {"verdict":"{{verdict}}","findings":[{"severity":"{{severity}}","area":"evidence","issue":"Report and email contradict the signed backup","reference":"asset.report_access"}]}
-            """;
-        var response = await fixture.GenerateAsync();
+        var original = baseline.Draft.ToReviewJson();
+        var bible = JsonSerializer.Serialize(baseline.Draft.CaseBible, CaseDraft.CanonicalJsonOptions);
+        var proposal = RepairPresentation(JsonNode.Parse(original)!.AsObject()).ToJsonString();
+        StructuredJson.Validate(proposal, StructuredJson.ParseSchema(CaseDraftRepair.BuildSchema(baseline.Draft, Schema)));
+        var candidate = JsonSerializer.Deserialize<CaseDraftRepair>(proposal, CaseDraft.CanonicalJsonOptions)!.Apply(baseline.Draft, Schema);
+        Assert.Equal(original, baseline.Draft.ToReviewJson());
+        Assert.Equal(1, candidate.Revision);
+        Assert.Equal(bible, JsonSerializer.Serialize(candidate.CaseBible, CaseDraft.CanonicalJsonOptions));
+        Assert.Equal(baseline.Draft.Questions.Select(q => q.CorrectOptionId), candidate.Questions.Select(q => q.CorrectOptionId));
+        CaseDraftRepair.Validate(candidate, baseline.Draft, Schema);
 
-        Assert.True(response.Repair.Attempted);
-        Assert.True(response.Repair.Accepted, response.Repair.ErrorMessage);
-        Assert.Equal(0, response.RefineErrorsBefore);
-        Assert.Equal(0, response.RefineErrorsAfter);
-        Assert.Equal(0, response.Repair.BaseRevision);
-        Assert.Equal(1, response.Repair.CandidateRevision);
-        Assert.Equal(1, response.Quality.Revision);
-        Assert.Equal(1, response.Quality.ReviewedRevision);
-        Assert.True(response.Quality.Published);
-        Assert.Contains(response.Repair.OriginalBlockers, message => message.Contains("red_team_finding"));
-        Assert.Equal(new[]
+        var renderer = new TestAssetRenderer();
+        var readable = await renderer.ReadPreparedDocumentsAsync(candidate.AssetFull.Concat(candidate.ResultAssets));
+        Assert.Contains(Note, readable["asset.initial_report"]);
+        Assert.Contains(Note, readable[ReportId]);
+        Assert.All(candidate.AssetFull.Concat(candidate.ResultAssets).SelectMany(a => a.Support), s =>
+            Assert.Contains(candidate.AssetFull.Concat(candidate.ResultAssets), a => CaseBibleAuthorship.Text(a).Contains(s.Excerpt, StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task PublicOutlineRepairKeepsTheTitleAndFrozenClueAssignments()
+    {
+        var candidate = baseline.Draft.Copy();
+        var provider = new TestCaseLlmProvider
         {
-            "solution", "asset.access_log", "asset.report_access", "email.lab_access", "asset.access_log:DigitalForensics"
-        }.Order(), response.Repair.ChangedComponents.Order());
-        Assert.Equal(1, fixture.Llm.Calls.Count(c => c.System.Contains("**refine agent**")));
-        Assert.Equal(2, fixture.Llm.Calls.Count(c => c.System.Contains("red-team reviewer")));
-        Assert.Equal(2, fixture.Llm.Calls.Count(c => c.System.Contains("AS THE PLAYER")));
-
-        var reviewed = fixture.Llm.Calls.Single(c => c.System.Contains("red-team reviewer") && IsCandidate(c.User));
-        Assert.Contains(RepairedFact, reviewed.User);
-        Assert.Contains("\"bodyDoc\"", reviewed.User);
-        Assert.Contains("\"body\"", reviewed.User);
-        Assert.Contains("\"forensics_complete\"", reviewed.User);
-        Assert.Contains("\"reveal_email\"", reviewed.User);
-        Assert.Contains("\"email.lab_access\"", reviewed.User);
-        Assert.Contains("COMPILED case.json:", reviewed.User);
-        var solver = fixture.Llm.Calls.Single(c => c.System.Contains("AS THE PLAYER") && IsCandidate(c.User));
-        Assert.Contains(RepairedRecord, solver.User);
-        Assert.DoesNotContain("\"correctOptionId\"", solver.User);
-
-        var compiled = JsonNode.Parse(response.CaseJson)!;
-        Assert.Equal("2.0", compiled["version"]!.GetValue<string>());
-        Assert.Equal(RepairedFact, compiled["forensicOutcomes"]![0]!["conclusionText"]!.GetValue<string>());
-        Assert.Equal(RepairedFact, compiled["emails"]!.AsArray().Single(e => e!["id"]!.GetValue<string>() == "email.lab_access")!["body"]!.GetValue<string>());
-        Assert.Equal(RepairedExplanation, compiled["solution"]!["explanation"]!.GetValue<string>());
-        Assert.Equal(response.CaseJson, File.ReadAllText(fixture.CasePath));
-        Assert.Equal(RepairedRecord, fixture.Renderer.RenderedAssets.Single(a => a.Id == "asset.access_log").BodyDoc!.Sections[0].Text);
-        Assert.Equal(RepairedFact, fixture.Renderer.RenderedAssets.Single(a => a.Id == "asset.report_access").Body);
-        Assert.Contains(RepairedRecord, File.ReadAllText(Path.Combine(fixture.Root, "case_quality", "assets", response.Bundle!.BundleId, "access_log.pdf")));
-        Assert.Contains(RepairedFact, File.ReadAllText(Path.Combine(fixture.Root, "case_quality", "assets", response.Bundle.BundleId, "report_access.pdf")));
-        Assert.Equal(response.Quality.ReviewedRevision, response.Bundle.Revision);
-        var job = CaseV2JobResult.FromResponse("repair-job", response);
-        Assert.False(job.HasErrors);
-        Assert.Same(response.Repair, job.Repair);
-        Assert.Contains("revalidateRepair", job.StageLatencyMs.Keys);
+            TransformResponse = (_, _, node) =>
+            {
+                node["metadata"]!["description"] = Note;
+                return node;
+            }
+        };
+        await new PlotOutlineTask(provider, NullLogger.Instance).RunAsync(candidate, default);
+        Assert.Equal(Note, candidate.Metadata.Description);
+        CaseDraftRepair.Validate(candidate, baseline.Draft, Schema);
+        var call = Assert.Single(provider.Calls);
+        Assert.Contains("\"preserveOrder\":true", call.User);
+        Assert.DoesNotContain("\"culpritId\"", call.User);
     }
 
     [Theory]
@@ -90,377 +67,244 @@ public class CaseCanonicalRepairTests(CanonicalDraftFixture baseline) : IClassFi
     [InlineData("partial_rename")]
     [InlineData("table_width")]
     [InlineData("missing_document")]
-    [InlineData("broken_nested_rule")]
+    [InlineData("broken_mechanical_rule")]
     [InlineData("missing_answer")]
     [InlineData("duplicate_options")]
+    [InlineData("changed_answer")]
+    [InlineData("changed_option_label")]
     [InlineData("new_forensic_match")]
     [InlineData("fabricated_findings")]
+    [InlineData("changed_result_reference")]
+    [InlineData("changed_source_time")]
+    [InlineData("changed_historical_time")]
+    [InlineData("changed_alibi")]
     [InlineData("missing_dependency")]
     [InlineData("unknown_target")]
     [InlineData("duplicate_target")]
     [InlineData("wrong_revision")]
     [InlineData("noop")]
     [InlineData("scoring")]
-    [InlineData("missing_email_dependency")]
-    public async Task InvalidRepairContract_DoesNotMutateCanonicalDraftOrRetry(string defect)
+    [InlineData("immutable_root")]
+    public void InvalidRepairDoesNotMutateTheOriginal(string defect)
     {
         var original = baseline.Draft.ToReviewJson();
-        var provider = new ScriptedLlmProvider((_, _) => Task.FromResult(new LLMResponse
+        var proposal = Corrupt(JsonNode.Parse(original)!.AsObject(), defect).ToJsonString();
+        Assert.Throws<TaskContractException>(() =>
         {
-            Content = CorruptRepair(JsonNode.Parse(original)!.AsObject(), defect).ToJsonString()
-        }));
-        var result = await new RefineCaseTask(provider, NullLogger.Instance).RunAsync(baseline.Draft, [],
-            new RedTeamTask.Report { Succeeded = true, Verdict = "needs_review", Revision = 0 },
-            File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Schemas", "case.v2.schema.json")), default);
-        Assert.False(result.Succeeded);
-        Assert.Equal("repair_invalid", result.ErrorCode);
-        Assert.NotEmpty(result.Error!);
+            StructuredJson.Validate(proposal, StructuredJson.ParseSchema(CaseDraftRepair.BuildSchema(baseline.Draft, Schema)));
+            JsonSerializer.Deserialize<CaseDraftRepair>(proposal, CaseDraft.CanonicalJsonOptions)!.Apply(baseline.Draft, Schema);
+        });
         Assert.Equal(original, baseline.Draft.ToReviewJson());
-        Assert.Single(provider.Calls);
-    }
-
-    [Theory]
-    [InlineData("unknown_culprit")]
-    [InlineData("missing_dependency")]
-    [InlineData("noop")]
-    public async Task InvalidOrIncompleteRepair_IsAtomicAndNeverUsesThePreviousReview(string defect)
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.SeedExistingCase();
-        fixture.Llm.ReviewContent = BlockedReview;
-        fixture.Llm.RepairResponse = snapshot => CorruptRepair(snapshot, defect);
-        var response = await fixture.GenerateAsync();
-
-        Assert.True(response.Repair.Attempted);
-        Assert.False(response.Repair.Accepted);
-        Assert.Equal("repair_invalid", response.Repair.ErrorCode);
-        Assert.NotEmpty(response.Repair.ErrorMessage!);
-        Assert.False(response.Quality.Approved);
-        Assert.Equal(0, response.Quality.Revision);
-        Assert.Contains(response.Quality.Issues, i => i.Code == "repair_invalid" && i.Blocking);
-        Assert.DoesNotContain(RepairedFact, response.CaseJson);
-        Assert.Equal(1, fixture.Llm.Calls.Count(c => c.System.Contains("**refine agent**")));
-        Assert.Equal(1, fixture.Llm.Calls.Count(c => c.System.Contains("red-team reviewer")));
-        Assert.Equal(0, fixture.Renderer.Calls);
-        Assert.Equal(0, fixture.Publisher.Calls);
-        Assert.Equal("original case", File.ReadAllText(fixture.CasePath));
-        Assert.Equal("original asset", File.ReadAllText(Path.Combine(fixture.Root, "case_quality", "assets", "scene.pdf")));
-        Assert.True(CaseV2JobResult.FromResponse("job", response).HasErrors);
-    }
-
-    [Theory]
-    [InlineData("new_blocker")]
-    [InlineData("invalid_review")]
-    [InlineData("unavailable_review")]
-    public async Task CandidateWithFailedFreshReview_ExhaustsSinglePassWithoutChangingOriginalFiles(string defect)
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.SeedExistingCase();
-        fixture.Llm.RepairResponse = RepairEvidence;
-        fixture.Llm.ReviewResponse = user =>
-        {
-            if (!IsCandidate(user)) return BlockedReview;
-            if (defect == "unavailable_review") throw new InvalidOperationException("Candidate reviewer offline");
-            return defect == "invalid_review" ? "{}" : """
-                {"verdict":"reject","findings":[{"severity":"high","area":"solution","issue":"New unsupported answer","reference":"q.method"}]}
-                """;
-        };
-        var response = await fixture.GenerateAsync();
-
-        Assert.False(response.Quality.Approved);
-        Assert.False(response.Repair.Accepted);
-        Assert.Equal("repair_rejected", response.Repair.ErrorCode);
-        Assert.Equal(1, response.Repair.CandidateRevision);
-        Assert.Equal(0, response.Quality.Revision);
-        Assert.Equal(0, response.Quality.ReviewedRevision);
-        Assert.Contains(defect == "new_blocker" ? "red_team_rejected" :
-            defect == "invalid_review" ? "red_team_invalid" : "red_team_unavailable", response.Repair.ErrorMessage);
-        Assert.Equal(1, fixture.Llm.Calls.Count(c => c.System.Contains("**refine agent**")));
-        Assert.Equal(0, fixture.Renderer.Calls);
-        Assert.Equal(0, fixture.Publisher.Calls);
-        Assert.DoesNotContain(RepairedFact, response.CaseJson);
-        Assert.Equal("original case", File.ReadAllText(fixture.CasePath));
     }
 
     [Fact]
-    public void StaleReview_CannotApproveAnotherCanonicalRevision()
+    public async Task LegacyRefinementRoutesOnlyThroughSourceScopedOwnerAuthors()
+    {
+        var original = baseline.Draft.ToReviewJson();
+        var provider = new TestCaseLlmProvider
+        {
+            TransformResponse = (system, _, node) =>
+            {
+                if (system.Contains("**detail card**", StringComparison.Ordinal)
+                    && node["id"]!.GetValue<string>() == "asset.initial_report")
+                    node["bodyDoc"]!["sections"]![0]!["text"] = node["bodyDoc"]!["sections"]![0]!["text"]!.GetValue<string>() + "\n" + Note;
+                return node;
+            }
+        };
+        var result = await new RefineCaseTask(provider, NullLogger.Instance).RunAsync(baseline.Draft, [],
+            new[] { new RedTeamTask.Finding { Severity = "medium", OwnerStage = "assetCards", NodeId = "asset.initial_report", Issue = "Clarify procedural presentation." } },
+            Schema, default);
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Equal(original, baseline.Draft.ToReviewJson());
+        Assert.Equal(1, result.Candidate!.Revision);
+        Assert.DoesNotContain(provider.Calls, call => call.System.Contains("**refine agent**", StringComparison.Ordinal));
+        Assert.All(provider.Calls.Where(call => call.System.Contains("**detail card**", StringComparison.Ordinal)), call =>
+        {
+            Assert.DoesNotContain("\"caseBible\"", call.User);
+            Assert.DoesNotContain("\"correctOptionId\"", call.User);
+            Assert.DoesNotContain("\"culpritId\"", call.User);
+        });
+    }
+
+    [Theory]
+    [InlineData("bible")]
+    [InlineData("source_assignment")]
+    [InlineData("forensic_plan")]
+    [InlineData("graph_truth")]
+    [InlineData("question_sources")]
+    public void OwnerRepairsCannotRewriteProtectedPlans(string target)
+    {
+        var candidate = baseline.Draft.Copy();
+        switch (target)
+        {
+            case "bible": candidate.CaseBible!.Incident.CulpritPersonId = "person.decoy_one"; break;
+            case "source_assignment": candidate.AssetStubs[0].SupportsClueIds.Clear(); break;
+            case "forensic_plan": candidate.ForensicStubs[0].Findings = false; break;
+            case "graph_truth": candidate.CaseGraph.Facts[0].Predicate = "invented"; break;
+            case "question_sources": candidate.QuestionTopics[0].SupportingEvidenceIds = ["asset.unknown"]; break;
+        }
+        Assert.Throws<TaskContractException>(() => CaseDraftRepair.ValidateProtected(baseline.Draft, candidate));
+    }
+
+    [Fact]
+    public async Task BrokenImmutableRootIsActionableAndNeverRegenerated()
+    {
+        var draft = baseline.Draft.Copy();
+        draft.CaseBible!.Incident.CulpritPersonId = "person.victim";
+        var provider = new TestCaseLlmProvider();
+        var coordinator = new RepairCoordinator(provider,
+            new MechanicalRulesBuilder(NullLogger<MechanicalRulesBuilder>.Instance), NullLogger.Instance);
+        var error = await Assert.ThrowsAsync<TaskContractException>(() => coordinator.RepairAsync(
+            draft, [], [new RepairIssue("caseBible", "The immutable culprit is invalid.")], false, default));
+        Assert.Contains("immutable_root_invalid", error.Message);
+        Assert.Empty(provider.Calls);
+    }
+
+    [Fact]
+    public async Task ValidImmutableRootCannotBeReplannedInResponseToAReviewFinding()
+    {
+        var draft = baseline.Draft.Copy();
+        var original = JsonSerializer.Serialize(draft.CaseBible);
+        var provider = new TestCaseLlmProvider();
+        var coordinator = new RepairCoordinator(provider,
+            new MechanicalRulesBuilder(NullLogger<MechanicalRulesBuilder>.Instance), NullLogger.Instance);
+        var error = await Assert.ThrowsAsync<TaskContractException>(() => coordinator.RepairAsync(
+            draft, [], [new RepairIssue("caseBible", "Change the canonical attribution.")], false, default));
+        Assert.Contains("immutable_root_review", error.Message);
+        Assert.Equal(original, JsonSerializer.Serialize(draft.CaseBible));
+        Assert.Empty(provider.Calls);
+    }
+
+    [Fact]
+    public void StaleReviewCannotApproveAnotherRevision()
     {
         var quality = CaseQualityGate.Evaluate(new GenerateCaseV2Request(), false, [], [],
             new RedTeamTask.Report { Verdict = "ok", Succeeded = true, Revision = 0 }, revision: 1);
         Assert.False(quality.Approved);
-        Assert.Contains(quality.Issues, i => i.Code == "review_revision_mismatch");
+        Assert.Contains(quality.Issues, issue => issue.Code == "review_revision_mismatch");
     }
 
-    [Fact]
-    public async Task StructurallyValidCandidateWithImpossibleTimeline_FailsConsistencyBeforeFreshReview()
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.ReviewContent = BlockedReview;
-        fixture.Llm.RepairResponse = snapshot =>
-        {
-            var repair = RepairEvidence(snapshot);
-            var covered = repair["changes"]!.AsArray().Select(c => c!["target"]!.GetValue<string>()).ToHashSet();
-            foreach (var component in snapshot["components"]!.AsObject())
-                if (component.Key != "caseBible" && !covered.Contains(component.Key))
-                    repair["changes"]!.AsArray().Add(Change(component.Key, component.Value!.DeepClone()));
-            var timeline = repair["changes"]!.AsArray().Single(c => c!["target"]!.GetValue<string>() == "timeline")!["value"]!;
-            timeline[0]!["time"] = "2026-01-01T08:15:00Z";
-            return repair;
-        };
-        var response = await fixture.GenerateAsync();
-        Assert.False(response.Quality.Approved);
-        Assert.Equal("repair_rejected", response.Repair.ErrorCode);
-        Assert.Equal(0, response.Quality.Revision);
-        Assert.Equal(1, fixture.Llm.Calls.Count(c => c.System.Contains("red-team reviewer")));
-        Assert.Equal(0, fixture.Renderer.Calls);
-        Assert.Equal(0, fixture.Publisher.Calls);
-        Assert.Contains("revalidateRepair", response.StageLatencyMs.Keys);
-    }
-
-    [Theory]
-    [InlineData("2025-01-01T09:00:00Z", false)]
-    [InlineData("2025-01-01T09:01:00Z", false)]
-    [InlineData("2025-01-01T09:01:01Z", true)]
-    [InlineData("2026-01-01T08:15:00Z", true)]
-    public void HistoricalTimeline_AfterCaseOpeningIsAHardError(string time, bool expectedError)
-    {
-        var draft = baseline.Draft.Copy();
-        draft.Metadata.OpenedAt = "2025-01-01T09:00:00Z";
-        draft.Timeline[0].Time = time;
-        var report = new ConsistencyValidator(NullLogger<ConsistencyValidator>.Instance).Validate(draft);
-        Assert.Equal(expectedError, report.Findings.Any(f => f.Area == "timeline" && f.Severity == "error" && f.Message.Contains("after openedAt")));
-    }
-
-    [Fact]
-    public async Task CandidateInvalidatedByDocumentPreparation_FailsRevalidationBeforeFreshReview()
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.ReviewContent = BlockedReview;
-        fixture.Llm.RepairResponse = RepairEvidence;
-        fixture.Renderer.OnPrepare = asset =>
-        {
-            if (asset.BodyDoc?.Sections[0].Text != RepairedRecord) return;
-            asset.BodyDoc.Sections.Add(new EvidenceSection
-            {
-                Kind = "table", Table = new EvidenceTable { Columns = ["Time", "Event"], Rows = [["08:15"]] }
-            });
-        };
-        var response = await fixture.GenerateAsync();
-        Assert.False(response.Quality.Approved);
-        Assert.Equal("repair_rejected", response.Repair.ErrorCode);
-        Assert.Equal(0, response.Quality.Revision);
-        Assert.Equal(1, fixture.Llm.Calls.Count(c => c.System.Contains("red-team reviewer")));
-        Assert.Equal(0, fixture.Renderer.Calls);
-        Assert.Equal(0, fixture.Publisher.Calls);
-        Assert.Contains("revalidateRepair", response.StageLatencyMs.Keys);
-    }
-
-    [Fact]
-    public async Task RepairCannotChangeRequestedTitle()
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.Llm.ReviewContent = BlockedReview;
-        fixture.Llm.RepairResponse = snapshot =>
-        {
-            var repair = RepairEvidence(snapshot);
-            var metadata = snapshot["components"]!["metadata"]!.DeepClone();
-            metadata["title"] = "Replacement identity";
-            repair["changes"]!.AsArray().Add(Change("metadata", metadata));
-            return repair;
-        };
-        var response = await fixture.GenerateAsync(request: new GenerateCaseV2Request
-        {
-            CaseId = "case_quality", Title = "Quality fixture"
-        });
-        Assert.Equal("repair_invalid", response.Repair.ErrorCode);
-        Assert.Contains("metadata.title", response.Repair.ErrorMessage);
-        Assert.Equal(0, fixture.Publisher.Calls);
-    }
-
-    [Fact]
-    public async Task RevalidationCancellation_PropagatesAndNeverPublishes()
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.SeedExistingCase();
-        using var source = new CancellationTokenSource();
-        fixture.Llm.RepairResponse = RepairEvidence;
-        fixture.Llm.ReviewResponse = user =>
-        {
-            if (IsCandidate(user)) source.Cancel();
-            return IsCandidate(user) ? OkReview : BlockedReview;
-        };
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => fixture.GenerateAsync(ct: source.Token));
-        Assert.Equal(0, fixture.Publisher.Calls);
-        Assert.Equal("original case", File.ReadAllText(fixture.CasePath));
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task TemplatesAreAppliedOnlyToUnboundDocumentsBeforeReview_AndNeverAgainWhileRendering(bool canonical)
-    {
-        using var fixture = new CaseGenerationTestFixture();
-        var template = new CountingTemplate();
-        var documents = new RecordingDocumentRenderer();
-        var renderer = new AssetRenderingService(
-            new PdfRenderingService(new ConfigurationBuilder().Build(), NullLogger<PdfRenderingService>.Instance),
-            fixture.Llm, documents, new EvidenceTemplateRegistry([template]), NullLogger<AssetRenderingService>.Instance);
-        var asset = new EvidenceAsset
-        {
-            Id = "asset.prepared", Title = "Prepared document", CanonicalContent = canonical, BodyDoc = new EvidenceDocument
-            {
-                Layout = template.Layout, Title = "Prepared document",
-                Sections = [new EvidenceSection { Kind = "narrative", Text = "Original context." }]
-            }
-        };
-        renderer.PrepareForReview([asset]);
-        var draft = new CaseDraft { AssetFull = [asset] };
-        var reviewed = draft.ToReviewJson();
-        var copy = draft.Copy();
-        renderer.PrepareForReview(copy.AssetFull);
-        var result = await renderer.RenderAllAsync("case_quality", fixture.Root, copy.AssetFull);
-        Assert.Empty(result.Errors);
-        Assert.Equal(1, result.PdfsWritten);
-        Assert.Equal(canonical ? 0 : 1, template.Calls);
-        Assert.Equal(canonical, copy.AssetFull[0].CanonicalContent);
-        Assert.Equal(canonical ? "Original context." : RepairedFact, documents.Rendered!.Sections.Last().Text);
-        if (canonical) Assert.DoesNotContain(RepairedFact, reviewed);
-        else Assert.Contains(RepairedFact, reviewed);
-        Assert.Equal(reviewed, draft.ToReviewJson());
-    }
-
-    private static bool IsCandidate(string user) => user.Contains("\"revision\":1", StringComparison.Ordinal);
-
-    private static JsonObject RepairEvidence(JsonObject snapshot)
+    private static JsonObject RepairPresentation(JsonObject snapshot)
     {
         var components = snapshot["components"]!;
-        var input = components["asset.access_log"]!.DeepClone();
-        input["bodyDoc"]!["sections"]![0]!["text"] = RepairedRecord;
-        Reanchor(input["support"]!, RepairedRecord);
-        var report = components["asset.report_access"]!.DeepClone();
-        report["body"] = RepairedFact;
-        report["description"] = RepairedFact;
-        Reanchor(report["support"]!, RepairedFact);
-        var outcome = components["asset.access_log:DigitalForensics"]!.DeepClone();
-        outcome["conclusionText"] = RepairedFact;
-        Reanchor(outcome["support"]!, RepairedFact);
-        var email = components["email.lab_access"]!.DeepClone();
-        email["body"] = RepairedFact;
-        Reanchor(email["support"]!, RepairedFact);
+        var input = components["asset.initial_report"]!.DeepClone();
+        input["bodyDoc"]!["sections"]![0]!["text"] = input["bodyDoc"]!["sections"]![0]!["text"]!.GetValue<string>() + "\n" + Note;
+        var report = components[ReportId]!.DeepClone();
+        report["bodyDoc"]!["sections"]![0]!["text"] = report["bodyDoc"]!["sections"]![0]!["text"]!.GetValue<string>() + "\n" + Note;
+        var outcome = components[Pair]!.DeepClone();
+        outcome["conclusionText"] = outcome["conclusionText"]!.GetValue<string>() + "\n" + Note;
+        var email = components[EmailId]!.DeepClone();
+        email["body"] = email["body"]!.GetValue<string>() + "\n" + Note;
         var solution = components["solution"]!.DeepClone();
-        solution["explanation"] = RepairedExplanation;
-        foreach (var support in solution["explanationSupport"]!.AsArray())
-            support!["excerpt"] = support["referenceId"]!.GetValue<string>() == "fact.record" ? RepairedRecord : RepairedFact;
+        solution["explanation"] = solution["explanation"]!.GetValue<string>() + "\n" + Note;
         return new JsonObject
         {
             ["baseRevision"] = snapshot["revision"]!.GetValue<int>(),
-            ["changes"] = new JsonArray(Change("asset.access_log", input), Change("asset.report_access", report),
-                Change("asset.access_log:DigitalForensics", outcome), Change("email.lab_access", email), Change("solution", solution),
-                Change("briefing", components["briefing"]!.DeepClone()))
+            ["changes"] = new JsonArray(Change("asset.initial_report", input), Change(ReportId, report), Change(Pair, outcome),
+                Change(EmailId, email), Change("solution", solution), Change("briefing", components["briefing"]!.DeepClone()))
         };
-    }
-
-    private static void Reanchor(JsonNode support, string excerpt)
-    {
-        foreach (var entry in support.AsArray()) entry!["excerpt"] = excerpt;
     }
 
     private static JsonObject Change(string target, JsonNode value) => new()
     {
-        ["target"] = target, ["reason"] = "Reconcile the independently recorded fact.", ["value"] = value
+        ["target"] = target, ["reason"] = "Clarify procedural presentation while preserving the recorded source.", ["value"] = value
     };
 
-    private static JsonObject CorruptRepair(JsonObject snapshot, string defect)
+    private static JsonObject Corrupt(JsonObject snapshot, string defect)
     {
-        var repair = RepairEvidence(snapshot);
+        var repair = RepairPresentation(snapshot);
         var changes = repair["changes"]!.AsArray();
         JsonNode Value(string target) => changes.Single(c => c!["target"]!.GetValue<string>() == target)!["value"]!;
+        void Add(string target, Action<JsonNode> mutate)
+        {
+            var node = snapshot["components"]![target]!.DeepClone();
+            mutate(node);
+            changes.Add(Change(target, node));
+        }
         switch (defect)
         {
             case "unknown_culprit": Value("solution")["culpritId"] = "suspect.unknown"; break;
             case "different_culprit": Value("solution")["culpritId"] = "suspect.riley"; break;
-            case "asset_identity": Value("asset.report_access")["id"] = "asset.new_report"; break;
-            case "suspect_identity":
-            case "partial_rename":
-                var suspect = snapshot["components"]!["suspect.jordan"]!.DeepClone();
-                suspect[defect == "suspect_identity" ? "id" : "name"] = defect == "suspect_identity" ? "suspect.unknown" : "Another name";
-                changes.Add(Change("suspect.jordan", suspect));
-                break;
+            case "asset_identity": Value(ReportId)["id"] = "asset.new_report"; break;
+            case "suspect_identity": Add("suspect.jordan", n => n["id"] = "suspect.unknown"); break;
+            case "partial_rename": Add("suspect.jordan", n => n["name"] = "Another identity"); break;
             case "table_width":
-                Value("asset.access_log")["bodyDoc"]!["sections"] = JsonNode.Parse("""
-                    [{"kind":"table","heading":null,"table":{"columns":["Time","Event"],"rows":[["08:15"]],"footnote":null}}]
+                Value("asset.initial_report")["bodyDoc"]!["sections"] = JsonNode.Parse("""
+                    [{"kind":"table","heading":null,"table":{"columns":["Time","Event"],"rows":[["19:52"]],"footnote":null}}]
                     """);
                 break;
-            case "missing_document": Value("asset.access_log")["bodyDoc"] = null; break;
-            case "broken_nested_rule":
-                var rules = snapshot["components"]!["rules"]!.DeepClone();
-                var child = rules[0]!["trigger"]!.DeepClone();
-                child["inputAssetId"] = "asset.unknown";
-                var parent = rules[0]!["trigger"]!.DeepClone();
-                parent["type"] = "multiple_conditions";
-                parent["inputAssetId"] = null;
-                parent["analysisType"] = null;
-                parent["operator"] = "AND";
-                parent["conditions"] = new JsonArray(child, child.DeepClone());
-                rules[0]!["trigger"] = parent;
-                changes.Add(Change("rules", rules));
-                break;
+            case "missing_document": Value("asset.initial_report")["bodyDoc"] = null; break;
+            case "broken_mechanical_rule": Add("rules", n => n[0]!["trigger"]!["inputAssetId"] = "asset.unknown"); break;
             case "missing_answer": Value("solution")["questions"]![0]!["correctOptionId"] = "opt.unknown"; break;
             case "duplicate_options":
-                Value("solution")["questions"]![0]!["options"]![1]!["id"] =
-                    Value("solution")["questions"]![0]!["options"]![0]!["id"]!.GetValue<string>();
+                Value("solution")["questions"]![0]!["options"]![1]!["id"] = Value("solution")["questions"]![0]!["options"]![0]!["id"]!.GetValue<string>();
                 break;
-            case "new_forensic_match": Value("asset.access_log:DigitalForensics")["matchedSuspectId"] = "suspect.riley"; break;
-            case "fabricated_findings": Value("asset.access_log:DigitalForensics")["findings"] = false; break;
+            case "changed_answer": Value("solution")["questions"]![0]!["correctOptionId"] = Value("solution")["questions"]![0]!["options"]![1]!["id"]!.GetValue<string>(); break;
+            case "changed_option_label": Value("solution")["questions"]![0]!["options"]![1]!["label"] = "A replacement answer."; break;
+            case "new_forensic_match": Value(Pair)["matchedSuspectId"] = "suspect.riley"; break;
+            case "fabricated_findings": Value(Pair)["findings"] = false; break;
+            case "changed_result_reference": Value(Pair)["resultAssetId"] = "asset.initial_report"; break;
+            case "changed_source_time": Value(EmailId)["sentAt"] = "2026-07-21T22:30:00-04:00"; break;
+            case "changed_historical_time": Add("timeline", n => n[0]!["time"] = "2027-01-01T00:00:00Z"); break;
+            case "changed_alibi": Add("suspect.jordan", n => n["alibi"] = "A different account."); break;
             case "missing_dependency": changes.RemoveAt(3); break;
             case "unknown_target": changes[0]!["target"] = "asset.unknown"; break;
             case "duplicate_target": changes.Add(changes[0]!.DeepClone()); break;
             case "wrong_revision": repair["baseRevision"] = 99; break;
+            case "noop": repair["changes"] = new JsonArray(Change("metadata", snapshot["components"]!["metadata"]!.DeepClone())); break;
             case "scoring": Value("solution")["minimumScore"] = 0.1; break;
-            case "missing_email_dependency":
-                repair["changes"] = new JsonArray(changes[3]!.DeepClone());
-                break;
-            case "noop":
-                repair["changes"] = new JsonArray(Change("metadata", snapshot["components"]!["metadata"]!.DeepClone()));
-                break;
+            case "immutable_root": Add("caseBible", n => n["incident"]!["culpritPersonId"] = "person.decoy_one"); break;
             default: throw new ArgumentOutOfRangeException(nameof(defect));
         }
         return repair;
-    }
-
-    private sealed class CountingTemplate : IEvidenceTemplate
-    {
-        public string Layout => "GeneralReport";
-        public int Calls { get; private set; }
-        public EvidenceDocument Enrich(EvidenceDocument doc)
-        {
-            Calls++;
-            doc.Sections.Add(new EvidenceSection { Kind = "narrative", Text = RepairedFact });
-            return doc;
-        }
-    }
-
-    private sealed class RecordingDocumentRenderer : IEvidenceDocumentRenderer
-    {
-        public EvidenceDocument? Rendered { get; private set; }
-        public byte[] Render(EvidenceDocument doc)
-        {
-            Rendered = doc;
-            return System.Text.Encoding.ASCII.GetBytes("Prepared PDF test artifact.");
-        }
     }
 }
 
 public sealed class CanonicalDraftFixture : IAsyncLifetime
 {
     public CaseDraft Draft { get; private set; } = new();
+    internal TestCaseLlmProvider Provider { get; } = new();
 
     public async Task InitializeAsync()
     {
-        using var fixture = new CaseGenerationTestFixture();
-        fixture.BeforeConsistency = draft => Draft = draft.Copy();
-        var response = await fixture.GenerateAsync(writeToDisk: false);
-        Assert.True(response.Quality.Approved);
+        var draft = new CaseDraft
+        {
+            CaseId = "case_quality", Request = new GenerateCaseV2Request
+            {
+                CaseId = "case_quality", Difficulty = "Detective", Language = "en-US", Seed = 17, WriteToDisk = false
+            }
+        };
+        await new CaseBibleTask(Provider, NullLogger.Instance).RunAsync(draft, default);
+        var frozen = JsonSerializer.Serialize(draft.CaseBible);
+        await new PlotOutlineTask(Provider, NullLogger.Instance).RunAsync(draft, default);
+        foreach (var stub in draft.SuspectStubs)
+            draft.SuspectFull.Add(await new SuspectCardTask(Provider, NullLogger.Instance).RunAsync(draft, stub, default));
+        await new AssetPlanTask(Provider, NullLogger.Instance).RunAsync(draft, default);
+        EvidenceGraphCompiler.Compile(draft);
+        foreach (var stub in draft.AssetStubs)
+            draft.AssetFull.Add(await new AssetCardTask(Provider, NullLogger.Instance).RunAsync(draft, stub, default));
+        await new TimelineTask(Provider, NullLogger.Instance).RunAsync(draft, default);
+        await new BriefingEmailTask(Provider, NullLogger.Instance).RunAsync(draft, default);
+        await new ForensicsPlanTask(Provider, NullLogger.Instance).RunAsync(draft, default);
+        foreach (var stub in draft.ForensicStubs)
+        {
+            var (full, asset, email) = await new ForensicOutcomeTask(Provider, NullLogger.Instance).RunAsync(draft, stub, default);
+            draft.ForensicFull.Add(full);
+            if (asset is not null) draft.ResultAssets.Add(asset);
+            if (email is not null) draft.ResultEmails.Add(email);
+        }
+        await new InitialEmailsTask(Provider, NullLogger.Instance).RunAsync(draft, default);
+        EvidenceGraphCompiler.Compile(draft);
+        new MechanicalRulesBuilder(NullLogger<MechanicalRulesBuilder>.Instance).Build(draft);
+        await new RulesTask(Provider, NullLogger.Instance).RunAsync(draft, default);
+        await new SolutionSkeletonTask(Provider, NullLogger.Instance).RunAsync(draft, default);
+        foreach (var topic in draft.QuestionTopics)
+            draft.Questions.Add(await new QuestionTask(Provider, NullLogger.Instance).RunAsync(draft, topic, default));
+        await new ExplanationTask(Provider, NullLogger.Instance).RunAsync(draft, default);
+        CaseGraphProjection.RefreshGeneratedGraph(draft);
+        Assert.Equal(frozen, JsonSerializer.Serialize(draft.CaseBible));
+        CaseBibleValidator.Authored(draft);
+        Draft = draft;
     }
 
     public Task DisposeAsync() => Task.CompletedTask;

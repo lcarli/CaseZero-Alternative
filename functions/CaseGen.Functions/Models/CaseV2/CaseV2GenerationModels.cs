@@ -34,12 +34,27 @@ public class GenerateCaseV2Response
     public bool RefineAttempted { get; set; }
     public int RefineErrorsBefore { get; set; }
     public int RefineErrorsAfter { get; set; }
+    public int RefineIterations { get; set; }
+    public bool RedTeamRerun { get; set; }
     public Services.CaseV2.ConsistencyReport? Consistency { get; set; }
     public Services.CaseV2.Tasks.RedTeamTask.Report? RedTeam { get; set; }
+    public Services.CaseV2.Tasks.RedTeamTask.Report? RedTeamInitial { get; set; }
+    public List<string> RedTeamVerdictTrajectory { get; set; } = new();
     public Services.CaseV2.Tasks.SolverTask.SolverResult? Solver { get; set; }
     public CaseQualityReport Quality { get; set; } = new();
     public CaseRepairReport Repair { get; set; } = new();
     public CaseBundleReport? Bundle { get; set; }
+    public Services.CaseV2.CaseHarnessReport? Harness { get; set; }
+    public bool CaseGraphEnabled { get; set; }
+    public Services.CaseV2.PublicContractParityReport? PublicContractParity { get; set; }
+    public Services.CaseV2.FinalValidationReport? FinalValidation { get; set; }
+    public int RepairPlateauCount { get; set; }
+    public int RepairOperationCount { get; set; }
+    public long InputTokens { get; set; }
+    public long OutputTokens { get; set; }
+    public int EvidenceLayoutDiversity { get; set; }
+    public List<string> EvidenceLayouts { get; set; } = new();
+    public Dictionary<string, int> SpecialistFindingsByCategory { get; set; } = new();
 }
 
 public class CaseBundleReport
@@ -74,7 +89,7 @@ public class CaseQualityReport
     public bool Persisted { get; set; }
     public bool PublicationRequested { get; set; }
     public bool Published { get; set; }
-    public string SolverMode => "diagnostic";
+    public string SolverMode => "player-visible";
     public List<CaseQualityIssue> Issues { get; set; } = new();
 
     [JsonIgnore] public bool HasBlockingIssues => Issues.Any(issue => issue.Blocking);
@@ -136,6 +151,8 @@ public class PlotSuspect : CaseAuthoredContent
     [JsonPropertyName("alibi")] public string? Alibi { get; set; }
     [JsonPropertyName("alibiVerified")] public bool AlibiVerified { get; set; }
     [JsonPropertyName("background")] public string? Background { get; set; }
+    [JsonPropertyName("photo")] public string? Photo { get; set; }
+    [JsonPropertyName("relatedAssets")] public List<string> RelatedAssets { get; set; } = new();
 }
 
 public class PlotBriefingEmail : CaseAuthoredContent
@@ -162,6 +179,9 @@ public class EvidenceAsset : CaseAuthoredContent
     [JsonPropertyName("description")] public string? Description { get; set; }
     [JsonPropertyName("visibility")] public string Visibility { get; set; } = "initial";
     [JsonPropertyName("category")] public string? Category { get; set; }
+    [JsonPropertyName("evidenceRole")] public string? EvidenceRole { get; set; }
+    [JsonPropertyName("subjectSuspectId")] public string? SubjectSuspectId { get; set; }
+    [JsonPropertyName("imagePurpose")] public string? ImagePurpose { get; set; }
 
     /// <summary>Long-form body used by <see cref="Services.CaseV2.AssetRenderingService"/>:
     /// markdown for pdf/document assets (rendered with QuestPDF) or an image prompt for photo/image assets.</summary>

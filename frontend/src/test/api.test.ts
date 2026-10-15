@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { authApi, casesV2Api } from '../services/api'
+import { authApi, casesV2Api, emailsApi } from '../services/api'
 
 // Mock fetch
 const mockFetch = vi.fn()
@@ -63,6 +63,8 @@ describe('API Service', () => {
         })
       )
       expect(result).toEqual(mockResponse)
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('casezero_token', 'test-token')
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('casezero_user', JSON.stringify(mockResponse.user))
     })
 
     it('should throw error on failed login', async () => {
@@ -128,7 +130,8 @@ describe('API Service', () => {
     const result = {
       correct: false, score: 0.65,
       breakdown: { culpritScore: 0.4, evidenceScore: 0.1, analysisScore: 0.15, questionsScore: 0 },
-      attemptsRemaining: 2, feedbackText: 'Not quite.', explanationMarkdown: null,
+      maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
+      attemptsRemaining: 2, graded: true, feedbackCode: 'incorrect_attempts_remaining', explanationMarkdown: null,
     }
     mockFetch.mockResolvedValueOnce({
       ok: true, status: 200,
@@ -143,5 +146,34 @@ describe('API Service', () => {
       'http://localhost:5001/api/cases/case_progression/submit',
       expect.objectContaining({ method: 'POST' }),
     )
+  })
+
+  it('downloads binary email attachments with their raw IDs instead of parsing them as JSON', async () => {
+    const attachment = new Blob(['%PDF-1.7'], { type: 'application/pdf' })
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 200, blob: async () => attachment })
+    localStorageMock.getItem.mockReturnValue('test-token')
+
+    expect(await emailsApi.downloadAttachment('case_mail', 'email.raw_01', 'asset.hidden_report')).toBe(attachment)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'http://localhost:5001/api/cases/case_mail/emails/email.raw_01/attachments/asset.hidden_report/download',
+      expect.objectContaining({ method: 'POST', headers: { Authorization: 'Bearer test-token' } }),
+    )
+  })
+
+  it('opens emails using the raw server ID and fetches their full content', async () => {
+    const email = { emailId: 'email.raw_01', content: 'Case briefing', attachments: ['asset.hidden_report'] }
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, status: 204 })
+      .mockResolvedValueOnce({
+        ok: true, status: 200,
+        headers: { get: (name: string) => name === 'content-type' ? 'application/json' : null },
+        json: async () => email,
+      })
+
+    expect(await emailsApi.openEmail('case_mail', 'email.raw_01')).toEqual(email)
+    expect(mockFetch.mock.calls.map(([url]) => url)).toEqual([
+      'http://localhost:5001/api/cases/case_mail/emails/email.raw_01/open',
+      'http://localhost:5001/api/cases/case_mail/emails/email.raw_01',
+    ])
   })
 })

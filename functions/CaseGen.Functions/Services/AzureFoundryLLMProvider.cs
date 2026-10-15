@@ -19,6 +19,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
     private readonly ImageClient _imageClient;
     private readonly ILogger<AzureFoundryLLMProvider> _logger;
     private readonly bool _useStructuredOutputs;
+    public string GenerationIdentity { get; }
 
     public AzureFoundryLLMProvider(IConfiguration configuration, ILogger<AzureFoundryLLMProvider> logger,
         OpenAIClientOptions? clientOptions = null)
@@ -37,6 +38,15 @@ public class AzureFoundryLLMProvider : ILLMProvider
 
         var apiKey = configuration["AzureFoundry:ApiKey"]
             ?? throw new InvalidOperationException("AzureFoundry:ApiKey not configured");
+
+        GenerationIdentity = JsonSerializer.Serialize(new
+        {
+            provider = GetType().FullName,
+            endpointHash = CaseV2.CaseGenerationSkillRegistry.Hash(endpoint),
+            textDeployment = deploymentName,
+            imageDeployment = imageDeploymentName,
+            structuredOutputs = _useStructuredOutputs
+        });
 
         clientOptions ??= new OpenAIClientOptions();
         clientOptions.Endpoint = new Uri(endpoint);
@@ -92,8 +102,15 @@ public class AzureFoundryLLMProvider : ILLMProvider
         }
     }
 
-    public async Task<LLMResponse> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema, CancellationToken cancellationToken = default)
+    public Task<LLMResponse> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema,
+        CancellationToken cancellationToken = default) =>
+        GenerateStructuredResponseAsync(systemPrompt, userPrompt, jsonSchema, 30000, cancellationToken);
+
+    public async Task<LLMResponse> GenerateStructuredResponseAsync(string systemPrompt, string userPrompt, string jsonSchema,
+        int maximumOutputTokens, CancellationToken cancellationToken = default)
     {
+        if (maximumOutputTokens is < 1 or > 30000)
+            throw new ArgumentOutOfRangeException(nameof(maximumOutputTokens));
         try
         {
             var enhancedSystemPrompt = $@"{systemPrompt}
@@ -105,7 +122,7 @@ public class AzureFoundryLLMProvider : ILLMProvider
 
             var requestOptions = new ChatCompletionOptions()
             {
-                MaxOutputTokenCount = 30000
+                MaxOutputTokenCount = maximumOutputTokens
             };
             if (_useStructuredOutputs)
             {

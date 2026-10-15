@@ -6,6 +6,17 @@
 
 ---
 
+> ### ⚠️ Implementation status
+>
+> This chapter is the **original design vision** for progression and is largely **aspirational** — most of it (the 8-rank ladder, the XP formula, XP-based promotion, hour/case estimates) has **not** been implemented as written. Treat it as a **design goal / roadmap reference**, not as a description of the live game.
+>
+> **What is actually implemented today** (`backend/CaseZeroApi/Models/User.cs`, `backend/CaseZeroApi/Services/PromotionRules.cs`, `schemas/case.schema.json`):
+> - **7 ranks / difficulty levels**, shared by cases and detectives: `Rookie → Detective → Detective2 → Sergeant → Lieutenant → Captain → Commander`.
+> - Promotion is **not XP-based**. It is driven by **cumulative graded-correct case resolves** since account creation, with fixed thresholds: Rookie = 0, Detective = 3, Detective2 = 8, Sergeant = 16, Lieutenant = 28, Captain = 44, Commander = 65 resolved cases.
+> - There is no XP number, no per-difficulty XP formula, and no attempt-based XP penalty/bonus system in the codebase today.
+>
+> The rest of this chapter (§6.3–§6.9) describes the **8-rank / XP-driven system as originally envisioned**. It is kept for design-history and future-iteration purposes; do not treat the specific rank names ("Senior Detective", "Master Detective", etc.), XP numbers, or hour estimates below as current facts.
+
 ## 6.1 Overview
 
 This chapter defines the **detective rank progression system** - how players advance through their career, unlock new cases, and track their investigative mastery. The system is designed to feel like genuine career progression rather than gamified leveling.

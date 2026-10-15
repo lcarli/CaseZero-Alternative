@@ -123,6 +123,17 @@ public sealed class CaseBundle
         await VerifyJsonAsync(ct);
     }
 
+    public static async Task<CaseBundle> RestoreAsync(CaseBundleManifest manifest, string caseDirectory,
+        string caseJson, string manifestSha256, CancellationToken ct = default)
+    {
+        var manifestPath = Path.Combine(caseDirectory, "assets", manifest.BundleId, "manifest.json");
+        var bundle = new CaseBundle(manifest, Path.GetFullPath(caseDirectory), caseJson, manifestSha256,
+            new FileInfo(manifestPath).Length);
+        await bundle.VerifyAsync(ct);
+        bundle.Report.Verified = true;
+        return bundle;
+    }
+
     public async Task VerifyJsonAsync(CancellationToken ct = default)
     {
         Require(await HashFileAsync(CaseJsonPath, ct) == CaseJsonSha256, "Compiled case.json changed after bundle verification.");

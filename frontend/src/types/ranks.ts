@@ -1,67 +1,52 @@
-// Police rank system for case access control
-export const PoliceRank = {
-  CADET: 'Cadet',
-  OFFICER: 'Officer', 
+// Detective rank system, aligned 1:1 with the backend DetectiveRank enum
+// (CaseZeroApi/Models/User.cs). Display names are localized via i18n keys rather
+// than hardcoded here, so use rankI18nKey() with the translation function.
+export const DetectiveRank = {
+  ROOK: 'Rook',
   DETECTIVE: 'Detective',
+  DETECTIVE2: 'Detective2',
   SERGEANT: 'Sergeant',
   LIEUTENANT: 'Lieutenant',
   CAPTAIN: 'Captain',
-  COMMANDER: 'Commander',
-  CHIEF: 'Chief'
+  COMMANDER: 'Commander'
 } as const
 
-export type PoliceRank = typeof PoliceRank[keyof typeof PoliceRank]
+export type DetectiveRank = typeof DetectiveRank[keyof typeof DetectiveRank]
 
-// Rank hierarchy for comparison (higher number = higher rank)
-export const RANK_HIERARCHY: Record<PoliceRank, number> = {
-  [PoliceRank.CADET]: 1,
-  [PoliceRank.OFFICER]: 2,
-  [PoliceRank.DETECTIVE]: 3,
-  [PoliceRank.SERGEANT]: 4,
-  [PoliceRank.LIEUTENANT]: 5,
-  [PoliceRank.CAPTAIN]: 6,
-  [PoliceRank.COMMANDER]: 7,
-  [PoliceRank.CHIEF]: 8
+// Ascending order; index doubles as the comparison ordinal (matches backend enum).
+export const RANK_ORDER: DetectiveRank[] = [
+  DetectiveRank.ROOK,
+  DetectiveRank.DETECTIVE,
+  DetectiveRank.DETECTIVE2,
+  DetectiveRank.SERGEANT,
+  DetectiveRank.LIEUTENANT,
+  DetectiveRank.CAPTAIN,
+  DetectiveRank.COMMANDER
+]
+
+const RANK_ORDINAL: Record<string, number> = RANK_ORDER.reduce(
+  (acc, rank, i) => ({ ...acc, [rank.toLowerCase()]: i }),
+  {} as Record<string, number>
+)
+
+/** Normalizes an arbitrary rank string to a DetectiveRank (defaults to Rook). */
+export function getRankFromString(rankStr: string): DetectiveRank {
+  const normalized = (rankStr || '').toLowerCase()
+  // Accept "rookie" as an alias for the entry-level rank.
+  if (normalized === 'rookie') return DetectiveRank.ROOK
+  const match = RANK_ORDER.find(r => r.toLowerCase() === normalized)
+  return match ?? DetectiveRank.ROOK
 }
 
-/**
- * Check if player rank meets minimum requirement for a case
- */
-export function hasRequiredRank(playerRank: PoliceRank, requiredRank: PoliceRank): boolean {
-  return RANK_HIERARCHY[playerRank] >= RANK_HIERARCHY[requiredRank]
+/** True when the player's rank meets or exceeds the required rank. */
+export function hasRequiredRank(playerRank: string, requiredRank: string): boolean {
+  const player = RANK_ORDINAL[getRankFromString(playerRank).toLowerCase()] ?? 0
+  const required = RANK_ORDINAL[getRankFromString(requiredRank).toLowerCase()] ?? 0
+  return player >= required
 }
 
-/**
- * Get rank from string (case insensitive)
- */
-export function getRankFromString(rankStr: string): PoliceRank {
-  const normalizedRank = rankStr.toLowerCase()
-  
-  switch (normalizedRank) {
-    case 'cadet': return PoliceRank.CADET
-    case 'officer': return PoliceRank.OFFICER
-    case 'detective': return PoliceRank.DETECTIVE
-    case 'sergeant': return PoliceRank.SERGEANT
-    case 'lieutenant': return PoliceRank.LIEUTENANT
-    case 'captain': return PoliceRank.CAPTAIN
-    case 'commander': return PoliceRank.COMMANDER
-    case 'chief': return PoliceRank.CHIEF
-    default: return PoliceRank.OFFICER // Default fallback
-  }
-}
-
-/**
- * Get displayable rank name in Portuguese
- */
-export function getRankDisplayName(rank: PoliceRank): string {
-  switch (rank) {
-    case PoliceRank.CADET: return 'Cadete'
-    case PoliceRank.OFFICER: return 'Oficial'
-    case PoliceRank.DETECTIVE: return 'Detetive'
-    case PoliceRank.SERGEANT: return 'Sargento'
-    case PoliceRank.LIEUTENANT: return 'Tenente'
-    case PoliceRank.CAPTAIN: return 'Capitão'
-    case PoliceRank.COMMANDER: return 'Comandante'
-    case PoliceRank.CHIEF: return 'Chefe'
-  }
+/** i18n key for a rank's localized display name (e.g. 'rankDetective2'). */
+export function rankI18nKey(rank: string): string {
+  const normalized = getRankFromString(rank)
+  return `rank${normalized}`
 }

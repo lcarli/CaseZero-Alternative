@@ -1,14 +1,15 @@
 # Plano de implementacao: geracao de casos consistente
 
-**Status:** entregas 01-06 implementadas localmente. O proximo passo aprovado e
-um piloto real **Rookie, pt-BR**, antes de ampliar a implementacao. As tentativas
-foram bloqueadas na autenticacao, sem conteudo retornado pelo modelo. Nao houve
-deploy nem aplicacao da migration a um banco real.
+**Status:** entregas 01-06 reconciliadas com a arquitetura canonica de main;
+07-10 implementadas parcialmente na feature e ainda em validacao. O usuario
+aprovou concluir a arquitetura antes de publicar somente as Functions DEV e
+executar um piloto real **Rookie, pt-BR** separado. Nao houve deploy, caso real
+aprovado ou aplicacao de migration a um banco real.
 
 **Retomada em outra maquina:** ler
 [CASE_GENERATION_HANDOFF.md](CASE_GENERATION_HANDOFF.md), que registra o estado,
-o bloqueio atual, o runner portatil e os proximos passos. PR 07-10 continuam
-planejados; nao foram implementados nem substituidos pelo piloto.
+os resultados atuais, bloqueadores e roteiro de publicacao em outra maquina.
+Nao usar os resultados historicos da feature como prova da reconciliacao.
 
 **Base:** auditoria da `main` em `9cb2218`, incluindo o pipeline v2, os
 consumidores no backend/frontend, documentos versionados e reproducoes locais

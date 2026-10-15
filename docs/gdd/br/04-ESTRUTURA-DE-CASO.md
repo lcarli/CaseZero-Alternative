@@ -1,6 +1,6 @@
 # 04 — Estrutura de Caso
 
-> **Canônico v2.** A forma técnica do `case.json` v2 é especificada em [`docs/CASE_JSON_V2_SPEC.md`](../docs/CASE_JSON_V2_SPEC.md). Este capítulo descreve apenas o **design de jogo** por trás dessa forma. Qualquer documento mais antigo que use `evidences[]`, `unlockLogic`, `documents[]` ou `forensicReports[]` está obsoleto e deve ser ignorado.
+> **Canônico v2.** A forma técnica do `case.json` v2 é especificada em [`docs/CASE_JSON_V2_SPEC.md`](../../CASE_JSON_V2_SPEC.md). Este capítulo descreve apenas o **design de jogo** por trás dessa forma. Qualquer documento mais antigo que use `evidences[]`, `unlockLogic`, `documents[]` ou `forensicReports[]` está obsoleto e deve ser ignorado.
 
 ## 4.1 Visão geral
 
@@ -100,6 +100,6 @@ Cada `tevt.*` dispara em `triggerAtMinutes` (game time desde `openedAt`). O serv
 4. **A solução deve exigir pelo menos uma perícia e uma evidência.** Senão o jogo vira "adivinha o culpado".
 5. **Use `partialCreditRules` para reconhecer raciocínio parcial.** Acertar o culpado mas não as evidências ainda merece pontos.
 
-## 4.9 Para gerar um caso
+## 4.9 Gerando um caso
 
-A pipeline de geração mora em `functions/CaseGen.Functions/` (Azure Functions, .NET 9). Ela deve emitir um `case.json` que valide contra `schemas/case.schema.json`. A migração da pipeline para emitir v2 está no roadmap (capítulo 12).
+**Implementado.** A pipeline de geração mora em `functions/CaseGen.Functions/` (Azure Functions, .NET 9, orquestração via Durable Functions) e emite `case.json` **v2 nativamente** — não há mais migração pendente. O `CaseV2GenerationOrchestrator` conduz um fluxo em múltiplos estágios: um estágio de **Case Bible** estabelece a fonte da verdade privada e tipada do caso; os estágios seguintes chamam **prompts de agentes LLM externos** (arquivos de prompt em markdown em `functions/CaseGen.Functions/agents/case-v2/`) para expandir enredo, evidências, suspeitos e documentos; um **CaseGraph** mantém um grafo de consistência projetado das entidades e referências entre estágios; um estágio de **solver** tenta resolver o caso a partir das pistas geradas e a execução é rejeitada se a pontuação ficar abaixo do limiar de **0.90**. O orquestrador refaz estágios com falha (retry com backoff) e reporta o **progresso por fase** ao endpoint de status do job durante toda a execução. Antes da publicação, o pacote passa por múltiplos portões de **validação** (schema, consistência da Case Bible, grafo, prova, perícia, evidências, dificuldade, idioma, solver, revisão de especialista, regressão Rookie, paridade). A publicação no Blob Storage envia os assets primeiro e escreve o `case.json` **por último**, já que ele é o marcador de commit do pacote — um caso não pode ser descoberto pela API antes que seu `case.json` exista, então pacotes parcialmente gerados nunca ficam visíveis.

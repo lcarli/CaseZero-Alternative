@@ -7,6 +7,8 @@ using CaseGen.Functions.Models.CaseV2;
 using CaseGen.Functions.Services;
 using CaseGen.Functions.Services.CaseV2;
 using CaseGen.Functions.Services.CaseV2.Templates;
+using CaseGen.Functions.Services.CaseV2.Rendering;
+using CaseGen.Functions.Services.CaseV2.Rendering.Layouts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
@@ -210,7 +212,7 @@ public class CaseBundleTests
         fixture.SeedExistingCase();
         fixture.Renderer.InvalidBytes = true;
         var response = await fixture.GenerateAsync();
-        Assert.Contains(response.Quality.Issues, i => i.Code == "asset_integrity_failed" && i.Reference == "asset.scene");
+        Assert.Contains(response.Quality.Issues, i => i.Code == "asset_integrity_failed" && i.Reference == "asset.initial_report");
         Assert.Equal(0, fixture.Publisher.Calls);
         Assert.Equal("original case", await File.ReadAllTextAsync(fixture.CasePath));
     }
@@ -250,7 +252,7 @@ public class CaseBundleTests
         using var fixture = new CaseGenerationTestFixture();
         fixture.Llm.ImageBytes = "not an image"u8.ToArray();
         var result = await Renderer(fixture.Llm).RenderAllAsync("case_quality", fixture.Root,
-            [new EvidenceAsset { Id = "asset.record", Type = "photo", Title = "Record" }]);
+            [new EvidenceAsset { Id = "asset.record", Type = "photo", Title = "Record", Body = "Photograph of the submitted record." }]);
         Assert.Single(result.Errors);
         Assert.Equal(0, result.ImagesWritten);
         Assert.Empty(result.Files);
@@ -268,12 +270,14 @@ public class CaseBundleTests
         await Assert.ThrowsAsync<TaskContractException>(() => fixture.GenerateAsync());
         Assert.Equal(0, fixture.Renderer.Calls);
         Assert.Equal(0, fixture.Publisher.Calls);
-        Assert.Contains(fixture.Llm.Calls, c => c.System.Contains("document transcript"));
+        Assert.Contains(fixture.Llm.Calls, c => c.System.Contains("**canonical CaseBible**"));
     }
 
     private static AssetRenderingService Renderer(ILLMProvider llm) => new(
         new PdfRenderingService(new ConfigurationBuilder().Build(), NullLogger<PdfRenderingService>.Instance), llm,
-        new EvidenceDocumentRenderer(NullLogger<EvidenceDocumentRenderer>.Instance), new EvidenceTemplateRegistry([]),
+        new EvidenceDocumentRenderer(
+            new DocumentLayoutRegistry([new GeneralReportLayout()], NullLogger<DocumentLayoutRegistry>.Instance),
+            NullLogger<EvidenceDocumentRenderer>.Instance), new EvidenceTemplateRegistry([]),
         NullLogger<AssetRenderingService>.Instance);
 }
 

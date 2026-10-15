@@ -367,6 +367,9 @@ namespace CaseZeroApi.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<double?>("AnalysisScore")
+                        .HasColumnType("float");
+
                     b.Property<int>("AttemptNumber")
                         .HasColumnType("int");
 
@@ -374,14 +377,23 @@ namespace CaseZeroApi.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<double?>("CulpritScore")
+                        .HasColumnType("float");
+
                     b.Property<DateTime?>("EvaluatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("EvaluatedByUserId")
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<double?>("EvidenceScore")
+                        .HasColumnType("float");
+
                     b.Property<string>("Feedback")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Graded")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsCorrectSuspect")
                         .HasColumnType("bit");
@@ -392,6 +404,9 @@ namespace CaseZeroApi.Migrations
                     b.Property<string>("KeyEvidenceDescription")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("QuestionsScore")
+                        .HasColumnType("float");
 
                     b.Property<string>("Reasoning")
                         .IsRequired()
@@ -461,6 +476,9 @@ namespace CaseZeroApi.Migrations
 
                     b.Property<bool>("IsSystemGenerated")
                         .HasColumnType("bit");
+
+                    b.Property<string>("MetadataJson")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Preview")
                         .HasColumnType("nvarchar(max)");
@@ -973,6 +991,37 @@ namespace CaseZeroApi.Migrations
                     b.ToTable("UserCases");
                 });
 
+            modelBuilder.Entity("CaseZeroApi.Models.UserRankHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ChangedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NewRank")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PreviousRank")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "ChangedAt");
+
+                    b.ToTable("UserRankHistories");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -1349,6 +1398,17 @@ namespace CaseZeroApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Case");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CaseZeroApi.Models.UserRankHistory", b =>
+                {
+                    b.HasOne("CaseZeroApi.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });

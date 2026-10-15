@@ -10,6 +10,8 @@
 
 Este capítulo define a **interface visual, os padrões de interação e a experiência do usuário** em CaseZero. A UI adota a metáfora de um **sistema operacional de desktop** — os jogadores navegam por uma estação de trabalho simulada de detetive com janelas, ícones e aplicativos familiares.
 
+> **Nota de implementação atual:** o frontend vivo já inclui uma rota administrativa `/case-generation` com seletores de dificuldade/idioma, campos opcionais de título/local/tema/caseId/seed, polling do job, visibilidade de retries e estatísticas finais da execução. O sistema de localização embarcado na UI hoje oferece `en-US`, `pt-BR`, `es-ES` e `fr-FR`.
+
 **Conceitos-chave:**
 
 - Metáfora de desktop (inspirada em Windows/macOS)
@@ -775,13 +777,13 @@ Explique o motivo (mínimo 50 palavras)
 TEMPORIZAÇÃO DAS PERÍCIAS
 
 Modo de tempo:
-◉ Tempo real (Padrão)
-  DNA: 24 horas, Balística: 12 horas etc.
-  Progresso continua com o jogo fechado.
+◉ Acelerado (Padrão)
+  1 hora no mundo do caso = 1 minuto real.
+  O progresso continua mesmo com o jogo fechado.
 
-○ Acelerado (1 hora = 1 minuto)
-  DNA: 24 minutos, Balística: 12 minutos
-  Para ritmo mais rápido.
+○ Tempo real
+  Temporizadores originais em escala de horas.
+  Mesmas contagens assíncronas no servidor, porém mais lentas.
 
 ○ Instantâneo (Modo História)
   Todas as análises concluem imediatamente.
@@ -916,19 +918,19 @@ Faltam informações obrigatórias:
 │                                                  │
 │ Bem-vindo de volta, Detetive!                    │
 │                                                  │
-│ Patente: Detetive Líder ⭐                        │
-│ XP: 9.450 / 12.000  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░ 79%    │
+│ Patente: Detetive Sênior ⭐                       │
+│ Promoção: 8 / 16 casos validados ▓▓▓▓▓▓▓▓░░░░    │
 │                                                  │
 │ ──────────────────────────────────────────────── │
 │                                                  │
 │ CASOS ATIVOS (2)                                 │
 │                                                  │
 │ CASE-2024-015: A Conspiração do Porto            │
-│ Dificuldade: Especialista • 6,2 horas • 45%      │
+│ Dificuldade: Tenente • 6,2 horas • 45%           │
 │ [Continuar]                                      │
 │                                                  │
 │ CASE-2024-014: O Roubo do Museu                  │
-│ Dificuldade: Difícil • 2,1 horas • 20%           │
+│ Dificuldade: Sargento • 2,1 horas • 20%          │
 │ [Continuar]                                      │
 │                                                  │
 │ ──────────────────────────────────────────────── │
@@ -945,24 +947,25 @@ Faltam informações obrigatórias:
 ┌──────────────────────────────────────────────────┐
 │ Explorar Casos                                   │
 ├──────────────────────────────────────────────────┤
-│ Filtro: [Todos ▼] [Fácil] [Médio] [Difícil] [Especialista] │
+│ Filtro: [Todos ▼] [Rookie] [Detetive] [Sênior]   │
+│         [Sargento] [Tenente] [Capitão] [Com.]    │
 │ Ordenar: [Mais Recentes ▼]                       │
 ├──────────────────────────────────────────────────┤
 │                                                  │
 │ CASE-2024-016: O Cálice Envenenado               │
-│ Dificuldade: Especialista • Est. 10-12 horas     │
+│ Dificuldade: Comandante • Est. 10-12 horas       │
 │ Suspeitos: 9 • Documentos: 28 • Evidências: 14   │
 │ "Um colecionador de vinhos morre misteriosamente │
 │ em um jantar. Foi assassinato ou acidente?"      │
 │ [Iniciar Caso]                                   │
 │                                                  │
 │ CASE-2024-015: A Conspiração do Porto            │
-│ Dificuldade: Especialista • Est. 8-10 horas      │
+│ Dificuldade: Capitão • Est. 8-10 horas           │
 │ Suspeitos: 8 • Documentos: 24 • Evidências: 12   │
 │ [Continuar] (Em andamento)                       │
 │                                                  │
 │ CASE-2024-014: O Roubo do Museu                  │
-│ Dificuldade: Difícil • Est. 6-8 horas            │
+│ Dificuldade: Sargento • Est. 6-8 horas           │
 │ Suspeitos: 6 • Documentos: 18 • Evidências: 10   │
 │ [Continuar] (Em andamento)                       │
 │                                                  │
@@ -1089,6 +1092,7 @@ Faltam informações obrigatórias:
 2. **Arquivos do Caso** - Documentos, evidências, notas, linha do tempo
 3. **Laboratório Forense** - Solicitar análises, ver laudos
 4. **Enviar Solução** - Submissão final do caso
+5. **Geração de Casos (Admin)** - Disparar e acompanhar jobs de IA em `/case-generation`
 
 **Design visual:**
 - Tema escuro (#1a1a1a de fundo, #4a9eff de destaque)
@@ -1099,8 +1103,9 @@ Faltam informações obrigatórias:
 **Experiência do usuário:**
 - Gerenciamento de janelas (minimizar, maximizar, fechar)
 - Atalhos de teclado em toda a experiência
-- Progresso de perícias em tempo real
+- Progresso temporizado das perícias (contagens assíncronas)
 - Feedback claro e notificações
+- Quatro locais de UI já embarcados: `en-US`, `pt-BR`, `es-ES`, `fr-FR`
 - Performance responsiva
 
 ---

@@ -1,0 +1,343 @@
+{
+  "version": "2.0",
+  "caseId": "case_rookie_casebible_regression_v3",
+  "metadata": {
+    "title": "Sil\u00EAncio no Galp\u00E3o da Cooperativa",
+    "description": "Um membro-chave de uma cooperativa cultural de Curitiba desaparece ap\u00F3s uma noite de fechamento no galp\u00E3o. O caso come\u00E7a como pessoa desaparecida, mas sinais de manipula\u00E7\u00E3o administrativa e inconsist\u00EAncias log\u00EDsticas indicam que algu\u00E9m do c\u00EDrculo interno tentou controlar a narrativa do que ocorreu.",
+    "location": "Curitiba, Brasil",
+    "incidentDate": "2026-05-14T21:36:00-03:00",
+    "openedAt": "2026-05-15T09:05:00-03:00",
+    "difficulty": "Rookie",
+    "requiredRank": "Rookie",
+    "unlockMode": "all_initial",
+    "estimatedDurationMinutes": 90,
+    "category": "Desaparecimento",
+    "briefing": "Um produtor da Cooperativa Cultural Armaz\u00E9m 7 n\u00E3o voltou para casa depois de fechar o galp\u00E3o. A fam\u00EDlia insiste que ele n\u00E3o sumiria sem avisar, e h\u00E1 inconsist\u00EAncias nos registros de acesso da cooperativa.",
+    "tags": [
+      "cooperativa",
+      "cultura",
+      "desaparecimento",
+      "Curitiba",
+      "registro_de_acesso",
+      "galpao"
+    ]
+  },
+  "assets": [
+    {
+      "id": "asset.access_log",
+      "type": "digital",
+      "title": "Exporta\u00E7\u00E3o do Controle de Acesso \u2014 Port\u00E3o Lateral e Trilhas Administrativas (14\u201315/05)",
+      "description": "Exporta\u00E7\u00E3o do sistema de controle de acesso do galp\u00E3o (log bruto \u002B trilha de auditoria). Consta uma abertura do port\u00E3o lateral em 14/05 entre 21:34 e 21:39 (com fechamento ao final do intervalo). Na trilha de auditoria, o evento de abertura nesse intervalo aparece associado ao mesmo identificador de credencial de Marina Saad (cart\u00E3o/usu\u00E1rio interno) e ao mesmo perfil usado por ela em outros acessos do dia.\n\nConsta tamb\u00E9m um evento de auditoria indicando edi\u00E7\u00E3o manual de registro em 15/05 \u00E0s 02:17 (altera\u00E7\u00E3o de hor\u00E1rio/descri\u00E7\u00E3o de evento), realizada por usu\u00E1rio com perfil de administrador identificado no pr\u00F3prio log como \u201CAdmin \u2014 Marina Saad\u201D.",
+      "uri": "case://case_rookie_casebible_regression_v3/assets/access_log.pdf",
+      "visibility": "initial",
+      "category": "Digital"
+    },
+    {
+      "id": "asset.witness_statement",
+      "type": "document",
+      "title": "Declara\u00E7\u00E3o de Testemunha \u2014 Colega do Fechamento (\u00FAltimo contato no galp\u00E3o)",
+      "description": "Declara\u00E7\u00E3o formal de uma colega que participou do fechamento do galp\u00E3o na noite de 14/05/2026. A testemunha relata que saiu do galp\u00E3o por volta de 21:10, ap\u00F3s conferir a porta principal, e que a v\u00EDtima permaneceu no local dizendo que ficaria para \u201Cresolver papelada\u201D no escrit\u00F3rio.\n\nEla tamb\u00E9m descreve ter visto Marina Saad nas proximidades do escrit\u00F3rio e da copa por volta de 21:05\u201321:15, e afirma que n\u00E3o viu Renato Klein ap\u00F3s aproximadamente 20:40 (quando ele saiu com equipamentos) nem Joana Martins naquela noite.\n\nNa manh\u00E3 seguinte, durante o retorno ao galp\u00E3o com outros membros, a testemunha notou a aus\u00EAncia de um carrinho plataforma (normalmente guardado no corredor de armazenamento) e de uma manta de cenografia escura (normalmente dobrada em prateleira).",
+      "uri": "case://case_rookie_casebible_regression_v3/assets/witness_statement.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.evidence_log",
+      "type": "document",
+      "title": "Registro de Apreens\u00E3o e Itens Coletados \u2014 Escrit\u00F3rio do Galp\u00E3o (busca inicial)",
+      "description": "Registro de apreens\u00E3o e cadeia de cust\u00F3dia da busca inicial no escrit\u00F3rio do galp\u00E3o. Documenta a coleta de um comprovante/recibo de compra de medicamento ansiol\u00EDtico do mesmo dia (14/05), encontrado no lixo do escrit\u00F3rio. O documento registra que a compra foi paga com cart\u00E3o corporativo da cooperativa, constando o nome do portador no recibo: \u201CMarina Saad\u201D, al\u00E9m de hor\u00E1rio (19:22) e estabelecimento (farm\u00E1cia no centro).\n\nO mesmo registro lista, como achado no corredor de armazenamento, marcas recentes de roda e arrasto no piso (poeira removida em trilha curta) compat\u00EDveis com movimenta\u00E7\u00E3o de carrinho plataforma na dire\u00E7\u00E3o do port\u00E3o lateral, observadas pela equipe na manh\u00E3 de 15/05 e fotografadas no momento da coleta (sem identifica\u00E7\u00E3o de pessoa).",
+      "uri": "case://case_rookie_casebible_regression_v3/assets/evidence_log.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    },
+    {
+      "id": "asset.newspaper_clipping",
+      "type": "document",
+      "title": "Recorte de Jornal \u2014 \u2018Membro de cooperativa cultural desaparece ap\u00F3s noite no galp\u00E3o\u2019",
+      "description": "Recorte de mat\u00E9ria local sobre o desaparecimento ap\u00F3s o fechamento do galp\u00E3o. A reportagem menciona que a pol\u00EDcia analisa registros de acesso do port\u00E3o lateral e apura inconsist\u00EAncias de hor\u00E1rios; tamb\u00E9m registra que a cooperativa afirmou, publicamente, que teria sido uma \u201Csa\u00EDda normal\u201D, sem detalhar a origem dessa vers\u00E3o.",
+      "uri": "case://case_rookie_casebible_regression_v3/assets/newspaper_clipping.pdf",
+      "visibility": "initial",
+      "category": "Document"
+    }
+  ],
+  "emails": [
+    {
+      "id": "email.briefing",
+      "from": "Pol\u00EDcia Civil do Paran\u00E1 (PCPR) \u2014 Delegacia de Homic\u00EDdios e Prote\u00E7\u00E3o \u00E0 Pessoa (DHPP), Curitiba",
+      "to": [
+        "Insp. Camila Rios \u003Ccamila.rios@pc.pr.gov.br\u003E"
+      ],
+      "subject": "DHPP \u2014 Caso case_rookie_casebible_regression_v3 | Desaparecimento no galp\u00E3o da cooperativa \u2014 dilig\u00EAncias imediatas",
+      "body": "Insp. Camila Rios,\n\nCaso \u201CSil\u00EAncio no Galp\u00E3o da Cooperativa\u201D (desaparecimento). A v\u00EDtima foi vista no galp\u00E3o ap\u00F3s o fechamento para \u201Cresolver papelada\u201D (relato a confirmar). O controle de acesso registra abertura do port\u00E3o lateral por poucos minutos na noite de 14/05, e h\u00E1 ind\u00EDcios de altera\u00E7\u00E3o manual posterior nos registros por perfil com privil\u00E9gios administrativos. Busca inicial no escrit\u00F3rio resultou em apreens\u00E3o documentada de comprovante de compra de medicamento ansiol\u00EDtico no mesmo dia (cadeia de cust\u00F3dia preservada).\n\nO que permanece incerto: a confirma\u00E7\u00E3o do \u00FAltimo contato presencial e quem efetivamente acionou o port\u00E3o lateral no intervalo cr\u00EDtico; a rota ap\u00F3s a sa\u00EDda do galp\u00E3o; e o paradeiro atual da v\u00EDtima. N\u00E3o tratamos o evento como \u201Csa\u00EDda volunt\u00E1ria\u201D sem lastro, diante da poss\u00EDvel manipula\u00E7\u00E3o de logs e inconsist\u00EAncias log\u00EDsticas observadas.\n\nObjetivo imediato: consolidar a linha do tempo entre fechamento e a janela do port\u00E3o lateral, identificar todos os usu\u00E1rios com acesso administrativo ao sistema e preservar integralmente registros.\n",
+      "sentAt": "2026-05-15T09:05:00-03:00",
+      "priority": "urgent",
+      "attachments": [
+        "asset.access_log",
+        "asset.witness_statement"
+      ],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.vigia_ronda_lateral",
+      "from": "Paulo Nogueira \u003Cpaulo.nogueira@segurancaterceirizada.com.br\u003E",
+      "to": [
+        "Insp. Camila Rios \u003Ccamila.rios@pc.pr.gov.br\u003E"
+      ],
+      "subject": "Re: DHPP \u2014 Preserva\u00E7\u00E3o do galp\u00E3o / minha ronda (14\u201315/05)",
+      "body": "Insp. Camila,\n\nSou o vigia do turno da noite (14/05). Estou enviando o que eu vi e o que posso confirmar sem \u201Cachar\u201D nada.\n\n1) Entre 21:30 e 21:45 eu N\u00C3O estava no port\u00E3o lateral: eu estava do lado de fora, fazendo a volta no quarteir\u00E3o pelo roteiro do aplicativo da empresa. Eu vi o port\u00E3o lateral fechado quando passei na cal\u00E7ada dos fundos alguns minutos antes (n\u00E3o parei ali).\n\n2) Eu n\u00E3o ouvi barulho de discuss\u00E3o, gritos ou algo parecido vindo do galp\u00E3o.\n\n3) Quando voltei para perto da entrada principal depois, a porta principal estava fechada (como de costume) e n\u00E3o notei nada fora do lugar pelo lado de fora.\n\n4) Sobre o livro de ocorr\u00EAncias: eu preenchi parte dele depois, de mem\u00F3ria, porque no meio da ronda eu registro mais pelo app. Se precisarem, posso autorizar a empresa a mandar o relat\u00F3rio do app com os pontos e hor\u00E1rios.\n\nFico \u00E0 disposi\u00E7\u00E3o para depor formalmente.\n\nPaulo Nogueira\nVigia \u2014 empresa terceirizada",
+      "sentAt": "2026-05-15T10:12:00-03:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.cooperada_fechamento_itens",
+      "from": "L\u00EDvia Andrade \u003Clivia.andrade@cooperativacultural.org.br\u003E",
+      "to": [
+        "Insp. Camila Rios \u003Ccamila.rios@pc.pr.gov.br\u003E"
+      ],
+      "subject": "Depoimento preliminar \u2014 fechamento do galp\u00E3o (14/05) e itens fora do lugar",
+      "body": "Inspetora Camila Rios,\n\nSou a L\u00EDvia, eu ajudei no fechamento do galp\u00E3o na noite de 14/05. Segue meu relato do que eu observei.\n\n\u2014 Por volta de 20:50\u201321:00, o [v\u00EDtima] ainda estava l\u00E1 dentro. Ele comentou comigo que \u201Cia resolver uma papelada rapidinho no escrit\u00F3rio\u201D antes de ir embora.\n\n\u2014 Eu vi a Marina Saad perto do escrit\u00F3rio e da copa. N\u00E3o lembro de ter visto outras pessoas entrando depois que o pessoal foi saindo.\n\n\u2014 Quando eu sa\u00ED, o carrinho plataforma estava encostado perto do corredor de armazenamento (onde normalmente fica). No dia seguinte cedo, quando voltei com outros, reparei que ele n\u00E3o estava mais no lugar e uma manta de cenografia (escura, grossa) que costuma ficar dobrada numa prateleira tamb\u00E9m n\u00E3o apareceu.\n\n\u2014 Outra coisa: eu lembro de ter conferido a porta principal, mas eu n\u00E3o conferi o port\u00E3o lateral.\n\nSe precisarem eu vou a\u00ED para depoimento formal e para mostrar exatamente onde ficavam o carrinho e a manta.\n\nAtenciosamente,\nL\u00EDvia Andrade",
+      "sentAt": "2026-05-15T09:38:00-03:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.ti_acesso_preservacao_logs",
+      "from": "Rafael Moreira \u003Crafael.moreira@acessocontrole-suporte.com.br\u003E",
+      "to": [
+        "Insp. Camila Rios \u003Ccamila.rios@pc.pr.gov.br\u003E"
+      ],
+      "subject": "Preserva\u00E7\u00E3o urgente \u2014 logs do controle de acesso (galp\u00E3o cooperativa)",
+      "body": "Insp. Camila Rios,\n\nSou Rafael, suporte t\u00E9cnico do sistema de controle de acesso usado no galp\u00E3o (conta da cooperativa). Fui acionado hoje cedo pela administra\u00E7\u00E3o para \u201Cverificar hor\u00E1rios\u201D e achei importante registrar por escrito um aviso de preserva\u00E7\u00E3o.\n\n\u2014 O painel registra eventos de abertura/fechamento e tamb\u00E9m altera\u00E7\u00F5es manuais (edi\u00E7\u00F5es) feitas por usu\u00E1rios com perfil administrador.\n\n\u2014 Essas edi\u00E7\u00F5es ficam auditadas, por\u00E9m alguns relat\u00F3rios \u201Csimplificados\u201D podem ser reexportados sem mostrar claramente o hist\u00F3rico completo, dependendo de quem gera e do filtro aplicado.\n\n\u2014 Recomendo: 1) n\u00E3o alterar senhas nem permiss\u00F5es antes de exportar a trilha de auditoria; 2) congelar a conta (sem exclus\u00F5es) e solicitar exporta\u00E7\u00E3o do log bruto \u002B audit trail do intervalo 14/05 18:00 at\u00E9 15/05 08:00.\n\nSe a DHPP encaminhar um of\u00EDcio, eu mesmo consigo gerar e assinar o pacote de exporta\u00E7\u00E3o com hash e indicar os IDs de usu\u00E1rio que realizaram altera\u00E7\u00F5es.\n\nRafael Moreira\nSuporte \u2014 AcessoControle",
+      "sentAt": "2026-05-15T11:06:00-03:00",
+      "priority": "normal",
+      "attachments": [],
+      "visibility": "initial"
+    }
+  ],
+  "suspects": [
+    {
+      "id": "suspect.marina_saad",
+      "name": "Marina Saad",
+      "age": 34,
+      "occupation": "Coordenadora administrativa da cooperativa",
+      "relationship": "Respons\u00E1vel administrativa e interlocutora direta da v\u00EDtima na rotina do galp\u00E3o",
+      "description": "Coordenadora administrativa que centraliza rotinas de agenda, pagamentos e credenciais de sistemas internos.",
+      "motive": "Ela sabia que a v\u00EDtima pretendia levar ao conselho, no dia seguinte, c\u00F3pias de documentos com inconsist\u00EAncias de caixa e notas fiscais ligadas \u00E0 administra\u00E7\u00E3o. Com isso, ela teria interesse imediato em ganhar tempo e evitar que essa den\u00FAncia interna fosse formalizada naquela manh\u00E3.",
+      "alibi": "Marina afirma que saiu do galp\u00E3o por volta do fim do expediente e foi direto para casa, onde trocou mensagens com uma amiga e fez uma compra r\u00E1pida em um app antes de dormir. Esses registros n\u00E3o comprovam o trajeto nem onde ela esteve nos minutos anteriores \u00E0s atividades digitais.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Marina \u00E9 a coordenadora administrativa da cooperativa e tem acesso ao painel/conta do sistema de controle de acesso usado no galp\u00E3o, com privil\u00E9gios de administrador para ajustes e gest\u00E3o. Na noite do desaparecimento, seu nome aparece associado a a\u00E7\u00F5es administrativas registradas no log.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.renato_klein",
+      "name": "Renato Klein",
+      "age": 33,
+      "occupation": "T\u00E9cnico de som freelancer",
+      "relationship": "Prestador recorrente da cooperativa; trabalhou com a v\u00EDtima em montagens",
+      "description": "Freelancer do circuito cultural, ligado a montagens e retirada de equipamentos.",
+      "motive": "Relatos internos mencionam um desentendimento recente sobre pagamento de cach\u00EA e custos extras de montagem em um evento. Renato tamb\u00E9m ficou irritado com cobran\u00E7as para devolver equipamentos e formalizar retirada, o que poderia expor atrasos e compromissos assumidos.",
+      "alibi": "O relato de fechamento indica que ele j\u00E1 n\u00E3o estava mais no galp\u00E3o ap\u00F3s aproximadamente 20:40, quando saiu com equipamentos. N\u00E3o h\u00E1, no dossi\u00EA inicial, documento de GPS/terceiros anexado, mas seu afastamento do local antes da janela do port\u00E3o lateral \u00E9 consistente com a declara\u00E7\u00E3o de quem fechou o espa\u00E7o.",
+      "alibiVerified": true,
+      "status": "cleared",
+      "background": "Prestador recorrente da cooperativa. Tinha acesso operacional ao espa\u00E7o durante o expediente, mas n\u00E3o controla sistemas administrativos como o painel de registros de acesso.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.joana_martins",
+      "name": "Joana Martins",
+      "age": 34,
+      "occupation": "Artista residente e conselheira da cooperativa",
+      "relationship": "Colega de cooperativa e membro do conselho com atritos recentes com a v\u00EDtima",
+      "description": "Artista residente e conselheira, com conflitos p\u00FAblicos recentes sobre gest\u00E3o e agenda do galp\u00E3o.",
+      "motive": "Ela se sentia prejudicada por decis\u00F5es recentes sobre uso do espa\u00E7o do galp\u00E3o e afirmava que a v\u00EDtima travava pautas e repasses internos. O conflito foi p\u00FAblico e envolveu cobran\u00E7as diretas sobre transpar\u00EAncia e prioridade de agenda.",
+      "alibi": "O dossi\u00EA inicial n\u00E3o traz comprovante independente de entrega ou presen\u00E7a dela no per\u00EDodo, mas a testemunha do fechamento afirma que n\u00E3o a viu no galp\u00E3o naquela noite e n\u00E3o observou entrada de outras pessoas depois que o grupo come\u00E7ou a sair.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Participa do conselho e frequentava o galp\u00E3o, com familiaridade com a rotina de fechamento.",
+      "visibility": "initial"
+    },
+    {
+      "id": "suspect.paulo_nogueira",
+      "name": "Paulo Nogueira",
+      "age": 46,
+      "occupation": "Vigia noturno terceirizado",
+      "relationship": "Vigia do galp\u00E3o da cooperativa, sem v\u00EDnculo direto com a gest\u00E3o",
+      "description": "Vigia terceirizado que realiza rondas e registra ocorr\u00EAncias manualmente e por aplicativo.",
+      "motive": "Ap\u00F3s o desaparecimento, ele teme perder o contrato se parecer que houve falha na ronda ou se o livro de ocorr\u00EAncias indicar desaten\u00E7\u00E3o. Tamb\u00E9m tem interesse em evitar que a empresa terceirizada seja penalizada por registros incompletos.",
+      "alibi": "Afirma que, na janela cr\u00EDtica (21:30\u201321:45), estava em ronda externa pelo quarteir\u00E3o seguindo o roteiro do aplicativo da empresa e que n\u00E3o estava no port\u00E3o lateral. No dossi\u00EA atual, h\u00E1 apenas o relato por e-mail; o relat\u00F3rio do app/GPS n\u00E3o est\u00E1 anexado para verifica\u00E7\u00E3o independente.",
+      "alibiVerified": false,
+      "status": "suspect",
+      "background": "Trabalha como vigia noturno por empresa terceirizada e atende a cooperativa em turnos regulares. N\u00E3o possui fun\u00E7\u00E3o administrativa no galp\u00E3o nem acesso rotineiro a contas de gest\u00E3o do controle de acesso.",
+      "visibility": "initial"
+    }
+  ],
+  "timeline": [
+    {
+      "time": "2026-05-14T21:10:00-03:00",
+      "event": "Testemunha do fechamento afirma que saiu do galp\u00E3o por volta de 21:10, deixando a v\u00EDtima no escrit\u00F3rio para \u201Cresolver papelada\u201D; relata ter visto Marina nas proximidades entre 21:05\u201321:15.",
+      "source": "witness",
+      "verified": false,
+      "importance": "high"
+    },
+    {
+      "time": "2026-05-15T09:05:00-03:00",
+      "event": "A ocorr\u00EAncia \u00E9 registrada pela manh\u00E3; a pol\u00EDcia inicia dilig\u00EAncias, preserva o local e re\u00FAne registros iniciais.",
+      "source": "investigation",
+      "verified": true,
+      "importance": "medium"
+    }
+  ],
+  "temporalEvents": [],
+  "rules": [],
+  "forensicsDefaults": {
+    "analysisTypes": [],
+    "noFindingsEmail": {
+      "template": "Insp. Camila Rios,\n\nA an\u00E1lise {{analysisType}} de {{assetName}} n\u00E3o revelou elementos \u00FAteis para a investiga\u00E7\u00E3o.\n\nPol\u00EDcia Civil do Paran\u00E1 (PCPR) \u2014 Delegacia de Homic\u00EDdios e Prote\u00E7\u00E3o \u00E0 Pessoa (DHPP), Curitiba",
+      "from": "Pol\u00EDcia Civil do Paran\u00E1 (PCPR) \u2014 Delegacia de Homic\u00EDdios e Prote\u00E7\u00E3o \u00E0 Pessoa (DHPP), Curitiba",
+      "subject": "Resultado da an\u00E1lise \u2014 {{analysisType}} \u2014 Sem achados"
+    }
+  },
+  "forensicOutcomes": [],
+  "solution": {
+    "culpritId": "suspect.marina_saad",
+    "requiredEvidenceIds": [
+      "asset.access_log",
+      "asset.witness_statement",
+      "asset.evidence_log"
+    ],
+    "requiredAnalysisIds": [],
+    "questions": [
+      {
+        "id": "q.last_seen_context",
+        "prompt": "Segundo a testemunha, por que a v\u00EDtima ficou no galp\u00E3o ap\u00F3s o fechamento e aproximadamente que horas ela diz ter sa\u00EDdo do local?",
+        "options": [
+          {
+            "id": "opt.papelada_no_escritorio_2110",
+            "label": "Ficou para resolver \u201Cpapelada\u201D no escrit\u00F3rio; a testemunha diz que saiu por volta de 21:10."
+          },
+          {
+            "id": "opt.esperar_entrega_2030",
+            "label": "Ficou para aguardar uma entrega; a testemunha diz que saiu por volta de 20:30."
+          },
+          {
+            "id": "opt.ensaiar_sozinho_2200",
+            "label": "Ficou para ensaiar sozinho; a testemunha diz que saiu por volta de 22:00."
+          },
+          {
+            "id": "opt.conferir_inventario_2145",
+            "label": "Ficou para conferir invent\u00E1rio de cenografia; a testemunha diz que saiu por volta de 21:45."
+          }
+        ],
+        "correctOptionId": "opt.papelada_no_escritorio_2110",
+        "weight": 0.3
+      },
+      {
+        "id": "q.side_gate_window",
+        "prompt": "Que janela de abertura do port\u00E3o lateral consta no controle de acesso em 14/05?",
+        "options": [
+          {
+            "id": "opt.2134_2139",
+            "label": "Abertura entre 21:34 e 21:39 (14/05)"
+          },
+          {
+            "id": "opt.2120_2125",
+            "label": "Abertura entre 21:20 e 21:25 (14/05)"
+          },
+          {
+            "id": "opt.2150_2155",
+            "label": "Abertura entre 21:50 e 21:55 (14/05)"
+          },
+          {
+            "id": "opt.0030_0035",
+            "label": "Abertura entre 00:30 e 00:35 (15/05)"
+          }
+        ],
+        "correctOptionId": "opt.2134_2139",
+        "weight": 0.25
+      },
+      {
+        "id": "q.admin_edit_coverup",
+        "prompt": "Qual detalhe no log aponta uma interven\u00E7\u00E3o posterior e em que hor\u00E1rio ela foi registrada?",
+        "options": [
+          {
+            "id": "opt.audit_edit_0217",
+            "label": "H\u00E1 um evento de auditoria de edi\u00E7\u00E3o manual registrado em 15/05 \u00E0s 02:17, atribu\u00EDdo a \u201CAdmin \u2014 Marina Saad\u201D."
+          },
+          {
+            "id": "opt.audit_edit_0905",
+            "label": "H\u00E1 um evento de auditoria de edi\u00E7\u00E3o manual registrado em 15/05 \u00E0s 09:05, atribu\u00EDdo a \u201CAdmin \u2014 Marina Saad\u201D."
+          },
+          {
+            "id": "opt.audit_edit_2134",
+            "label": "H\u00E1 um evento de auditoria de edi\u00E7\u00E3o manual registrado em 14/05 \u00E0s 21:34, atribu\u00EDdo a um usu\u00E1rio sem nome."
+          },
+          {
+            "id": "opt.no_audit_trail",
+            "label": "N\u00E3o existe trilha de auditoria; a exporta\u00E7\u00E3o n\u00E3o permite saber se houve edi\u00E7\u00E3o."
+          }
+        ],
+        "correctOptionId": "opt.audit_edit_0217",
+        "weight": 0.25
+      },
+      {
+        "id": "q.elimination_renato",
+        "prompt": "Qual suspeito fica melhor exclu\u00EDdo da janela cr\u00EDtica de 21:34\u201321:39 com base no material inicial?",
+        "options": [
+          {
+            "id": "opt.renato_left_2040",
+            "label": "Renato Klein, porque a testemunha do fechamento afirma que ele j\u00E1 tinha sa\u00EDdo com equipamentos por volta de 20:40."
+          },
+          {
+            "id": "opt.joana_delivery",
+            "label": "Joana Martins, porque h\u00E1 comprovante anexado de entrega por aplicativo \u00E0s 21:35."
+          },
+          {
+            "id": "opt.paulo_gps",
+            "label": "Paulo Nogueira, porque o relat\u00F3rio do app/GPS da ronda est\u00E1 anexado e confirma presen\u00E7a longe do port\u00E3o."
+          },
+          {
+            "id": "opt.marina_home",
+            "label": "Marina Saad, porque h\u00E1 registro anexado de compra no app confirmando que ela j\u00E1 estava em casa \u00E0s 21:34."
+          }
+        ],
+        "correctOptionId": "opt.renato_left_2040",
+        "weight": 0.2
+      }
+    ],
+    "explanation": "A testemunha do fechamento fixa a v\u00EDtima ainda no galp\u00E3o ap\u00F3s o encerramento e informa que saiu por volta de 21:10, deixando-a no escrit\u00F3rio para \u201Cresolver papelada\u201D. Isso ancora oportunidade no interior do local imediatamente antes da janela cr\u00EDtica.\n\nO controle de acesso registra abertura do port\u00E3o lateral entre 21:34 e 21:39 e, na mesma exporta\u00E7\u00E3o com trilha de auditoria, o evento de abertura aparece associado \u00E0 credencial identificada como de Marina Saad. Depois, em 15/05 \u00E0s 02:17, h\u00E1 uma edi\u00E7\u00E3o manual auditada atribu\u00EDda explicitamente a \u201CAdmin \u2014 Marina Saad\u201D, compat\u00EDvel com tentativa de ajustar narrativa/hor\u00E1rios ap\u00F3s o fato.\n\nA busca inicial tamb\u00E9m documenta que itens potencialmente \u00FAteis para movimenta\u00E7\u00E3o discreta (carrinho plataforma e manta escura) estavam ausentes na manh\u00E3 seguinte, e o registro de apreens\u00E3o descreve marcas recentes no piso compat\u00EDveis com deslocamento de carrinho na dire\u00E7\u00E3o do port\u00E3o lateral. Somados, os elementos ligam Marina de forma concreta ao acionamento do port\u00E3o na janela cr\u00EDtica e a uma a\u00E7\u00E3o posterior de encobrimento no sistema, enquanto ao menos um decoy (Renato) fica melhor exclu\u00EDdo por ter sa\u00EDdo antes do per\u00EDodo.",
+    "minimumScore": 0.7,
+    "maxAttempts": 3,
+    "partialCreditRules": {
+      "culpritWeight": 0.4,
+      "evidenceWeight": 0.2,
+      "analysisWeight": 0.2,
+      "questionsWeight": 0.2
+    }
+  },
+  "gameMetadata": {
+    "schemaVersion": "2.0",
+    "createdAt": "2026-07-20T17:26:38.4724177Z",
+    "tags": [
+      "cooperativa",
+      "cultura",
+      "desaparecimento",
+      "Curitiba",
+      "registro_de_acesso",
+      "galpao"
+    ],
+    "contentWarnings": [],
+    "localizations": [
+      "pt-BR"
+    ],
+    "generation": {
+      "pipelineVersion": "v2-microtasks",
+      "model": "gpt-5.2",
+      "seed": 20260720,
+      "bundleChecksum": ""
+    }
+  }
+}

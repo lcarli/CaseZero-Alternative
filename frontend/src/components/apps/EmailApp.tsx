@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import styled from 'styled-components'
-import type { EmailListDTO, EmailDTO } from '../../services/api'
+import type { EmailDTO } from '../../services/api'
 import { emailsApi } from '../../services/api'
-import { useCase } from '../../hooks/useCaseContext'
+import type { Email } from '../../types/caseV2'
+import { useCase, useAssets } from '../../contexts/CaseContext'
+import { useLanguage } from '../../hooks/useLanguageContext'
 
 const EmailAppContainer = styled.div`
   height: 100%;
@@ -183,40 +185,80 @@ const LoadingMessage = styled.div`
 `
 
 interface EmailAppProps {
-  emails?: EmailListDTO[]
+  emails?: Email[]
   caseId?: string
-  onRefetchAssets?: () => void
 }
 
-const EmailApp: React.FC<EmailAppProps> = ({ emails: initialEmails = [], caseId: propsCaseId, onRefetchAssets }) => {
+const EmailApp: React.FC<EmailAppProps> = ({ emails: suppliedEmails, caseId: suppliedCaseId }) => {
   const { state, currentCase, refreshCase } = useCase()
-  const caseId = propsCaseId ?? currentCase ?? undefined
-  const emails: EmailListDTO[] = state.case ? state.visibleEmails.map(e => ({
-    emailId: e.id, from: e.from, to: Array.isArray(e.to) ? e.to.join(', ') : e.to,
-    subject: e.subject, sentAt: e.sentAt, priority: e.priority,
-    hasAttachments: (e.attachments?.length ?? 0) > 0, attachmentCount: e.attachments?.length ?? 0,
-    isRead: Boolean(state.case?.emailStates?.[e.id]?.readAt),
-    readAt: state.case?.emailStates?.[e.id]?.readAt,
-    openCount: state.case?.emailStates?.[e.id]?.openCount ?? 0,
-  })) : initialEmails
+  const { t, currentLanguage } = useLanguage()
+  const caseId = suppliedCaseId ?? currentCase ?? undefined
+  const emails = state.case ? state.visibleEmails : suppliedEmails ?? []
+  const visibleAssets = useAssets()
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null)
   const [openedEmail, setOpenedEmail] = useState<EmailDTO | null>(null)
+  const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
   const [downloadingAttachment, setDownloadingAttachment] = useState<string | null>(null)
+  const [errorKey, setErrorKey] = useState<'emailOpenError' | 'emailDownloadError' | null>(null)
 
-  const handleEmailClick = async (emailId: string) => {
+  // Index visible assets so we can mark attachments that are already
+  // available in the FileViewer and show their real display name.
+  const assetIndex = useMemo(() => {
+    const map = new Map<string, { name: string }>()
+    for (const a of visibleAssets) {
+      map.set(a.id, { name: a.title || a.id })
+    }
+    return map
+  }, [visibleAssets])
+
+  // Reset transient UI state when switching cases and hydrate read state
+  // from the server so reopening the window preserves prior reads.
+  useEffect(() => {
+    setSelectedEmailId(null)
+    setOpenedEmail(null)
+    setReadIds(new Set())
+    setErrorKey(null)
+
     if (!caseId) return
 
+    let cancelled = false
+    emailsApi.getEmails(caseId)
+      .then(list => {
+        if (cancelled) return
+        const read = new Set<string>()
+        for (const e of list) {
+          if (e.isRead && e.emailId) read.add(e.emailId)
+        }
+        setReadIds(read)
+      })
+      .catch(err => console.warn('Failed to hydrate email read state:', err))
+
+    return () => { cancelled = true }
+  }, [caseId])
+
+  const handleEmailClick = async (emailId: string) => {
+    if (!caseId || !emailId) return
+
     setSelectedEmailId(emailId)
+    setOpenedEmail(null)
     setLoading(true)
+    setErrorKey(null)
 
     try {
       // Task 49: POST /open then GET full email
       const fullEmail = await emailsApi.openEmail(caseId, emailId)
       setOpenedEmail(fullEmail)
+      setReadIds(prev => {
+        if (prev.has(emailId)) return prev
+        const next = new Set(prev)
+        next.add(emailId)
+        return next
+      })
       await refreshCase()
     } catch (error) {
       console.error('Failed to open email:', error)
+      setErrorKey('emailOpenError')
     } finally {
       setLoading(false)
     }
@@ -226,20 +268,24 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails: initialEmails = [], caseId:
     if (!caseId || !openedEmail) return
 
     setDownloadingAttachment(assetId)
+    setErrorKey(null)
 
     try {
       // Task 50: POST /emails/{emailId}/attachments/{assetId}/download
+      // Backend records the download, unlocks the asset for this session
+      // (CaseSessionVisibleAssets), and streams the blob — we only care about
+      // the unlock side-effect here so the asset shows up in FileViewer.
       await emailsApi.downloadAttachment(caseId, openedEmail.emailId, assetId)
-      await refreshCase()
-      
-      // Refetch assets to update FileViewer
-      if (onRefetchAssets) {
-        onRefetchAssets()
-      }
 
-      console.log(`✅ Attachment ${assetId} downloaded successfully`)
+      // Refetch the sanitized case so the freshly unlocked attachment asset
+      // (which may have been 'hidden' in case.json) shows up in visibleAssets
+      // and therefore in the FileViewer. applyReveal can't be used here
+      // because hidden assets aren't present in state.case.assets until the
+      // sanitizer sees them in CaseSessionVisibleAssets.
+      await refreshCase()
     } catch (error) {
       console.error('Failed to download attachment:', error)
+      setErrorKey('emailDownloadError')
     } finally {
       setDownloadingAttachment(null)
     }
@@ -247,72 +293,75 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails: initialEmails = [], caseId:
 
   const formatTimestamp = (timestamp: string): string => {
     const date = new Date(timestamp)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMins / 60)
-    const diffDays = Math.floor(diffHours / 24)
-
-    if (diffMins < 60) return `${diffMins}m ago`
-    if (diffHours < 24) return `${diffHours}h ago`
-    if (diffDays < 7) return `${diffDays}d ago`
-    
-    return date.toLocaleDateString()
+    if (Number.isNaN(date.getTime())) return timestamp
+    const minutes = Math.round((date.getTime() - Date.now()) / 60000)
+    const relative = new Intl.RelativeTimeFormat(currentLanguage, { numeric: 'auto' })
+    if (Math.abs(minutes) < 60) return relative.format(minutes, 'minute')
+    if (Math.abs(minutes) < 1440) return relative.format(Math.round(minutes / 60), 'hour')
+    if (Math.abs(minutes) < 10080) return relative.format(Math.round(minutes / 1440), 'day')
+    return date.toLocaleDateString(currentLanguage)
   }
 
   return (
     <EmailAppContainer>
-      <h3 style={{ margin: '0 0 1rem 0' }}>Inbox - {emails.length} emails</h3>
+      <h3 style={{ margin: '0 0 1rem 0' }}>{t('emailInbox').replace('{n}', String(emails.length))}</h3>
+      {errorKey && <div role="alert">{t(errorKey)}</div>}
       
       <TwoColumnLayout>
         <LeftPanel>
-          <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>Messages</h4>
+          <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>{t('emailMessages')}</h4>
           <EmailList>
             {emails.length === 0 ? (
               <div style={{ padding: '1rem', color: 'rgba(255, 255, 255, 0.6)', textAlign: 'center' }}>
-                No emails available
+                {t('emailEmpty')}
               </div>
             ) : (
-              emails.map(email => (
-                <EmailItem
-                  key={email.emailId}
-                  $isRead={email.isRead}
-                  $isSelected={selectedEmailId === email.emailId}
-                  onClick={() => handleEmailClick(email.emailId)}
-                >
-                  <EmailHeader>
-                    <EmailFrom $isRead={email.isRead}>{email.from}</EmailFrom>
-                    <EmailTime>{formatTimestamp(email.sentAt)}</EmailTime>
-                  </EmailHeader>
-                  <EmailSubject $isRead={email.isRead}>
-                    {email.hasAttachments && '📎 '}
-                    {email.subject}
-                  </EmailSubject>
-                </EmailItem>
-              ))
+              emails.map(email => {
+                const isRead = readIds.has(email.id) || !!state.case?.emailStates?.[email.id]?.readAt
+                const hasAttachments = !!email.attachments && email.attachments.length > 0
+                return (
+                  <EmailItem
+                    key={email.id}
+                    $isRead={isRead}
+                    $isSelected={selectedEmailId === email.id}
+                    onClick={() => handleEmailClick(email.id)}
+                  >
+                    <EmailHeader>
+                      <EmailFrom $isRead={isRead}>{email.from}</EmailFrom>
+                      <EmailTime>{formatTimestamp(email.sentAt)}</EmailTime>
+                    </EmailHeader>
+                    <EmailSubject $isRead={isRead}>
+                      {hasAttachments && '📎 '}
+                      {email.subject}
+                    </EmailSubject>
+                  </EmailItem>
+                )
+              })
             )}
           </EmailList>
         </LeftPanel>
         
         <RightPanel>
           {loading ? (
-            <LoadingMessage>Loading email...</LoadingMessage>
+            <LoadingMessage>{t('emailLoading')}</LoadingMessage>
           ) : openedEmail ? (
             <EmailContent>
               <h4 style={{ margin: '0 0 1rem 0', color: '#4a9eff' }}>{openedEmail.subject}</h4>
               
               <EmailMetadata>
                 <MetadataRow>
-                  <MetadataLabel>From:</MetadataLabel>
+                  <MetadataLabel>{t('emailFrom')}</MetadataLabel>
                   <MetadataValue>{openedEmail.from}</MetadataValue>
                 </MetadataRow>
                 <MetadataRow>
-                  <MetadataLabel>To:</MetadataLabel>
-                  <MetadataValue>{openedEmail.to}</MetadataValue>
+                  <MetadataLabel>{t('emailTo')}</MetadataLabel>
+                  <MetadataValue>
+                    {Array.isArray(openedEmail.to) ? openedEmail.to.join('; ') : openedEmail.to}
+                  </MetadataValue>
                 </MetadataRow>
                 <MetadataRow>
-                  <MetadataLabel>Date:</MetadataLabel>
-                  <MetadataValue>{new Date(openedEmail.sentAt).toLocaleString()}</MetadataValue>
+                  <MetadataLabel>{t('emailDate')}</MetadataLabel>
+                  <MetadataValue>{new Date(openedEmail.sentAt).toLocaleString(currentLanguage)}</MetadataValue>
                 </MetadataRow>
               </EmailMetadata>
 
@@ -321,20 +370,37 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails: initialEmails = [], caseId:
               {openedEmail.attachments && openedEmail.attachments.length > 0 && (
                 <AttachmentsSection>
                   <h5 style={{ margin: '0 0 0.5rem 0', color: '#4a9eff' }}>
-                    📎 Attachments ({openedEmail.attachments.length})
+                    📎 {t('emailAttachments').replace('{n}', String(openedEmail.attachments.length))}
                   </h5>
                   <AttachmentsList>
-                    {openedEmail.attachments.map((assetId, index) => (
-                      <AttachmentItem key={assetId}>
-                        <AttachmentName>Attachment_{index + 1} (ID: {assetId})</AttachmentName>
-                        <DownloadButton
-                          onClick={() => handleDownloadAttachment(assetId)}
-                          disabled={downloadingAttachment === assetId}
-                        >
-                          {downloadingAttachment === assetId ? 'Downloading...' : 'Download'}
-                        </DownloadButton>
-                      </AttachmentItem>
-                    ))}
+                    {openedEmail.attachments.map((assetId, index) => {
+                      const known = assetIndex.get(assetId)
+                      const isDownloaded = !!known
+                      const displayName = known?.name || t('emailAttachmentFallback').replace('{n}', String(index + 1))
+                      return (
+                        <AttachmentItem key={assetId}>
+                          <AttachmentName>
+                            {isDownloaded && '✓ '}
+                            {displayName}
+                            {isDownloaded && ` — ${t('emailInFiles')}`}
+                            {!isDownloaded && (
+                              <span style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: 11, marginLeft: 6 }}>
+                                ({t('emailAttachmentId').replace('{id}', assetId)})
+                              </span>
+                            )}
+                          </AttachmentName>
+                          <DownloadButton
+                            onClick={() => handleDownloadAttachment(assetId)}
+                            disabled={downloadingAttachment === assetId}
+                            title={isDownloaded ? t('emailAlreadyInFiles') : t('emailDownloadToFiles')}
+                          >
+                            {downloadingAttachment === assetId
+                              ? t('emailDownloading')
+                              : t('emailDownload')}
+                          </DownloadButton>
+                        </AttachmentItem>
+                      )
+                    })}
                   </AttachmentsList>
                 </AttachmentsSection>
               )}
@@ -348,7 +414,7 @@ const EmailApp: React.FC<EmailAppProps> = ({ emails: initialEmails = [], caseId:
               color: 'rgba(255, 255, 255, 0.6)',
               fontSize: '16px'
             }}>
-              Select an email to read
+              {t('emailSelect')}
             </div>
           )}
         </RightPanel>

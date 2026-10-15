@@ -1,0 +1,38 @@
+{
+  "version":"2.0",
+  "caseId":"case_test",
+  "metadata":{
+    "title":"Rookie Test Case","description":"A complete deterministic validation case.",
+    "location":"Boston, Massachusetts","incidentDate":"2026-07-20T20:00:00-04:00",
+    "openedAt":"2026-07-21T09:00:00-04:00","difficulty":"Rookie","requiredRank":"Rookie",
+    "unlockMode":"all_initial","estimatedDurationMinutes":45
+  },
+  "assets":[
+    {"id":"asset.initial","type":"document","title":"Initial","uri":"case://case_test/assets/initial.pdf","visibility":"initial"},
+    {"id":"asset.second","type":"document","title":"Second","uri":"case://case_test/assets/second.pdf","visibility":"initial"},
+    {"id":"asset.decoy_one","type":"document","title":"Decoy One","uri":"case://case_test/assets/decoy_one.pdf","visibility":"initial"},
+    {"id":"asset.decoy_two","type":"document","title":"Decoy Two","uri":"case://case_test/assets/decoy_two.pdf","visibility":"initial"},
+    {"id":"asset.extra","type":"document","title":"Context","uri":"case://case_test/assets/extra.pdf","visibility":"initial"}
+  ],
+  "emails":[
+    {"id":"email.briefing","from":"unit@casezero.local","to":"detective@casezero.local",
+     "subject":"Briefing","body":"Review the evidence.","sentAt":"2026-07-21T09:00:00-04:00","visibility":"initial"}
+  ],
+  "suspects":[
+    {"id":"suspect.culprit","name":"Culprit","visibility":"initial"},
+    {"id":"suspect.decoy_one","name":"Decoy One","visibility":"initial"},
+    {"id":"suspect.decoy_two","name":"Decoy Two","visibility":"initial"}
+  ],
+  "timeline":[],
+  "temporalEvents":[],
+  "rules":[],
+  "forensicsDefaults":{"analysisTypes":[],"noFindingsEmail":{"template":"none","from":"lab@casezero.local","subject":"No findings"}},
+  "forensicOutcomes":[],
+  "solution":{
+    "culpritId":"suspect.culprit","requiredEvidenceIds":["asset.initial","asset.second"],
+    "requiredAnalysisIds":[],"questions":[],"explanation":"Two records identify the culprit.",
+    "minimumScore":0.7,"maxAttempts":3,
+    "partialCreditRules":{"culpritWeight":0.4,"evidenceWeight":0.2,"analysisWeight":0.2,"questionsWeight":0.2}
+  },
+  "gameMetadata":{"schemaVersion":"2.0","createdAt":"2026-07-21T15:00:00Z"}
+}

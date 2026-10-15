@@ -1105,7 +1105,7 @@ shareholder (30%). Recent financial disputes with victim.
 
 ---
 
-**Next Chapter:** [06-PROGRESSION.md](06-PROGRESSION.md) - Detective ranks and advancement
+**Next Chapter:** [06-PROGRESSION.md](06-PROGRESSION.md) - Detective ranks, implemented thresholds, and advancement
 
 **Related Documents:**
 - [04-CASE-STRUCTURE.md](04-CASE-STRUCTURE.md) - What documents contain

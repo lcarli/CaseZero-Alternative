@@ -12,11 +12,11 @@ namespace CaseZeroApi.IntegrationTests
         // Using a fixed test secret key
         private const string TestSecretKey = "SuperSecretKeyForTestingPurposesOnly123456789";
         
-        public string GenerateToken(User user)
+        public string GenerateToken(User user, IEnumerable<string>? roles = null)
         {
             var key = Encoding.ASCII.GetBytes(TestSecretKey);
             
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
@@ -25,6 +25,7 @@ namespace CaseZeroApi.IntegrationTests
                 new Claim("Department", user.Department ?? string.Empty),
                 new Claim("Position", user.Position ?? string.Empty)
             };
+            claims.AddRange((roles ?? []).Select(role => new Claim(ClaimTypes.Role, role)));
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {

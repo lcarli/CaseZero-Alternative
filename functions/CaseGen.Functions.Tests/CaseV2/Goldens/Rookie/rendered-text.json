@@ -1,0 +1,7 @@
+{
+  "asset.initial": "Identity A",
+  "asset.second": "Identity B",
+  "asset.decoy_one": "Verified one",
+  "asset.decoy_two": "Verified two",
+  "asset.extra": "Rendered evidence for asset.extra."
+}

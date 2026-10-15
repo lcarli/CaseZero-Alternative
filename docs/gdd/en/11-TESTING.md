@@ -10,6 +10,8 @@
 
 This chapter defines the **comprehensive testing strategy, QA processes, and quality gates** for CaseZero v3.0. It covers unit testing, integration testing, end-to-end testing, content testing, performance testing, and accessibility testing.
 
+> **Current implementation note:** the production repository has two active runtime stacks to test: the ASP.NET Core Web API in `backend/CaseZeroApi` on **.NET 8**, and the case-generation Durable Functions projects `functions/CaseGen.Functions` + `functions/CaseGen.Functions.Tests` on **.NET 9**. `case.json` v2 is the only canonical case format; use `docs/CASE_JSON_V2_SPEC.md` and `schemas/case.schema.json` as the source of truth.
+
 **Key Concepts:**
 - Multi-layer testing approach
 - Automated test coverage targets
@@ -300,51 +302,39 @@ public class CaseDataValidatorTests
 }
 ```
 
-**XP Calculation:**
+**Promotion Thresholds (current implementation):**
 ```csharp
-// XPCalculatorTests.cs
+// PromotionRulesTests.cs
+using CaseZeroApi.Models;
+using CaseZeroApi.Services;
 using Xunit;
-using CaseZero.Services;
 
-public class XPCalculatorTests
+public class PromotionRulesTests
 {
-    private readonly XPCalculator _calculator;
-    
-    public XPCalculatorTests()
+    [Fact]
+    public void Compute_AtRookWithZeroResolves_ProgressIsZero()
     {
-        _calculator = new XPCalculator();
+        var progress = PromotionRules.Compute(DetectiveRank.Rook, 0);
+        Assert.Equal(DetectiveRank.Detective, progress.NextRank);
+        Assert.Equal(3, progress.CasesRequiredForNext);
     }
-    
+
     [Theory]
-    [InlineData(Difficulty.Easy, 1, true, false, false, 225)]     // Base 150 + First Attempt 75
-    [InlineData(Difficulty.Medium, 1, true, true, true, 510)]     // Base 300 + FA 150 + Speed 30 + Thorough 30
-    [InlineData(Difficulty.Hard, 2, false, false, false, 600)]    // Base 600, second attempt, no bonuses
-    [InlineData(Difficulty.Expert, 1, true, false, false, 1800)]  // Base 1200 + FA 600
-    public void CalculateXP_ReturnsCorrectAmount(
-        Difficulty difficulty, 
-        int attemptNumber,
-        bool isFirstAttempt,
-        bool isSpeedBonus,
-        bool isThoroughnessBonus,
-        int expectedXP)
+    [InlineData(DetectiveRank.Rook, 0)]
+    [InlineData(DetectiveRank.Detective, 3)]
+    [InlineData(DetectiveRank.Detective2, 8)]
+    [InlineData(DetectiveRank.Sergeant, 16)]
+    [InlineData(DetectiveRank.Lieutenant, 28)]
+    [InlineData(DetectiveRank.Captain, 44)]
+    [InlineData(DetectiveRank.Commander, 65)]
+    public void Thresholds_AreStable(DetectiveRank rank, int solvedRequired)
     {
-        // Arrange
-        var submission = new CaseSubmission
-        {
-            Difficulty = difficulty,
-            AttemptNumber = attemptNumber,
-            IsSpeedBonus = isSpeedBonus,
-            IsThoroughnessBonus = isThoroughnessBonus
-        };
-        
-        // Act
-        var result = _calculator.CalculateXP(submission);
-        
-        // Assert
-        Assert.Equal(expectedXP, result);
+        Assert.Equal(solvedRequired, PromotionRules.ResolvedRequiredFor[rank]);
     }
 }
 ```
+
+The live backend promotes on **cumulative graded-correct resolves**, not XP.
 
 ---
 
@@ -488,7 +478,7 @@ public class CaseRepositoryIntegrationTests : IDisposable
         {
             CaseId = "CASE-2024-001",
             Title = "Test Case",
-            Difficulty = Difficulty.Medium,
+            Difficulty = "Detective",
             CaseDataJson = "{}"
         };
         
@@ -509,10 +499,10 @@ public class CaseRepositoryIntegrationTests : IDisposable
         await SeedCases();
         
         // Act
-        var easyCases = await _repository.GetByDifficultyAsync(Difficulty.Easy);
+        var rookieCases = await _repository.GetByDifficultyAsync("Rookie");
         
         // Assert
-        Assert.All(easyCases, c => Assert.Equal(Difficulty.Easy, c.Difficulty));
+        Assert.All(rookieCases, c => Assert.Equal("Rookie", c.Difficulty));
     }
     
     public void Dispose()
@@ -527,6 +517,10 @@ public class CaseRepositoryIntegrationTests : IDisposable
 ## 11.6 End-to-End Testing
 
 ### E2E Test Framework (Playwright)
+
+> **Current status:** Playwright is the planned E2E approach illustrated in this
+> section, but it is not currently installed or executed by the repository
+> workflows. The implemented frontend suite uses Vitest and React Testing Library.
 
 **Coverage:**
 - Critical user flows only
@@ -561,8 +555,8 @@ test('new user can register and start first case', async ({ page }) => {
   await page.click('text=Case Browser');
   await expect(page.locator('.case-card')).toHaveCount(9); // 9 launch cases
   
-  // 6. Start first case (Easy)
-  await page.click('.case-card:has-text("Easy")').first();
+  // 6. Start first case (Rookie)
+  await page.click('.case-card:has-text("Rookie")').first();
   await page.click('button:has-text("Start Case")');
   
   // 7. Verify case loaded
@@ -653,7 +647,7 @@ test('user can solve case and submit solution', async ({ page }) => {
   
   // 8. Verify success
   await expect(page.locator('text=Excellent work, Detective!')).toBeVisible({ timeout: 10000 });
-  await expect(page.locator('text=+450 XP')).toBeVisible();
+  await expect(page.locator('text=Promotion progress updated')).toBeVisible();
   
   // 9. Return to dashboard
   await page.click('button:has-text("Return to Dashboard")');
@@ -721,29 +715,22 @@ test('forensic request completes after timer (accelerated)', async ({ page }) =>
 
 **Pre-Publication Checks:**
 
-**1. JSON Schema Validation**
-```bash
-# Run schema validator
-node tools/case-validator.js cases/CASE-2024-001/case.json
-```
+**1. Canonical `case.json` v2 Validation**
+- Validate against `schemas/case.schema.json`.
+- Cross-check field semantics against `docs/CASE_JSON_V2_SPEC.md`.
+- Reject any bundle that still assumes legacy v0/v1 fields such as `evidences[]`, `unlockLogic`, `documents[]`, or `forensicReports[]`.
 
-**2. Referential Integrity**
-```python
-# Run clue checker
-python tools/clue-checker.py cases/CASE-2024-001/case.json
-```
+**2. Durable Generation Pipeline Gates**
+- The implemented .NET 9 generator already runs staged validation across Case Bible consistency, CaseGraph projection, proof, forensic, evidence, difficulty, locale, solver, specialist review, rookie regression, and parity gates before publication.
+- Regression coverage should include the existing `functions\CaseGen.Functions.Tests` CaseV2 suites.
 
-**3. Asset Existence**
-```bash
-# Verify all asset files exist
-node tools/asset-checker.js cases/CASE-2024-001/case.json
-```
+**3. Solver Gate**
+- The generator run is rejected if `SolverTask` scores below **0.90**.
+- QA should treat solver failure as a hard stop, not as advisory feedback.
 
-**4. File Size Checks**
-```bash
-# Check PDFs < 5MB, images < 2MB
-node tools/size-checker.js cases/CASE-2024-001/
-```
+**4. Publication Order Check**
+- Blob publication uploads supporting assets first and writes `case.json` **last** as the bundle commit marker.
+- A case is not discoverable until the final `case.json` exists.
 
 ### Manual Content QA
 
@@ -802,8 +789,8 @@ node tools/size-checker.js cases/CASE-2024-001/
 - What worked well
 
 ## Difficulty Assessment
-- Intended: [Easy/Medium/Hard/Expert]
-- Actual Feel: [Easy/Medium/Hard/Expert]
+- Intended: [Rookie/Detective/Detective2/Sergeant/Lieutenant/Captain/Commander]
+- Actual Feel: [Rookie/Detective/Detective2/Sergeant/Lieutenant/Captain/Commander]
 - Recommendation: [Keep / Adjust]
 
 ## Overall Rating
@@ -920,7 +907,7 @@ scenarios:
 - [ ] Focus indicators visible (2px outline)
 
 **3. Understandable**
-- [ ] Page language specified (lang="en")
+- [ ] Page language specified for the active locale (`en-US`, `pt-BR`, `es-ES`, or `fr-FR`)
 - [ ] Navigation is consistent
 - [ ] Error messages are clear
 - [ ] Labels are present for all inputs
@@ -1028,68 +1015,18 @@ dotnet list package --vulnerable
 - Refactor brittle tests
 
 **Regression Test Suite:**
-- All unit tests (runs on every commit)
-- All integration tests (runs on PR)
-- Critical E2E tests (runs before deploy)
+- Backend, Functions, and frontend tests run in `cd-dev.yml`
+- The same workflow builds all application stacks before development deployment
+- Critical browser E2E coverage remains planned
 
 ### Continuous Integration Pipeline
 
-```yaml
-# .github/workflows/ci.yml
-name: CI Pipeline
-
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-
-jobs:
-  frontend-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18
-      - run: npm ci
-      - run: npm run lint
-      - run: npm run test:unit
-      - run: npm run test:coverage
-      - uses: codecov/codecov-action@v3
-
-  backend-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: 9.0
-      - run: dotnet restore
-      - run: dotnet build
-      - run: dotnet test --collect:"XPlat Code Coverage"
-      - uses: codecov/codecov-action@v3
-
-  integration-tests:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: test
-    steps:
-      - uses: actions/checkout@v3
-      - run: dotnet test --filter Category=Integration
-
-  e2e-tests:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-      - run: npx playwright install
-      - run: npm run test:e2e
-```
+The active application workflow is `.github/workflows/cd-dev.yml`. It uses
+Node.js 20, .NET 8 for the API, and .NET 9 for the Functions projects; builds the
+frontend and .NET solution; runs API unit/integration tests, Functions tests, and
+the Vitest frontend suite; then deploys the development environment when the
+workflow event permits it. Infrastructure validation/deployment is handled
+separately by `.github/workflows/infrastructure-3tier.yml`.
 
 ---
 
@@ -1098,10 +1035,11 @@ jobs:
 ### Test Case Data
 
 **Seed Data:**
-- 2 test cases (1 Easy, 1 Medium)
+- 2 test cases (1 Rookie, 1 Detective)
 - 5 test users with various progress states
 - Sample forensic requests (pending/completed)
 - Sample submissions (correct/incorrect)
+- Admin generation jobs covering language selection (`en-US`, `pt-BR`, `es-ES`, `fr-FR`)
 
 **Test Database:**
 ```csharp
@@ -1126,7 +1064,7 @@ public static class SeedData
         {
             CaseId = "CASE-TEST-001",
             Title = "The Test Case Murder",
-            Difficulty = Difficulty.Easy,
+            Difficulty = "Rookie",
             CaseDataJson = LoadTestCaseJson()
         });
         
@@ -1243,15 +1181,16 @@ public static class SeedData
 ### Case Publication Checklist
 
 **Before Publishing Case:**
-- [ ] JSON schema validation passed
-- [ ] Referential integrity verified
-- [ ] All assets present and valid
+- [ ] `case.json` v2 validation passed against `schemas/case.schema.json`
+- [ ] Case Bible / CaseGraph / proof / forensic / evidence gates passed
+- [ ] Solver score is **>= 0.90**
+- [ ] Locale validation passed for the selected language
 - [ ] QA tester completed blind playthrough
 - [ ] No critical issues found
-- [ ] Difficulty calibrated
+- [ ] Difficulty calibrated against the seven-rank ladder
 - [ ] Content Manager approved
-- [ ] Assets uploaded to CDN
-- [ ] Database entry created
+- [ ] Supporting assets uploaded before `case.json`
+- [ ] Final `case.json` written last as the publication commit marker
 
 ---
 

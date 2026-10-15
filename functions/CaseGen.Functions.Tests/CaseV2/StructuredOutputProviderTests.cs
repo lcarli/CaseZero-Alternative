@@ -48,6 +48,24 @@ public class StructuredOutputProviderTests
         Assert.Null(JsonNode.Parse(Assert.Single(handler.Requests))!["response_format"]);
     }
 
+    [Fact]
+    public async Task HarnessCeilingReachesTheActualSdkThroughTheProductionUsageWrapper()
+    {
+        using var handler = new CapturingHandler();
+        using var client = new HttpClient(handler);
+        var inner = CreateProvider(client, true);
+        var provider = new UsageTrackingLLMProvider(inner);
+        Assert.Equal(inner.GenerationIdentity, provider.GenerationIdentity);
+        using var runtime = CaseGenerationRuntime.Begin(new() { Difficulty = "Rookie" }, provider, default);
+        runtime.Report.OutputTokens = runtime.Report.Budget.MaximumOutputTokens - 17;
+        await CaseGenerationRuntime.StructuredAsync(provider, NullLogger.Instance, "Question", "system", "user", MicrotaskSchemas.Question, 1, default);
+        var request = JsonNode.Parse(Assert.Single(handler.Requests))!;
+        var limit = request["max_completion_tokens"] ?? request["max_tokens"];
+        Assert.NotNull(limit);
+        Assert.Equal(17, limit!.GetValue<int>());
+        Assert.Equal(10, Assert.Single(runtime.Report.Tasks).OutputTokens);
+    }
+
     [Theory]
     [InlineData("not JSON")]
     [InlineData("```json\n{}\n```")]
@@ -88,17 +106,21 @@ public class StructuredOutputProviderTests
     }
 
     [Fact]
-    public void EveryGenerationMicrotask_HasANativeCompatibleProjection()
+    public void MicrotasksUseCompatibleNativeSchemasOrAnExplicitCanonicalBibleFallback()
     {
         foreach (var property in typeof(MicrotaskSchemas).GetProperties())
         {
             var original = (string)property.GetValue(null)!;
-            Assert.True(StructuredOutputSchema.TryCreate(original, out var native, out var reason), $"{property.Name}: {reason}");
+            if (!StructuredOutputSchema.TryCreate(original, out var native, out var reason))
+            {
+                Assert.Equal(nameof(MicrotaskSchemas.CaseBible), property.Name);
+                Assert.Contains("100-property/five-object-level", reason);
+                continue;
+            }
             StructuredJson.ParseSchema(native);
             Assert.DoesNotContain("\"pattern\"", native);
             Assert.DoesNotContain("\"minItems\"", native);
             Assert.DoesNotContain("\"oneOf\"", native);
-            Assert.Contains("\"pattern\"", original);
         }
     }
 

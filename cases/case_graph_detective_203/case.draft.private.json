@@ -1,0 +1,3096 @@
+{
+  "CaseId": "case_graph_detective_203",
+  "Request": {
+    "caseId": "case_graph_detective_203",
+    "title": null,
+    "theme": "procurement fraud with workstation records and document metadata",
+    "location": null,
+    "difficulty": "Detective",
+    "requiredRank": "Detective",
+    "language": "en-US",
+    "seed": 203,
+    "writeToDisk": true
+  },
+  "Metadata": {
+    "title": "The Three-Quote Addendum",
+    "description": "A municipal procurement analyst dies suddenly shortly after flagging irregularities in a routine IT hardware renewal. The paper trail looks ordinary until workstation logs and document metadata reveal a second set of hands.",
+    "location": "Madison, Wisconsin, USA",
+    "incidentDate": "2026-03-18T19:12:00-05:00",
+    "openedAt": "2026-03-19T09:40:00-05:00",
+    "difficulty": "Detective",
+    "requiredRank": "Detective",
+    "category": "Financial Crime / Suspicious Death",
+    "briefing": "A city procurement analyst collapsed at home hours after emailing concerns about a vendor addendum. Your first leads are mundane: a workstation login trail and a document whose metadata doesn\u2019t match its story.",
+    "tags": [
+      "procurement",
+      "fraud",
+      "workstation-logs",
+      "document-metadata",
+      "municipal",
+      "madison"
+    ],
+    "victim": null
+  },
+  "CulpritId": "suspect.owen_schultz",
+  "Blueprint": {
+    "crimeMechanism": "The culprit used the victim\u2019s unlocked workstation during a brief after-hours window to edit a PDF addendum and attach it to a draft vendor email, then later deleted local copies and relied on routine cleanup scripts to age out logs. The victim confronted the culprit by phone after noticing inconsistencies, and the culprit administered a fatal insulin dose using the victim\u2019s household first-aid supplies during an in-person \u2018check-in\u2019 visit, staging it as a sudden medical event. Concealment relied on ordinary access (badge entry to the building, familiarity with Windows profiles and printers) and the ambiguity of a plausible natural death; the fraud trail was meant to be buried under normal procurement revisions.",
+    "culpritObjective": "To steer the IT laptop refresh award toward a preferred supplier with inflated pricing by inserting a restrictive requirement into the addendum, and to stop the victim from escalating the discrepancy to the City Attorney\u2019s office; it happened now because the award recommendation memo was scheduled for the next morning and the victim had just emailed that she was \u201Cpausing the tabulation.\u201D",
+    "caseHook": "The addendum looks like a routine clarification, but its PDF metadata shows it was created from a different Windows profile than the procurement author\u2014and the only machine that profile touched that evening is the victim\u2019s workstation.",
+    "locale": {
+      "timeZoneId": "America/Chicago",
+      "utcOffset": "-05:00",
+      "policeAgency": "Madison Police Department (MPD) - Central District Investigations",
+      "investigatorName": "Det. Alicia Moreno",
+      "investigatorEmail": "amoreno@cityofmadison.com"
+    },
+    "incidentSequence": [
+      {
+        "id": "event.victim_flags_issue",
+        "time": "2026-03-18T16:42:00-05:00",
+        "event": "Victim drafts an internal email noting the draft addendum language would eliminate two competing vendors and pauses the scoring spreadsheet.",
+        "publicDescription": "At 4:42 PM, the victim sent an internal message that she was \u201Cpausing tabulation pending an addendum review.\u201D",
+        "visibility": "public",
+        "source": "investigation",
+        "verified": true,
+        "importance": "high",
+        "causalRole": "trigger"
+      },
+      {
+        "id": "event.workstation_afterhours_access",
+        "time": "2026-03-18T18:07:00-05:00",
+        "event": "Culprit enters the procurement suite and uses the victim\u2019s unlocked PC to generate a revised addendum PDF and queue a print, then removes the printout.",
+        "publicDescription": null,
+        "visibility": "private",
+        "source": "sensor",
+        "verified": false,
+        "importance": "critical",
+        "causalRole": "action"
+      },
+      {
+        "id": "event.addendum_sent_out",
+        "time": "2026-03-18T18:26:00-05:00",
+        "event": "Revised addendum is emailed from the victim\u2019s account to the vendor distribution list as a \u2018clarification\u2019 with the restrictive spec included.",
+        "publicDescription": "At 6:26 PM, an addendum PDF was emailed from the victim\u2019s city account to the bid distribution list as a \u2018clarification.\u2019",
+        "visibility": "public",
+        "source": "investigation",
+        "verified": true,
+        "importance": "high",
+        "causalRole": "action"
+      },
+      {
+        "id": "event.confrontation_call",
+        "time": "2026-03-18T18:51:00-05:00",
+        "event": "Victim calls the culprit, questions the addendum change, and threatens to escalate; the culprit decides to silence her immediately.",
+        "publicDescription": null,
+        "visibility": "private",
+        "source": "investigation",
+        "verified": false,
+        "importance": "high",
+        "causalRole": "decision"
+      },
+      {
+        "id": "event.fatal_visit",
+        "time": "2026-03-18T19:12:00-05:00",
+        "event": "Culprit visits the victim\u2019s home under the pretext of discussing the addendum and administers a fatal insulin dose, leaving the scene before the victim collapses.",
+        "publicDescription": null,
+        "visibility": "private",
+        "source": "investigation",
+        "verified": false,
+        "importance": "critical",
+        "causalRole": "harm"
+      },
+      {
+        "id": "event.death_reported",
+        "time": "2026-03-18T21:03:00-05:00",
+        "event": "A neighbor calls 911 after the victim is found unresponsive; EMS notes no obvious trauma and transports; death is pronounced.",
+        "publicDescription": "At 9:03 PM, 911 was called for an unresponsive adult at the victim\u2019s address; EMS noted no obvious trauma.",
+        "visibility": "public",
+        "source": "witness",
+        "verified": true,
+        "importance": "high",
+        "causalRole": "discovery"
+      }
+    ],
+    "clueLadder": [
+      {
+        "id": "clue.bid_context_addendum",
+        "discovery": "The procurement file shows \u201CAddendum 2 - Laptop Refresh\u201D was distributed on 2026-03-18 at 18:26 (email subject: \u201CIFB 2026-IT-014 Addendum 2 Clarification\u201D).",
+        "inference": "The questionable change entered the process late in the day and became official through the victim\u2019s account, establishing the timeline and why workstation evidence matters.",
+        "supportsSuspectId": null,
+        "strength": "context",
+        "sourceType": "document",
+        "role": "context"
+      },
+      {
+        "id": "clue.identity_workstation_owner",
+        "discovery": "City IT inventory record lists workstation asset tag \u201CMAD-WS-04419\u201D assigned to the victim, with last logged-in user shown as \u201CEVELYN.PARK\u201D on 2026-03-18 16:58.",
+        "inference": "This ties the physical endpoint identifier (MAD-WS-04419 / profile EVELYN.PARK) to the victim without asserting anything about the addendum edits.",
+        "supportsSuspectId": null,
+        "strength": "supporting",
+        "sourceType": "document",
+        "role": "identity"
+      },
+      {
+        "id": "clue.action_unfamiliar_editor_session",
+        "discovery": "The PDF properties for \u201CAddendum2_LaptopRefresh.pdf\u201D list Producer \u201CMicrosoft Print to PDF\u201D and an embedded Author field \u201Coschultz,\u201D with CreationDate \u201C2026-03-18 18:12:44.\u201D",
+        "inference": "A separate opaque identifier (the document author tag \u2018oschultz\u2019) is linked to creation of the distributed addendum at the relevant time, but not yet tied to any specific machine or person.",
+        "supportsSuspectId": "suspect.owen_schultz",
+        "strength": "supporting",
+        "sourceType": "digital",
+        "role": "identity"
+      },
+      {
+        "id": "clue.alibi_building_entry",
+        "discovery": "Badging logs show \u201COWEN SCHULTZ\u201D used badge ID ending \u201C-1173\u201D to enter \u201CCCB 215 Martin Luther King Jr Blvd - North Doors\u201D at 2026-03-18 18:03 and exit at 18:31.",
+        "inference": "The culprit had physical opportunity in the correct building window, consistent with after-hours workstation use and the addendum email at 18:26.",
+        "supportsSuspectId": "suspect.owen_schultz",
+        "strength": "supporting",
+        "sourceType": "document",
+        "role": "action"
+      },
+      {
+        "id": "clue.forensic_b_to_a_mapping",
+        "discovery": "Forensic review of MAD-WS-04419 finds Windows registry key \u201CHKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU\u201D containing entry \u2018b\u2019 = \u2018AcroRd32.exe /p /h \u201CC:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.docx\u201D\u2019 with MRUList \u201Cba,\u201D and the corresponding \u201CLastWriteTime\u201D is 2026-03-18 18:12:40.",
+        "inference": "This objectively maps the addendum-generation action on the victim\u2019s workstation (endpoint A: MAD-WS-04419 / profile EVELYN.PARK) to the print-to-PDF workflow at the same minute as the PDF CreationDate, linking the document\u2019s creation session (identifier B: the \u2018oschultz\u2019 authored PDF produced via Print to PDF) to the victim\u2019s endpoint without relying on email headers.",
+        "supportsSuspectId": "suspect.owen_schultz",
+        "strength": "decisive",
+        "sourceType": "forensic",
+        "role": "forensicAttribution"
+      },
+      {
+        "id": "clue.benefit_vendor_message",
+        "discovery": "Vendor reply email from \u201Cd.yazzie@badgerstatetech.com\u201D at 2026-03-18 18:39 includes the line \u201CThanks\u2014this spec aligns with the model we quoted (BST-14G).\u201D",
+        "inference": "The altered spec immediately benefited the vendor\u2019s quoted model and shows the practical effect of the change, though it does not by itself identify who changed it.",
+        "supportsSuspectId": "suspect.derek_yazzie",
+        "strength": "supporting",
+        "sourceType": "document",
+        "role": "benefit"
+      }
+    ],
+    "redHerrings": [
+      {
+        "suspectId": "suspect.derek_yazzie",
+        "suspicion": "The vendor contact pushed for the restrictive specification and could have coordinated the addendum manipulation.",
+        "verification": "Email thread shows \u201Cd.yazzie@badgerstatetech.com\u201D sent a message at 2026-03-18 15:11 stating \u201CHappy to answer questions,\u201D and the first email containing the restrictive line originates from the victim\u2019s account at 18:26 with attachment \u201CAddendum2_LaptopRefresh.pdf.\u201D",
+        "resolution": "The vendor benefits and responds quickly, but the available record shows the altered language entered the process from inside the city email account rather than from the vendor\u2019s mailbox."
+      },
+      {
+        "suspectId": "suspect.lena_hart",
+        "suspicion": "A colleague working on comparisons may have edited the addendum to simplify scoring or protect a preferred vendor.",
+        "verification": "Teams chat export shows \u201CLena Hart\u201D posting at 2026-03-18 18:09 in channel \u201CProcurement-IT-014\u201D: \u201CI\u2019m on a call\u2014back in ~30,\u201D and her calendar shows \u201CVendor demo - Zoom\u201D from 18:00\u201318:30 with meeting ID \u201C845 221 9031.\u201D",
+        "resolution": "The time-stamped collaboration records place her engaged in a concurrent scheduled call during the narrow edit-and-send window, reducing the likelihood she performed the after-hours workstation activity."
+      },
+      {
+        "suspectId": "suspect.mara_kline",
+        "suspicion": "The procurement officer had authority to issue addenda and may have directed last-minute changes to force a particular outcome.",
+        "verification": "Email headers show Mara Kline emailed the victim at 2026-03-18 17:22: \u201CDo not send any addendum tonight\u2014hold for my review in the morning,\u201D and her badge log shows entry to CCB at 07:54 and exit at 17:11 on 2026-03-18 with no later entries.",
+        "resolution": "Her recorded instruction and absence from the building after 17:11 conflict with an after-hours issuance and in-person document handling in the procurement suite."
+      }
+    ]
+  },
+  "CaseGraph": {
+    "Origin": "Generated",
+    "Entities": [
+      {
+        "id": "person.derek_yazzie",
+        "kind": "Person",
+        "displayName": "Derek Yazzie",
+        "attributes": {}
+      },
+      {
+        "id": "person.lena_hart",
+        "kind": "Person",
+        "displayName": "Lena Hart",
+        "attributes": {}
+      },
+      {
+        "id": "person.mara_kline",
+        "kind": "Person",
+        "displayName": "Mara Kline",
+        "attributes": {}
+      },
+      {
+        "id": "person.owen_schultz",
+        "kind": "Person",
+        "displayName": "Owen Schultz",
+        "attributes": {}
+      },
+      {
+        "id": "organization.case_context",
+        "kind": "Organization",
+        "displayName": "The Three-Quote Addendum",
+        "attributes": {}
+      },
+      {
+        "id": "document.accesslog_ccb_north_doors_20260318",
+        "kind": "Document",
+        "displayName": "Access-Control Export: CCB North Doors Badge Events (2026-03-18 Evening) \u2014 document.accesslog_ccb_north_doors_20260318",
+        "attributes": {}
+      },
+      {
+        "id": "account.badge_id_1173",
+        "kind": "Account",
+        "displayName": "Access-Control Export: CCB North Doors Badge Events (2026-03-18 Evening) \u2014 account.badge_id_1173",
+        "attributes": {}
+      },
+      {
+        "id": "transaction.access_event_owen_entry_1803",
+        "kind": "Transaction",
+        "displayName": "Access-Control Export: CCB North Doors Badge Events (2026-03-18 Evening) \u2014 transaction.access_event_owen_entry_1803",
+        "attributes": {}
+      },
+      {
+        "id": "transaction.access_event_owen_exit_1831",
+        "kind": "Transaction",
+        "displayName": "Access-Control Export: CCB North Doors Badge Events (2026-03-18 Evening) \u2014 transaction.access_event_owen_exit_1831",
+        "attributes": {}
+      },
+      {
+        "id": "document.bank_statement_owen_schultz_202603",
+        "kind": "Document",
+        "displayName": "Bank Statement: Owen Schultz (March 2026 Extract) \u2014 document.bank_statement_owen_schultz_202603",
+        "attributes": {}
+      },
+      {
+        "id": "account.bank_account_owen_primary_checking",
+        "kind": "Account",
+        "displayName": "Bank Statement: Owen Schultz (March 2026 Extract) \u2014 account.bank_account_owen_primary_checking",
+        "attributes": {}
+      },
+      {
+        "id": "document.call_log_victim_city_mobile_20260318",
+        "kind": "Document",
+        "displayName": "Call Detail Record: Victim City Mobile (2026-03-18 16:00\u201322:00) \u2014 document.call_log_victim_city_mobile_20260318",
+        "attributes": {}
+      },
+      {
+        "id": "account.victim_city_mobile_number",
+        "kind": "Account",
+        "displayName": "Call Detail Record: Victim City Mobile (2026-03-18 16:00\u201322:00) \u2014 account.victim_city_mobile_number",
+        "attributes": {}
+      },
+      {
+        "id": "communication.cdr_outgoing_call_to_owen_1851",
+        "kind": "Communication",
+        "displayName": "Call Detail Record: Victim City Mobile (2026-03-18 16:00\u201322:00) \u2014 communication.cdr_outgoing_call_to_owen_1851",
+        "attributes": {}
+      },
+      {
+        "id": "document.chat_export_teams_procurement_it_014_20260318",
+        "kind": "Document",
+        "displayName": "Teams Chat Export: Channel \u201CProcurement-IT-014\u201D (2026-03-18 17:30\u201319:00) \u2014 document.chat_export_teams_procurement_it_014_20260318",
+        "attributes": {}
+      },
+      {
+        "id": "session.teams_channel_procurement_it_014",
+        "kind": "Session",
+        "displayName": "Teams Chat Export: Channel \u201CProcurement-IT-014\u201D (2026-03-18 17:30\u201319:00) \u2014 session.teams_channel_procurement_it_014",
+        "attributes": {}
+      },
+      {
+        "id": "communication.chat_msg_lena_1809_on_a_call",
+        "kind": "Communication",
+        "displayName": "Teams Chat Export: Channel \u201CProcurement-IT-014\u201D (2026-03-18 17:30\u201319:00) \u2014 communication.chat_msg_lena_1809_on_a_call",
+        "attributes": {}
+      },
+      {
+        "id": "document.custody_form_mad_ws_04419",
+        "kind": "Document",
+        "displayName": "IT Asset Custody Record: Workstation MAD-WS-04419 Assignment \u2014 document.custody_form_mad_ws_04419",
+        "attributes": {}
+      },
+      {
+        "id": "object.workstation_mad_ws_04419",
+        "kind": "PhysicalObject",
+        "displayName": "IT Asset Custody Record: Workstation MAD-WS-04419 Assignment \u2014 object.workstation_mad_ws_04419",
+        "attributes": {}
+      },
+      {
+        "id": "document.email_export_ifb_2026_it_014_addendum2_thread",
+        "kind": "Document",
+        "displayName": "City Email Export: IFB 2026-IT-014 Addendum 2 Distribution (Victim Mailbox) \u2014 document.email_export_ifb_2026_it_014_addendum2_thread",
+        "attributes": {}
+      },
+      {
+        "id": "communication.email_msg_addendum2_sent_1826",
+        "kind": "Communication",
+        "displayName": "City Email Export: IFB 2026-IT-014 Addendum 2 Distribution (Victim Mailbox) \u2014 communication.email_msg_addendum2_sent_1826",
+        "attributes": {}
+      },
+      {
+        "id": "object.attachment_addendum2_laptoprefresh_pdf",
+        "kind": "PhysicalObject",
+        "displayName": "City Email Export: IFB 2026-IT-014 Addendum 2 Distribution (Victim Mailbox) \u2014 object.attachment_addendum2_laptoprefresh_pdf",
+        "attributes": {}
+      },
+      {
+        "id": "communication.email_msg_vendor_reply_1839",
+        "kind": "Communication",
+        "displayName": "City Email Export: IFB 2026-IT-014 Addendum 2 Distribution (Victim Mailbox) \u2014 communication.email_msg_vendor_reply_1839",
+        "attributes": {}
+      },
+      {
+        "id": "document.witness_statement_neighbor_20260319",
+        "kind": "Document",
+        "displayName": "Witness Statement: Neighbor Who Called 911 (2026-03-18) \u2014 document.witness_statement_neighbor_20260319",
+        "attributes": {}
+      }
+    ],
+    "SuspectReferences": [
+      {
+        "suspectId": "suspect.derek_yazzie",
+        "personEntityId": "person.derek_yazzie"
+      },
+      {
+        "suspectId": "suspect.lena_hart",
+        "personEntityId": "person.lena_hart"
+      },
+      {
+        "suspectId": "suspect.mara_kline",
+        "personEntityId": "person.mara_kline"
+      },
+      {
+        "suspectId": "suspect.owen_schultz",
+        "personEntityId": "person.owen_schultz"
+      }
+    ],
+    "Facts": [
+      {
+        "Id": "fact.clue_action_unfamiliar_editor_session",
+        "Predicate": "identity_action_unfamiliar_editor_session",
+        "SubjectId": "person.owen_schultz",
+        "ObjectId": null,
+        "LiteralValue": "The PDF properties for \u201CAddendum2_LaptopRefresh.pdf\u201D list Producer \u201CMicrosoft Print to PDF\u201D and an embedded Author field \u201Coschultz,\u201D with CreationDate \u201C2026-03-18 18:12:44.\u201D",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_alibi_building_entry",
+        "Predicate": "action_alibi_building_entry",
+        "SubjectId": "person.owen_schultz",
+        "ObjectId": null,
+        "LiteralValue": "Badging logs show \u201COWEN SCHULTZ\u201D used badge ID ending \u201C-1173\u201D to enter \u201CCCB 215 Martin Luther King Jr Blvd - North Doors\u201D at 2026-03-18 18:03 and exit at 18:31.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_benefit_vendor_message",
+        "Predicate": "benefit_benefit_vendor_message",
+        "SubjectId": "person.derek_yazzie",
+        "ObjectId": null,
+        "LiteralValue": "Vendor reply email from \u201Cd.yazzie@badgerstatetech.com\u201D at 2026-03-18 18:39 includes the line \u201CThanks\u2014this spec aligns with the model we quoted (BST-14G).\u201D",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_bid_context_addendum",
+        "Predicate": "context_bid_context_addendum",
+        "SubjectId": "organization.case_context",
+        "ObjectId": null,
+        "LiteralValue": "The procurement file shows \u201CAddendum 2 - Laptop Refresh\u201D was distributed on 2026-03-18 at 18:26 (email subject: \u201CIFB 2026-IT-014 Addendum 2 Clarification\u201D).",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_forensic_b_to_a_mapping",
+        "Predicate": "forensicAttribution_forensic_b_to_a_mapping",
+        "SubjectId": "person.owen_schultz",
+        "ObjectId": null,
+        "LiteralValue": "Forensic review of MAD-WS-04419 finds Windows registry key \u201CHKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU\u201D containing entry \u2018b\u2019 = \u2018AcroRd32.exe /p /h \u201CC:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.docx\u201D\u2019 with MRUList \u201Cba,\u201D and the corresponding \u201CLastWriteTime\u201D is 2026-03-18 18:12:40.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_identity_workstation_owner",
+        "Predicate": "identity_identity_workstation_owner",
+        "SubjectId": "organization.case_context",
+        "ObjectId": null,
+        "LiteralValue": "City IT inventory record lists workstation asset tag \u201CMAD-WS-04419\u201D assigned to the victim, with last logged-in user shown as \u201CEVELYN.PARK\u201D on 2026-03-18 16:58.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.culprit_owen_schultz",
+        "Predicate": "isCulprit",
+        "SubjectId": "person.owen_schultz",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.proof_bridge_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "Predicate": "proofBridge_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "SubjectId": "person.owen_schultz",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.proof_join_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "Predicate": "forensicJoin_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "SubjectId": "person.owen_schultz",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.proof_bridge_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "Predicate": "proofBridge_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "SubjectId": "person.owen_schultz",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.proof_join_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "Predicate": "forensicJoin_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "SubjectId": "person.owen_schultz",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_suspicion_derek_yazzie",
+        "Predicate": "decoySuspicion",
+        "SubjectId": "person.derek_yazzie",
+        "ObjectId": null,
+        "LiteralValue": "The vendor contact pushed for the restrictive specification and could have coordinated the addendum manipulation.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_verification_derek_yazzie",
+        "Predicate": "decoyVerification",
+        "SubjectId": "person.derek_yazzie",
+        "ObjectId": null,
+        "LiteralValue": "Email thread shows \u201Cd.yazzie@badgerstatetech.com\u201D sent a message at 2026-03-18 15:11 stating \u201CHappy to answer questions,\u201D and the first email containing the restrictive line originates from the victim\u2019s account at 18:26 with attachment \u201CAddendum2_LaptopRefresh.pdf.\u201D",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.excluded_derek_yazzie",
+        "Predicate": "excludedFromCrime",
+        "SubjectId": "person.derek_yazzie",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_suspicion_lena_hart",
+        "Predicate": "decoySuspicion",
+        "SubjectId": "person.lena_hart",
+        "ObjectId": null,
+        "LiteralValue": "A colleague working on comparisons may have edited the addendum to simplify scoring or protect a preferred vendor.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_verification_lena_hart",
+        "Predicate": "decoyVerification",
+        "SubjectId": "person.lena_hart",
+        "ObjectId": null,
+        "LiteralValue": "Teams chat export shows \u201CLena Hart\u201D posting at 2026-03-18 18:09 in channel \u201CProcurement-IT-014\u201D: \u201CI\u2019m on a call\u2014back in ~30,\u201D and her calendar shows \u201CVendor demo - Zoom\u201D from 18:00\u201318:30 with meeting ID \u201C845 221 9031.\u201D",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.excluded_lena_hart",
+        "Predicate": "excludedFromCrime",
+        "SubjectId": "person.lena_hart",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_suspicion_mara_kline",
+        "Predicate": "decoySuspicion",
+        "SubjectId": "person.mara_kline",
+        "ObjectId": null,
+        "LiteralValue": "The procurement officer had authority to issue addenda and may have directed last-minute changes to force a particular outcome.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_verification_mara_kline",
+        "Predicate": "decoyVerification",
+        "SubjectId": "person.mara_kline",
+        "ObjectId": null,
+        "LiteralValue": "Email headers show Mara Kline emailed the victim at 2026-03-18 17:22: \u201CDo not send any addendum tonight\u2014hold for my review in the morning,\u201D and her badge log shows entry to CCB at 07:54 and exit at 17:11 on 2026-03-18 with no later entries.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.excluded_mara_kline",
+        "Predicate": "excludedFromCrime",
+        "SubjectId": "person.mara_kline",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      }
+    ],
+    "Events": [],
+    "Sources": [
+      {
+        "Id": "asset.access_log",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.alibi_building_entry_access_log",
+          "observation.decoy_verification_mara_kline_access_log"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_alibi_building_entry",
+          "fact.decoy_verification_mara_kline"
+        ],
+        "EvidentiaryOriginId": "asset.access_log",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.bank_statement",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.action_unfamiliar_editor_session_bank_statement"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_action_unfamiliar_editor_session"
+        ],
+        "EvidentiaryOriginId": "asset.bank_statement",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.call_log",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.decoy_suspicion_mara_kline_call_log"
+        ],
+        "ClaimedFactIds": [
+          "fact.decoy_suspicion_mara_kline"
+        ],
+        "EvidentiaryOriginId": "asset.call_log",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.chat_export",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.decoy_suspicion_lena_hart_chat_export",
+          "observation.decoy_verification_lena_hart_chat_export"
+        ],
+        "ClaimedFactIds": [
+          "fact.decoy_suspicion_lena_hart",
+          "fact.decoy_verification_lena_hart"
+        ],
+        "EvidentiaryOriginId": "asset.chat_export",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.custody_form",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.identity_workstation_owner_custody_form"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_identity_workstation_owner"
+        ],
+        "EvidentiaryOriginId": "asset.custody_form",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.email_export",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.benefit_vendor_message_email_export",
+          "observation.bid_context_addendum_email_export",
+          "observation.decoy_suspicion_derek_yazzie_email_export",
+          "observation.decoy_verification_derek_yazzie_email_export"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_benefit_vendor_message",
+          "fact.clue_bid_context_addendum",
+          "fact.decoy_suspicion_derek_yazzie",
+          "fact.decoy_verification_derek_yazzie"
+        ],
+        "EvidentiaryOriginId": "asset.email_export",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.witness_statement",
+        "Kind": "Asset",
+        "ObservationIds": [],
+        "ClaimedFactIds": [],
+        "EvidentiaryOriginId": "asset.witness_statement",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.report_metadata_device_correlation_mad_ws_04419",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_forensic_b_to_a_mapping"
+        ],
+        "EvidentiaryOriginId": "asset.report_metadata_device_correlation_mad_ws_04419",
+        "AvailableAt": "AfterForensic",
+        "RevealPrerequisiteIds": [
+          "action.analysis_custody_form_metadataanalysis"
+        ],
+        "Required": false
+      },
+      {
+        "Id": "email.ccb_security_preservation_notice",
+        "Kind": "Email",
+        "ObservationIds": [],
+        "ClaimedFactIds": [],
+        "EvidentiaryOriginId": "email.ccb_security_preservation_notice",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "email.lena_hart_vendor_demo_window",
+        "Kind": "Email",
+        "ObservationIds": [],
+        "ClaimedFactIds": [],
+        "EvidentiaryOriginId": "email.lena_hart_vendor_demo_window",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "email.mara_kline_hold_instruction",
+        "Kind": "Email",
+        "ObservationIds": [],
+        "ClaimedFactIds": [],
+        "EvidentiaryOriginId": "email.mara_kline_hold_instruction",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "email.lab_metadata_device_correlation_mad_ws_04419",
+        "Kind": "Email",
+        "ObservationIds": [],
+        "ClaimedFactIds": [],
+        "EvidentiaryOriginId": "asset.report_metadata_device_correlation_mad_ws_04419",
+        "AvailableAt": "AfterForensic",
+        "RevealPrerequisiteIds": [
+          "action.analysis_custody_form_metadataanalysis"
+        ],
+        "Required": false
+      }
+    ],
+    "AssetSpecs": [
+      {
+        "Id": "asset.access_log",
+        "ArchetypeId": "access_log",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.alibi_building_entry_access_log",
+          "observation.decoy_verification_mara_kline_access_log"
+        ],
+        "ContainedObjectIds": [
+          "document.accesslog_ccb_north_doors_20260318",
+          "account.badge_id_1173",
+          "transaction.access_event_owen_entry_1803",
+          "transaction.access_event_owen_exit_1831"
+        ],
+        "ContainedObjectTypes": {
+          "document.accesslog_ccb_north_doors_20260318": "AccessRecord",
+          "account.badge_id_1173": "AccessRecord",
+          "transaction.access_event_owen_entry_1803": "AccessRecord",
+          "transaction.access_event_owen_exit_1831": "AccessRecord"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "AccessLog"
+      },
+      {
+        "Id": "asset.bank_statement",
+        "ArchetypeId": "bank_statement",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.action_unfamiliar_editor_session_bank_statement"
+        ],
+        "ContainedObjectIds": [
+          "document.bank_statement_owen_schultz_202603",
+          "account.bank_account_owen_primary_checking"
+        ],
+        "ContainedObjectTypes": {
+          "document.bank_statement_owen_schultz_202603": "FinancialRecord",
+          "account.bank_account_owen_primary_checking": "FinancialRecord"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "BankStatement"
+      },
+      {
+        "Id": "asset.call_log",
+        "ArchetypeId": "call_log",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.decoy_suspicion_mara_kline_call_log"
+        ],
+        "ContainedObjectIds": [
+          "document.call_log_victim_city_mobile_20260318",
+          "account.victim_city_mobile_number",
+          "communication.cdr_outgoing_call_to_owen_1851"
+        ],
+        "ContainedObjectTypes": {
+          "document.call_log_victim_city_mobile_20260318": "CommunicationRecord",
+          "account.victim_city_mobile_number": "CommunicationRecord",
+          "communication.cdr_outgoing_call_to_owen_1851": "CommunicationRecord"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "CallLog"
+      },
+      {
+        "Id": "asset.chat_export",
+        "ArchetypeId": "chat_export",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.decoy_suspicion_lena_hart_chat_export",
+          "observation.decoy_verification_lena_hart_chat_export"
+        ],
+        "ContainedObjectIds": [
+          "document.chat_export_teams_procurement_it_014_20260318",
+          "session.teams_channel_procurement_it_014",
+          "communication.chat_msg_lena_1809_on_a_call"
+        ],
+        "ContainedObjectTypes": {
+          "document.chat_export_teams_procurement_it_014_20260318": "CommunicationRecord",
+          "session.teams_channel_procurement_it_014": "CommunicationRecord",
+          "communication.chat_msg_lena_1809_on_a_call": "CommunicationRecord"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "ChatExport"
+      },
+      {
+        "Id": "asset.custody_form",
+        "ArchetypeId": "custody_form",
+        "AssetType": "document",
+        "ObservationIds": [
+          "observation.identity_workstation_owner_custody_form"
+        ],
+        "ContainedObjectIds": [
+          "document.custody_form_mad_ws_04419",
+          "object.workstation_mad_ws_04419"
+        ],
+        "ContainedObjectTypes": {
+          "document.custody_form_mad_ws_04419": "Document",
+          "object.workstation_mad_ws_04419": "Document"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "CustodyForm"
+      },
+      {
+        "Id": "asset.email_export",
+        "ArchetypeId": "email_export",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.benefit_vendor_message_email_export",
+          "observation.bid_context_addendum_email_export",
+          "observation.decoy_suspicion_derek_yazzie_email_export",
+          "observation.decoy_verification_derek_yazzie_email_export"
+        ],
+        "ContainedObjectIds": [
+          "document.email_export_ifb_2026_it_014_addendum2_thread",
+          "communication.email_msg_addendum2_sent_1826",
+          "object.attachment_addendum2_laptoprefresh_pdf",
+          "communication.email_msg_vendor_reply_1839"
+        ],
+        "ContainedObjectTypes": {
+          "document.email_export_ifb_2026_it_014_addendum2_thread": "CommunicationRecord",
+          "communication.email_msg_addendum2_sent_1826": "CommunicationRecord",
+          "object.attachment_addendum2_laptoprefresh_pdf": "CommunicationRecord",
+          "communication.email_msg_vendor_reply_1839": "CommunicationRecord"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "EmailExport"
+      },
+      {
+        "Id": "asset.witness_statement",
+        "ArchetypeId": "witness_statement",
+        "AssetType": "document",
+        "ObservationIds": [],
+        "ContainedObjectIds": [
+          "document.witness_statement_neighbor_20260319"
+        ],
+        "ContainedObjectTypes": {
+          "document.witness_statement_neighbor_20260319": "Document"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "WitnessStatement"
+      }
+    ],
+    "DecoyArcs": [
+      {
+        "SuspectId": "suspect.derek_yazzie",
+        "SuspicionObservationIds": [
+          "observation.decoy_suspicion_derek_yazzie_email_export"
+        ],
+        "VerificationObservationIds": [
+          "observation.decoy_verification_derek_yazzie_email_export"
+        ],
+        "ResolutionDerivationId": "derivation.exclude_derek_yazzie",
+        "MustBePlayerReachable": true
+      },
+      {
+        "SuspectId": "suspect.lena_hart",
+        "SuspicionObservationIds": [
+          "observation.decoy_suspicion_lena_hart_chat_export"
+        ],
+        "VerificationObservationIds": [
+          "observation.decoy_verification_lena_hart_chat_export"
+        ],
+        "ResolutionDerivationId": "derivation.exclude_lena_hart",
+        "MustBePlayerReachable": true
+      },
+      {
+        "SuspectId": "suspect.mara_kline",
+        "SuspicionObservationIds": [
+          "observation.decoy_suspicion_mara_kline_call_log"
+        ],
+        "VerificationObservationIds": [
+          "observation.decoy_verification_mara_kline_access_log"
+        ],
+        "ResolutionDerivationId": "derivation.exclude_mara_kline",
+        "MustBePlayerReachable": true
+      }
+    ],
+    "ForensicTransforms": [
+      {
+        "Id": "forensic.custody_form_metadataanalysis",
+        "MethodId": "MetadataAnalysis",
+        "InputAssetId": "asset.custody_form",
+        "InputObjectId": "document.custody_form_mad_ws_04419",
+        "ReferenceSampleObjectId": null,
+        "ChainOfCustodyObservationId": "observation.identity_workstation_owner_custody_form",
+        "ProducedObservationIds": [
+          "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+        ],
+        "ProducedProperties": [
+          "DeviceCorrelation"
+        ],
+        "LimitationKeys": [
+          "operator_not_proven",
+          "metadata_can_be_modified"
+        ],
+        "ResultAssetId": "asset.report_metadata_device_correlation_mad_ws_04419",
+        "ResultEmailId": "email.lab_metadata_device_correlation_mad_ws_04419",
+        "ResultLayoutId": "ForensicReport"
+      }
+    ],
+    "Observations": [
+      {
+        "Id": "observation.action_unfamiliar_editor_session_bank_statement",
+        "FactId": "fact.clue_action_unfamiliar_editor_session",
+        "SourceAssetId": "asset.bank_statement",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.alibi_building_entry_access_log",
+        "FactId": "fact.clue_alibi_building_entry",
+        "SourceAssetId": "asset.access_log",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.benefit_vendor_message_email_export",
+        "FactId": "fact.clue_benefit_vendor_message",
+        "SourceAssetId": "asset.email_export",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.bid_context_addendum_email_export",
+        "FactId": "fact.clue_bid_context_addendum",
+        "SourceAssetId": "asset.email_export",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "FactId": "fact.clue_forensic_b_to_a_mapping",
+        "SourceAssetId": "asset.report_metadata_device_correlation_mad_ws_04419",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": "DeviceCorrelation"
+      },
+      {
+        "Id": "observation.identity_workstation_owner_custody_form",
+        "FactId": "fact.clue_identity_workstation_owner",
+        "SourceAssetId": "asset.custody_form",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_suspicion_derek_yazzie_email_export",
+        "FactId": "fact.decoy_suspicion_derek_yazzie",
+        "SourceAssetId": "asset.email_export",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "Circumstantial",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_verification_derek_yazzie_email_export",
+        "FactId": "fact.decoy_verification_derek_yazzie",
+        "SourceAssetId": "asset.email_export",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_suspicion_lena_hart_chat_export",
+        "FactId": "fact.decoy_suspicion_lena_hart",
+        "SourceAssetId": "asset.chat_export",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "Circumstantial",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_verification_lena_hart_chat_export",
+        "FactId": "fact.decoy_verification_lena_hart",
+        "SourceAssetId": "asset.chat_export",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_suspicion_mara_kline_call_log",
+        "FactId": "fact.decoy_suspicion_mara_kline",
+        "SourceAssetId": "asset.call_log",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "Circumstantial",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_verification_mara_kline_access_log",
+        "FactId": "fact.decoy_verification_mara_kline",
+        "SourceAssetId": "asset.access_log",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      }
+    ],
+    "Derivations": [
+      {
+        "Id": "derivation.proof_bridge_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "PremiseIds": [
+          "observation.action_unfamiliar_editor_session_bank_statement"
+        ],
+        "Rule": "IdentityMatch",
+        "ConclusionFactId": "fact.proof_bridge_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "SupportsSuspectId": null,
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.proof_join_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "PremiseIds": [
+          "derivation.proof_bridge_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+          "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+        ],
+        "Rule": "CrossSourceCorroboration",
+        "ConclusionFactId": "fact.proof_join_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "SupportsSuspectId": null,
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.culprit_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "PremiseIds": [
+          "derivation.proof_join_action_unfamiliar_editor_session_action_unfamiliar_editor_session_bank_statement_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+        ],
+        "Rule": "ActionAttribution",
+        "ConclusionFactId": "fact.culprit_owen_schultz",
+        "SupportsSuspectId": "suspect.owen_schultz",
+        "IsCulpritConclusion": true
+      },
+      {
+        "Id": "derivation.proof_bridge_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "PremiseIds": [
+          "observation.alibi_building_entry_access_log"
+        ],
+        "Rule": "ActionAttribution",
+        "ConclusionFactId": "fact.proof_bridge_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "SupportsSuspectId": null,
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.proof_join_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "PremiseIds": [
+          "derivation.proof_bridge_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+          "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+        ],
+        "Rule": "CrossSourceCorroboration",
+        "ConclusionFactId": "fact.proof_join_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "SupportsSuspectId": null,
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.culprit_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+        "PremiseIds": [
+          "derivation.proof_join_alibi_building_entry_alibi_building_entry_access_log_forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+        ],
+        "Rule": "ActionAttribution",
+        "ConclusionFactId": "fact.culprit_owen_schultz",
+        "SupportsSuspectId": "suspect.owen_schultz",
+        "IsCulpritConclusion": true
+      },
+      {
+        "Id": "derivation.exclude_derek_yazzie",
+        "PremiseIds": [
+          "observation.decoy_verification_derek_yazzie_email_export"
+        ],
+        "Rule": "Exclusion",
+        "ConclusionFactId": "fact.excluded_derek_yazzie",
+        "SupportsSuspectId": "suspect.derek_yazzie",
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.exclude_lena_hart",
+        "PremiseIds": [
+          "observation.decoy_verification_lena_hart_chat_export"
+        ],
+        "Rule": "Exclusion",
+        "ConclusionFactId": "fact.excluded_lena_hart",
+        "SupportsSuspectId": "suspect.lena_hart",
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.exclude_mara_kline",
+        "PremiseIds": [
+          "observation.decoy_verification_mara_kline_access_log"
+        ],
+        "Rule": "Exclusion",
+        "ConclusionFactId": "fact.excluded_mara_kline",
+        "SupportsSuspectId": "suspect.mara_kline",
+        "IsCulpritConclusion": false
+      }
+    ],
+    "EventOrderConstraints": [],
+    "TravelWindows": [],
+    "Actions": [
+      {
+        "Id": "action.analysis_custody_form_metadataanalysis",
+        "Kind": "RequestAnalysis",
+        "CompletesAt": "AfterForensic",
+        "PrerequisiteSourceIds": [
+          "asset.custody_form"
+        ],
+        "PrerequisiteActionIds": [],
+        "RevealsSourceIds": [
+          "asset.report_metadata_device_correlation_mad_ws_04419",
+          "email.lab_metadata_device_correlation_mad_ws_04419"
+        ],
+        "AnalysisId": "asset.custody_form:MetadataAnalysis",
+        "Required": false
+      }
+    ],
+    "RequiredSourceIds": [],
+    "RequiredAnalysisIds": []
+  },
+  "EvidenceGraph": {
+    "Claims": [
+      {
+        "ClueId": "clue.bid_context_addendum",
+        "Discovery": "The procurement file shows \u201CAddendum 2 - Laptop Refresh\u201D was distributed on 2026-03-18 at 18:26 (email subject: \u201CIFB 2026-IT-014 Addendum 2 Clarification\u201D).",
+        "Inference": "The questionable change entered the process late in the day and became official through the victim\u2019s account, establishing the timeline and why workstation evidence matters.",
+        "SupportsSuspectId": null,
+        "Strength": "context",
+        "SourceType": "document",
+        "Role": "context",
+        "AssetIds": [
+          "asset.email_export"
+        ]
+      },
+      {
+        "ClueId": "clue.identity_workstation_owner",
+        "Discovery": "City IT inventory record lists workstation asset tag \u201CMAD-WS-04419\u201D assigned to the victim, with last logged-in user shown as \u201CEVELYN.PARK\u201D on 2026-03-18 16:58.",
+        "Inference": "This ties the physical endpoint identifier (MAD-WS-04419 / profile EVELYN.PARK) to the victim without asserting anything about the addendum edits.",
+        "SupportsSuspectId": null,
+        "Strength": "supporting",
+        "SourceType": "document",
+        "Role": "identity",
+        "AssetIds": [
+          "asset.custody_form"
+        ]
+      },
+      {
+        "ClueId": "clue.action_unfamiliar_editor_session",
+        "Discovery": "The PDF properties for \u201CAddendum2_LaptopRefresh.pdf\u201D list Producer \u201CMicrosoft Print to PDF\u201D and an embedded Author field \u201Coschultz,\u201D with CreationDate \u201C2026-03-18 18:12:44.\u201D",
+        "Inference": "A separate opaque identifier (the document author tag \u2018oschultz\u2019) is linked to creation of the distributed addendum at the relevant time, but not yet tied to any specific machine or person.",
+        "SupportsSuspectId": "suspect.owen_schultz",
+        "Strength": "supporting",
+        "SourceType": "digital",
+        "Role": "identity",
+        "AssetIds": [
+          "asset.bank_statement"
+        ]
+      },
+      {
+        "ClueId": "clue.alibi_building_entry",
+        "Discovery": "Badging logs show \u201COWEN SCHULTZ\u201D used badge ID ending \u201C-1173\u201D to enter \u201CCCB 215 Martin Luther King Jr Blvd - North Doors\u201D at 2026-03-18 18:03 and exit at 18:31.",
+        "Inference": "The culprit had physical opportunity in the correct building window, consistent with after-hours workstation use and the addendum email at 18:26.",
+        "SupportsSuspectId": "suspect.owen_schultz",
+        "Strength": "supporting",
+        "SourceType": "document",
+        "Role": "action",
+        "AssetIds": [
+          "asset.access_log"
+        ]
+      },
+      {
+        "ClueId": "clue.forensic_b_to_a_mapping",
+        "Discovery": "Forensic review of MAD-WS-04419 finds Windows registry key \u201CHKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU\u201D containing entry \u2018b\u2019 = \u2018AcroRd32.exe /p /h \u201CC:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.docx\u201D\u2019 with MRUList \u201Cba,\u201D and the corresponding \u201CLastWriteTime\u201D is 2026-03-18 18:12:40.",
+        "Inference": "This objectively maps the addendum-generation action on the victim\u2019s workstation (endpoint A: MAD-WS-04419 / profile EVELYN.PARK) to the print-to-PDF workflow at the same minute as the PDF CreationDate, linking the document\u2019s creation session (identifier B: the \u2018oschultz\u2019 authored PDF produced via Print to PDF) to the victim\u2019s endpoint without relying on email headers.",
+        "SupportsSuspectId": "suspect.owen_schultz",
+        "Strength": "decisive",
+        "SourceType": "forensic",
+        "Role": "forensicAttribution",
+        "AssetIds": [
+          "asset.report_metadata_device_correlation_mad_ws_04419"
+        ]
+      },
+      {
+        "ClueId": "clue.benefit_vendor_message",
+        "Discovery": "Vendor reply email from \u201Cd.yazzie@badgerstatetech.com\u201D at 2026-03-18 18:39 includes the line \u201CThanks\u2014this spec aligns with the model we quoted (BST-14G).\u201D",
+        "Inference": "The altered spec immediately benefited the vendor\u2019s quoted model and shows the practical effect of the change, though it does not by itself identify who changed it.",
+        "SupportsSuspectId": "suspect.derek_yazzie",
+        "Strength": "supporting",
+        "SourceType": "document",
+        "Role": "benefit",
+        "AssetIds": [
+          "asset.email_export"
+        ]
+      }
+    ],
+    "RedHerrings": [
+      {
+        "SuspectId": "suspect.derek_yazzie",
+        "Suspicion": "The vendor contact pushed for the restrictive specification and could have coordinated the addendum manipulation.",
+        "Verification": "Email thread shows \u201Cd.yazzie@badgerstatetech.com\u201D sent a message at 2026-03-18 15:11 stating \u201CHappy to answer questions,\u201D and the first email containing the restrictive line originates from the victim\u2019s account at 18:26 with attachment \u201CAddendum2_LaptopRefresh.pdf.\u201D",
+        "Resolution": "The vendor benefits and responds quickly, but the available record shows the altered language entered the process from inside the city email account rather than from the vendor\u2019s mailbox.",
+        "AssetIds": [
+          "asset.email_export"
+        ]
+      },
+      {
+        "SuspectId": "suspect.lena_hart",
+        "Suspicion": "A colleague working on comparisons may have edited the addendum to simplify scoring or protect a preferred vendor.",
+        "Verification": "Teams chat export shows \u201CLena Hart\u201D posting at 2026-03-18 18:09 in channel \u201CProcurement-IT-014\u201D: \u201CI\u2019m on a call\u2014back in ~30,\u201D and her calendar shows \u201CVendor demo - Zoom\u201D from 18:00\u201318:30 with meeting ID \u201C845 221 9031.\u201D",
+        "Resolution": "The time-stamped collaboration records place her engaged in a concurrent scheduled call during the narrow edit-and-send window, reducing the likelihood she performed the after-hours workstation activity.",
+        "AssetIds": [
+          "asset.chat_export"
+        ]
+      },
+      {
+        "SuspectId": "suspect.mara_kline",
+        "Suspicion": "The procurement officer had authority to issue addenda and may have directed last-minute changes to force a particular outcome.",
+        "Verification": "Email headers show Mara Kline emailed the victim at 2026-03-18 17:22: \u201CDo not send any addendum tonight\u2014hold for my review in the morning,\u201D and her badge log shows entry to CCB at 07:54 and exit at 17:11 on 2026-03-18 with no later entries.",
+        "Resolution": "Her recorded instruction and absence from the building after 17:11 conflict with an after-hours issuance and in-person document handling in the procurement suite.",
+        "AssetIds": [
+          "asset.access_log"
+        ]
+      }
+    ]
+  },
+  "SuspectStubs": [
+    {
+      "id": "suspect.owen_schultz",
+      "name": "Owen Schultz",
+      "role": "IT Services asset manager; had routine access to the procurement floor and shared imaging tools.",
+      "isCulprit": true
+    },
+    {
+      "id": "suspect.derek_yazzie",
+      "name": "Derek Yazzie",
+      "role": "Account executive at Badger State Tech Supply; primary vendor contact for the bid.",
+      "isCulprit": false
+    },
+    {
+      "id": "suspect.lena_hart",
+      "name": "Lena Hart",
+      "role": "Procurement analyst colleague; collaborated with the victim on quote comparisons.",
+      "isCulprit": false
+    },
+    {
+      "id": "suspect.mara_kline",
+      "name": "Mara Kline",
+      "role": "City of Madison Procurement Officer; oversaw the laptop refresh solicitation.",
+      "isCulprit": false
+    }
+  ],
+  "SuspectFull": [
+    {
+      "id": "suspect.owen_schultz",
+      "name": "Owen Schultz",
+      "age": 39,
+      "occupation": "City IT Services asset manager",
+      "relationship": "Worked with the victim on municipal IT hardware refresh coordination",
+      "motive": "The laptop refresh recommendation was due the next morning, and the victim had just paused tabulation after questioning addendum language that would narrow eligible models. If the discrepancy was escalated, it could have disrupted the award path and exposed who had been pushing the restrictive requirement into the process.",
+      "alibi": "He says he was at the City-County Building in the early evening to pick up a printout and discuss a last-minute addendum issue, then drove to the victim\u2019s home for a brief \u201Ccheck-in\u201D about the confusion. Building badge logs can independently confirm his entry and exit window, but there is no neutral third-party record that accounts for his movements between leaving the building and later that night.",
+      "alibiVerified": false,
+      "background": "Owen Schultz is the IT Services asset manager responsible for tracking and coordinating device deployments and refresh planning.\n\nHis work regularly intersects with procurement on hardware specifications and timelines, and he has routine access to the procurement floor at the City-County Building.\n\nHe is familiar with shared city imaging tools and the day-to-day handling of workstation profiles and printing workflows."
+    },
+    {
+      "id": "suspect.derek_yazzie",
+      "name": "Derek Yazzie",
+      "age": 34,
+      "occupation": "Account executive (IT hardware vendor)",
+      "relationship": "Primary vendor contact for the city\u2019s laptop refresh bid; worked with the victim on bid questions",
+      "motive": "Badger State Tech\u2019s quoted model (BST-14G) matched the restrictive requirement that appeared in the addendum, and Derek had a direct professional incentive to see that specification adopted. With the award recommendation memo scheduled for the next morning, he also had reason to push for language that would keep competitors out without reopening the whole solicitation.",
+      "alibi": "He states he was at Badger State Tech\u2019s office during the evening and can produce sent-email records showing a reply from d.yazzie@badgerstatetech.com at 18:39 acknowledging the specification; his employer\u2019s building access logs can confirm entry/exit times. The limitation is that those records confirm his messaging and presence at the office, not what communications he may have had by phone earlier in the day.",
+      "alibiVerified": false,
+      "background": "Derek Yazzie is the account executive handling the City of Madison\u2019s laptop refresh solicitation for Badger State Tech Supply. A vendor reply email from his address at 18:39 thanks the city for a specification that aligns with the model his company quoted (BST-14G). His role gives him familiarity with the bid documents, timelines, and who at the city was coordinating addenda and clarifications."
+    },
+    {
+      "id": "suspect.lena_hart",
+      "name": "Lena Hart",
+      "age": 34,
+      "occupation": "Municipal procurement analyst",
+      "relationship": "Colleague who worked with the victim on quote comparisons for the laptop refresh",
+      "motive": "Lena was under pressure to keep the laptop refresh on schedule and may have wanted to avoid a restart of scoring that could add late nights and public scrutiny. She also had an interest in keeping the comparison spreadsheet clean and consistent, even if that meant pushing a clarification through quickly.",
+      "alibi": "She reports she was on a scheduled \u201CVendor demo - Zoom\u201D from 18:00\u201318:30 and posted in the \u201CProcurement-IT-014\u201D Teams channel at 18:09 that she was on a call and would be back in ~30. This can be independently checked via calendar and Teams exports, though it does not by itself confirm where she was physically located during the call.",
+      "alibiVerified": false,
+      "background": "Lena Hart is a procurement analyst who collaborated with the victim on quote comparisons for IFB 2026-IT-014.\n\nHer work routinely involves reviewing vendor submissions, reconciling specs, and coordinating with internal stakeholders during active bid tabulations.\n\nOn the evening of 2026-03-18, her collaboration records show she was engaged in a scheduled vendor demo during the narrow window when the addendum was distributed."
+    },
+    {
+      "id": "suspect.mara_kline",
+      "name": "Mara Kline",
+      "age": 46,
+      "occupation": "City procurement officer",
+      "relationship": "Victim\u2019s supervisor on the laptop refresh solicitation",
+      "motive": "She had professional incentive to keep the IFB timeline orderly and avoid a late-night addendum that could trigger vendor protests or a restart. She also had reputational pressure to ensure the solicitation didn\u2019t appear mismanaged after the victim paused scoring late in the day.",
+      "alibi": "Building badge logs show she exited the City-County Building at 17:11 on 2026-03-18 with no later entries, which can be independently checked against access-control records. This does not account for her movements off-site after leaving the building.",
+      "alibiVerified": false,
+      "background": "Mara Kline is the City of Madison Procurement Officer overseeing the IT laptop refresh solicitation and had formal authority over addenda issuance.\nOn 2026-03-18 at 17:22, she emailed the victim instructing: \u201CDo not send any addendum tonight\u2014hold for my review in the morning.\u201D\nHer building access history for that date shows entry at 07:54 and exit at 17:11, with no recorded re-entry that evening."
+    }
+  ],
+  "AssetStubs": [
+    {
+      "archetypeId": "email_export",
+      "id": "asset.email_export",
+      "type": "digital",
+      "title": "City Email Export: IFB 2026-IT-014 Addendum 2 Distribution (Victim Mailbox)",
+      "role": "Establishes when the addendum was distributed from the victim\u2019s account and captures the vendor reply reflecting who benefited.",
+      "visibility": "initial",
+      "layoutHint": "EmailExport",
+      "supportsClueIds": [
+        "clue.bid_context_addendum",
+        "clue.benefit_vendor_message"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [
+        "suspect.derek_yazzie"
+      ],
+      "introducesRedHerringSuspectIds": [
+        "suspect.derek_yazzie"
+      ],
+      "containedObjectIds": [
+        "document.email_export_ifb_2026_it_014_addendum2_thread",
+        "communication.email_msg_addendum2_sent_1826",
+        "object.attachment_addendum2_laptoprefresh_pdf",
+        "communication.email_msg_vendor_reply_1839"
+      ]
+    },
+    {
+      "archetypeId": "access_log",
+      "id": "asset.access_log",
+      "type": "digital",
+      "title": "Access-Control Export: CCB North Doors Badge Events (2026-03-18 Evening)",
+      "role": "Places Owen Schultz in the City-County Building during the narrow after-hours window consistent with the workstation edit-and-send timeline.",
+      "visibility": "initial",
+      "layoutHint": "AccessLog",
+      "supportsClueIds": [
+        "clue.alibi_building_entry"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [
+        "suspect.mara_kline"
+      ],
+      "introducesRedHerringSuspectIds": [],
+      "containedObjectIds": [
+        "document.accesslog_ccb_north_doors_20260318",
+        "account.badge_id_1173",
+        "transaction.access_event_owen_entry_1803",
+        "transaction.access_event_owen_exit_1831"
+      ]
+    },
+    {
+      "archetypeId": "custody_form",
+      "id": "asset.custody_form",
+      "type": "document",
+      "title": "IT Asset Custody Record: Workstation MAD-WS-04419 Assignment",
+      "role": "Ties the endpoint identifier MAD-WS-04419 and last logged-in user record to the victim as the assigned custodian.",
+      "visibility": "initial",
+      "layoutHint": "CustodyForm",
+      "supportsClueIds": [
+        "clue.identity_workstation_owner"
+      ],
+      "forensicInputClueIds": [
+        "clue.forensic_b_to_a_mapping"
+      ],
+      "resolvesRedHerringSuspectIds": [],
+      "introducesRedHerringSuspectIds": [],
+      "containedObjectIds": [
+        "document.custody_form_mad_ws_04419",
+        "object.workstation_mad_ws_04419"
+      ]
+    },
+    {
+      "archetypeId": "call_log",
+      "id": "asset.call_log",
+      "type": "digital",
+      "title": "Call Detail Record: Victim City Mobile (2026-03-18 16:00\u201322:00)",
+      "role": "Corroborates the confrontation call timing by showing a call between the victim and Owen Schultz shortly after the addendum was sent.",
+      "visibility": "initial",
+      "layoutHint": "CallLog",
+      "supportsClueIds": [],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [],
+      "introducesRedHerringSuspectIds": [
+        "suspect.mara_kline"
+      ],
+      "containedObjectIds": [
+        "document.call_log_victim_city_mobile_20260318",
+        "account.victim_city_mobile_number",
+        "communication.cdr_outgoing_call_to_owen_1851"
+      ]
+    },
+    {
+      "archetypeId": "witness_statement",
+      "id": "asset.witness_statement",
+      "type": "document",
+      "title": "Witness Statement: Neighbor Who Called 911 (2026-03-18)",
+      "role": "Anchors the discovery of the medical emergency and establishes what was (and wasn\u2019t) observed at the victim\u2019s home that night.",
+      "visibility": "initial",
+      "layoutHint": "WitnessStatement",
+      "supportsClueIds": [],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [],
+      "introducesRedHerringSuspectIds": [],
+      "containedObjectIds": [
+        "document.witness_statement_neighbor_20260319"
+      ]
+    },
+    {
+      "archetypeId": "chat_export",
+      "id": "asset.chat_export",
+      "type": "digital",
+      "title": "Teams Chat Export: Channel \u201CProcurement-IT-014\u201D (2026-03-18 17:30\u201319:00)",
+      "role": "Supports Lena Hart\u2019s red-herring resolution by time-stamping her activity during the edit-and-send window.",
+      "visibility": "initial",
+      "layoutHint": "ChatExport",
+      "supportsClueIds": [],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [
+        "suspect.lena_hart"
+      ],
+      "introducesRedHerringSuspectIds": [
+        "suspect.lena_hart"
+      ],
+      "containedObjectIds": [
+        "document.chat_export_teams_procurement_it_014_20260318",
+        "session.teams_channel_procurement_it_014",
+        "communication.chat_msg_lena_1809_on_a_call"
+      ]
+    },
+    {
+      "archetypeId": "bank_statement",
+      "id": "asset.bank_statement",
+      "type": "digital",
+      "title": "Bank Statement: Owen Schultz (March 2026 Extract)",
+      "role": "Introduces a plausible financial-pressure angle and potential motive signal without proving the addendum manipulation by itself.",
+      "visibility": "initial",
+      "layoutHint": "BankStatement",
+      "supportsClueIds": [
+        "clue.action_unfamiliar_editor_session"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [],
+      "introducesRedHerringSuspectIds": [],
+      "containedObjectIds": [
+        "document.bank_statement_owen_schultz_202603",
+        "account.bank_account_owen_primary_checking"
+      ]
+    }
+  ],
+  "AssetFull": [
+    {
+      "id": "asset.email_export",
+      "type": "digital",
+      "title": "City Email Export: IFB 2026-IT-014 Addendum 2 Distribution (Victim Mailbox)",
+      "description": "Exported email thread from the victim\u2019s city mailbox showing the distribution of \u201CIFB 2026-IT-014 Addendum 2 Clarification\u201D at 18:26 and a vendor reply at 18:39 referencing the quoted model (BST-14G). The messages document when the addendum became official and what vendor immediately benefited from the specification language.",
+      "visibility": "initial",
+      "category": "Communication",
+      "body": "",
+      "bodyDoc": {
+        "layout": "EmailExport",
+        "language": "en-US",
+        "title": "Email Export \u2014 IFB 2026-IT-014 Addendum 2 Distribution (Victim Mailbox)",
+        "subtitle": "IFB 2026-IT-014 \u00B7 Addendum 2 \u2014 Laptop Refresh \u00B7 2026-03-18 (America/Chicago)",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_203"
+          },
+          {
+            "label": "Incident Date/Time",
+            "value": "2026-03-18T19:12:00-05:00"
+          },
+          {
+            "label": "Location",
+            "value": "Madison, Wisconsin, USA"
+          },
+          {
+            "label": "Source Mailbox",
+            "value": "Victim city email account (mailbox export)"
+          },
+          {
+            "label": "Thread/Scope",
+            "value": "IFB 2026-IT-014 \u00B7 Addendum 2 distribution and vendor reply (selected messages)"
+          },
+          {
+            "label": "Generated For",
+            "value": "Madison Police Department (MPD) - Central District Investigations \u00B7 Det. Alicia Moreno"
+          },
+          {
+            "label": "Generated At",
+            "value": "2026-03-19T09:40:00-05:00"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "callout",
+            "heading": "What this export contains",
+            "text": "This export captures (1) the addendum distribution email sent from the victim\u2019s account at **2026-03-18 18:26** with attachment **Addendum2_LaptopRefresh.pdf**, and (2) a vendor reply from **d.yazzie@badgerstatetech.com** at **18:39** referencing the specification/model **BST-14G**. It also includes an earlier vendor message at **15:11** in the same thread.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Message List (chronological)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Timestamp",
+                "From",
+                "To",
+                "Subject",
+                "Snippet"
+              ],
+              "rows": [
+                [
+                  "2026-03-18 15:11",
+                  "d.yazzie@badgerstatetech.com",
+                  "(victim city email account) and/or bid correspondence recipients (as shown in thread)",
+                  "(same IFB 2026-IT-014 thread)",
+                  "\u201CHappy to answer questions,\u201D (vendor message in thread prior to addendum distribution)."
+                ],
+                [
+                  "2026-03-18 18:26",
+                  "(victim city email account)",
+                  "IFB 2026-IT-014 vendor distribution list (recipients as shown in export)",
+                  "IFB 2026-IT-014 Addendum 2 Clarification",
+                  "Addendum 2 distributed from the victim\u2019s account with attachment **Addendum2_LaptopRefresh.pdf**."
+                ],
+                [
+                  "2026-03-18 18:39",
+                  "d.yazzie@badgerstatetech.com",
+                  "(victim city email account) (and/or thread recipients as shown in export)",
+                  "Re: IFB 2026-IT-014 Addendum 2 Clarification",
+                  "\u201CThanks\u2014this spec aligns with the model we quoted (BST-14G).\u201D"
+                ]
+              ],
+              "footnote": "Timestamps reflect the message times as recorded in the exported mailbox view (America/Chicago). Recipient lists are summarized only where fully visible in the export scope."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Player-readable observations",
+            "text": "- The procurement addendum titled **\u201CAddendum 2 - Laptop Refresh\u201D** is distributed via email at **2026-03-18 18:26** with subject **\u201CIFB 2026-IT-014 Addendum 2 Clarification.\u201D**\n- The **first email in this thread that contains the restrictive-specification addendum attachment** originates from the **victim\u2019s city email account** at **18:26**, with attachment named **Addendum2_LaptopRefresh.pdf**.\n- A vendor reply from **d.yazzie@badgerstatetech.com** at **2026-03-18 18:39** includes the line: **\u201CThanks\u2014this spec aligns with the model we quoted (BST-14G).\u201D**\n- Earlier in the same thread, **d.yazzie@badgerstatetech.com** sends a message at **2026-03-18 15:11** stating: **\u201CHappy to answer questions,\u201D** indicating vendor engagement earlier that day.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- The procurement file shows \u201CAddendum 2 - Laptop Refresh\u201D was distributed on 2026-03-18 at 18:26 (email subject: \u201CIFB 2026-IT-014 Addendum 2 Clarification\u201D).\n- Vendor reply email from \u201Cd.yazzie@badgerstatetech.com\u201D at 2026-03-18 18:39 includes the line \u201CThanks\u2014this spec aligns with the model we quoted (BST-14G).\u201D",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Suspicion indicators",
+            "text": "- The vendor contact pushed for the restrictive specification and could have coordinated the addendum manipulation.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Supporting checks",
+            "text": "- Email thread shows \u201Cd.yazzie@badgerstatetech.com\u201D sent a message at 2026-03-18 15:11 stating \u201CHappy to answer questions,\u201D and the first email containing the restrictive line originates from the victim\u2019s account at 18:26 with attachment \u201CAddendum2_LaptopRefresh.pdf.\u201D",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": null
+      }
+    },
+    {
+      "id": "asset.access_log",
+      "type": "digital",
+      "title": "Access-Control Export: CCB North Doors Badge Events (2026-03-18 Evening)",
+      "description": "Export of City-County Building (CCB) North Doors access-control events on 2026-03-18. Shows Owen Schultz entering at 18:03 and exiting at 18:31 on badge ID ending -1173, and records Mara Kline\u2019s last exit at 17:11 with no later re-entry that evening.",
+      "visibility": "initial",
+      "category": "Digital",
+      "body": "",
+      "bodyDoc": {
+        "layout": "AccessLog",
+        "language": "en-US",
+        "title": "Access-Control Export: CCB North Doors Badge Events (2026-03-18 Evening)",
+        "subtitle": "CCB \u2014 215 Martin Luther King Jr Blvd \u2014 North Doors (Madison, WI) \u00B7 Badge event extract",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_203"
+          },
+          {
+            "label": "Incident Date/Time (Local)",
+            "value": "2026-03-18 (America/Chicago)"
+          },
+          {
+            "label": "Location",
+            "value": "City-County Building (CCB), 215 Martin Luther King Jr Blvd, Madison, WI \u2014 North Doors"
+          },
+          {
+            "label": "Source System",
+            "value": "CCB Access-Control (badge reader events) \u2014 export"
+          },
+          {
+            "label": "Generated By",
+            "value": "Madison Police Department (MPD) - Central District Investigations"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "narrative",
+            "heading": "Summary",
+            "text": "- The following events are an extract of North Doors badge reader activity on 2026-03-18.\n- Times below are local (America/Chicago).\n- Badge IDs are displayed as recorded by the access-control system; one entry lists a badge ID ending \u201C-1173.\u201D",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Badge Reader Events (Extract)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Timestamp",
+                "Source IP",
+                "Method",
+                "Path",
+                "Status"
+              ],
+              "rows": [
+                [
+                  "2026-03-18 07:54",
+                  "N/A",
+                  "BADGE",
+                  "CCB North Doors \u00B7 Cardholder: MARA KLINE \u00B7 Event: Entry",
+                  "GRANTED"
+                ],
+                [
+                  "2026-03-18 17:11",
+                  "N/A",
+                  "BADGE",
+                  "CCB North Doors \u00B7 Cardholder: MARA KLINE \u00B7 Event: Exit",
+                  "GRANTED"
+                ],
+                [
+                  "2026-03-18 18:03",
+                  "N/A",
+                  "BADGE",
+                  "CCB North Doors \u00B7 Cardholder: OWEN SCHULTZ \u00B7 Badge ID: ****-1173 \u00B7 Event: Entry",
+                  "GRANTED"
+                ],
+                [
+                  "2026-03-18 18:31",
+                  "N/A",
+                  "BADGE",
+                  "CCB North Doors \u00B7 Cardholder: OWEN SCHULTZ \u00B7 Badge ID: ****-1173 \u00B7 Event: Exit",
+                  "GRANTED"
+                ]
+              ],
+              "footnote": "This extract shows MARA KLINE with an entry at 07:54 and an exit at 17:11 on 2026-03-18, with no later North Doors entries recorded in this export. It also shows OWEN SCHULTZ entering at 18:03 and exiting at 18:31 using badge ID ending \u201C-1173.\u201D"
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Notes / Limitations",
+            "text": "This document reflects only events captured by the CCB North Doors badge reader(s) for the exported period; it does not, by itself, show movement within the building or use of other entrances.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- Badging logs show \u201COWEN SCHULTZ\u201D used badge ID ending \u201C-1173\u201D to enter \u201CCCB 215 Martin Luther King Jr Blvd - North Doors\u201D at 2026-03-18 18:03 and exit at 18:31.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Supporting checks",
+            "text": "- Email headers show Mara Kline emailed the victim at 2026-03-18 17:22: \u201CDo not send any addendum tonight\u2014hold for my review in the morning,\u201D and her badge log shows entry to CCB at 07:54 and exit at 17:11 on 2026-03-18 with no later entries.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": null
+      }
+    },
+    {
+      "id": "asset.custody_form",
+      "type": "document",
+      "title": "IT Asset Custody Record: Workstation MAD-WS-04419 Assignment",
+      "description": "City IT custody/inventory form documenting the assigned custodian for workstation asset tag MAD-WS-04419. The record notes the last logged-in user as EVELYN.PARK with a timestamp of 2026-03-18 16:58.",
+      "visibility": "initial",
+      "category": "Document",
+      "body": "",
+      "bodyDoc": {
+        "layout": "CustodyForm",
+        "language": "en-US",
+        "title": "IT Asset Custody Record: Workstation MAD-WS-04419 Assignment",
+        "subtitle": "City of Madison \u00B7 IT Services \u00B7 Asset Custody / Assignment",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_203"
+          },
+          {
+            "label": "Agency",
+            "value": "Madison Police Department (MPD) - Central District Investigations"
+          },
+          {
+            "label": "Location",
+            "value": "Madison, Wisconsin, USA"
+          },
+          {
+            "label": "Asset Tag",
+            "value": "MAD-WS-04419"
+          },
+          {
+            "label": "Asset Type",
+            "value": "Workstation (City IT inventory record)"
+          },
+          {
+            "label": "Assigned Custodian",
+            "value": "Victim (per City IT inventory record)"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "keyValue",
+            "heading": "Assignment / Inventory Fields",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Workstation Asset Tag",
+                "value": "MAD-WS-04419"
+              },
+              {
+                "label": "Assigned To (Custodian)",
+                "value": "Victim (name listed on City IT inventory record)"
+              },
+              {
+                "label": "Last Logged-in User",
+                "value": "EVELYN.PARK"
+              },
+              {
+                "label": "Last Logged-in Timestamp",
+                "value": "2026-03-18 16:58"
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Record Note",
+            "text": "The custody/inventory entry ties endpoint identifier **MAD-WS-04419** to the victim as custodian, and records the most recent interactive user as **EVELYN.PARK** at **2026-03-18 16:58** (America/Chicago), preceding the incident window beginning 2026-03-18 19:12.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Sign-out / Acknowledgement",
+            "text": "- Form reflects a standard City IT assignment record for a workstation.\n- No additional service tickets, imaging notes, or transfer entries are included on this record excerpt beyond the fields shown above.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- City IT inventory record lists workstation asset tag \u201CMAD-WS-04419\u201D assigned to the victim, with last logged-in user shown as \u201CEVELYN.PARK\u201D on 2026-03-18 16:58.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": {
+          "name": "City IT Records (Inventory System Export)",
+          "badge": null,
+          "title": "Asset Custody / Assignment Record",
+          "signedAt": null
+        }
+      }
+    },
+    {
+      "id": "asset.call_log",
+      "type": "digital",
+      "title": "Call Detail Record: Victim City Mobile (2026-03-18 16:00\u201322:00)",
+      "description": "Carrier call-detail extract for the victim\u2019s city-issued mobile covering the evening of 2026-03-18. Includes a short call near the time the addendum activity occurred, and shows the phone remained active later in the evening.",
+      "visibility": "initial",
+      "category": "Communication",
+      "body": "",
+      "bodyDoc": {
+        "layout": "CallLog",
+        "language": "en-US",
+        "title": "Call Detail Record (CDR): Victim City Mobile",
+        "subtitle": "Window: 2026-03-18 16:00\u201322:00 (America/Chicago)",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_203"
+          },
+          {
+            "label": "Related Incident",
+            "value": "2026-03-18 19:12 (Madison, WI)"
+          },
+          {
+            "label": "Source",
+            "value": "City telecom carrier export (CDR)"
+          },
+          {
+            "label": "Subscriber",
+            "value": "Victim city-issued mobile (number on file; exported as account.victim_city_mobile_number)"
+          },
+          {
+            "label": "Generated By/At",
+            "value": "MPD Central District Investigations \u00B7 2026-03-19 09:40 (openedAt)"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "narrative",
+            "heading": "Scope \u0026 Notes",
+            "text": "- This record reflects call-detail events (timestamp, direction, counterparty identifier as provided by the carrier, and billed duration).\n- The export window covers 2026-03-18 from 16:00 through 22:00 local time.\n- Only one specific counterparty is identified in the case file for this extract: a call at 18:51 involving Owen Schultz (communication.cdr_outgoing_call_to_owen_1851).",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Calls",
+            "text": null,
+            "table": {
+              "columns": [
+                "Timestamp",
+                "Direction",
+                "Other Party",
+                "Duration",
+                "Notes"
+              ],
+              "rows": [
+                [
+                  "2026-03-18 18:51:00 -05:00",
+                  "Outgoing",
+                  "Owen Schultz",
+                  "",
+                  "Record reference: communication.cdr_outgoing_call_to_owen_1851. (Carrier export provides the call occurrence; duration not specified in the supplied case draft.)"
+                ]
+              ],
+              "footnote": "This table lists only the call explicitly present in the supplied case draft for this asset. Other calls in the 16:00\u201322:00 window are not included in the provided source details."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Observation",
+            "text": "The CDR shows an outgoing call from the victim\u2019s city mobile to Owen Schultz at 2026-03-18 18:51 (local time), shortly after the addendum distribution time noted elsewhere in the case file (18:26).",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Suspicion indicators",
+            "text": "- The procurement officer had authority to issue addenda and may have directed last-minute changes to force a particular outcome.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": null
+      }
+    },
+    {
+      "id": "asset.witness_statement",
+      "type": "document",
+      "title": "Witness Statement: Neighbor Who Called 911 (2026-03-18)",
+      "description": "Sworn statement from the neighbor who discovered the victim unresponsive and placed the 911 call. Describes the neighbor\u2019s limited observations at the residence and what was and wasn\u2019t seen before EMS arrived.",
+      "visibility": "initial",
+      "category": "Document",
+      "body": "",
+      "bodyDoc": {
+        "layout": "WitnessStatement",
+        "language": "en-US",
+        "title": "Witness Statement: Neighbor Who Called 911 (2026-03-18)",
+        "subtitle": "Madison Police Department (MPD) - Central District Investigations",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_203"
+          },
+          {
+            "label": "Date Taken",
+            "value": "2026-03-19"
+          },
+          {
+            "label": "Incident Date/Time (reference)",
+            "value": "2026-03-18 21:03 (911 call for unresponsive adult)"
+          },
+          {
+            "label": "Location",
+            "value": "Madison, Wisconsin, USA"
+          },
+          {
+            "label": "Taken By",
+            "value": "Det. Alicia Moreno, Madison Police Department (MPD) - Central District Investigations"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "narrative",
+            "heading": "STATEMENT OF",
+            "text": "Neighbor (name withheld in this excerpt), residing near the victim\u2019s home in Madison, Wisconsin.\n\nThis statement concerns events observed on **2026-03-18**, culminating in a **911 call at approximately 21:03** for an unresponsive adult.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Oath / Affirmation",
+            "text": "I affirm under penalty of perjury that the following is true and correct to the best of my knowledge and recollection.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Statement",
+            "text": "- On the evening of **2026-03-18**, I became concerned when I could not get a response from my neighbor (the victim).\n- I went to the residence and found the victim **unresponsive**.\n- I did not observe any obvious signs of a struggle from what I could see.\n- I did not see any obvious injuries or blood.\n- I called **911 at approximately 21:03** to request medical assistance.\n- After placing the call, I remained available to direct responders to the correct residence and answer questions.\n- I did not personally see anyone enter or leave the residence immediately before I found the victim.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Scope / Limitations",
+            "text": "The witness describes only what they personally observed at the scene prior to responders arriving. The witness reports no direct observation of who was present earlier in the evening.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Review and Signature",
+            "text": "I have read the above statement (or it has been read to me). I understand it and affirm it is accurate to the best of my knowledge.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": {
+          "name": "Neighbor (name withheld)",
+          "badge": null,
+          "title": "Witness",
+          "signedAt": "2026-03-19"
+        }
+      }
+    },
+    {
+      "id": "asset.chat_export",
+      "type": "digital",
+      "title": "Teams Chat Export: Channel \u201CProcurement-IT-014\u201D (2026-03-18 17:30\u201319:00)",
+      "description": "Export of Microsoft Teams channel \u201CProcurement-IT-014\u201D covering 2026-03-18 17:30\u201319:00. Includes a time-stamped message from Lena Hart at 18:09 stating she is on a call, alongside the referenced calendar context (Vendor demo - Zoom 18:00\u201318:30; meeting ID 845 221 9031).",
+      "visibility": "initial",
+      "category": "Communication",
+      "body": "",
+      "bodyDoc": {
+        "layout": "ChatExport",
+        "language": "en-US",
+        "title": "Teams Chat Export: Channel \u201CProcurement-IT-014\u201D",
+        "subtitle": "Window: 2026-03-18 17:30\u201319:00 (America/Chicago)",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_203"
+          },
+          {
+            "label": "Exhibit Ref",
+            "value": "asset.chat_export"
+          },
+          {
+            "label": "Channel",
+            "value": "Procurement-IT-014"
+          },
+          {
+            "label": "Time Range",
+            "value": "2026-03-18 17:30\u201319:00 (America/Chicago)"
+          },
+          {
+            "label": "Generated By",
+            "value": "Madison Police Department (MPD) - Central District Investigations"
+          },
+          {
+            "label": "Generated At",
+            "value": "2026-03-19T09:40:00-05:00"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "narrative",
+            "heading": "Scope \u0026 Notes",
+            "text": "- Source: Microsoft Teams channel export for \u201CProcurement-IT-014.\u201D\n- Timestamps are presented in local time (America/Chicago).\n- This extract includes the message referenced for the 18:09 time window.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Channel Messages",
+            "text": null,
+            "table": {
+              "columns": [
+                "Timestamp",
+                "Sender",
+                "Message"
+              ],
+              "rows": [
+                [
+                  "2026-03-18 18:09",
+                  "Lena Hart",
+                  "I\u2019m on a call\u2014back in ~30"
+                ]
+              ],
+              "footnote": "This table reflects the specific message captured in the channel export for the stated window."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "keyValue",
+            "heading": "Referenced Calendar Context (as cited in case materials)",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Person",
+                "value": "Lena Hart"
+              },
+              {
+                "label": "Event",
+                "value": "Vendor demo - Zoom"
+              },
+              {
+                "label": "Scheduled Time",
+                "value": "2026-03-18 18:00\u201318:30 (America/Chicago)"
+              },
+              {
+                "label": "Meeting ID",
+                "value": "845 221 9031"
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Suspicion indicators",
+            "text": "- A colleague working on comparisons may have edited the addendum to simplify scoring or protect a preferred vendor.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Supporting checks",
+            "text": "- Teams chat export shows \u201CLena Hart\u201D posting at 2026-03-18 18:09 in channel \u201CProcurement-IT-014\u201D: \u201CI\u2019m on a call\u2014back in ~30,\u201D and her calendar shows \u201CVendor demo - Zoom\u201D from 18:00\u201318:30 with meeting ID \u201C845 221 9031.\u201D",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": null
+      }
+    },
+    {
+      "id": "asset.bank_statement",
+      "type": "digital",
+      "title": "Bank Statement: Owen Schultz (March 2026 Extract)",
+      "description": "Extracted March 2026 checking-account statement for Owen Schultz. Includes a note referencing metadata observed on the bid addendum PDF (author tag and creation timestamp) relevant to the case timeline.",
+      "visibility": "initial",
+      "category": "Document",
+      "body": "",
+      "bodyDoc": {
+        "layout": "BankStatement",
+        "language": "en-US",
+        "title": "Bank Statement: Owen Schultz (March 2026 Extract)",
+        "subtitle": "Primary Checking \u2014 account.bank_account_owen_primary_checking",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_203 \u2014 The Three-Quote Addendum"
+          },
+          {
+            "label": "Exhibit",
+            "value": "asset.bank_statement"
+          },
+          {
+            "label": "Account Holder",
+            "value": "Owen Schultz"
+          },
+          {
+            "label": "Statement Period",
+            "value": "March 2026 (extract)"
+          },
+          {
+            "label": "Jurisdiction/Locale",
+            "value": "Madison, Wisconsin, USA (America/Chicago)"
+          },
+          {
+            "label": "Generated At",
+            "value": "2026-03-19T09:40:00-05:00"
+          },
+          {
+            "label": "Generated By",
+            "value": "Det. Alicia Moreno (Madison Police Department - Central District Investigations)"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "callout",
+            "heading": "Case-timeline note (non-transaction observation)",
+            "text": "The case file notes the PDF properties for \u201CAddendum2_LaptopRefresh.pdf\u201D list Producer \u201CMicrosoft Print to PDF\u201D and an embedded Author field \u201Coschultz,\u201D with CreationDate \u201C2026-03-18 18:12:44.\u201D",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Extract limitations",
+            "text": "- This exhibit is a March 2026 statement extract for a primary checking account.\n- The provided case draft does not include specific transaction line-items (merchant names, amounts, or balances) for this statement; no additional figures are reproduced here.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- The PDF properties for \u201CAddendum2_LaptopRefresh.pdf\u201D list Producer \u201CMicrosoft Print to PDF\u201D and an embedded Author field \u201Coschultz,\u201D with CreationDate \u201C2026-03-18 18:12:44.\u201D",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": {
+          "name": "Det. Alicia Moreno",
+          "badge": null,
+          "title": "Detective, MPD Central District Investigations",
+          "signedAt": "2026-03-19T09:40:00-05:00"
+        }
+      }
+    }
+  ],
+  "ResultAssets": [
+    {
+      "id": "asset.report_metadata_device_correlation_mad_ws_04419",
+      "type": "pdf",
+      "title": "Metadata Analysis Report: Custody Record Correlation \u2014 MAD-WS-04419",
+      "description": "Metadata analysis of the City IT custody/assignment record for workstation MAD-WS-04419. The record documents last logged-in user EVELYN.PARK at 2026-03-18 16:58 (America/Chicago) and is used to support device/profile correlation with the timed RunMRU print-to-PDF artifact.",
+      "visibility": "hidden",
+      "category": null,
+      "body": "",
+      "bodyDoc": {
+        "layout": "ForensicReport",
+        "language": "en-US",
+        "title": "Metadata Analysis Report: Custody Record Correlation \u2014 MAD-WS-04419",
+        "subtitle": null,
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [],
+        "sections": [
+          {
+            "kind": "keyValue",
+            "heading": "Items Submitted",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Case Ref",
+                "value": "case_graph_detective_203"
+              },
+              {
+                "label": "Requesting Agency",
+                "value": "Madison Police Department (MPD) - Central District Investigations"
+              },
+              {
+                "label": "Incident Date/Time (anchor)",
+                "value": "2026-03-18T19:12:00-05:00"
+              },
+              {
+                "label": "Case Opened (anchor)",
+                "value": "2026-03-19T09:40:00-05:00"
+              },
+              {
+                "label": "Input Asset ID",
+                "value": "asset.custody_form"
+              },
+              {
+                "label": "Submitted Object (InputObjectId)",
+                "value": "document.custody_form_mad_ws_04419"
+              },
+              {
+                "label": "Object Description",
+                "value": "IT Asset Custody Record: Workstation MAD-WS-04419 Assignment (City IT inventory/custody export)."
+              },
+              {
+                "label": "Analysis Type",
+                "value": "MetadataAnalysis"
+              },
+              {
+                "label": "Produced Property",
+                "value": "DeviceCorrelation"
+              },
+              {
+                "label": "Chain of Custody Anchor",
+                "value": "observation.identity_workstation_owner_custody_form"
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Methodology",
+            "text": "The submitted document (document.custody_form_mad_ws_04419) was examined for recorded inventory/assignment fields and any embedded or stated timestamps, user identifiers, and endpoint identifiers relevant to device correlation. This examination is limited to information present in the submitted record and does not infer an unrecorded human operator. All times are reported as shown in the record (America/Chicago) and anchored to the incident date/time (2026-03-18T19:12:00-05:00) and case opened time (2026-03-19T09:40:00-05:00).",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Findings",
+            "text": "The City IT custody/assignment record identifies workstation asset tag \u0022MAD-WS-04419\u0022 and lists the last logged-in user as \u0022EVELYN.PARK\u0022 with a last logged-in timestamp of \u00222026-03-18 16:58\u0022 (America/Chicago). The record note states this timestamp precedes the incident window beginning 2026-03-18 19:12 (America/Chicago).\n\nAdditionally, the canonical forensic artifact provided for this analysis states that a forensic review of MAD-WS-04419 found the Windows registry key \u0022HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU\u0022 containing entry \u0027b\u0027 = \u0027AcroRd32.exe /p /h \u0022C:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.docx\u0022\u0027 with MRUList \u0022ba,\u0022 and the corresponding LastWriteTime of 2026-03-18 18:12:40.",
+            "table": {
+              "columns": [],
+              "rows": [
+                [
+                  "Workstation Asset Tag (custody record)",
+                  "MAD-WS-04419",
+                  "N/A"
+                ],
+                [
+                  "Assigned To (custody record)",
+                  "Victim (name listed on City IT inventory record)",
+                  "N/A"
+                ],
+                [
+                  "Last Logged-in User (custody record)",
+                  "EVELYN.PARK",
+                  "N/A"
+                ],
+                [
+                  "Last Logged-in Timestamp (custody record)",
+                  "2026-03-18 16:58",
+                  "2026-03-18 16:58"
+                ],
+                [
+                  "RunMRU key (canonical forensic artifact)",
+                  "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU",
+                  "LastWriteTime 2026-03-18 18:12:40"
+                ],
+                [
+                  "RunMRU entry \u0027b\u0027 (canonical forensic artifact)",
+                  "AcroRd32.exe /p /h \u0022C:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.docx\u0022",
+                  "LastWriteTime 2026-03-18 18:12:40"
+                ],
+                [
+                  "RunMRU MRUList (canonical forensic artifact)",
+                  "ba",
+                  "LastWriteTime 2026-03-18 18:12:40"
+                ]
+              ],
+              "footnote": null
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Conclusions",
+            "text": "The submitted custody/assignment record supports device correlation by associating workstation asset tag MAD-WS-04419 with the victim\u2019s profile identifier EVELYN.PARK and documenting a last logged-in timestamp of 2026-03-18 16:58 (America/Chicago). In conjunction with the provided canonical forensic artifact describing RunMRU activity on MAD-WS-04419 at 2026-03-18 18:12:40 referencing \u0022C:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.docx\u0022 via an AcroRd32 print-to-PDF command, these observations support a timeline and endpoint/profile linkage consistent with document-generation activity occurring after the last recorded interactive login and before the incident time anchor.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Limitations",
+            "text": "- The artifact may correlate with a device or account but does not prove who operated it.\n- Metadata can be changed by software, copying, or system processes.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Examiner Signature",
+            "text": "Examiner: Digital Forensics Unit, Casework Section\nSigned: 2026-03-19 (anchored to case opened at 2026-03-19T09:40:00-05:00)",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "keyValue",
+            "heading": "Items Submitted",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Items Submitted",
+                "value": "document.custody_form_mad_ws_04419"
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Findings",
+            "text": "- Forensic review of MAD-WS-04419 finds Windows registry key \u201CHKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU\u201D containing entry \u2018b\u2019 = \u2018AcroRd32.exe /p /h \u201CC:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.docx\u201D\u2019 with MRUList \u201Cba,\u201D and the corresponding \u201CLastWriteTime\u201D is 2026-03-18 18:12:40.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Limitations",
+            "text": "- The artifact may correlate with a device or account but does not prove who operated it.\n- Metadata can be changed by software, copying, or system processes.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": null
+      }
+    }
+  ],
+  "Timeline": [
+    {
+      "time": "2026-03-18T16:42:00-05:00",
+      "event": "At 4:42 PM, the victim sent an internal message that she was \u201Cpausing tabulation pending an addendum review.\u201D",
+      "source": "investigation",
+      "verified": true,
+      "importance": "high"
+    },
+    {
+      "time": "2026-03-18T18:26:00-05:00",
+      "event": "At 6:26 PM, an addendum PDF was emailed from the victim\u2019s city account to the bid distribution list as a \u2018clarification.\u2019",
+      "source": "investigation",
+      "verified": true,
+      "importance": "high"
+    },
+    {
+      "time": "2026-03-18T21:03:00-05:00",
+      "event": "At 9:03 PM, 911 was called for an unresponsive adult at the victim\u2019s address; EMS noted no obvious trauma.",
+      "source": "witness",
+      "verified": true,
+      "importance": "high"
+    }
+  ],
+  "TemporalEvents": [],
+  "AnalysisTypes": [
+    {
+      "type": "MetadataAnalysis",
+      "durationMinutes": 60,
+      "availableFor": [
+        "digital",
+        "document",
+        "pdf",
+        "photo"
+      ]
+    }
+  ],
+  "ForensicStubs": [
+    {
+      "inputAssetId": "asset.custody_form",
+      "inputObjectId": "document.custody_form_mad_ws_04419",
+      "analysisType": "MetadataAnalysis",
+      "findings": true,
+      "matchedSuspectId": "suspect.owen_schultz",
+      "role": "Correlates the addendum print-to-PDF execution artifact on MAD-WS-04419 to the identified suspect\u2019s opaque author tag and the victim profile timeline.",
+      "supportsClueIds": [
+        "clue.forensic_b_to_a_mapping"
+      ],
+      "producedProperties": [
+        "DeviceCorrelation"
+      ],
+      "limitationKeys": [
+        "operator_not_proven",
+        "metadata_can_be_modified"
+      ],
+      "referenceSampleObjectId": null,
+      "chainOfCustodyObservationId": "observation.identity_workstation_owner_custody_form",
+      "resultLayoutId": "ForensicReport"
+    }
+  ],
+  "ForensicFull": [
+    {
+      "inputAssetId": "asset.custody_form",
+      "analysisType": "MetadataAnalysis",
+      "findings": true,
+      "matchedSuspectId": "suspect.owen_schultz",
+      "matchedAssetId": null,
+      "conclusionText": "Metadata analysis of the submitted City IT custody/assignment record (document.custody_form_mad_ws_04419) supports correlation between workstation asset tag MAD-WS-04419 and the victim user profile EVELYN.PARK, including a recorded last logged-in timestamp of 2026-03-18 16:58 (America/Chicago). When considered alongside the provided forensic artifact describing RunMRU activity at 2026-03-18 18:12:40 for a print-to-PDF workflow referencing C:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.docx, the record supports a device/user-timeline linkage but does not establish the human operator.",
+      "resultAssetId": "asset.report_metadata_device_correlation_mad_ws_04419",
+      "resultEmailId": "email.lab_metadata_device_correlation_mad_ws_04419"
+    }
+  ],
+  "ResultEmails": [
+    {
+      "id": "email.lab_metadata_device_correlation_mad_ws_04419",
+      "from": "Digital Forensics Unit \u003Clab@cityofmadison.gov\u003E",
+      "subject": "Metadata Analysis Results \u2014 Custody Record (MAD-WS-04419) Device Correlation",
+      "body": "Detective Moreno,\n\nWe completed the requested metadata analysis of the submitted City IT custody/assignment record (document.custody_form_mad_ws_04419) associated with workstation asset tag **MAD-WS-04419**.\n\nThe record documents that the **Last Logged-in User** was **EVELYN.PARK**, with a **Last Logged-in Timestamp** of **2026-03-18 16:58 (America/Chicago)**. The record note indicates this precedes the incident window anchored at **2026-03-18 19:12**.\n\nFor device/timeline correlation purposes, we also incorporated the canonical forensic artifact supplied with the request: the Windows registry key **HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU** on MAD-WS-04419 reportedly contains entry **\u0027b\u0027 = \u0027AcroRd32.exe /p /h \u0022C:\\\\Users\\\\EVELYN.PARK\\\\Desktop\\\\Addendum2_LaptopRefresh.docx\u0022\u0027**, with **MRUList \u0022ba\u0022** and **LastWriteTime 2026-03-18 18:12:40**.\n\nThese observations support a linkage between the endpoint identifier (MAD-WS-04419), the victim profile identifier (EVELYN.PARK), and the timed print-to-PDF workflow artifact. Per standard limitations, this correlation does **not** establish the human operator, and recorded metadata can be modified by software, copying, or system processes.\n\nA formal report has been uploaded to the case file.\n",
+      "sentAt": "2026-03-19T11:10:00-05:00",
+      "priority": null,
+      "attachments": [
+        "asset.report_metadata_device_correlation_mad_ws_04419"
+      ],
+      "visibility": "hidden"
+    }
+  ],
+  "Briefing": {
+    "from": "Madison Police Department (MPD) - Central District Investigations",
+    "subject": "Assignment Briefing \u2014 \u201CThe Three-Quote Addendum\u201D (Financial Crime / Suspicious Death)",
+    "body": "Det. Moreno,\n\nWe are opening \u201CThe Three-Quote Addendum,\u201D a Financial Crime / Suspicious Death case tied to a sudden death of a municipal procurement analyst shortly after she flagged irregularities in a routine IT hardware renewal. The procurement file reflects that \u201CAddendum 2 - Laptop Refresh\u201D was distributed from the victim\u2019s city email account that evening, after she indicated she was pausing tabulation pending review.\n\nDigital artifacts indicate the distributed addendum PDF was produced via \u201CMicrosoft Print to PDF\u201D and carries an embedded author tag (\u201Coschultz\u201D) with a creation time consistent with the after-hours window. Separately, forensic review of the victim-assigned workstation (MAD-WS-04419 / last logged-in user EVELYN.PARK) shows recent-run data consistent with generating/printing the addendum document at roughly the same minute as the PDF creation, supporting that the addendum-generation workflow occurred on the victim\u2019s endpoint.\n\nWhat remains uncertain is who had hands on the keyboard at that workstation, how access was obtained (e.g., unattended session vs. other means), and how the suspected procurement manipulation intersects with the death scene beyond proximity in time. A witness statement from the neighbor who called 911 anchors the medical emergency and indicates no obvious trauma was observed, but the circumstances of the death are still being treated as suspicious pending investigative development.\n\nThis matters now because the alleged addendum manipulation appears timed to influence an imminent award recommendation and because the compromised addendum originated from the victim\u2019s account, creating a risk of ongoing procurement exposure and possible follow-on misconduct. Immediate objective: lock down and corroborate the chain from building access opportunity to workstation activity to addendum distribution, and identify all individuals with plausible access and motive during the narrow after-hours window (including confirming movements and communications around the addendum send).\n\nMPD Central District Investigations"
+  },
+  "FollowUpEmails": [
+    {
+      "id": "email.mara_kline_hold_instruction",
+      "from": "mara.kline@cityofmadison.com",
+      "subject": "RE: IFB 2026-IT-014 \u2014 Addendum handling tonight",
+      "body": "Detective Moreno,\n\nI want to put on record what I told Evelyn earlier on 2026-03-18: I explicitly instructed her not to send any addendum that night and to hold it for my review the next morning.\n\nI left the City-County Building before the evening events and did not return. If any addendum went out at 18:26, it was not at my direction.\n\n\u2014 Mara Kline\nCity Procurement Officer",
+      "sentAt": "2026-03-19T10:06:00-05:00",
+      "priority": null,
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.lena_hart_vendor_demo_window",
+      "from": "lena.hart@cityofmadison.com",
+      "subject": "Availability 3/18 evening \u2014 IFB 2026-IT-014",
+      "body": "Det. Moreno,\n\nRe: the timeframe when the addendum was emailed, I was tied up during that window. At 18:09 on 2026-03-18 I posted in the \u201CProcurement-IT-014\u201D Teams channel: \u201CI\u2019m on a call\u2014back in ~30.\u201D That was during my scheduled \u201CVendor demo - Zoom\u201D from 18:00\u201318:30 (meeting ID 845 221 9031).\n\nI wasn\u2019t handling Evelyn\u2019s workstation or sending anything from her account at 18:26.\n\n\u2014 Lena Hart\nMunicipal Procurement Analyst",
+      "sentAt": "2026-03-19T10:22:00-05:00",
+      "priority": null,
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.ccb_security_preservation_notice",
+      "from": "ccbfacilities@cityofmadison.com",
+      "subject": "Preservation notice \u2014 CCB North Doors badge events 2026-03-18 evening",
+      "body": "Det. Alicia Moreno,\n\nPer your request, Facilities is preserving the City-County Building access-control export for \u201CCCB 215 Martin Luther King Jr Blvd - North Doors\u201D covering 2026-03-18 evening. The export includes badge activity showing \u201COWEN SCHULTZ\u201D on badge ID ending \u201C-1173\u201D with an entry at 18:03 and exit at 18:31.\n\nWe are holding the relevant access-control data to prevent routine overwrites while your investigation is active.\n\n\u2014 CCB Facilities / Access Control Desk",
+      "sentAt": "2026-03-19T09:58:00-05:00",
+      "priority": null,
+      "attachments": [],
+      "visibility": "initial"
+    }
+  ],
+  "Rules": [
+    {
+      "ruleId": "rule.reveal_asset_custody_form_metadataanalysis",
+      "description": "Reveal forensic outcome of asset.custody_form:MetadataAnalysis",
+      "trigger": {
+        "type": "forensics_complete",
+        "inputAssetId": "asset.custody_form",
+        "analysisType": "MetadataAnalysis",
+        "emailId": null,
+        "assetId": null,
+        "suspectId": null,
+        "atMinutes": null,
+        "operator": null,
+        "conditions": null
+      },
+      "actions": [
+        {
+          "type": "reveal_email",
+          "emailId": "email.lab_metadata_device_correlation_mad_ws_04419",
+          "assetId": null,
+          "suspectId": null,
+          "level": null,
+          "message": null,
+          "status": null,
+          "verified": null
+        },
+        {
+          "type": "reveal_asset",
+          "emailId": null,
+          "assetId": "asset.report_metadata_device_correlation_mad_ws_04419",
+          "suspectId": null,
+          "level": null,
+          "message": null,
+          "status": null,
+          "verified": null
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.notify_open_lab_result_next_step",
+      "description": null,
+      "trigger": {
+        "type": "email_opened",
+        "inputAssetId": null,
+        "analysisType": null,
+        "emailId": "email.lab_metadata_device_correlation_mad_ws_04419",
+        "assetId": null,
+        "suspectId": null,
+        "atMinutes": null,
+        "operator": null,
+        "conditions": null
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "emailId": null,
+          "assetId": null,
+          "suspectId": null,
+          "level": "info",
+          "message": "Lab results are in. Next, compare the device-correlation findings against the access log and call/chat records to identify which account activity aligns with the flagged device and timeframe.",
+          "status": null,
+          "verified": null
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.notify_view_report_metadata_correlation",
+      "description": null,
+      "trigger": {
+        "type": "asset_viewed",
+        "inputAssetId": null,
+        "analysisType": null,
+        "emailId": null,
+        "assetId": "asset.report_metadata_device_correlation_mad_ws_04419",
+        "suspectId": null,
+        "atMinutes": null,
+        "operator": null,
+        "conditions": null
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "emailId": null,
+          "assetId": null,
+          "suspectId": null,
+          "level": "info",
+          "message": "Use the correlation report to build a timeline. Cross-check the report\u2019s timestamps with the access log, then validate communications around those times in the call log and chat export.",
+          "status": null,
+          "verified": null
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.notify_preservation_notice_process",
+      "description": null,
+      "trigger": {
+        "type": "email_opened",
+        "inputAssetId": null,
+        "analysisType": null,
+        "emailId": "email.ccb_security_preservation_notice",
+        "assetId": null,
+        "suspectId": null,
+        "atMinutes": null,
+        "operator": null,
+        "conditions": null
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "emailId": null,
+          "assetId": null,
+          "suspectId": null,
+          "level": "info",
+          "message": "Preservation is in place. Document chain-of-custody for any new artifacts you review, and prioritize corroborating logs (access/call/chat) before drawing conclusions from statements.",
+          "status": null,
+          "verified": null
+        }
+      ]
+    }
+  ],
+  "RequiredEvidenceIds": [
+    "asset.email_export",
+    "asset.access_log",
+    "asset.report_metadata_device_correlation_mad_ws_04419"
+  ],
+  "RequiredAnalysisIds": [
+    "asset.custody_form:MetadataAnalysis"
+  ],
+  "QuestionTopics": [
+    {
+      "id": "q.addendum_distribution_time",
+      "topic": "When Addendum 2 was first distributed from the victim\u2019s city email account",
+      "weight": 0.3,
+      "supportingEvidenceIds": [
+        "asset.email_export"
+      ]
+    },
+    {
+      "id": "q.badge_window",
+      "topic": "What after-hours building-entry window is shown for Owen Schultz on 2026-03-18 (entry/exit times)",
+      "weight": 0.3,
+      "supportingEvidenceIds": [
+        "asset.access_log"
+      ]
+    },
+    {
+      "id": "q.vendor_benefit_model",
+      "topic": "Which vendor and model were explicitly referenced as benefiting from the addendum specification language",
+      "weight": 0.2,
+      "supportingEvidenceIds": [
+        "asset.email_export"
+      ]
+    },
+    {
+      "id": "q.runmru_print_artifact",
+      "topic": "What RunMRU/print-to-PDF artifact and timestamp link the addendum document path to the EVELYN.PARK profile on MAD-WS-04419",
+      "weight": 0.2,
+      "supportingEvidenceIds": [
+        "asset.report_metadata_device_correlation_mad_ws_04419"
+      ]
+    }
+  ],
+  "Questions": [
+    {
+      "id": "q.addendum_distribution_time",
+      "prompt": "When was Addendum 2 first distributed from the victim\u2019s city email account?",
+      "options": [
+        {
+          "id": "opt.1826",
+          "label": "2026-03-18 18:26 (America/Chicago)"
+        },
+        {
+          "id": "opt.1812",
+          "label": "2026-03-18 18:12 (America/Chicago)"
+        },
+        {
+          "id": "opt.1839",
+          "label": "2026-03-18 18:39 (America/Chicago)"
+        },
+        {
+          "id": "opt.1511",
+          "label": "2026-03-18 15:11 (America/Chicago)"
+        }
+      ],
+      "correctOptionId": "opt.1826",
+      "weight": 0.3
+    },
+    {
+      "id": "q.badge_window",
+      "prompt": "What after-hours badge entry window is shown on 2026-03-18 (entry/exit times)?",
+      "options": [
+        {
+          "id": "opt.1803_1831",
+          "label": "18:03 entry / 18:31 exit"
+        },
+        {
+          "id": "opt.1807_1835",
+          "label": "18:07 entry / 18:35 exit"
+        },
+        {
+          "id": "opt.1754_1811",
+          "label": "17:54 entry / 18:11 exit"
+        },
+        {
+          "id": "opt.1826_1851",
+          "label": "18:26 entry / 18:51 exit"
+        }
+      ],
+      "correctOptionId": "opt.1803_1831",
+      "weight": 0.3
+    },
+    {
+      "id": "q.vendor_benefit_model",
+      "prompt": "Which vendor and model were said to benefit from the addendum specification language?",
+      "options": [
+        {
+          "id": "opt.badger_state_tech_bst_14g",
+          "label": "Badger State Tech Supply \u2014 BST-14G"
+        },
+        {
+          "id": "opt.badger_state_tech_bst_13g",
+          "label": "Badger State Tech Supply \u2014 BST-13G"
+        },
+        {
+          "id": "opt.lakeview_computing_lvc_14g",
+          "label": "Lakeview Computing \u2014 LVC-14G"
+        },
+        {
+          "id": "opt.northbridge_it_nb_14g",
+          "label": "Northbridge IT \u2014 NB-14G"
+        }
+      ],
+      "correctOptionId": "opt.badger_state_tech_bst_14g",
+      "weight": 0.2
+    },
+    {
+      "id": "q.runmru_print_artifact",
+      "prompt": "Which RunMRU print-to-PDF entry and LastWriteTime link the addendum path to the EVELYN.PARK profile on MAD-WS-04419?",
+      "options": [
+        {
+          "id": "opt.runmru_b_acrord32_docx_181240",
+          "label": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU: \u0027b\u0027 = AcroRd32.exe /p /h \u0022C:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.docx\u0022; LastWriteTime 2026-03-18 18:12:40"
+        },
+        {
+          "id": "opt.runmru_a_acrord32_docx_181244",
+          "label": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU: \u0027a\u0027 = AcroRd32.exe /p /h \u0022C:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.docx\u0022; LastWriteTime 2026-03-18 18:12:44"
+        },
+        {
+          "id": "opt.runmru_b_explorer_docx_181240",
+          "label": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU: \u0027b\u0027 = explorer.exe \u0022C:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.docx\u0022; LastWriteTime 2026-03-18 18:12:40"
+        },
+        {
+          "id": "opt.runmru_b_acrord32_pdf_181240",
+          "label": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU: \u0027b\u0027 = AcroRd32.exe /p /h \u0022C:\\Users\\EVELYN.PARK\\Desktop\\Addendum2_LaptopRefresh.pdf\u0022; LastWriteTime 2026-03-18 18:12:40"
+        }
+      ],
+      "correctOptionId": "opt.runmru_b_acrord32_docx_181240",
+      "weight": 0.2
+    }
+  ],
+  "Explanation": "After the victim paused tabulation over a suspiciously restrictive requirement, \u201CAddendum 2\u201D was still sent from her account at 18:26, implying someone used her environment to make the change and push it out quickly. The PDF\u2019s own properties tag the author as \u201Coschultz\u201D with a creation time of 18:12, and independently, building badge records put Owen Schultz inside the City-County Building from 18:03\u201318:31, exactly spanning the creation-and-send window. The decisive link is the forensic device-correlation: on the victim\u2019s assigned workstation (profile EVELYN.PARK), the RunMRU registry shows an Acrobat print-to-PDF command targeting \u201CAddendum2_LaptopRefresh.docx\u201D at 18:12:40, aligning to the PDF\u2019s 18:12:44 creation time and tying the authored file to the victim\u2019s machine. While this artifact cannot prove the human at the keyboard (metadata can be manipulated and the analysis primarily links device, profile, and time), the combination of the \u201Coschultz\u201D author tag plus Owen\u2019s verified physical presence eliminates coincidence. The strongest red herring\u2014vendor Derek Yazzie\u2014explains motive (the spec matched his quoted model) but the record shows the restrictive language originated from the city-side send, not his mailbox. Lena Hart and Mara Kline are resolved by time-stamped records placing Lena on a concurrent call and showing Mara absent from the building after 17:11 and explicitly instructing not to send an addendum that night, leaving Owen Schultz as the only suspect supported by both opportunity and the correlated workstation-forensic trail.",
+  "SolverTrace": {
+    "Entries": [
+      {
+        "Sequence": 1,
+        "Kind": 0,
+        "ActionId": "inspect:asset.access_log",
+        "TargetId": "asset.access_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 2,
+        "Kind": 0,
+        "ActionId": "inspect:asset.bank_statement",
+        "TargetId": "asset.bank_statement",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 3,
+        "Kind": 0,
+        "ActionId": "inspect:asset.call_log",
+        "TargetId": "asset.call_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 4,
+        "Kind": 0,
+        "ActionId": "inspect:asset.chat_export",
+        "TargetId": "asset.chat_export",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 5,
+        "Kind": 0,
+        "ActionId": "inspect:asset.custody_form",
+        "TargetId": "asset.custody_form",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 6,
+        "Kind": 0,
+        "ActionId": "inspect:asset.email_export",
+        "TargetId": "asset.email_export",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 7,
+        "Kind": 0,
+        "ActionId": "inspect:asset.witness_statement",
+        "TargetId": "asset.witness_statement",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 8,
+        "Kind": 0,
+        "ActionId": "inspect:email.ccb_security_preservation_notice",
+        "TargetId": "email.ccb_security_preservation_notice",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 9,
+        "Kind": 0,
+        "ActionId": "inspect:email.lena_hart_vendor_demo_window",
+        "TargetId": "email.lena_hart_vendor_demo_window",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 10,
+        "Kind": 0,
+        "ActionId": "inspect:email.mara_kline_hold_instruction",
+        "TargetId": "email.mara_kline_hold_instruction",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 11,
+        "Kind": 2,
+        "ActionId": "action.analysis_custody_form_metadataanalysis",
+        "TargetId": "asset.custody_form",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [
+          "asset.report_metadata_device_correlation_mad_ws_04419",
+          "email.lab_metadata_device_correlation_mad_ws_04419"
+        ],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 12,
+        "Kind": 0,
+        "ActionId": "inspect:asset.report_metadata_device_correlation_mad_ws_04419",
+        "TargetId": "asset.report_metadata_device_correlation_mad_ws_04419",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 13,
+        "Kind": 0,
+        "ActionId": "inspect:email.lab_metadata_device_correlation_mad_ws_04419",
+        "TargetId": "email.lab_metadata_device_correlation_mad_ws_04419",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 14,
+        "Kind": 4,
+        "ActionId": "accuse:suspect.owen_schultz",
+        "TargetId": "suspect.owen_schultz",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": [
+          "observation.action_unfamiliar_editor_session_bank_statement",
+          "observation.alibi_building_entry_access_log",
+          "observation.benefit_vendor_message_email_export",
+          "observation.bid_context_addendum_email_export",
+          "observation.decoy_suspicion_derek_yazzie_email_export",
+          "observation.decoy_verification_derek_yazzie_email_export",
+          "observation.decoy_verification_mara_kline_access_log",
+          "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419"
+        ]
+      },
+      {
+        "Sequence": 15,
+        "Kind": 5,
+        "ActionId": "answer:q.addendum_distribution_time",
+        "TargetId": "q.addendum_distribution_time",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 16,
+        "Kind": 5,
+        "ActionId": "answer:q.badge_window",
+        "TargetId": "q.badge_window",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 17,
+        "Kind": 5,
+        "ActionId": "answer:q.runmru_print_artifact",
+        "TargetId": "q.runmru_print_artifact",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 18,
+        "Kind": 5,
+        "ActionId": "answer:q.vendor_benefit_model",
+        "TargetId": "q.vendor_benefit_model",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      }
+    ],
+    "FinalReachableSourceIds": [
+      "asset.access_log",
+      "asset.bank_statement",
+      "asset.call_log",
+      "asset.chat_export",
+      "asset.custody_form",
+      "asset.email_export",
+      "asset.report_metadata_device_correlation_mad_ws_04419",
+      "asset.witness_statement",
+      "email.ccb_security_preservation_notice",
+      "email.lab_metadata_device_correlation_mad_ws_04419",
+      "email.lena_hart_vendor_demo_window",
+      "email.mara_kline_hold_instruction"
+    ],
+    "FinalReachableObservationIds": [
+      "observation.action_unfamiliar_editor_session_bank_statement",
+      "observation.alibi_building_entry_access_log",
+      "observation.benefit_vendor_message_email_export",
+      "observation.bid_context_addendum_email_export",
+      "observation.decoy_suspicion_derek_yazzie_email_export",
+      "observation.decoy_suspicion_lena_hart_chat_export",
+      "observation.decoy_suspicion_mara_kline_call_log",
+      "observation.decoy_verification_derek_yazzie_email_export",
+      "observation.decoy_verification_lena_hart_chat_export",
+      "observation.decoy_verification_mara_kline_access_log",
+      "observation.forensic_b_to_a_mapping_report_metadata_device_correlation_mad_ws_04419",
+      "observation.identity_workstation_owner_custody_form"
+    ],
+    "LogicalProofPassed": true,
+    "NarrativeSimulationPassed": true
+  }
+}

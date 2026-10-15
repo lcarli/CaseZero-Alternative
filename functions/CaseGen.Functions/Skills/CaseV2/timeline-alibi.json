@@ -1,0 +1,21 @@
+{
+  "id": "timeline-alibi",
+  "version": "1.0.0",
+  "instructions": [
+    "Use only the supplied authorized observations and public identities. Distinguish a claim, an observed time, an estimated interval and an independently verified alibi.",
+    "Respect canonical time zones, source timestamps, work schedules and travel constraints. Preserve planned conflicts as attributed claims.",
+    "A suspect profile must not label a person guilty or innocent using private generator knowledge."
+  ],
+  "contract": [
+    "Preserve supplied person, event and source IDs and canonical timestamps.",
+    "Support every verified alibi with an exact excerpt from a readable, reachable source.",
+    "Do not promote absence of a record into proof that a person was elsewhere."
+  ],
+  "positiveExample": "The witness estimates arrival between 18:10 and 18:20; the authenticated access export independently records 18:14.",
+  "negativeExample": "The author changes the access time to fit a suspect's statement and marks the alibi verified without a source.",
+  "criteria": [
+    "Chronology is compatible with recorded precision and travel duration.",
+    "Public timeline does not expose private criminal acts.",
+    "Contradictory accounts remain attributable and answerable through delivered evidence."
+  ]
+}

@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Azure.Core;
 using CaseZeroApi.Models.CaseV2;
 using CaseZeroApi.Services;
 using Microsoft.AspNetCore.Hosting;
@@ -13,7 +14,7 @@ namespace CaseZeroApi.Tests.Services;
 
 public class CaseV2StorageServiceTests : IDisposable
 {
-    private readonly string _root = Path.Combine(Path.GetTempPath(), "case-v2-storage-tests", Guid.NewGuid().ToString("N"));
+    private readonly string _root = Path.Combine(AppContext.BaseDirectory, "case-v2-storage-tests", Guid.NewGuid().ToString("N"));
     private readonly MemoryCache _cache = new(new MemoryCacheOptions());
     private readonly CaseV2StorageService _storage;
 
@@ -29,7 +30,7 @@ public class CaseV2StorageServiceTests : IDisposable
         var env = new Mock<IWebHostEnvironment>();
         env.SetupGet(e => e.ContentRootPath).Returns(_root);
         _storage = new CaseV2StorageService(configuration, Mock.Of<ICaseV2SanitizerService>(),
-            NullLogger<CaseV2StorageService>.Instance, _cache, env.Object);
+            NullLogger<CaseV2StorageService>.Instance, _cache, env.Object, Mock.Of<TokenCredential>());
     }
 
     [Theory]

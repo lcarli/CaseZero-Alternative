@@ -137,6 +137,40 @@ export interface CaseDashboardItem {
   category?: string
   tags?: string[]
   estimatedDurationMinutes?: number
+  isResolved?: boolean
+}
+
+export type DashboardActivityType =
+  | 'resolved'
+  | 'resolved_ungraded'
+  | 'attempted'
+  | 'attempted_ungraded'
+
+export interface DashboardActivity {
+  // Legacy free-form description; newer payloads use `type` + caseTitle.
+  description?: string
+  date: string
+  type?: DashboardActivityType
+  caseId?: string
+  caseTitle?: string
+  score?: number
+  graded?: boolean
+}
+
+export interface CasesByDifficultyBucket {
+  difficulty: string
+  total: number
+  resolved: number
+}
+
+export interface PromotionProgress {
+  currentRank: string
+  nextRank?: string | null
+  casesResolved: number
+  casesRequiredForCurrent: number
+  casesRequiredForNext?: number | null
+  casesRemaining?: number | null
+  progressPct: number
 }
 
 // Submit request/result
@@ -154,11 +188,34 @@ export interface SubmitCaseBreakdown {
   questionsScore: number
 }
 
+export interface SubmitCaseScoreWeights {
+  culprit: number
+  evidence: number
+  analysis: number
+  questions: number
+}
+
+export type SubmitCaseFeedbackCode =
+  | 'correct'
+  | 'correct_ungraded'
+  | 'incorrect_attempts_remaining'
+  | 'incorrect_last_graded'
+  | 'incorrect_ungraded'
+
 export interface SubmitCaseResult {
   correct: boolean
   score: number
   breakdown: SubmitCaseBreakdown
+  maxScores: SubmitCaseScoreWeights
   attemptsRemaining: number
-  feedbackText: string
+  graded: boolean
+  feedbackCode: SubmitCaseFeedbackCode
   explanationMarkdown?: string
+  promotion?: SubmitCasePromotion
+}
+
+export interface SubmitCasePromotion {
+  promoted: boolean
+  previousRank: string
+  newRank: string
 }

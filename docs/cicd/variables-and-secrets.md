@@ -1,378 +1,174 @@
-# 🔐 Referência de Variáveis e Segredos
+# Variáveis e segredos de CI/CD
 
-Este documento fornece uma referência abrangente para todas as variáveis, segredos e configuração necessária para o pipeline CI/CD do CaseZero.
+Esta referência contém somente valores usados pelos workflows atuais.
 
-## Índice
+## Segredos GitHub
 
-1. [Segredos do Repositório GitHub](#segredos-do-repositório-github)
-2. [Segredos de Ambiente GitHub](#segredos-de-ambiente-github)
-3. [Variáveis de Ambiente](#variáveis-de-ambiente)
-4. [Configuração Azure](#configuração-azure)
-5. [Configurações da Aplicação](#configurações-da-aplicação)
-6. [Melhores Práticas de Segurança](#melhores-práticas-de-segurança)
+| Segredo | Workflow | Obrigatório |
+|---|---|---|
+| `AZURE_CREDENTIALS_DEV` | aplicação DEV e infraestrutura DEV | Sim |
+| `AZURE_CREDENTIALS_PROD` | infraestrutura PROD | Para operações em PROD |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV` | deploy do frontend DEV | Sim |
+| `VITE_API_URL` | build do frontend | Sim para o ambiente implantado |
+| `SQL_ADMIN_LOGIN` | validação/deploy da infraestrutura | Sim |
+| `SQL_ADMIN_PASSWORD` | validação/deploy da infraestrutura | Sim |
+| `GITHUB_TOKEN` | Static Web Apps | Fornecido automaticamente pelo GitHub |
 
-## Segredos do Repositório GitHub
+Os workflows atuais não usam:
 
-Esses segredos são acessíveis em todos os workflows e ambientes.
+- publish profiles da API ou da Function;
+- `AZURE_RESOURCE_GROUP_DEV`/`PROD`;
+- webhook do Teams;
+- tokens de Static Web Apps para PROD;
+- connection strings de banco como GitHub secrets;
+- credenciais do Azure Foundry diretamente no workflow.
 
-### Autenticação Azure
+## Formato das credenciais Azure
 
-| Nome do Segredo | Descrição | Obrigatório | Valor de Exemplo |
-|-----------------|-----------|-------------|------------------|
-| `AZURE_CREDENTIALS_DEV` | JSON do service principal para desenvolvimento | ✅ | Ver [JSON Service Principal](#json-service-principal) |
-| `AZURE_CREDENTIALS_PROD` | JSON do service principal para produção | ✅ | Ver [JSON Service Principal](#json-service-principal) |
-
-### Azure Static Web Apps
-
-| Nome do Segredo | Descrição | Obrigatório | Como Obter |
-|-----------------|-----------|-------------|------------|
-| `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV` | Token de implantação para frontend dev | ✅ | Portal Azure > Static Web App > Overview |
-| `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD` | Token de implantação para frontend prod | ✅ | Portal Azure > Static Web App > Overview |
-
-### Grupos de Recursos
-
-| Nome do Segredo | Descrição | Obrigatório | Valor de Exemplo |
-|-----------------|-----------|-------------|------------------|
-| `AZURE_RESOURCE_GROUP_DEV` | Nome do grupo de recursos de desenvolvimento | ✅ | `casezero-dev-rg` |
-| `AZURE_RESOURCE_GROUP_PROD` | Nome do grupo de recursos de produção | ✅ | `casezero-prod-rg` |
-
-### Notificações
-
-| Secret Name | Description | Required | Example Value |
-|-------------|-------------|----------|---------------|
-| `TEAMS_WEBHOOK_URL` | Microsoft Teams webhook for notifications | ❌ | `https://outlook.office.com/webhook/...` |
-
-## GitHub Environment Secrets
-
-These secrets are specific to each environment and provide additional security isolation.
-
-### Development Environment
-
-| Secret Name | Description | Example Value |
-|-------------|-------------|---------------|
-| `DATABASE_CONNECTION_STRING` | Dev database connection | `Server=...;Database=...` |
-| `JWT_SECRET_KEY` | JWT signing key | `your-development-jwt-secret` |
-| `EMAIL_SMTP_PASSWORD` | Email service password | `smtp-password` |
-
-### Production Environment
-
-| Secret Name | Description | Example Value |
-|-------------|-------------|---------------|
-| `DATABASE_CONNECTION_STRING` | Prod database connection | `Server=...;Database=...` |
-| `JWT_SECRET_KEY` | JWT signing key | `your-production-jwt-secret` |
-| `EMAIL_SMTP_PASSWORD` | Email service password | `smtp-password` |
-| `SSL_CERTIFICATE_PASSWORD` | SSL certificate password | `cert-password` |
-
-## Environment Variables
-
-### Workflow Environment Variables
-
-These are defined in the workflow files and can be customized:
-
-```yaml
-env:
-  # .NET Configuration
-  DOTNET_VERSION: '8.0.x'
-  
-  # Node.js Configuration
-  NODE_VERSION: '18'
-  
-  # Azure App Names
-  AZURE_WEBAPP_NAME_DEV: 'casezero-dev'
-  AZURE_WEBAPP_NAME_PROD: 'casezero-prod'
-  
-  # Build Configuration
-  BUILD_CONFIGURATION: 'Release'
-  
-  # Test Configuration
-  TEST_RESULTS_PATH: '**/TestResults/*.xml'
-```
-
-### Application Environment Variables
-
-These are set in the Azure App Service configuration:
-
-#### Development Environment
-```yaml
-ASPNETCORE_ENVIRONMENT: Development
-WEBSITE_RUN_FROM_PACKAGE: '1'
-JwtSettings__ExpirationDays: '7'
-EmailSettings__SmtpServer: 'smtp.office365.com'
-EmailSettings__SmtpPort: '587'
-EmailSettings__UseSsl: 'true'
-CasesBasePath: 'D:\home\site\wwwroot\cases'
-```
-
-#### Production Environment
-```yaml
-ASPNETCORE_ENVIRONMENT: Production
-WEBSITE_RUN_FROM_PACKAGE: '1'
-JwtSettings__ExpirationDays: '7'
-EmailSettings__SmtpServer: 'smtp.office365.com'
-EmailSettings__SmtpPort: '587'
-EmailSettings__UseSsl: 'true'
-CasesBasePath: 'D:\home\site\wwwroot\cases'
-APPINSIGHTS_INSTRUMENTATIONKEY: '${applicationInsights.properties.InstrumentationKey}'
-```
-
-## Azure Configuration
-
-### Service Principal JSON
-
-The Azure credentials should be in this format:
+`azure/login@v2` recebe um JSON semelhante a:
 
 ```json
 {
-  "clientId": "12345678-1234-1234-1234-123456789012",
-  "clientSecret": "your-client-secret",
-  "subscriptionId": "12345678-1234-1234-1234-123456789012",
-  "tenantId": "12345678-1234-1234-1234-123456789012",
-  "activeDirectoryEndpointUrl": "https://login.microsoftonline.com",
-  "resourceManagerEndpointUrl": "https://management.azure.com/",
-  "activeDirectoryGraphResourceId": "https://graph.windows.net/",
-  "sqlManagementEndpointUrl": "https://management.core.windows.net:8443/",
-  "galleryEndpointUrl": "https://gallery.azure.com/",
-  "managementEndpointUrl": "https://management.core.windows.net/"
+  "clientId": "<application-id>",
+  "clientSecret": "<secret>",
+  "subscriptionId": "<subscription-id>",
+  "tenantId": "<tenant-id>"
 }
 ```
 
-### Azure Key Vault References
+Não inclua esse JSON em arquivos versionados, issues, logs ou documentação.
 
-For enhanced security, use Key Vault references in parameter files:
+## Variáveis dos workflows
 
-```json
-{
-  "sqlServerAdminLogin": {
-    "reference": {
-      "keyVault": {
-        "id": "/subscriptions/{subscription-id}/resourceGroups/casezero-shared-rg/providers/Microsoft.KeyVault/vaults/casezero-keyvault"
-      },
-      "secretName": "sql-admin-login"
-    }
-  },
-  "sqlServerAdminPassword": {
-    "reference": {
-      "keyVault": {
-        "id": "/subscriptions/{subscription-id}/resourceGroups/casezero-shared-rg/providers/Microsoft.KeyVault/vaults/casezero-keyvault"
-      },
-      "secretName": "sql-admin-password"
-    }
-  }
-}
-```
-
-## Application Settings
-
-### Database Configuration
-
-#### Connection Strings
-```yaml
-# Development
-DefaultConnection: "Server=casezero-sql-dev.database.windows.net;Database=casezero-db;User Id=casezero-admin;Password={password};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
-
-# Production
-DefaultConnection: "Server=casezero-sql-prod.database.windows.net;Database=casezero-db;User Id=casezero-admin;Password={password};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
-```
-
-### JWT Configuration
+### `cd-dev.yml`
 
 ```yaml
-JwtSettings__Key: "YourSuperSecretKeyThatIsAtLeast32CharactersLong!"
-JwtSettings__Issuer: "CaseZeroAPI"
-JwtSettings__Audience: "CaseZeroUsers"
-JwtSettings__ExpirationDays: "7"
+AZURE_WEBAPP_NAME: casezero-api-dev
+AZURE_STATIC_WEB_APP_NAME: casezero-web-dev
+AZURE_STATIC_WEB_APP_RG: casezero-web-dev-rg
+AZURE_RESOURCE_GROUP: casezero-api-dev-rg
+AZURE_FUNCTIONAPP_NAME: casegen-func-dev
+AZURE_FUNCTIONAPP_RG: casezero-func-dev-rg
+DOTNET_VERSION: 8.0.x
+DOTNET_FUNCTIONS_VERSION: 9.0.x
+NODE_VERSION: 20
 ```
 
-### Email Configuration
+### `infrastructure-3tier.yml`
 
 ```yaml
-EmailSettings__SmtpServer: "smtp.office365.com"
-EmailSettings__SmtpPort: "587"
-EmailSettings__UseSsl: "true"
-EmailSettings__FromEmail: "noreply@casezero.com"
-EmailSettings__FromName: "CaseZero System"
+BICEP_FILE_PATH: infrastructure/main.bicep
 ```
 
-### Application Insights
+O workflow usa `infrastructure/parameters.dev.json` ou
+`infrastructure/parameters.prod.json` conforme o ambiente.
 
-```yaml
-APPINSIGHTS_INSTRUMENTATIONKEY: "{instrumentation-key}"
-APPLICATIONINSIGHTS_CONNECTION_STRING: "InstrumentationKey={key};IngestionEndpoint=https://eastus2-3.in.applicationinsights.azure.com/"
-ApplicationInsightsAgent_EXTENSION_VERSION: "~3"
-XDT_MicrosoftApplicationInsights_Mode: "Recommended"
-```
+## Configurações implantadas pela infraestrutura
 
-## Security Best Practices
+### API
 
-### Secret Management
+As principais app settings incluem:
 
-1. **Use Environment-Specific Secrets**
-   - Different secrets for dev and prod
-   - Regular rotation of sensitive credentials
-   - Use Azure Key Vault for production secrets
+- `ASPNETCORE_ENVIRONMENT`;
+- `JwtSettings__SecretKey`, por referência ao Key Vault;
+- `JwtSettings__Issuer`;
+- `JwtSettings__Audience`;
+- `JwtSettings__ExpirationInMinutes`;
+- `APPLICATIONINSIGHTS_CONNECTION_STRING`;
+- `CaseGenerator__FunctionBaseUrl`;
+- `CaseGeneratorStorage__AccountName`;
+- `CaseGeneratorStorage__BundlesContainer`;
+- `Cors__AllowedOrigins__*`.
 
-2. **Principle of Least Privilege**
-   - Service principals with minimal required permissions
-   - Environment-specific access controls
-   - Regular access reviews
+### CaseGen.Functions
 
-3. **Secret Rotation**
-   ```bash
-   # Rotate service principal secret
-   az ad sp credential reset --name casezero-prod-sp
-   
-   # Update GitHub secret with new credential
-   # Update any Azure Key Vault references
-   ```
+- `FUNCTIONS_EXTENSION_VERSION=~4`;
+- `FUNCTIONS_WORKER_RUNTIME=dotnet-isolated`;
+- `AzureWebJobsStorage`;
+- `TaskHub=CaseGeneratorHub`;
+- `APPLICATIONINSIGHTS_CONNECTION_STRING`;
+- `CaseGeneratorStorage__AccountName`;
+- `CaseGeneratorStorage__ConnectionString`;
+- `CaseGeneratorStorage__BundlesContainer=bundles`;
+- `AzureFoundry__Endpoint`;
+- `AzureFoundry__ApiKey`;
+- `AzureFoundry__ModelName`;
+- `AzureFoundry__ImageDeploymentName`.
 
-### Access Control
+As configurações `AzureFoundry__*` são referências a segredos do Key Vault, não
+valores gravados no template.
 
-#### Required Azure Permissions
+## Segredos do Key Vault
 
-**Development Service Principal:**
-- Contributor on `casezero-dev-rg`
-- Website Contributor (for Static Web Apps)
+A infraestrutura atual referencia:
 
-**Production Service Principal:**
-- Contributor on `casezero-prod-rg`
-- Website Contributor (for Static Web Apps)
-- Key Vault Secrets User (if using Key Vault)
+| Segredo | Consumidor |
+|---|---|
+| `jwt-signing-key` | API |
+| `azure-foundry-endpoint` | Function |
+| `azure-foundry-api-key` | Function |
+| `azure-foundry-model-name` | Function |
+| `azure-foundry-image-deployment-name` | Function |
 
-#### GitHub Environment Protection
+Os parâmetros SQL são fornecidos ao workflow durante a implantação e devem ser
+tratados como credenciais sensíveis.
 
-**Production Environment:**
-- Required reviewers: 2 people minimum
-- Deployment branches: `main` only
-- Environment secrets isolated from development
+## Criar ou rotacionar credenciais do workflow
 
-### Network Security
+Prefira federação OIDC quando o workflow for modernizado. Enquanto os workflows
+usarem `creds`, crie um service principal e armazene o JSON somente no GitHub:
 
-```yaml
-# IP Restrictions (Production App Service)
-ipSecurityRestrictions:
-  - ipAddress: "CloudFlare"  # Example: Use CDN IPs
-    action: "Allow"
-    priority: 100
-  - ipAddress: "Any"
-    action: "Deny"
-    priority: 2147483647
-```
-
-## Setup Commands
-
-### Create Service Principal
-
-```bash
-# Development
-az ad sp create-for-rbac --name "casezero-dev-sp" \
-  --role "Contributor" \
-  --scopes "/subscriptions/{subscription-id}/resourceGroups/casezero-dev-rg" \
-  --sdk-auth
-
-# Production
-az ad sp create-for-rbac --name "casezero-prod-sp" \
-  --role "Contributor" \
-  --scopes "/subscriptions/{subscription-id}/resourceGroups/casezero-prod-rg" \
+```powershell
+az ad sp create-for-rbac `
+  --name "casezero-dev-github" `
+  --role Contributor `
+  --scopes "/subscriptions/<subscription-id>" `
   --sdk-auth
 ```
 
-### Get Static Web App Tokens
+O escopo de assinatura é necessário porque o IaC realiza deployments em nível
+de assinatura e cria resource groups. Depois, reduza permissões adicionais
+sempre que a arquitetura permitir.
 
-```bash
-# Development
-az staticwebapp secrets list --name casezero-frontend-dev --query "properties.apiKey" -o tsv
+Para obter o token da Static Web App DEV:
 
-# Production
-az staticwebapp secrets list --name casezero-frontend-prod --query "properties.apiKey" -o tsv
+```powershell
+az staticwebapp secrets list `
+  --name casezero-web-dev `
+  --resource-group casezero-web-dev-rg `
+  --query properties.apiKey `
+  --output tsv
 ```
 
-### Configure Key Vault
+## Checklist
 
-```bash
-# Create Key Vault
-az keyvault create --name casezero-keyvault \
-  --resource-group casezero-shared-rg \
-  --location "East US 2"
+- [ ] `AZURE_CREDENTIALS_DEV` autentica na assinatura correta.
+- [ ] `AZURE_CREDENTIALS_PROD` existe antes de operar PROD.
+- [ ] `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV` pertence a `casezero-web-dev`.
+- [ ] `VITE_API_URL` aponta para a API, incluindo o prefixo esperado pelo frontend.
+- [ ] Credenciais SQL não aparecem em parâmetros versionados.
+- [ ] Referências do Key Vault aparecem como `Resolved`.
+- [ ] Identidades gerenciadas possuem somente os roles necessários.
+- [ ] Nenhum `local.settings.json`, token ou connection string está versionado.
 
-# Add secrets
-az keyvault secret set --vault-name casezero-keyvault \
-  --name "sql-admin-login" --value "casezero-admin"
-  
-az keyvault secret set --vault-name casezero-keyvault \
-  --name "sql-admin-password" --value "$(openssl rand -base64 32)"
-  
-az keyvault secret set --vault-name casezero-keyvault \
-  --name "jwt-secret" --value "$(openssl rand -base64 64)"
+## Diagnóstico seguro
+
+Liste apenas nomes de secrets, nunca valores:
+
+```powershell
+gh secret list
 ```
 
-## Validation Checklist
+Confira a identidade autenticada:
 
-Use this checklist to verify your configuration:
-
-### Repository Secrets
-- [ ] `AZURE_CREDENTIALS_DEV` - Valid JSON format
-- [ ] `AZURE_CREDENTIALS_PROD` - Valid JSON format
-- [ ] `AZURE_STATIC_WEB_APPS_API_TOKEN_DEV` - 32+ character token
-- [ ] `AZURE_STATIC_WEB_APPS_API_TOKEN_PROD` - 32+ character token
-- [ ] `AZURE_RESOURCE_GROUP_DEV` - Exact resource group name
-- [ ] `AZURE_RESOURCE_GROUP_PROD` - Exact resource group name
-- [ ] `TEAMS_WEBHOOK_URL` - Valid webhook URL (optional)
-
-### Environment Configuration
-- [ ] Development environment created in GitHub
-- [ ] Production environment created with protection rules
-- [ ] Environment-specific secrets configured
-- [ ] Service principals have appropriate permissions
-
-### Azure Resources
-- [ ] Resource groups exist
-- [ ] Service principals created and configured
-- [ ] Key Vault setup (if using)
-- [ ] Static Web Apps created
-- [ ] App Services configured
-
-### Testing
-- [ ] Service principal authentication works
-- [ ] GitHub Actions can deploy to Azure
-- [ ] Applications start successfully
-- [ ] Database connections work
-- [ ] Application Insights receiving data
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Authentication Errors**
-   - Verify service principal JSON format
-   - Check subscription ID matches
-   - Ensure service principal has correct permissions
-
-2. **Resource Not Found**
-   - Verify resource group names
-   - Check resource naming conventions
-   - Ensure resources exist in correct subscription
-
-3. **Permission Denied**
-   - Review service principal role assignments
-   - Check resource group scopes
-   - Verify subscription access
-
-### Debugging Commands
-
-```bash
-# Test service principal login
-az login --service-principal \
-  --username "{client-id}" \
-  --password "{client-secret}" \
-  --tenant "{tenant-id}"
-
-# List role assignments
-az role assignment list --assignee "{service-principal-id}"
-
-# Test resource group access
-az group show --name "casezero-dev-rg"
+```powershell
+az account show --query "{subscription:id,tenant:tenantId,user:user.name}"
 ```
 
----
+Confira roles sem exibir credenciais:
 
-For questions about configuration or issues with secrets management, please refer to the main CI/CD documentation or create an issue in the repository.
+```powershell
+az role assignment list `
+  --assignee-object-id <principal-id> `
+  --query "[].{role:roleDefinitionName,scope:scope}"
+```

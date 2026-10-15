@@ -1,0 +1,13 @@
+{
+  "CaseId": "case_detective_test",
+  "Difficulty": "Detective",
+  "ArtifactStatus": "candidate-not-approved",
+  "RealGenerated": false,
+  "Language": "en-US",
+  "TimeZoneId": "America/New_York",
+  "UtcOffset": "-04:00",
+  "PoliceAgency": "Boston Police Department",
+  "InvestigatorName": "Alex Morgan",
+  "InvestigatorEmail": "alex@casezero.local",
+  "Notes": "Detective validation candidate; not approved until a real generated case and multi-seed batch pass."
+}

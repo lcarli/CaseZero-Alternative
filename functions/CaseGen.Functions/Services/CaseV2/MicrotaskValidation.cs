@@ -32,12 +32,33 @@ public static class MicrotaskValidation
             Require(asset.BodyDoc is null, "Photo/audio assets must not contain bodyDoc.");
         }
         if (asset.BodyDoc is null) return;
+        Require(asset.BodyDoc.Sections.Count > 0, "A bodyDoc must contain substantive readable sections.");
+        foreach (var section in asset.BodyDoc.Sections)
+            Require(section.Kind switch
+            {
+                "table" => section.Table is { Columns.Count: > 0, Rows.Count: > 0 },
+                "transcript" => section.Transcript is { Count: > 0 } && section.Transcript.All(t => !string.IsNullOrWhiteSpace(t.Text)),
+                "keyValue" => section.Items is { Count: > 0 } && section.Items.All(i => !string.IsNullOrWhiteSpace(i.Value)),
+                "code" => !string.IsNullOrWhiteSpace(section.Code?.Content),
+                "narrative" or "callout" => !string.IsNullOrWhiteSpace(section.Text),
+                _ => false
+            }, $"bodyDoc section '{section.Kind}' is empty or unsupported.");
         foreach (var section in asset.BodyDoc.Sections.Where(s => s.Kind == "table"))
         {
             var table = section.Table!;
             Require(table.Rows.All(row => row.Count == table.Columns.Count),
                 "bodyDoc table rows must have exactly the same number of cells as columns.");
         }
+    }
+
+    public static void Question(SolutionQuestion question, QuestionTopic topic)
+    {
+        Equal(question.Id, topic.Id, "question.id");
+        Require(question.Weight == topic.Weight, "Question weight must echo its assigned topic.");
+        Unique(question.Options.Select(o => o.Id), "question.options");
+        Unique(question.Options.Select(o => o.Label), "question option labels");
+        Require(question.Options.Count is >= 3 and <= 4 && question.Options.Any(o => o.Id == question.CorrectOptionId),
+            "Question correctOptionId must identify one of its unique options.");
     }
 
     public static void Email(EvidenceEmail email, CaseDraft draft)

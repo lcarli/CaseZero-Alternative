@@ -34,8 +34,8 @@ namespace CaseZeroApi.Controllers
             _caseStorageService = caseStorageService;
             _auditLogService = auditLogService; // P86
             _rulesEngine = rulesEngine;
+
             _sanitizer = sanitizer;
-            
         }
 
         /// <summary>
@@ -305,7 +305,7 @@ namespace CaseZeroApi.Controllers
                 {
                     emailId = email.Id,
                     from = email.From,
-                    to = email.To,
+                    to = string.Join("; ", email.To ?? new List<string>()),
                     subject = email.Subject,
                     sentAt = email.SentAt,
                     priority = email.Priority,

@@ -370,7 +370,8 @@ public sealed class ForensicProgressionTests : IDisposable
             RequiredAnalysisIds = new() { "asset.phone:Digital" }, MinimumScore = 1,
             PartialCreditRules = new() { CulpritWeight = 0.4, EvidenceWeight = 0.3, AnalysisWeight = 0.3, QuestionsWeight = 0 }
         };
-        var solution = new SolutionService(db, storage.Object, NullLogger<SolutionService>.Instance);
+        var solution = new SolutionService(db, storage.Object,
+            new PromotionService(db, NullLogger<PromotionService>.Instance), NullLogger<SolutionService>.Instance);
         var submission = new SubmitCaseRequest("suspect.one", new[] { "asset.report" }, new[] { "asset.phone:Digital" }, Array.Empty<AnswerDto>());
         var premature = await solution.SubmitAsync(CaseId, UserId, submission);
         Assert.False(premature.Correct);

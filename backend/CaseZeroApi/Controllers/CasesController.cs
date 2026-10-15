@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using CaseZeroApi.Data;
+using CaseZeroApi.Models;
 using CaseZeroApi.Models.CaseV2;
 using CaseZeroApi.Services;
 
@@ -54,15 +55,119 @@ public class CasesController : ControllerBase
         if (locked > 0)
             _logger.LogInformation("Dashboard hid {N} case(s) above user rank {Rank}", locked, userRank);
 
+        // ── Compute stats from CaseSubmissions ──────────────────────────────
+        // Only graded submissions count toward promotion-style stats. Ungraded
+        // attempts (after the player exhausts their MaxAttempts) are excluded.
+        var mySubs = string.IsNullOrEmpty(userId)
+            ? new List<CaseSubmissionSummary>()
+            : await _db.CaseSubmissions.AsNoTracking()
+                .Where(s => s.SubmittedByUserId == userId)
+                .OrderByDescending(s => s.SubmittedAt)
+                .Select(s => new CaseSubmissionSummary
+                {
+                    CaseId = s.CaseId,
+                    SubmittedAt = s.SubmittedAt,
+                    IsCorrectSuspect = s.IsCorrectSuspect,
+                    Score = s.Score,
+                    Graded = s.Graded,
+                    AttemptNumber = s.AttemptNumber
+                })
+                .ToListAsync(ct);
+
+        var resolvedCaseIds = mySubs
+            .Where(s => s.IsCorrectSuspect && s.Graded)
+            .Select(s => s.CaseId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var attemptedCaseIds = mySubs
+            .Where(s => s.Graded)
+            .Select(s => s.CaseId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var casesResolved = resolvedCaseIds.Count;
+        var casesActive = Math.Max(0, cases.Count - casesResolved);
+        var successRate = attemptedCaseIds.Count == 0
+            ? 0.0
+            : Math.Round((double)casesResolved / attemptedCaseIds.Count * 100.0, 1);
+
+        // averageRating: average score of graded CORRECT submissions, on a 0–100 scale,
+        // taking only the best score per case (so multiple bad attempts don't drag it down).
+        // CaseSubmission.Score is already stored as 0..100 (SolutionService writes total*100),
+        // so no further scaling is required.
+        var bestScoreByCase = mySubs
+            .Where(s => s.IsCorrectSuspect && s.Graded)
+            .GroupBy(s => s.CaseId, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.Max(x => x.Score))
+            .ToList();
+        var averageRating = bestScoreByCase.Count == 0
+            ? 0.0
+            : Math.Round(bestScoreByCase.Average(), 1);
+
+        // ── Cases by difficulty (X resolved / Y total) ──────────────────────
+        // Bucketed against the case's difficulty string. Difficulties not in
+        // the canonical ladder fall under "Unknown".
+        var casesByDifficulty = cases
+            .GroupBy(c => string.IsNullOrWhiteSpace(c.Difficulty) ? "Unknown" : c.Difficulty,
+                StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => DifficultyOrdinal(g.Key))
+            .Select(g => new
+            {
+                difficulty = g.Key,
+                total = g.Count(),
+                resolved = g.Count(c => resolvedCaseIds.Contains(c.CaseId))
+            })
+            .ToList();
+
+        // ── Promotion progress ─────────────────────────────────────────────
+        // Uses graded resolves only (consistent with promotion policy).
+        var rankEnum = string.IsNullOrEmpty(userId)
+            ? DetectiveRank.Rook
+            : (DetectiveRank)userRank;
+        var promotionProgress = PromotionRules.Compute(rankEnum, casesResolved);
+        var promotion = new
+        {
+            currentRank = promotionProgress.CurrentRank.ToString(),
+            nextRank = promotionProgress.NextRank?.ToString(),
+            casesResolved = promotionProgress.CasesResolved,
+            casesRequiredForCurrent = promotionProgress.CasesRequiredForCurrent,
+            casesRequiredForNext = promotionProgress.CasesRequiredForNext,
+            casesRemaining = promotionProgress.CasesRemaining,
+            progressPct = promotionProgress.ProgressPct
+        };
+
+        // ── Recent activities (last 10) ────────────────────────────────────
+        // The frontend renders these from a localized template keyed by `type`,
+        // so we don't translate on the backend — we just ship structured rows.
+        var caseTitleById = cases.ToDictionary(c => c.CaseId, c => c.Title, StringComparer.OrdinalIgnoreCase);
+        var recentActivities = mySubs.Take(10).Select(s =>
+        {
+            string type = s.IsCorrectSuspect
+                ? (s.Graded ? "resolved" : "resolved_ungraded")
+                : (s.Graded ? "attempted" : "attempted_ungraded");
+            return new
+            {
+                type,
+                caseId = s.CaseId,
+                caseTitle = caseTitleById.TryGetValue(s.CaseId, out var t) ? t : s.CaseId,
+                date = s.SubmittedAt,
+                score = Math.Round(s.Score, 1),
+                graded = s.Graded
+            };
+        }).ToList();
+
         return Ok(new
         {
             stats = new
             {
-                casesResolved = 0,
-                casesActive = cases.Count,
-                successRate = 0.0,
-                averageRating = 0.0
+                casesResolved,
+                casesActive,
+                successRate,
+                averageRating
             },
+            casesByDifficulty,
+            promotion,
             cases = cases.Select(c => new
             {
                 caseId = c.CaseId,
@@ -73,10 +178,33 @@ public class CasesController : ControllerBase
                 estimatedDurationMinutes = c.EstimatedDurationMinutes,
                 briefing = c.Briefing,
                 tags = c.Tags,
-                requiredRank = c.RequiredRank
+                requiredRank = c.RequiredRank,
+                isResolved = resolvedCaseIds.Contains(c.CaseId)
             }).ToList(),
-            recentActivities = Array.Empty<object>()
+            recentActivities
         });
+    }
+
+    private static int DifficultyOrdinal(string? difficulty) => difficulty?.Trim().ToLowerInvariant() switch
+    {
+        "rookie" or "rook" => 0,
+        "detective" => 1,
+        "detective2" => 2,
+        "sergeant" => 3,
+        "lieutenant" => 4,
+        "captain" => 5,
+        "commander" => 6,
+        _ => 99
+    };
+
+    private sealed class CaseSubmissionSummary
+    {
+        public string CaseId { get; set; } = string.Empty;
+        public DateTime SubmittedAt { get; set; }
+        public bool IsCorrectSuspect { get; set; }
+        public double Score { get; set; }
+        public bool Graded { get; set; }
+        public int AttemptNumber { get; set; }
     }
 
     /// <summary>
@@ -114,7 +242,22 @@ public class CasesController : ControllerBase
         await EnsureSessionAndInitialVisibilityAsync(caseId, userId, ct);
 
         var data = await _storage.GetForUserAsync(caseId, userId, ct);
-        return data is null ? NotFound(new { error = $"Case not found: {caseId}" }) : Ok(data);
+        if (data is null) return NotFound(new { error = $"Case not found: {caseId}" });
+
+        // Diagnostic: if the sanitized response surfaces no suspects, the player can't solve
+        // the case. Surface enough context to debug both LLM-generation bugs (raw count = 0)
+        // and visibility-filter bugs (raw count > 0 but sanitized = 0).
+        if (data.Suspects.Count == 0)
+        {
+            var raw = await _storage.GetRawAsync(caseId, ct);
+            _logger.LogWarning(
+                "GetCase {CaseId} returned 0 suspects to user {UserId}. Raw suspect count={Raw}, raw visibilities=[{Vis}]",
+                caseId, userId,
+                raw?.Suspects.Count ?? 0,
+                raw is null ? "" : string.Join(",", raw.Suspects.Select(s => $"{s.Id}:{s.Visibility}")));
+        }
+
+        return Ok(data);
     }
 
     private async Task EnsureSessionAndInitialVisibilityAsync(string caseId, string userId, CancellationToken ct)
@@ -122,10 +265,8 @@ public class CasesController : ControllerBase
         var raw = await _storage.GetRawAsync(caseId, ct);
         if (raw is null) return;
 
-        var unlockAll =
-            string.Equals(raw.Metadata.UnlockMode, "all_initial", StringComparison.OrdinalIgnoreCase) ||
-            (string.IsNullOrEmpty(raw.Metadata.UnlockMode) &&
-             string.Equals(raw.Metadata.RequiredRank, "Rookie", StringComparison.OrdinalIgnoreCase));
+        var unlockAll = raw.Metadata.IsAllInitial ||
+            string.Equals(raw.Metadata.UnlockMode, "all_initial", StringComparison.OrdinalIgnoreCase);
 
         // 1) Ensure there is a CaseSession for this (user, case).
         var hasSession = await _db.CaseSessions
@@ -182,6 +323,44 @@ public class CasesController : ControllerBase
             });
         }
 
+        // 4) Seed revealed suspects. The sanitizer filters suspects by
+        //    `visibility == "initial" || revealedSuspectIds.Contains(id)` — so writing the
+        //    initially-visible (or all, when unlockMode == all_initial) suspect ids onto the
+        //    CaseSession guarantees they reach the client even if the case JSON arrived with
+        //    a missing/wrong visibility on individual suspects (older generations, partial
+        //    sanitization upstream, etc.).
+        var session = await _db.CaseSessions
+            .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
+            .OrderByDescending(cs => cs.SessionStart)
+            .FirstOrDefaultAsync(ct);
+        if (session is null)
+        {
+            // We just added one above; reload it within the same DbContext so we mutate the
+            // entity that EF Core tracks (avoids a second .Add for the same key).
+            await _db.SaveChangesAsync(ct);
+            session = await _db.CaseSessions
+                .Where(cs => cs.UserId == userId && cs.CaseId == caseId)
+                .OrderByDescending(cs => cs.SessionStart)
+                .FirstAsync(ct);
+        }
+        var revealedSuspectIds = string.IsNullOrWhiteSpace(session.RevealedSuspectIds)
+            ? new List<string>()
+            : System.Text.Json.JsonSerializer.Deserialize<List<string>>(session.RevealedSuspectIds) ?? new();
+        var revealedSet = new HashSet<string>(revealedSuspectIds, StringComparer.Ordinal);
+        var initialSuspectsAdded = 0;
+        foreach (var suspect in raw.Suspects)
+        {
+            var shouldReveal = unlockAll ||
+                               string.IsNullOrWhiteSpace(suspect.Visibility) ||
+                               string.Equals(suspect.Visibility, "initial", StringComparison.OrdinalIgnoreCase);
+            if (!shouldReveal) continue;
+            if (revealedSet.Add(suspect.Id)) initialSuspectsAdded++;
+        }
+        if (initialSuspectsAdded > 0)
+        {
+            session.RevealedSuspectIds = System.Text.Json.JsonSerializer.Serialize(revealedSet.ToList());
+        }
+
         await _db.SaveChangesAsync(ct);
     }
 
@@ -209,10 +388,6 @@ public class CasesController : ControllerBase
         {
             var result = await _solutionService.SubmitAsync(caseId, userId, request, ct);
             return Ok(result);
-        }
-        catch (MaxAttemptsExceededException ex)
-        {
-            return Conflict(new { error = ex.Message, maxAttempts = ex.MaxAttempts });
         }
         catch (InvalidOperationException ex)
         {

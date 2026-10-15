@@ -1,183 +1,305 @@
-> **Canonical v2.** Anything in older docs that contradicts this document is stale and was removed. The case format itself is specified in [`CASE_JSON_V2_SPEC.md`](./CASE_JSON_V2_SPEC.md).
+> **Canonical v2.** Anything in older docs that contradicts this document is stale. The case payload format is specified in [`CASE_JSON_V2_SPEC.md`](./CASE_JSON_V2_SPEC.md).
 
 # Frontend Architecture — CaseZero v2
 
-**Project:** `frontend/` · React 19 · TypeScript · Vite · styled-components
+**Project:** `frontend/` · React 19.1 · TypeScript 5.8 · Vite 7 · styled-components
 
 ---
 
 ## Stack
 
-| Technology | Version | Role |
-|------------|---------|------|
-| React | 19 | UI library |
-| TypeScript | 5.x | Type safety |
-| Vite | 6.x | Build tool + dev server |
-| styled-components | 6.x | CSS-in-JS styling |
-| React Router DOM | 6.x | Client-side routing |
-| @microsoft/signalr | 8.x | SignalR client |
+| Technology | Version in repo | Role |
+|------------|-----------------|------|
+| React | `^19.1.0` | UI runtime |
+| React DOM | `^19.1.0` | DOM renderer |
+| TypeScript | `~5.8.3` | Type safety |
+| Vite | `^7.0.4` | Dev server + build |
+| React Router DOM | `^7.7.1` | Routing |
+| styled-components | `^6.1.19` | Styling |
+| @microsoft/signalr | `^10.0.0` | Realtime client |
+| Vitest | `^2.0.5` | Unit/integration tests |
+| ESLint | `^9.30.1` | Linting |
 
 ---
 
-## Routing (`App.tsx`)
+## App Shell (`src/App.tsx`)
 
-| Path | Component | Auth Required |
-|------|-----------|--------------|
-| `/` | `HomePage` | No |
-| `/login` | `LoginPage` | No |
-| `/register` | `RegisterPage` | No |
-| `/verify-email` | `EmailVerificationPage` | No |
-| `/dashboard` | `DashboardPage` | Yes |
-| `/desktop/:caseId?` | `DesktopPage` | Yes |
+Provider order in the real app shell:
 
-> **Removed:** `/generate-case` and `/case-generator-ai` routes were removed in Phase 2. The files `CaseGeneratorAIPage.tsx` and `GenerateCasePage.tsx` remain on disk but are **not registered** in the router.
+```tsx
+<LanguageProvider>
+  <ErrorBoundary>
+    <AuthProvider>
+      <WindowProvider>
+        <Router>
+          <OfflineStatus />
+          <Routes>...</Routes>
+        </Router>
+      </WindowProvider>
+    </AuthProvider>
+  </ErrorBoundary>
+</LanguageProvider>
+```
 
-`DesktopPage` redirects to `/dashboard` when `caseId` is absent in the URL or when the session fails to start. There is no `CASE-2024-001` fallback.
+`OfflineStatus` is global and mounted for every route. `WindowProvider` only owns desktop-style window state; case data is mounted later inside `DesktopPage`.
+
+---
+
+## Routing (`src/App.tsx`)
+
+| Path | Component | Guard |
+|------|-----------|-------|
+| `/` | `HomePage` | public |
+| `/login` | `LoginPage` | public |
+| `/register` | `RegisterPage` | public |
+| `/verify-email` | `EmailVerificationPage` | public |
+| `/dashboard` | `DashboardPage` | `ProtectedRoute` |
+| `/desktop/:caseId?` | `DesktopPage` | `ProtectedRoute` |
+| `/case-generation` | `CaseGenerationPage` | `ProtectedRoute requiredRole="ADMIN"` |
+| `/profile` | `ProfilePage` | `ProtectedRoute` |
+
+Current router facts:
+- `DesktopPage` redirects to `/dashboard` when `caseId` is missing.
+- The active admin route is `/case-generation`, not `/generate-case` or `/case-generator-ai`.
+- `ProfilePage` is now part of the routed surface.
+
+---
+
+## Source Layout (`src/`)
+
+| Folder | Current purpose |
+|--------|-----------------|
+| `components/` | Shared UI shell pieces such as `Navigation`, `Desktop`, `Dock`, `Clock`, `InboxPanel`, `LanguageSelector`, `ProtectedRoute`, `TimeSync` |
+| `components/apps/` | Desktop windows/apps: `FileViewer`, `EmailApp`, `Notebook`, `Logs`, `Pinboard`, `SubmitCase`, `ForensicModule`, document viewers |
+| `components/ui/` | Cross-cutting UI helpers such as `ErrorBoundary`, `LoadingComponents`, `OfflineStatus` |
+| `contexts/` | `AuthContext`, `CaseContext`, `LanguageContext`, `TimeContext`, `WindowContext` |
+| `hooks/` | Thin wrappers around contexts plus UI helpers (`useDualFileViewer`, `useFavorites`, `useKeyboardNavigation`) |
+| `locales/` | Translation registry and locale dictionaries |
+| `pages/` | Route entry points (`HomePage`, `DashboardPage`, `DesktopPage`, `CaseGenerationPage`, etc.) |
+| `services/` | API clients plus forensic helpers/SignalR helpers |
+| `engine/` | `CaseEngine.ts` external store backing the case workspace |
+| `types/` | `caseV2`, `i18n`, `profile`, `ranks` |
+| `test/` | Vitest setup and frontend tests |
+| `utils/` | Shared utilities such as error handling |
 
 ---
 
 ## State Management
 
-### Contexts (`contexts/`)
+### Contexts
 
-| Context | File | Provides |
-|---------|------|---------|
-| `LanguageContext` | `LanguageContext.tsx` | Active locale + `setLanguage` |
-| `AuthContext` | `AuthContext.tsx` | JWT token, user info, login/logout |
-| `CaseContext` | `CaseContext.tsx` | Full case state via `CaseEngine` (see below) |
-| `TimeContext` | `TimeContext.tsx` | In-game clock |
-| `WindowContext` | `WindowContext.tsx` | Desktop window manager state |
+| Context | File | Notes |
+|---------|------|-------|
+| `AuthContext` | `src/contexts/AuthContext.tsx` | Authenticated user, `login`, `logout`, startup auth check |
+| `LanguageContext` | `src/contexts/LanguageContext.tsx` | Active language, translation lookup `t`, persistence in `localStorage` |
+| `WindowContext` | `src/contexts/WindowContext.tsx` | Desktop window registry, z-order, resize/maximize/minimize |
+| `CaseContext` | `src/contexts/CaseContext.tsx` | Case workspace state backed by `CaseEngine` + `useSyncExternalStore` |
+| `TimeContext` | `src/contexts/TimeContext.tsx` | Accelerated in-game clock and timeline log entries |
 
-### CaseContext & CaseEngine
+### `CaseContext` + `CaseEngine`
 
-`CaseContext.tsx` wraps an instance of `engine/CaseEngine.ts` and exposes it via React's  
-`useSyncExternalStore` (external store pattern — no reducer, no Redux).
+`CaseContext` is the main v2 case-state boundary. It creates a `CaseEngine`, subscribes with `useSyncExternalStore`, and exposes both the engine snapshot and a legacy-compatible API surface.
 
-```
-CaseEngine
-  ├── state: EngineState
-  │     ├── case: CaseV2Sanitized | null
-  │     ├── visibleAssets: Asset[]
-  │     ├── visibleEmails: Email[]
-  │     ├── visibleSuspects: Suspect[]
-  │     ├── notifications: Notification[]
-  │     └── submission: { attemptsUsed, maxAttempts, lastResult? }
-  ├── subscribe(listener) → unsubscribe    ← useSyncExternalStore hook
-  ├── getSnapshot() → EngineState
-  └── methods: loadCase, viewAsset, openEmail, viewSuspect, submitCase, postGameTime
-```
+`EngineState` currently contains:
+- `case: CaseV2Sanitized | null`
+- `visibleAssets: Asset[]`
+- `visibleEmails: Email[]`
+- `visibleSuspects: Suspect[]`
+- `notifications: Notification[]`
+- `submission: { attemptsUsed, maxAttempts, lastResult? }`
 
-`CaseEngine` depends on two injected clients:
-- `ApiClient` (backed by `casesV2Api` from `services/api.ts`)
-- `SignalRClient` (backed by inline SignalR builder in `CaseContext.tsx`)
+`CaseEngine` currently exposes these real methods:
+- `loadCase(caseId)`
+- `refreshCase(caseId)`
+- `viewAsset(assetId)`
+- `openEmail(emailId)`
+- `viewSuspect(suspectId)`
+- `submitCase(payload)`
+- `postGameTime(gameTimeMinutes)`
+- `applyReveal(entityType, entityId)`
+- `pushNotification(notification)`
+- `clearNotifications()`
+- `reset()`
 
-### Hooks exported from `CaseContext.tsx`
+Important corrections vs older docs:
+- `CaseEngine` does **not** own the game clock.
+- There is no `getCurrentGameTime()` method on `CaseEngine`.
+- `updateGameTime(newTime: Date)` lives on `CaseContext` as a compatibility wrapper for `TimeSync`, not on the engine class itself.
 
-| Hook | Returns |
-|------|---------|
-| `useCase()` | Full `CaseContextValue` |
-| `useEmails()` | `state.visibleEmails` |
-| `useAssets()` | `state.visibleAssets` |
-| `useSuspects()` | `state.visibleSuspects` |
-| `useSubmission()` | `state.submission` |
-| `useNotifications()` | `state.notifications` |
+### Hooks in use
+
+| Hook | Source | Returns |
+|------|--------|---------|
+| `useCase()` | `contexts/CaseContext.tsx` / `hooks/useCaseContext.ts` | Full case context |
+| `useAssets()` | `contexts/CaseContext.tsx` | `state.visibleAssets` |
+| `useEmails()` | `contexts/CaseContext.tsx` | `state.visibleEmails` |
+| `useSuspects()` | `contexts/CaseContext.tsx` | `state.visibleSuspects` |
+| `useSubmission()` | `contexts/CaseContext.tsx` | Submission state |
+| `useNotifications()` | `contexts/CaseContext.tsx` | Notification list |
+| `useTimeContext()` | `hooks/useTimeContext.ts` | `TimeContext` value |
+| `useAuth()` | `hooks/useAuthContext.ts` | `AuthContext` value |
+| `useLanguage()` | `contexts/LanguageContext.tsx` / `hooks/useLanguageContext.ts` | Active locale + translations |
+| `useWindowContext()` | `hooks/useWindowContext.ts` | Desktop window controls |
 
 ---
 
-## Types (`types/`)
+## Types (`src/types/`)
 
 ### `types/caseV2.ts`
 
-Mirrors the **sanitised** server payload — no `solution.culpritId`, no `rules`, no `forensicOutcomes`,  
-no `gameMetadata.generation`. Key types:
+The frontend case contract is the sanitized v2 payload:
+- `CaseV2Sanitized`
+- `Asset`
+- `Email`
+- `Suspect`
+- `TimelineEntry`
+- `ForensicsDefaults`
+- `SanitizedSolution`
+- `SubmitCaseRequest`
+- `SubmitCaseResult`
+- dashboard/profile helper types (`CaseDashboardItem`, `DashboardActivity`, `PromotionProgress`)
 
-| Type | Description |
-|------|-------------|
-| `Asset` | id, type, title, uri, visibility, tags, metadata |
-| `Email` | id, from, to, subject, body, sentAt, attachments[], visibility |
-| `Suspect` | id, name, alias, occupation, motive, alibi, status, visibility |
-| `TimelineEntry` | time, event, source, verified, importance |
-| `Notification` | level (`info\|warn\|critical`), message |
-| `SanitizedQuestion` | id, prompt, options[] — no `correctOptionId` |
-| `SanitizedSolution` | questions[], minimumScore, maxAttempts |
-| `SubmitCaseRequest` | suspectId, evidenceIds[], analysisIds[], answers[{questionId, optionId}] |
-| `SubmitCaseResult` | correct, score, breakdown, attemptsRemaining, feedbackText, explanation? |
-| `CaseV2Sanitized` | Root: metadata, assets, emails, suspects, timeline, forensicsDefaults, solution (sanitised), gameMetadata (client subset) |
+Notable payload details reflected in current code:
+- `Asset.visibility` and `Email.visibility` are `'initial' | 'hidden'`.
+- `CaseMetadata.requiredRank` and `difficulty` use the same rank ladder (`Rookie` → `Commander`).
+- Submit responses use `feedbackCode` and optional `promotion`, not legacy free-form feedback fields.
 
 ### `types/i18n.ts`
 
-`Translations` interface + `SUPPORTED_LANGUAGES` constant.
+Defines:
+- `Translations` interface
+- `SUPPORTED_LANGUAGES`
+- `DEFAULT_LANGUAGE = 'pt-BR'`
 
 ### `types/ranks.ts`
 
-`CaseDifficulty` / rank enum aligned with backend.
+Holds rank helpers such as `rankI18nKey(...)`, used by dashboard/profile/submit flows.
 
 ---
 
-## Services (`services/`)
+## Services and Backend Route Usage (`src/services/api.ts`)
 
-### `services/api.ts`
+All HTTP calls are centralized in `api.ts` through `apiFetch(...)`.
 
-Base URL: `VITE_API_URL` env var (default `http://localhost:5001/api`).
+### Base URL and auth
 
-Key namespaced exports used by v2:
+- Base URL: `import.meta.env.VITE_API_URL || 'http://localhost:5001/api'`
+- JWT is read from `tokenStorage.get()` and attached to `Authorization`
+- `tokenStorage` exposes `get`, `set`, `remove`
+- `userStorage` mirrors the authenticated user in `localStorage`
 
-| Export | Methods |
-|--------|---------|
-| `authApi` | `login`, `register`, `verifyEmail`, `resendVerification` |
-| `casesV2Api` | `getCase(caseId)`, `viewAsset(caseId, assetId)`, `openEmail(caseId, emailId)`, `viewSuspect(caseId, suspectId)`, `submitCase(caseId, payload)`, `postGameTime(caseId, gameTimeMinutes)` |
-| `forensicRequestApi` | `create`, `getForCase`, `update` |
-| `notesApi` | `getForCase`, `getById`, `create`, `update`, `delete` |
-| `caseSessionApi` | `start`, `end`, `getLastSession`, `getState`, `resume` |
-| `tokenStorage` | `get`, `set`, `clear` |
+### Main client groups
 
-### `services/forensicsSignalR.ts`
+| Client | Real usage |
+|--------|------------|
+| `authApi` | `/auth/login`, `/auth/me`, `/auth/register`, `/auth/verify-email`, `/auth/resend-verification` |
+| `casesV2Api` | dashboard, case load, case triggers, submit, attachment download, time-posting |
+| `caseSessionApi` | `/casesession/start`, `/casesession/end/{caseId}`, `/casesession/last/{caseId}`, `/casesession/{caseId}`, reset visibility |
+| `caseGenerationApi` | `/casegeneration/generate`, `/casegeneration/jobs/{jobId}` |
+| `profileApi` | `/profile/stats` |
+| `inboxApi` | `/inbox`, `/inbox/unread-count`, `/inbox/{id}/read` |
+| `notesApi` | `/notes/...` CRUD |
+| `forensicRequestApi` | `/forensicrequest/...` CRUD/listing |
+| `casesApi` / `assetsApi` / `emailsApi` / `caseObjectApi` | Legacy/auxiliary access used by current desktop viewers |
 
-Standalone singleton class that connects to `/hubs/forensics` and re-emits the `ForensicCompleted`  
-event to registered listeners. The `CaseContext`/`CaseEngine` path additionally wires its own inline
-SignalR client for tighter lifecycle management.
+### `casesV2Api` route pattern
 
----
+Although the frontend treats these as one namespace, they are served by multiple backend controllers under `/api/cases/{caseId}`:
 
-## Desktop Apps (`components/apps/`)
+| Frontend call | Backend route |
+|--------------|---------------|
+| `getCase(caseId)` | `GET /api/cases/{caseId}` |
+| `viewAsset(caseId, assetId)` | `POST /api/cases/{caseId}/assets/{assetId}/view` |
+| `openEmail(caseId, emailId)` | `POST /api/cases/{caseId}/emails/{emailId}/open` |
+| `viewSuspect(caseId, suspectId)` | `POST /api/cases/{caseId}/suspects/{suspectId}/view` |
+| `downloadAttachment(caseId, emailId, assetId)` | `POST /api/cases/{caseId}/emails/{emailId}/attachments/{assetId}/download` |
+| `submitCase(caseId, payload)` | `POST /api/cases/{caseId}/submit` |
+| `postGameTime(caseId, gameTimeMinutes)` | `POST /api/cases/{caseId}/time` |
 
-| App | Description |
-|-----|-------------|
-| `EmailApp` | Inbox, compose, attachment download; fires `openEmail` + `downloadAttachment` triggers |
-| `FileViewer` | Asset viewer for photos/PDFs/audio/video; fires `viewAsset` trigger |
-| `ForensicModule` | Submit forensic requests; shows pending/completed results |
-| `SubmitCase` | Rewritten v2: culprit dropdown (populated from visible suspects), visible-evidence checkboxes, analysis combobox, dynamic `solution.questions` with per-question option list; submits to `/api/cases/{id}/submit`; renders `score`, `breakdown`, `attemptsRemaining`, `feedback`, `explanation` on result; button disabled when attempts exhausted |
+### SignalR
 
----
+There are two distinct SignalR client paths on disk:
+- `CaseContext` builds an inline connection to `${VITE_API_URL without /api}/hubs/forensics` and listens for `case.entity.revealed`, `case.notification`, and `case.email.attached`.
+- `services/forensicsSignalR.ts` is a standalone singleton hard-coded to `http://localhost:5001/hubs/forensics` and listens for `ForensicCompleted`.
 
-## i18n (`locales/`)
-
-Four locale files, each implementing the full `Translations` interface:
-
-| File | Locale |
-|------|--------|
-| `locales/en-US.ts` | English (US) |
-| `locales/pt-BR.ts` | Portuguese (BR) |
-| `locales/es-ES.ts` | Spanish (ES) |
-| `locales/fr-FR.ts` | French (FR) |
-
-**Rule:** every new UI string added to any component **must** be added to all four locale files.  
-`LanguageContext` switches locale at runtime without page reload.
+The inline `CaseContext` path is the one actually wired into the workspace lifecycle.
 
 ---
 
-## Build & Dev
+## Desktop / Workspace Surface
+
+### Actively opened from `Dock.tsx`
+
+| Dock item | Component |
+|-----------|-----------|
+| File Viewer | `components/apps/FileViewer.tsx` |
+| Email | `components/apps/EmailApp.tsx` |
+| Forensic Module | `components/apps/ForensicModule.tsx` (hidden for Rookie cases) |
+| Logs | `components/apps/Logs.tsx` |
+| Notebook | `components/apps/Notebook.tsx` |
+| Pinboard | `components/apps/Pinboard.tsx` |
+| Submit Case | `components/apps/SubmitCase.tsx` |
+| Clock / disconnect controls | `components/Clock.tsx`, dock action |
+
+### Current app-specific notes
+
+- `FileViewer` opens `DocumentViewerWindow` windows and resolves asset media through `casesApi.getAssetUrl(...)`.
+- `EmailApp` hydrates read state from `emailsApi.getEmails(caseId)`, opens mail through `emailsApi.openEmail(...)`, and downloads attachments through the backend trigger endpoint.
+- `Notebook` is backed by `notesApi`.
+- `SubmitCase` reads suspects/assets from `CaseContext`, loads completed forensic requests from `forensicRequestApi`, and submits sanitized answers through `useCase().submitCase(...)`.
+- `ForensicModule` is still a local in-memory simulator; it does **not** call `forensicRequestApi` or `forensicsService`.
+- `ForensicsQueue.tsx` and `forensicsService.ts` exist on disk, but `ForensicsQueue` is not currently opened from `Dock.tsx`.
+- `Clock` shows time/date/status/elapsed time only; the older forensic badge is gone.
+
+---
+
+## i18n (`src/locales/`)
+
+The real locale registry contains exactly four languages:
+
+| File | Code |
+|------|------|
+| `locales/pt-BR.ts` | `pt-BR` |
+| `locales/en-US.ts` | `en-US` |
+| `locales/fr-FR.ts` | `fr-FR` |
+| `locales/es-ES.ts` | `es-ES` |
+
+`src/locales/index.ts` exports those four dictionaries, and `LanguageContext` persists the selected code in `localStorage` under `casezero-language`.
+
+Important current-state note: the translation framework is four-language capable, but several desktop components still contain hard-coded UI text instead of `t(...)` calls (for example `Clock`, `Logs`, `ForensicModule`, and `ForensicsQueue`).
+
+---
+
+## Build, Test, and Lint
+
+Available scripts from `frontend/package.json`:
 
 ```bash
-npm run dev        # Vite dev server (http://localhost:5173)
-npm run build      # Production build → dist/
-npm run lint       # ESLint
-npm run test:run   # Vitest (single pass)
-npm run test       # Vitest watch
+npm run dev
+npm run build
+npm run lint
+npm run preview
+npm run test
+npm run test:ui
+npm run test:run
 ```
 
-Environment variables (`.env` / Vite):
+### Vite / Vitest
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `VITE_API_URL` | `http://localhost:5001/api` | Backend base URL |
+Both `vite.config.ts` and `vitest.config.ts` configure tests for:
+- `environment: 'jsdom'`
+- `globals: true`
+- `setupFiles: './src/test/setup.ts'` (array form in `vite.config.ts`)
+
+### ESLint
+
+`eslint.config.js`:
+- ignores `dist`
+- targets `**/*.{ts,tsx}`
+- extends `@eslint/js`, `typescript-eslint`, `react-hooks`, and `react-refresh` Vite rules
+
+---
+
+## Local Markdown Links
+
+- [`CASE_JSON_V2_SPEC.md`](./CASE_JSON_V2_SPEC.md) — valid

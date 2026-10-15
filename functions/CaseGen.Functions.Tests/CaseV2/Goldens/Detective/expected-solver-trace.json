@@ -1,0 +1,84 @@
+{
+  "Correct": true,
+  "Score": 1,
+  "CulpritScore": 0,
+  "EvidenceScore": 0,
+  "AnalysisScore": 0,
+  "QuestionsScore": 0,
+  "Attempt": {
+    "suspectId": "suspect.culprit",
+    "evidenceIds": [
+      "asset.initial_a",
+      "asset.result_a"
+    ],
+    "analysisIds": [
+      "asset.initial_a:MetadataAnalysis"
+    ],
+    "observationIds": [
+      "observation.initial_a",
+      "observation.forensic_a"
+    ],
+    "answers": [],
+    "rationale": null
+  },
+  "LogicalProofPassed": true,
+  "NarrativeSimulationPassed": true,
+  "Trace": {
+    "Entries": [
+      {
+        "Sequence": 1,
+        "Kind": 0,
+        "ActionId": "inspect:asset.initial_a",
+        "TargetId": "asset.initial_a",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 2,
+        "Kind": 2,
+        "ActionId": "action.analysis_a",
+        "TargetId": "asset.initial_a",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [
+          "asset.result_a"
+        ],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 3,
+        "Kind": 0,
+        "ActionId": "inspect:asset.result_a",
+        "TargetId": "asset.result_a",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 4,
+        "Kind": 4,
+        "ActionId": "accuse:suspect.culprit",
+        "TargetId": "suspect.culprit",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": [
+          "observation.initial_a",
+          "observation.forensic_a"
+        ]
+      }
+    ],
+    "FinalReachableSourceIds": [],
+    "FinalReachableObservationIds": [],
+    "LogicalProofPassed": true,
+    "NarrativeSimulationPassed": true
+  },
+  "Notes": null
+}

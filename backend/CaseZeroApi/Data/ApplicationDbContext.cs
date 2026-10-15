@@ -31,6 +31,7 @@ namespace CaseZeroApi.Data
         
         // P86: Audit Log
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<UserRankHistory> UserRankHistories { get; set; }
 
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
@@ -120,6 +121,15 @@ namespace CaseZeroApi.Data
                 .WithMany(u => u.CaseSubmissionsEvaluated)
                 .HasForeignKey(cs => cs.EvaluatedByUserId)
                 .IsRequired(false);
+
+            // Configure UserRankHistory
+            builder.Entity<UserRankHistory>()
+                .HasOne(h => h.User)
+                .WithMany()
+                .HasForeignKey(h => h.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            builder.Entity<UserRankHistory>()
+                .HasIndex(h => new { h.UserId, h.ChangedAt });
 
             // Configure Suspect
             builder.Entity<Suspect>()

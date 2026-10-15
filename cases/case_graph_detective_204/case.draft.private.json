@@ -1,0 +1,3473 @@
+{
+  "CaseId": "case_graph_detective_204",
+  "Request": {
+    "caseId": "case_graph_detective_204",
+    "title": null,
+    "theme": "warehouse inventory diversion with badge records and file metadata",
+    "location": null,
+    "difficulty": "Detective",
+    "requiredRank": "Detective",
+    "language": "en-US",
+    "seed": 204,
+    "writeToDisk": true
+  },
+  "Metadata": {
+    "title": "The Missing Pallet Ledger",
+    "description": "A mid-size fulfillment warehouse reports a quiet inventory diversion masked as routine cycle counts. Badge access logs and file metadata suggest someone used ordinary systems and a small procedural gap to walk product out.",
+    "location": "Daly City, California, USA",
+    "incidentDate": "2026-03-18T03:12:00-07:00",
+    "openedAt": "2026-03-18T10:26:00-07:00",
+    "difficulty": "Detective",
+    "requiredRank": "Detective",
+    "category": "Theft / Inventory Diversion",
+    "briefing": "Overnight counts at a Daly City warehouse don\u2019t reconcile, but the paperwork looks clean. Your job is to determine whether it\u2019s error or diversion\u2014and who used routine access controls to make it happen.",
+    "tags": [
+      "warehouse",
+      "inventory",
+      "badge-access",
+      "file-metadata",
+      "diversion"
+    ],
+    "victim": null
+  },
+  "CulpritId": "suspect.linh_tran",
+  "Blueprint": {
+    "crimeMechanism": "Linh Tran used after-hours badge access to enter the office mezzanine and log into a shared workstation that was left signed in to a generic warehouse reporting account. She exported a pick-face variance report, edited the cycle-count adjustment spreadsheet to reclassify a pallet of high-value handheld scanners as \u0027damaged/returns\u0027 and reduce on-hand counts, then submitted the adjustment via the WMS before the 04:00 auto-post window. She then used a legitimate dock-side \u0027returns cage\u0027 process to move the pallet to an area where outbound carriers don\u2019t require a standard bill of lading scan, and arranged a same-day pickup under a small local courier account. Concealment relied on ordinary process gaps: generic account sessions, routine cycle-count variance edits, and a returns-cage exception lane with weaker paperwork requirements.",
+    "culpritObjective": "She needed one pallet of handheld scanners diverted before the quarterly inventory audit pre-count began the next evening, when tighter controls and supervised counts would have made adjustments conspicuous; the theft was timed to exploit the last low-scrutiny overnight window.",
+    "caseHook": "The only anomaly at opening is that the cycle-count spreadsheet looks properly approved, yet its file metadata shows it was edited after the approval time\u2014during an after-hours badge entry.",
+    "locale": {
+      "timeZoneId": "America/Los_Angeles",
+      "utcOffset": "-07:00",
+      "policeAgency": "Daly City Police Department",
+      "investigatorName": "Det. Alana Ruiz",
+      "investigatorEmail": "alana.ruiz@dalycitypd.gov"
+    },
+    "incidentSequence": [
+      {
+        "id": "event.prep_badge_entry",
+        "time": "2026-03-18T02:41:18-07:00",
+        "event": "Linh Tran badged into the warehouse employee entrance and proceeded to the office mezzanine.",
+        "publicDescription": "After-hours badge access records show an employee entered through the staff entrance at 02:41.",
+        "visibility": "public",
+        "source": "sensor",
+        "verified": true,
+        "importance": "medium",
+        "causalRole": "opportunity"
+      },
+      {
+        "id": "event.workstation_session",
+        "time": "2026-03-18T02:55:09-07:00",
+        "event": "Using a mezzanine workstation already authenticated to the generic reporting account, Linh generated/exported the variance report and opened the cycle-count adjustment spreadsheet.",
+        "publicDescription": null,
+        "visibility": "private",
+        "source": "investigation",
+        "verified": false,
+        "importance": "high",
+        "causalRole": "setup"
+      },
+      {
+        "id": "event.edit_spreadsheet",
+        "time": "2026-03-18T03:06:44-07:00",
+        "event": "Linh edited the cycle-count adjustment spreadsheet entries for a specific pallet of handheld scanners to move it into \u0027damaged/returns\u0027 disposition and reduce on-hand totals.",
+        "publicDescription": "The cycle-count adjustment spreadsheet shows edits during the 03:00 hour despite appearing approved.",
+        "visibility": "public",
+        "source": "document",
+        "verified": true,
+        "importance": "high",
+        "causalRole": "action"
+      },
+      {
+        "id": "event.wms_post",
+        "time": "2026-03-18T03:12:00-07:00",
+        "event": "The WMS accepted and posted the adjustment batch, making the on-hand totals match the altered spreadsheet.",
+        "publicDescription": "The WMS shows an adjustment batch posted at 03:12 that changed on-hand counts for the affected SKU.",
+        "visibility": "public",
+        "source": "digital",
+        "verified": true,
+        "importance": "critical",
+        "causalRole": "criticalIncident"
+      },
+      {
+        "id": "event.move_to_returns_cage",
+        "time": "2026-03-18T03:28:33-07:00",
+        "event": "Linh used the returns-cage exception lane to move the pallet into the outbound returns staging area without a standard outbound shipment scan.",
+        "publicDescription": null,
+        "visibility": "private",
+        "source": "investigation",
+        "verified": false,
+        "importance": "high",
+        "causalRole": "concealment"
+      },
+      {
+        "id": "event.discovery",
+        "time": "2026-03-18T09:47:10-07:00",
+        "event": "Day shift noticed the pallet location empty and escalated to management when the cycle-count paperwork did not match physical staging expectations.",
+        "publicDescription": "At 09:47, day shift reported a high-value pallet location empty and requested a reconciliation review.",
+        "visibility": "public",
+        "source": "witness",
+        "verified": true,
+        "importance": "high",
+        "causalRole": "discovery"
+      }
+    ],
+    "clueLadder": [
+      {
+        "id": "clue.context_variance",
+        "discovery": "A reconciliation email thread dated 2026-03-18 references SKU HHS-4102 \u0027handheld scanners\u0027 showing a -48 unit variance after the 03:12 adjustment batch.",
+        "inference": "The case centers on a specific high-value SKU and a narrow overnight adjustment window rather than broad shrink.",
+        "supportsSuspectId": null,
+        "strength": "context",
+        "sourceType": "document",
+        "role": "context"
+      },
+      {
+        "id": "clue.identity_badge_linh",
+        "discovery": "Badge log entry \u0027TRN-L\u0027 shows badge ID 004982 opened Door E-Staff at 2026-03-18 02:41:18 and Door MZ-Office at 2026-03-18 02:49:02.",
+        "inference": "Badge ID 004982 had after-hours access to the office mezzanine where reporting and adjustment documents are typically handled.",
+        "supportsSuspectId": "suspect.linh_tran",
+        "strength": "supporting",
+        "sourceType": "digital",
+        "role": "identity"
+      },
+      {
+        "id": "clue.action_wms_batch",
+        "discovery": "WMS audit log shows adjustment batch \u0027ADJ-20260318-0312\u0027 posted at 2026-03-18 03:12:00 and initiated by user \u0027rpt-floor\u0027 from terminal name \u0027MZ-PC-03\u0027.",
+        "inference": "A specific batch and opaque initiator identity (user/terminal) exist that can be traced independently of badge records.",
+        "supportsSuspectId": null,
+        "strength": "supporting",
+        "sourceType": "digital",
+        "role": "action"
+      },
+      {
+        "id": "clue.action_file_metadata",
+        "discovery": "The spreadsheet \u0027CycleCount_Adjustments_2026-03-18.xlsx\u0027 on the shared drive shows \u0027Last Modified: 2026-03-18 03:06:44\u0027 and \u0027Last Modified By: LINH.T\u0027 in its file properties.",
+        "inference": "The adjustment document was edited at a time consistent with the overnight activity and by a specific account identity that can be cross-checked against system actions.",
+        "supportsSuspectId": "suspect.linh_tran",
+        "strength": "supporting",
+        "sourceType": "document",
+        "role": "action"
+      },
+      {
+        "id": "clue.forensic_session_link",
+        "discovery": "Forensic analysis of MZ-PC-03 shows Windows Event Log entry \u0027Microsoft-Windows-Security-Auditing 4624\u0027 with Logon ID 0x3F2A9 for user LINH.T at 2026-03-18 02:54:58 and WMS client log line \u0027SessionToken=7c1b9a2e\u0027 at 2026-03-18 03:11:41 on the same machine.",
+        "inference": "The workstation and WMS session token associated with the 03:12 batch can be tied to Linh\u0027s authenticated session on MZ-PC-03.",
+        "supportsSuspectId": "suspect.linh_tran",
+        "strength": "decisive",
+        "sourceType": "forensic",
+        "role": "forensicAttribution"
+      },
+      {
+        "id": "clue.benefit_courier_pickup",
+        "discovery": "Gate log lists \u0027Bay 2 pickup\u0027 for courier \u0027Peninsula SameDay\u0027 at 2026-03-18 04:06 with reference \u0027RET-EXC-1187\u0027 and contact phone ending -5521.",
+        "inference": "A physical removal event occurred shortly after the adjustment, consistent with an exception returns pathway rather than normal outbound shipping.",
+        "supportsSuspectId": null,
+        "strength": "supporting",
+        "sourceType": "document",
+        "role": "benefit"
+      }
+    ],
+    "redHerrings": [
+      {
+        "suspectId": "suspect.owen_delgado",
+        "suspicion": "As shipping supervisor, Owen could alter outbound paperwork or stage pallets to leave through the dock without scrutiny.",
+        "verification": "BOL packet scan log shows Owen\u0027s supervisor login \u0027ODEL\u0027 recorded at Dock Office kiosk at 2026-03-18 08:14:22 and 08:37:05, with no entries between 01:00 and 06:00.",
+        "resolution": "His recorded system activity starts well after the overnight adjustment and does not account for the after-hours office access or the 03:12 batch initiation."
+      },
+      {
+        "suspectId": "suspect.maya_kline",
+        "suspicion": "As inventory control lead, Maya\u0027s approval authority could allow her to legitimize an improper cycle-count adjustment.",
+        "verification": "Email header on \u0027Re: Cycle Count 3/18 approvals\u0027 shows message-id \u003Ccc0318-approval@warehouse.local\u003E sent from MAYA.K at 2026-03-18 01:22:09 with the attached spreadsheet hash \u0027SHA256 9b1d...e20f\u0027 differing from the shared drive file hash \u0027SHA256 4c7a...19d2\u0027 recorded at 2026-03-18 03:15:02 by the file server audit.",
+        "resolution": "The approval email references an earlier attachment version, consistent with a later modification occurring after her approval rather than her authoring the final altered file."
+      },
+      {
+        "suspectId": "suspect.rafael_ibarra",
+        "suspicion": "As the overnight guard, Rafael could wave through an unauthorized pickup or falsify the gate log.",
+        "verification": "Security shift roster shows guard \u0027R. Ibarra\u0027 assigned 22:00\u201306:00 and a separate dock camera motion log lists activity at Gatehouse window at 2026-03-18 04:05\u201304:08 coinciding with the \u0027Peninsula SameDay\u0027 entry.",
+        "resolution": "The records indicate he was present and logging a pickup, but they do not connect him to the internal WMS adjustment, mezzanine workstation activity, or file modifications."
+      }
+    ]
+  },
+  "CaseGraph": {
+    "Origin": "Generated",
+    "Entities": [
+      {
+        "id": "person.linh_tran",
+        "kind": "Person",
+        "displayName": "Linh Tran",
+        "attributes": {}
+      },
+      {
+        "id": "person.maya_kline",
+        "kind": "Person",
+        "displayName": "Maya Kline",
+        "attributes": {}
+      },
+      {
+        "id": "person.owen_delgado",
+        "kind": "Person",
+        "displayName": "Owen Delgado",
+        "attributes": {}
+      },
+      {
+        "id": "person.rafael_ibarra",
+        "kind": "Person",
+        "displayName": "Rafael Ibarra",
+        "attributes": {}
+      },
+      {
+        "id": "organization.case_context",
+        "kind": "Organization",
+        "displayName": "The Missing Pallet Ledger",
+        "attributes": {}
+      },
+      {
+        "id": "document.roseway_access_export_door_e_staff_20260318",
+        "kind": "Document",
+        "displayName": "Roseway 3PL Badge Reader Export \u2014 Staff Entrance \u0026 Mezzanine Office Door (03/18) \u2014 document.roseway_access_export_door_e_staff_20260318",
+        "attributes": {}
+      },
+      {
+        "id": "document.roseway_access_export_door_mz_office_20260318",
+        "kind": "Document",
+        "displayName": "Roseway 3PL Badge Reader Export \u2014 Staff Entrance \u0026 Mezzanine Office Door (03/18) \u2014 document.roseway_access_export_door_mz_office_20260318",
+        "attributes": {}
+      },
+      {
+        "id": "document.wms_audit_export_adj_20260318_0312",
+        "kind": "Document",
+        "displayName": "WMS Audit Export \u2014 Adjustment Batch ADJ-20260318-0312 (MZ-PC-03) \u2014 document.wms_audit_export_adj_20260318_0312",
+        "attributes": {}
+      },
+      {
+        "id": "account.wms_user_rpt_floor",
+        "kind": "Account",
+        "displayName": "WMS Audit Export \u2014 Adjustment Batch ADJ-20260318-0312 (MZ-PC-03) \u2014 account.wms_user_rpt_floor",
+        "attributes": {}
+      },
+      {
+        "id": "document.chat_export_ops_ic_channel_20260318_0000_0600",
+        "kind": "Document",
+        "displayName": "Chat Export \u2014 Night Ops/IC Messages Around Auto-Post Window (03/18) \u2014 document.chat_export_ops_ic_channel_20260318_0000_0600",
+        "attributes": {}
+      },
+      {
+        "id": "document.email_export_reconciliation_thread_hhs_4102_20260318",
+        "kind": "Document",
+        "displayName": "Email Export \u2014 Reconciliation Thread Referencing HHS-4102 Variance (03/18) \u2014 document.email_export_reconciliation_thread_hhs_4102_20260318",
+        "attributes": {}
+      },
+      {
+        "id": "object.attachment_variance_snapshot_20260318_xlsx",
+        "kind": "PhysicalObject",
+        "displayName": "Email Export \u2014 Reconciliation Thread Referencing HHS-4102 Variance (03/18) \u2014 object.attachment_variance_snapshot_20260318_xlsx",
+        "attributes": {}
+      },
+      {
+        "id": "document.gate_log_export_bay2_20260318_0000_0600",
+        "kind": "Document",
+        "displayName": "Gatehouse/Gate Log Export \u2014 Bay 2 Courier Pickup RET-EXC-1187 (04:06) \u2014 document.gate_log_export_bay2_20260318_0000_0600",
+        "attributes": {}
+      },
+      {
+        "id": "document.medical_report_dock1_spill_eval_20260318",
+        "kind": "Document",
+        "displayName": "Medical Report \u2014 Dock 1 Slip/Spill Evaluation (Night Shift, 03/18) \u2014 document.medical_report_dock1_spill_eval_20260318",
+        "attributes": {}
+      },
+      {
+        "id": "device.mz_pc_03",
+        "kind": "Device",
+        "displayName": "Medical Report \u2014 Dock 1 Slip/Spill Evaluation (Night Shift, 03/18) \u2014 device.mz_pc_03",
+        "attributes": {}
+      },
+      {
+        "id": "object.surveillance_still_mezzanine_corridor_20260318_0249",
+        "kind": "PhysicalObject",
+        "displayName": "Surveillance Still \u2014 Mezzanine Office Corridor Near Door MZ-Office (02:49) \u2014 object.surveillance_still_mezzanine_corridor_20260318_0249",
+        "attributes": {}
+      },
+      {
+        "id": "document.witness_statement_ops_manager_variance_context_20260319",
+        "kind": "Document",
+        "displayName": "Witness Statement \u2014 Ops Manager on HHS-4102 Variance \u0026 Overnight Controls \u2014 document.witness_statement_ops_manager_variance_context_20260319",
+        "attributes": {}
+      }
+    ],
+    "SuspectReferences": [
+      {
+        "suspectId": "suspect.linh_tran",
+        "personEntityId": "person.linh_tran"
+      },
+      {
+        "suspectId": "suspect.maya_kline",
+        "personEntityId": "person.maya_kline"
+      },
+      {
+        "suspectId": "suspect.owen_delgado",
+        "personEntityId": "person.owen_delgado"
+      },
+      {
+        "suspectId": "suspect.rafael_ibarra",
+        "personEntityId": "person.rafael_ibarra"
+      }
+    ],
+    "Facts": [
+      {
+        "Id": "fact.clue_action_file_metadata",
+        "Predicate": "action_action_file_metadata",
+        "SubjectId": "person.linh_tran",
+        "ObjectId": null,
+        "LiteralValue": "The spreadsheet \u0027CycleCount_Adjustments_2026-03-18.xlsx\u0027 on the shared drive shows \u0027Last Modified: 2026-03-18 03:06:44\u0027 and \u0027Last Modified By: LINH.T\u0027 in its file properties.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_action_wms_batch",
+        "Predicate": "action_action_wms_batch",
+        "SubjectId": "organization.case_context",
+        "ObjectId": null,
+        "LiteralValue": "WMS audit log shows adjustment batch \u0027ADJ-20260318-0312\u0027 posted at 2026-03-18 03:12:00 and initiated by user \u0027rpt-floor\u0027 from terminal name \u0027MZ-PC-03\u0027.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_benefit_courier_pickup",
+        "Predicate": "benefit_benefit_courier_pickup",
+        "SubjectId": "organization.case_context",
+        "ObjectId": null,
+        "LiteralValue": "Gate log lists \u0027Bay 2 pickup\u0027 for courier \u0027Peninsula SameDay\u0027 at 2026-03-18 04:06 with reference \u0027RET-EXC-1187\u0027 and contact phone ending -5521.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_context_variance",
+        "Predicate": "context_context_variance",
+        "SubjectId": "organization.case_context",
+        "ObjectId": null,
+        "LiteralValue": "A reconciliation email thread dated 2026-03-18 references SKU HHS-4102 \u0027handheld scanners\u0027 showing a -48 unit variance after the 03:12 adjustment batch.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_forensic_session_link",
+        "Predicate": "forensicAttribution_forensic_session_link",
+        "SubjectId": "person.linh_tran",
+        "ObjectId": null,
+        "LiteralValue": "Forensic analysis of MZ-PC-03 shows Windows Event Log entry \u0027Microsoft-Windows-Security-Auditing 4624\u0027 with Logon ID 0x3F2A9 for user LINH.T at 2026-03-18 02:54:58 and WMS client log line \u0027SessionToken=7c1b9a2e\u0027 at 2026-03-18 03:11:41 on the same machine.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.clue_identity_badge_linh",
+        "Predicate": "identity_identity_badge_linh",
+        "SubjectId": "person.linh_tran",
+        "ObjectId": null,
+        "LiteralValue": "Badge log entry \u0027TRN-L\u0027 shows badge ID 004982 opened Door E-Staff at 2026-03-18 02:41:18 and Door MZ-Office at 2026-03-18 02:49:02.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.culprit_linh_tran",
+        "Predicate": "isCulprit",
+        "SubjectId": "person.linh_tran",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.proof_bridge_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "Predicate": "proofBridge_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "SubjectId": "person.linh_tran",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.proof_join_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "Predicate": "forensicJoin_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "SubjectId": "person.linh_tran",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.proof_bridge_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "Predicate": "proofBridge_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "SubjectId": "person.linh_tran",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.proof_join_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "Predicate": "forensicJoin_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "SubjectId": "person.linh_tran",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.proof_bridge_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "Predicate": "proofBridge_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "SubjectId": "person.linh_tran",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.proof_join_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "Predicate": "forensicJoin_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "SubjectId": "person.linh_tran",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_suspicion_maya_kline",
+        "Predicate": "decoySuspicion",
+        "SubjectId": "person.maya_kline",
+        "ObjectId": null,
+        "LiteralValue": "As inventory control lead, Maya\u0027s approval authority could allow her to legitimize an improper cycle-count adjustment.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_verification_maya_kline",
+        "Predicate": "decoyVerification",
+        "SubjectId": "person.maya_kline",
+        "ObjectId": null,
+        "LiteralValue": "Email header on \u0027Re: Cycle Count 3/18 approvals\u0027 shows message-id \u003Ccc0318-approval@warehouse.local\u003E sent from MAYA.K at 2026-03-18 01:22:09 with the attached spreadsheet hash \u0027SHA256 9b1d...e20f\u0027 differing from the shared drive file hash \u0027SHA256 4c7a...19d2\u0027 recorded at 2026-03-18 03:15:02 by the file server audit.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.excluded_maya_kline",
+        "Predicate": "excludedFromCrime",
+        "SubjectId": "person.maya_kline",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_suspicion_owen_delgado",
+        "Predicate": "decoySuspicion",
+        "SubjectId": "person.owen_delgado",
+        "ObjectId": null,
+        "LiteralValue": "As shipping supervisor, Owen could alter outbound paperwork or stage pallets to leave through the dock without scrutiny.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_verification_owen_delgado",
+        "Predicate": "decoyVerification",
+        "SubjectId": "person.owen_delgado",
+        "ObjectId": null,
+        "LiteralValue": "BOL packet scan log shows Owen\u0027s supervisor login \u0027ODEL\u0027 recorded at Dock Office kiosk at 2026-03-18 08:14:22 and 08:37:05, with no entries between 01:00 and 06:00.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.excluded_owen_delgado",
+        "Predicate": "excludedFromCrime",
+        "SubjectId": "person.owen_delgado",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_suspicion_rafael_ibarra",
+        "Predicate": "decoySuspicion",
+        "SubjectId": "person.rafael_ibarra",
+        "ObjectId": null,
+        "LiteralValue": "As the overnight guard, Rafael could wave through an unauthorized pickup or falsify the gate log.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.decoy_verification_rafael_ibarra",
+        "Predicate": "decoyVerification",
+        "SubjectId": "person.rafael_ibarra",
+        "ObjectId": null,
+        "LiteralValue": "Security shift roster shows guard \u0027R. Ibarra\u0027 assigned 22:00\u201306:00 and a separate dock camera motion log lists activity at Gatehouse window at 2026-03-18 04:05\u201304:08 coinciding with the \u0027Peninsula SameDay\u0027 entry.",
+        "LiteralType": "String",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      },
+      {
+        "Id": "fact.excluded_rafael_ibarra",
+        "Predicate": "excludedFromCrime",
+        "SubjectId": "person.rafael_ibarra",
+        "ObjectId": null,
+        "LiteralValue": "true",
+        "LiteralType": "Boolean",
+        "LiteralUnit": null,
+        "EventId": null,
+        "Visibility": "Public",
+        "TruthStatus": "Confirmed"
+      }
+    ],
+    "Events": [],
+    "Sources": [
+      {
+        "Id": "asset.access_log",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.action_file_metadata_access_log",
+          "observation.identity_badge_linh_access_log",
+          "observation.decoy_verification_rafael_ibarra_access_log"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_action_file_metadata",
+          "fact.clue_identity_badge_linh",
+          "fact.decoy_verification_rafael_ibarra"
+        ],
+        "EvidentiaryOriginId": "asset.access_log",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.bank_statement",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.action_wms_batch_bank_statement",
+          "observation.decoy_verification_owen_delgado_bank_statement"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_action_wms_batch",
+          "fact.decoy_verification_owen_delgado"
+        ],
+        "EvidentiaryOriginId": "asset.bank_statement",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.chat_export",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.context_variance_chat_export",
+          "observation.decoy_suspicion_owen_delgado_chat_export"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_context_variance",
+          "fact.decoy_suspicion_owen_delgado"
+        ],
+        "EvidentiaryOriginId": "asset.chat_export",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.email_export",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.context_variance_email_export",
+          "observation.decoy_verification_maya_kline_email_export"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_context_variance",
+          "fact.decoy_verification_maya_kline"
+        ],
+        "EvidentiaryOriginId": "asset.email_export",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.gps_track",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.benefit_courier_pickup_gps_track",
+          "observation.decoy_suspicion_rafael_ibarra_gps_track"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_benefit_courier_pickup",
+          "fact.decoy_suspicion_rafael_ibarra"
+        ],
+        "EvidentiaryOriginId": "asset.gps_track",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.medical_report",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.context_variance_medical_report",
+          "observation.decoy_suspicion_rafael_ibarra_medical_report"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_context_variance",
+          "fact.decoy_suspicion_rafael_ibarra"
+        ],
+        "EvidentiaryOriginId": "asset.medical_report",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.surveillance_still",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.identity_badge_linh_surveillance_still",
+          "observation.decoy_suspicion_owen_delgado_surveillance_still"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_identity_badge_linh",
+          "fact.decoy_suspicion_owen_delgado"
+        ],
+        "EvidentiaryOriginId": "asset.surveillance_still",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.witness_statement",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.context_variance_witness_statement",
+          "observation.decoy_suspicion_maya_kline_witness_statement"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_context_variance",
+          "fact.decoy_suspicion_maya_kline"
+        ],
+        "EvidentiaryOriginId": "asset.witness_statement",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "Kind": "Asset",
+        "ObservationIds": [
+          "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        ],
+        "ClaimedFactIds": [
+          "fact.clue_forensic_session_link"
+        ],
+        "EvidentiaryOriginId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "AvailableAt": "AfterForensic",
+        "RevealPrerequisiteIds": [
+          "action.analysis_medical_report_metadataanalysis"
+        ],
+        "Required": false
+      },
+      {
+        "Id": "email.inventory_mailbox_context",
+        "Kind": "Email",
+        "ObservationIds": [],
+        "ClaimedFactIds": [],
+        "EvidentiaryOriginId": "email.inventory_mailbox_context",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "email.ops_manager_preservation_notice",
+        "Kind": "Email",
+        "ObservationIds": [],
+        "ClaimedFactIds": [],
+        "EvidentiaryOriginId": "email.ops_manager_preservation_notice",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "email.security_rounds_context",
+        "Kind": "Email",
+        "ObservationIds": [],
+        "ClaimedFactIds": [],
+        "EvidentiaryOriginId": "email.security_rounds_context",
+        "AvailableAt": "Initial",
+        "RevealPrerequisiteIds": [],
+        "Required": false
+      },
+      {
+        "Id": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "Kind": "Email",
+        "ObservationIds": [],
+        "ClaimedFactIds": [],
+        "EvidentiaryOriginId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "AvailableAt": "AfterForensic",
+        "RevealPrerequisiteIds": [
+          "action.analysis_medical_report_metadataanalysis"
+        ],
+        "Required": false
+      }
+    ],
+    "AssetSpecs": [
+      {
+        "Id": "asset.access_log",
+        "ArchetypeId": "access_log",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.action_file_metadata_access_log",
+          "observation.decoy_verification_rafael_ibarra_access_log",
+          "observation.identity_badge_linh_access_log"
+        ],
+        "ContainedObjectIds": [
+          "document.roseway_access_export_door_e_staff_20260318",
+          "document.roseway_access_export_door_mz_office_20260318"
+        ],
+        "ContainedObjectTypes": {
+          "document.roseway_access_export_door_e_staff_20260318": "AccessRecord",
+          "document.roseway_access_export_door_mz_office_20260318": "AccessRecord"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "AccessLog"
+      },
+      {
+        "Id": "asset.bank_statement",
+        "ArchetypeId": "bank_statement",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.action_wms_batch_bank_statement",
+          "observation.decoy_verification_owen_delgado_bank_statement"
+        ],
+        "ContainedObjectIds": [
+          "document.wms_audit_export_adj_20260318_0312",
+          "account.wms_user_rpt_floor"
+        ],
+        "ContainedObjectTypes": {
+          "document.wms_audit_export_adj_20260318_0312": "FinancialRecord",
+          "account.wms_user_rpt_floor": "FinancialRecord"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "BankStatement"
+      },
+      {
+        "Id": "asset.chat_export",
+        "ArchetypeId": "chat_export",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.context_variance_chat_export",
+          "observation.decoy_suspicion_owen_delgado_chat_export"
+        ],
+        "ContainedObjectIds": [
+          "document.chat_export_ops_ic_channel_20260318_0000_0600"
+        ],
+        "ContainedObjectTypes": {
+          "document.chat_export_ops_ic_channel_20260318_0000_0600": "CommunicationRecord"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "ChatExport"
+      },
+      {
+        "Id": "asset.email_export",
+        "ArchetypeId": "email_export",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.context_variance_email_export",
+          "observation.decoy_verification_maya_kline_email_export"
+        ],
+        "ContainedObjectIds": [
+          "document.email_export_reconciliation_thread_hhs_4102_20260318",
+          "object.attachment_variance_snapshot_20260318_xlsx"
+        ],
+        "ContainedObjectTypes": {
+          "document.email_export_reconciliation_thread_hhs_4102_20260318": "CommunicationRecord",
+          "object.attachment_variance_snapshot_20260318_xlsx": "CommunicationRecord"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "EmailExport"
+      },
+      {
+        "Id": "asset.gps_track",
+        "ArchetypeId": "gps_track",
+        "AssetType": "digital",
+        "ObservationIds": [
+          "observation.benefit_courier_pickup_gps_track",
+          "observation.decoy_suspicion_rafael_ibarra_gps_track"
+        ],
+        "ContainedObjectIds": [
+          "document.gate_log_export_bay2_20260318_0000_0600"
+        ],
+        "ContainedObjectTypes": {
+          "document.gate_log_export_bay2_20260318_0000_0600": "LocationTrack"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "GpsTrack"
+      },
+      {
+        "Id": "asset.medical_report",
+        "ArchetypeId": "medical_report",
+        "AssetType": "document",
+        "ObservationIds": [
+          "observation.context_variance_medical_report",
+          "observation.decoy_suspicion_rafael_ibarra_medical_report"
+        ],
+        "ContainedObjectIds": [
+          "document.medical_report_dock1_spill_eval_20260318",
+          "device.mz_pc_03"
+        ],
+        "ContainedObjectTypes": {
+          "document.medical_report_dock1_spill_eval_20260318": "Document",
+          "device.mz_pc_03": "Document"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "MedicalReport"
+      },
+      {
+        "Id": "asset.surveillance_still",
+        "ArchetypeId": "surveillance_still",
+        "AssetType": "photo",
+        "ObservationIds": [
+          "observation.decoy_suspicion_owen_delgado_surveillance_still",
+          "observation.identity_badge_linh_surveillance_still"
+        ],
+        "ContainedObjectIds": [
+          "object.surveillance_still_mezzanine_corridor_20260318_0249"
+        ],
+        "ContainedObjectTypes": {
+          "object.surveillance_still_mezzanine_corridor_20260318_0249": "Image"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "Photo"
+      },
+      {
+        "Id": "asset.witness_statement",
+        "ArchetypeId": "witness_statement",
+        "AssetType": "document",
+        "ObservationIds": [
+          "observation.context_variance_witness_statement",
+          "observation.decoy_suspicion_maya_kline_witness_statement"
+        ],
+        "ContainedObjectIds": [
+          "document.witness_statement_ops_manager_variance_context_20260319"
+        ],
+        "ContainedObjectTypes": {
+          "document.witness_statement_ops_manager_variance_context_20260319": "Document"
+        },
+        "Visibility": "Initial",
+        "LayoutId": "WitnessStatement"
+      }
+    ],
+    "DecoyArcs": [
+      {
+        "SuspectId": "suspect.maya_kline",
+        "SuspicionObservationIds": [
+          "observation.decoy_suspicion_maya_kline_witness_statement"
+        ],
+        "VerificationObservationIds": [
+          "observation.decoy_verification_maya_kline_email_export"
+        ],
+        "ResolutionDerivationId": "derivation.exclude_maya_kline",
+        "MustBePlayerReachable": true
+      },
+      {
+        "SuspectId": "suspect.owen_delgado",
+        "SuspicionObservationIds": [
+          "observation.decoy_suspicion_owen_delgado_chat_export",
+          "observation.decoy_suspicion_owen_delgado_surveillance_still"
+        ],
+        "VerificationObservationIds": [
+          "observation.decoy_verification_owen_delgado_bank_statement"
+        ],
+        "ResolutionDerivationId": "derivation.exclude_owen_delgado",
+        "MustBePlayerReachable": true
+      },
+      {
+        "SuspectId": "suspect.rafael_ibarra",
+        "SuspicionObservationIds": [
+          "observation.decoy_suspicion_rafael_ibarra_gps_track",
+          "observation.decoy_suspicion_rafael_ibarra_medical_report"
+        ],
+        "VerificationObservationIds": [
+          "observation.decoy_verification_rafael_ibarra_access_log"
+        ],
+        "ResolutionDerivationId": "derivation.exclude_rafael_ibarra",
+        "MustBePlayerReachable": true
+      }
+    ],
+    "ForensicTransforms": [
+      {
+        "Id": "forensic.medical_report_metadataanalysis",
+        "MethodId": "MetadataAnalysis",
+        "InputAssetId": "asset.medical_report",
+        "InputObjectId": "document.medical_report_dock1_spill_eval_20260318",
+        "ReferenceSampleObjectId": null,
+        "ChainOfCustodyObservationId": "observation.context_variance_medical_report",
+        "ProducedObservationIds": [
+          "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        ],
+        "ProducedProperties": [
+          "DeviceCorrelation",
+          "TimestampCorrelation"
+        ],
+        "LimitationKeys": [
+          "operator_not_proven",
+          "metadata_can_be_modified"
+        ],
+        "ResultAssetId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "ResultEmailId": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "ResultLayoutId": "ForensicReport"
+      }
+    ],
+    "Observations": [
+      {
+        "Id": "observation.action_file_metadata_access_log",
+        "FactId": "fact.clue_action_file_metadata",
+        "SourceAssetId": "asset.access_log",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.action_wms_batch_bank_statement",
+        "FactId": "fact.clue_action_wms_batch",
+        "SourceAssetId": "asset.bank_statement",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.benefit_courier_pickup_gps_track",
+        "FactId": "fact.clue_benefit_courier_pickup",
+        "SourceAssetId": "asset.gps_track",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.context_variance_chat_export",
+        "FactId": "fact.clue_context_variance",
+        "SourceAssetId": "asset.chat_export",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.context_variance_email_export",
+        "FactId": "fact.clue_context_variance",
+        "SourceAssetId": "asset.email_export",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.context_variance_medical_report",
+        "FactId": "fact.clue_context_variance",
+        "SourceAssetId": "asset.medical_report",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.context_variance_witness_statement",
+        "FactId": "fact.clue_context_variance",
+        "SourceAssetId": "asset.witness_statement",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "FactId": "fact.clue_forensic_session_link",
+        "SourceAssetId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": "DeviceCorrelation"
+      },
+      {
+        "Id": "observation.identity_badge_linh_access_log",
+        "FactId": "fact.clue_identity_badge_linh",
+        "SourceAssetId": "asset.access_log",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.identity_badge_linh_surveillance_still",
+        "FactId": "fact.clue_identity_badge_linh",
+        "SourceAssetId": "asset.surveillance_still",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_suspicion_maya_kline_witness_statement",
+        "FactId": "fact.decoy_suspicion_maya_kline",
+        "SourceAssetId": "asset.witness_statement",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "Circumstantial",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_verification_maya_kline_email_export",
+        "FactId": "fact.decoy_verification_maya_kline",
+        "SourceAssetId": "asset.email_export",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_suspicion_owen_delgado_chat_export",
+        "FactId": "fact.decoy_suspicion_owen_delgado",
+        "SourceAssetId": "asset.chat_export",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "Circumstantial",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_suspicion_owen_delgado_surveillance_still",
+        "FactId": "fact.decoy_suspicion_owen_delgado",
+        "SourceAssetId": "asset.surveillance_still",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "Circumstantial",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_verification_owen_delgado_bank_statement",
+        "FactId": "fact.decoy_verification_owen_delgado",
+        "SourceAssetId": "asset.bank_statement",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_suspicion_rafael_ibarra_gps_track",
+        "FactId": "fact.decoy_suspicion_rafael_ibarra",
+        "SourceAssetId": "asset.gps_track",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "Circumstantial",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_suspicion_rafael_ibarra_medical_report",
+        "FactId": "fact.decoy_suspicion_rafael_ibarra",
+        "SourceAssetId": "asset.medical_report",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "Circumstantial",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      },
+      {
+        "Id": "observation.decoy_verification_rafael_ibarra_access_log",
+        "FactId": "fact.decoy_verification_rafael_ibarra",
+        "SourceAssetId": "asset.access_log",
+        "EvidentiaryOriginId": null,
+        "Fidelity": "DirectRecord",
+        "Reliability": "Verified",
+        "Visibility": "Public",
+        "ForensicProperty": null
+      }
+    ],
+    "Derivations": [
+      {
+        "Id": "derivation.proof_bridge_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "PremiseIds": [
+          "observation.action_file_metadata_access_log"
+        ],
+        "Rule": "ActionAttribution",
+        "ConclusionFactId": "fact.proof_bridge_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "SupportsSuspectId": null,
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.proof_join_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "PremiseIds": [
+          "derivation.proof_bridge_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+          "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        ],
+        "Rule": "CrossSourceCorroboration",
+        "ConclusionFactId": "fact.proof_join_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "SupportsSuspectId": null,
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.culprit_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "PremiseIds": [
+          "derivation.proof_join_action_file_metadata_action_file_metadata_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        ],
+        "Rule": "ActionAttribution",
+        "ConclusionFactId": "fact.culprit_linh_tran",
+        "SupportsSuspectId": "suspect.linh_tran",
+        "IsCulpritConclusion": true
+      },
+      {
+        "Id": "derivation.proof_bridge_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "PremiseIds": [
+          "observation.identity_badge_linh_access_log"
+        ],
+        "Rule": "IdentityMatch",
+        "ConclusionFactId": "fact.proof_bridge_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "SupportsSuspectId": null,
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.proof_join_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "PremiseIds": [
+          "derivation.proof_bridge_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+          "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        ],
+        "Rule": "CrossSourceCorroboration",
+        "ConclusionFactId": "fact.proof_join_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "SupportsSuspectId": null,
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.culprit_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "PremiseIds": [
+          "derivation.proof_join_identity_badge_linh_identity_badge_linh_access_log_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        ],
+        "Rule": "ActionAttribution",
+        "ConclusionFactId": "fact.culprit_linh_tran",
+        "SupportsSuspectId": "suspect.linh_tran",
+        "IsCulpritConclusion": true
+      },
+      {
+        "Id": "derivation.proof_bridge_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "PremiseIds": [
+          "observation.identity_badge_linh_surveillance_still"
+        ],
+        "Rule": "IdentityMatch",
+        "ConclusionFactId": "fact.proof_bridge_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "SupportsSuspectId": null,
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.proof_join_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "PremiseIds": [
+          "derivation.proof_bridge_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+          "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        ],
+        "Rule": "CrossSourceCorroboration",
+        "ConclusionFactId": "fact.proof_join_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "SupportsSuspectId": null,
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.culprit_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "PremiseIds": [
+          "derivation.proof_join_identity_badge_linh_identity_badge_linh_surveillance_still_forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        ],
+        "Rule": "ActionAttribution",
+        "ConclusionFactId": "fact.culprit_linh_tran",
+        "SupportsSuspectId": "suspect.linh_tran",
+        "IsCulpritConclusion": true
+      },
+      {
+        "Id": "derivation.exclude_maya_kline",
+        "PremiseIds": [
+          "observation.decoy_verification_maya_kline_email_export"
+        ],
+        "Rule": "Exclusion",
+        "ConclusionFactId": "fact.excluded_maya_kline",
+        "SupportsSuspectId": "suspect.maya_kline",
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.exclude_owen_delgado",
+        "PremiseIds": [
+          "observation.decoy_verification_owen_delgado_bank_statement"
+        ],
+        "Rule": "Exclusion",
+        "ConclusionFactId": "fact.excluded_owen_delgado",
+        "SupportsSuspectId": "suspect.owen_delgado",
+        "IsCulpritConclusion": false
+      },
+      {
+        "Id": "derivation.exclude_rafael_ibarra",
+        "PremiseIds": [
+          "observation.decoy_verification_rafael_ibarra_access_log"
+        ],
+        "Rule": "Exclusion",
+        "ConclusionFactId": "fact.excluded_rafael_ibarra",
+        "SupportsSuspectId": "suspect.rafael_ibarra",
+        "IsCulpritConclusion": false
+      }
+    ],
+    "EventOrderConstraints": [],
+    "TravelWindows": [],
+    "Actions": [
+      {
+        "Id": "action.analysis_medical_report_metadataanalysis",
+        "Kind": "RequestAnalysis",
+        "CompletesAt": "AfterForensic",
+        "PrerequisiteSourceIds": [
+          "asset.medical_report"
+        ],
+        "PrerequisiteActionIds": [],
+        "RevealsSourceIds": [
+          "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+          "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        ],
+        "AnalysisId": "asset.medical_report:MetadataAnalysis",
+        "Required": true
+      }
+    ],
+    "RequiredSourceIds": [
+      "asset.access_log",
+      "asset.bank_statement",
+      "asset.gps_track"
+    ],
+    "RequiredAnalysisIds": [
+      "asset.medical_report:MetadataAnalysis"
+    ]
+  },
+  "EvidenceGraph": {
+    "Claims": [
+      {
+        "ClueId": "clue.context_variance",
+        "Discovery": "A reconciliation email thread dated 2026-03-18 references SKU HHS-4102 \u0027handheld scanners\u0027 showing a -48 unit variance after the 03:12 adjustment batch.",
+        "Inference": "The case centers on a specific high-value SKU and a narrow overnight adjustment window rather than broad shrink.",
+        "SupportsSuspectId": null,
+        "Strength": "context",
+        "SourceType": "document",
+        "Role": "context",
+        "AssetIds": [
+          "asset.email_export",
+          "asset.chat_export",
+          "asset.witness_statement",
+          "asset.medical_report"
+        ]
+      },
+      {
+        "ClueId": "clue.identity_badge_linh",
+        "Discovery": "Badge log entry \u0027TRN-L\u0027 shows badge ID 004982 opened Door E-Staff at 2026-03-18 02:41:18 and Door MZ-Office at 2026-03-18 02:49:02.",
+        "Inference": "Badge ID 004982 had after-hours access to the office mezzanine where reporting and adjustment documents are typically handled.",
+        "SupportsSuspectId": "suspect.linh_tran",
+        "Strength": "supporting",
+        "SourceType": "digital",
+        "Role": "identity",
+        "AssetIds": [
+          "asset.access_log",
+          "asset.surveillance_still"
+        ]
+      },
+      {
+        "ClueId": "clue.action_wms_batch",
+        "Discovery": "WMS audit log shows adjustment batch \u0027ADJ-20260318-0312\u0027 posted at 2026-03-18 03:12:00 and initiated by user \u0027rpt-floor\u0027 from terminal name \u0027MZ-PC-03\u0027.",
+        "Inference": "A specific batch and opaque initiator identity (user/terminal) exist that can be traced independently of badge records.",
+        "SupportsSuspectId": null,
+        "Strength": "supporting",
+        "SourceType": "digital",
+        "Role": "action",
+        "AssetIds": [
+          "asset.bank_statement"
+        ]
+      },
+      {
+        "ClueId": "clue.action_file_metadata",
+        "Discovery": "The spreadsheet \u0027CycleCount_Adjustments_2026-03-18.xlsx\u0027 on the shared drive shows \u0027Last Modified: 2026-03-18 03:06:44\u0027 and \u0027Last Modified By: LINH.T\u0027 in its file properties.",
+        "Inference": "The adjustment document was edited at a time consistent with the overnight activity and by a specific account identity that can be cross-checked against system actions.",
+        "SupportsSuspectId": "suspect.linh_tran",
+        "Strength": "supporting",
+        "SourceType": "document",
+        "Role": "action",
+        "AssetIds": [
+          "asset.access_log"
+        ]
+      },
+      {
+        "ClueId": "clue.forensic_session_link",
+        "Discovery": "Forensic analysis of MZ-PC-03 shows Windows Event Log entry \u0027Microsoft-Windows-Security-Auditing 4624\u0027 with Logon ID 0x3F2A9 for user LINH.T at 2026-03-18 02:54:58 and WMS client log line \u0027SessionToken=7c1b9a2e\u0027 at 2026-03-18 03:11:41 on the same machine.",
+        "Inference": "The workstation and WMS session token associated with the 03:12 batch can be tied to Linh\u0027s authenticated session on MZ-PC-03.",
+        "SupportsSuspectId": "suspect.linh_tran",
+        "Strength": "decisive",
+        "SourceType": "forensic",
+        "Role": "forensicAttribution",
+        "AssetIds": [
+          "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        ]
+      },
+      {
+        "ClueId": "clue.benefit_courier_pickup",
+        "Discovery": "Gate log lists \u0027Bay 2 pickup\u0027 for courier \u0027Peninsula SameDay\u0027 at 2026-03-18 04:06 with reference \u0027RET-EXC-1187\u0027 and contact phone ending -5521.",
+        "Inference": "A physical removal event occurred shortly after the adjustment, consistent with an exception returns pathway rather than normal outbound shipping.",
+        "SupportsSuspectId": null,
+        "Strength": "supporting",
+        "SourceType": "document",
+        "Role": "benefit",
+        "AssetIds": [
+          "asset.gps_track"
+        ]
+      }
+    ],
+    "RedHerrings": [
+      {
+        "SuspectId": "suspect.owen_delgado",
+        "Suspicion": "As shipping supervisor, Owen could alter outbound paperwork or stage pallets to leave through the dock without scrutiny.",
+        "Verification": "BOL packet scan log shows Owen\u0027s supervisor login \u0027ODEL\u0027 recorded at Dock Office kiosk at 2026-03-18 08:14:22 and 08:37:05, with no entries between 01:00 and 06:00.",
+        "Resolution": "His recorded system activity starts well after the overnight adjustment and does not account for the after-hours office access or the 03:12 batch initiation.",
+        "AssetIds": [
+          "asset.bank_statement"
+        ]
+      },
+      {
+        "SuspectId": "suspect.maya_kline",
+        "Suspicion": "As inventory control lead, Maya\u0027s approval authority could allow her to legitimize an improper cycle-count adjustment.",
+        "Verification": "Email header on \u0027Re: Cycle Count 3/18 approvals\u0027 shows message-id \u003Ccc0318-approval@warehouse.local\u003E sent from MAYA.K at 2026-03-18 01:22:09 with the attached spreadsheet hash \u0027SHA256 9b1d...e20f\u0027 differing from the shared drive file hash \u0027SHA256 4c7a...19d2\u0027 recorded at 2026-03-18 03:15:02 by the file server audit.",
+        "Resolution": "The approval email references an earlier attachment version, consistent with a later modification occurring after her approval rather than her authoring the final altered file.",
+        "AssetIds": [
+          "asset.email_export"
+        ]
+      },
+      {
+        "SuspectId": "suspect.rafael_ibarra",
+        "Suspicion": "As the overnight guard, Rafael could wave through an unauthorized pickup or falsify the gate log.",
+        "Verification": "Security shift roster shows guard \u0027R. Ibarra\u0027 assigned 22:00\u201306:00 and a separate dock camera motion log lists activity at Gatehouse window at 2026-03-18 04:05\u201304:08 coinciding with the \u0027Peninsula SameDay\u0027 entry.",
+        "Resolution": "The records indicate he was present and logging a pickup, but they do not connect him to the internal WMS adjustment, mezzanine workstation activity, or file modifications.",
+        "AssetIds": [
+          "asset.access_log"
+        ]
+      }
+    ]
+  },
+  "SuspectStubs": [
+    {
+      "id": "suspect.linh_tran",
+      "name": "Linh Tran",
+      "role": "Warehouse systems analyst who maintains the WMS templates and shared drive permissions.",
+      "isCulprit": true
+    },
+    {
+      "id": "suspect.maya_kline",
+      "name": "Maya Kline",
+      "role": "Night shift inventory control lead who signs cycle-count adjustments.",
+      "isCulprit": false
+    },
+    {
+      "id": "suspect.owen_delgado",
+      "name": "Owen Delgado",
+      "role": "Day-shift shipping supervisor with authority over dock staging and BOL packets.",
+      "isCulprit": false
+    },
+    {
+      "id": "suspect.rafael_ibarra",
+      "name": "Rafael Ibarra",
+      "role": "Third-party security guard responsible for after-hours gate checks and visitor logs.",
+      "isCulprit": false
+    }
+  ],
+  "SuspectFull": [
+    {
+      "id": "suspect.linh_tran",
+      "name": "Linh Tran",
+      "age": 33,
+      "occupation": "Warehouse systems analyst (WMS \u0026 reporting templates)",
+      "relationship": "Internal systems support for inventory control and night shift operations",
+      "motive": "She was under pressure to avoid a damaging variance ahead of the quarterly pre-count and wanted one problematic high-value pallet to disappear from the numbers before tighter controls kicked in. The after-hours window offered a chance to \u201Cfix\u201D the records without having to explain an exception during the audit prep.",
+      "alibi": "She says she was on-site after hours to troubleshoot reporting access for the generic warehouse reporting account and to prep templates, and that her badge entry can be confirmed by access control logs. She cannot provide an independent witness for her time at the mezzanine workstations, since she says she worked alone and communicated only via email/IM.",
+      "alibiVerified": false,
+      "background": "Maintains WMS report templates, shared drive permissions, and supports inventory reporting users, including night shift.\nHas access to office mezzanine areas and is familiar with cycle-count variance workflows and how adjustment spreadsheets are handled.\nHer role gives her routine reason to use shared workstations and interact with the generic reporting account used for warehouse reporting."
+    },
+    {
+      "id": "suspect.maya_kline",
+      "name": "Maya Kline",
+      "age": 38,
+      "occupation": "Night shift inventory control lead",
+      "relationship": "Approves and signs cycle-count adjustments for the warehouse",
+      "motive": "Maya\u2019s performance is judged on keeping cycle-count variances low before audits, and she\u2019s been under pressure to keep the nightly adjustment flow moving without delays. If an adjustment later turned out to be improper, she could be motivated to protect her reputation by standing by the approval and minimizing questions about the process.",
+      "alibi": "She states she was off the warehouse floor and handling approvals remotely from home after 01:00, and her sent email header for \u201CRe: Cycle Count 3/18 approvals\u201D shows MAYA.K sent an approval message at 01:22:09 with an attached spreadsheet hash logged in the message metadata. The limitation is that this only verifies an email send and attachment version at 01:22, not her location or any later access to the shared drive file.",
+      "alibiVerified": false,
+      "background": "Maya is the night shift inventory control lead responsible for reviewing and signing cycle-count adjustments before they are posted in the WMS.\n\nShe regularly uses the warehouse email system for approvals and is familiar with the shared-drive spreadsheets used for nightly variance and adjustment workflows.\n\nHer name and account appear in the cycle-count approval email chain associated with the 03/18 adjustment paperwork."
+    },
+    {
+      "id": "suspect.owen_delgado",
+      "name": "Owen Delgado",
+      "age": 41,
+      "occupation": "Day-shift shipping supervisor",
+      "relationship": "Oversees outbound dock operations that interface with the victim warehouse\u2019s inventory paperwork",
+      "motive": "Owen\u2019s performance metrics are tied to on-time departures and clean outbound documentation, and repeated exceptions can trigger write-ups. He had reason to want irregular returns-cage moves or missing paperwork kept from escalating into a visible dock-side problem during audit week.",
+      "alibi": "BOL packet scan log shows his supervisor login (ODEL) at the Dock Office kiosk at 08:14:22 and 08:37:05 on 2026-03-18, with no kiosk entries tied to his login between 01:00 and 06:00. This log reflects kiosk use specifically, so it does not capture where he was if he was away from that terminal.",
+      "alibiVerified": false,
+      "background": "Owen runs the day-shift outbound floor, including staging lanes and bill-of-lading packet handling at the dock office kiosk.\n\nHis role gives him routine access to shipping paperwork flows and authority to direct how pallets are organized for carrier pickup.\n\nHe is not scheduled as an overnight office mezzanine user, and the after-hours activity in this case centers on systems and document handling before day shift begins."
+    },
+    {
+      "id": "suspect.rafael_ibarra",
+      "name": "Rafael Ibarra",
+      "age": 41,
+      "occupation": "Contract security guard (overnight gatehouse)",
+      "relationship": "After-hours guard assigned to the warehouse site",
+      "motive": "He is responsible for keeping after-hours pickups orderly and documented, and a quiet exception pickup that later drew scrutiny could put his contract standing at risk. If pressure came from drivers or site staff to move things along quickly, he would have a personal reason to minimize delays rather than escalate irregularities.",
+      "alibi": "He states he was on scheduled duty at the gatehouse from 22:00\u201306:00, including processing a courier pickup around 04:06; the security roster and gatehouse/dock-area camera motion log can independently confirm his presence at the window during that time. The limitation is that these records show he was on post, not what he entered into the visitor/gate log line-by-line.",
+      "alibiVerified": false,
+      "background": "Rafael Ibarra is a third-party security contractor assigned to overnight coverage, handling gate checks and logging after-hours vehicle activity. Site records place him on the 22:00\u201306:00 shift on 2026-03-18. A gate-related record and a separate camera motion log both correspond to activity at the gatehouse window around 04:05\u201304:08, consistent with him performing routine pickup processing."
+    }
+  ],
+  "AssetStubs": [
+    {
+      "archetypeId": "access_log",
+      "id": "asset.access_log",
+      "type": "digital",
+      "title": "Roseway 3PL Badge Reader Export \u2014 Staff Entrance \u0026 Mezzanine Office Door (03/18)",
+      "role": "Establishes after-hours entry into the mezzanine office area tied to a specific badge ID.",
+      "visibility": "initial",
+      "layoutHint": "AccessLog",
+      "supportsClueIds": [
+        "clue.identity_badge_linh",
+        "clue.action_file_metadata"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [
+        "suspect.rafael_ibarra"
+      ],
+      "introducesRedHerringSuspectIds": [],
+      "containedObjectIds": [
+        "document.roseway_access_export_door_e_staff_20260318",
+        "document.roseway_access_export_door_mz_office_20260318"
+      ]
+    },
+    {
+      "archetypeId": "email_export",
+      "id": "asset.email_export",
+      "type": "digital",
+      "title": "Email Export \u2014 Reconciliation Thread Referencing HHS-4102 Variance (03/18)",
+      "role": "Pins the case to the HHS-4102 variance and frames the narrow overnight adjustment window discussed internally.",
+      "visibility": "initial",
+      "layoutHint": "EmailExport",
+      "supportsClueIds": [
+        "clue.context_variance"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [
+        "suspect.maya_kline"
+      ],
+      "introducesRedHerringSuspectIds": [],
+      "containedObjectIds": [
+        "document.email_export_reconciliation_thread_hhs_4102_20260318",
+        "object.attachment_variance_snapshot_20260318_xlsx"
+      ]
+    },
+    {
+      "archetypeId": "chat_export",
+      "id": "asset.chat_export",
+      "type": "digital",
+      "title": "Chat Export \u2014 Night Ops/IC Messages Around Auto-Post Window (03/18)",
+      "role": "Corroborates the overnight timing and highlights who was coordinating adjustments/report handling in real time.",
+      "visibility": "initial",
+      "layoutHint": "ChatExport",
+      "supportsClueIds": [
+        "clue.context_variance"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [],
+      "introducesRedHerringSuspectIds": [
+        "suspect.owen_delgado"
+      ],
+      "containedObjectIds": [
+        "document.chat_export_ops_ic_channel_20260318_0000_0600"
+      ]
+    },
+    {
+      "archetypeId": "witness_statement",
+      "id": "asset.witness_statement",
+      "type": "document",
+      "title": "Witness Statement \u2014 Ops Manager on HHS-4102 Variance \u0026 Overnight Controls",
+      "role": "Explains normal approval/handling workflow and why the 03:00\u201304:00 window is operationally sensitive.",
+      "visibility": "initial",
+      "layoutHint": "WitnessStatement",
+      "supportsClueIds": [
+        "clue.context_variance"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [],
+      "introducesRedHerringSuspectIds": [
+        "suspect.maya_kline"
+      ],
+      "containedObjectIds": [
+        "document.witness_statement_ops_manager_variance_context_20260319"
+      ]
+    },
+    {
+      "archetypeId": "medical_report",
+      "id": "asset.medical_report",
+      "type": "document",
+      "title": "Medical Report \u2014 Dock 1 Slip/Spill Evaluation (Night Shift, 03/18)",
+      "role": "Provides an anchored timeline reference point for overnight staff movements and radio notes during the critical window.",
+      "visibility": "initial",
+      "layoutHint": "MedicalReport",
+      "supportsClueIds": [
+        "clue.context_variance"
+      ],
+      "forensicInputClueIds": [
+        "clue.forensic_session_link"
+      ],
+      "resolvesRedHerringSuspectIds": [],
+      "introducesRedHerringSuspectIds": [
+        "suspect.rafael_ibarra"
+      ],
+      "containedObjectIds": [
+        "document.medical_report_dock1_spill_eval_20260318",
+        "device.mz_pc_03"
+      ]
+    },
+    {
+      "archetypeId": "bank_statement",
+      "id": "asset.bank_statement",
+      "type": "digital",
+      "title": "WMS Audit Export \u2014 Adjustment Batch ADJ-20260318-0312 (MZ-PC-03)",
+      "role": "Establishes the exact WMS batch, timestamp, initiating user, and terminal name to be tied to physical access and file edits.",
+      "visibility": "initial",
+      "layoutHint": "BankStatement",
+      "supportsClueIds": [
+        "clue.action_wms_batch"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [
+        "suspect.owen_delgado"
+      ],
+      "introducesRedHerringSuspectIds": [],
+      "containedObjectIds": [
+        "document.wms_audit_export_adj_20260318_0312",
+        "account.wms_user_rpt_floor"
+      ]
+    },
+    {
+      "archetypeId": "gps_track",
+      "id": "asset.gps_track",
+      "type": "digital",
+      "title": "Gatehouse/Gate Log Export \u2014 Bay 2 Courier Pickup RET-EXC-1187 (04:06)",
+      "role": "Captures the physical removal event shortly after the adjustment, linking it to an exception reference and contact number fragment.",
+      "visibility": "initial",
+      "layoutHint": "GpsTrack",
+      "supportsClueIds": [
+        "clue.benefit_courier_pickup"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [],
+      "introducesRedHerringSuspectIds": [
+        "suspect.rafael_ibarra"
+      ],
+      "containedObjectIds": [
+        "document.gate_log_export_bay2_20260318_0000_0600"
+      ]
+    },
+    {
+      "archetypeId": "surveillance_still",
+      "id": "asset.surveillance_still",
+      "type": "photo",
+      "title": "Surveillance Still \u2014 Mezzanine Office Corridor Near Door MZ-Office (02:49)",
+      "role": "Provides a bounded visual check on who entered the mezzanine office corridor around the badge event time.",
+      "visibility": "initial",
+      "layoutHint": "Photo",
+      "supportsClueIds": [
+        "clue.identity_badge_linh"
+      ],
+      "forensicInputClueIds": [],
+      "resolvesRedHerringSuspectIds": [],
+      "introducesRedHerringSuspectIds": [
+        "suspect.owen_delgado"
+      ],
+      "containedObjectIds": [
+        "object.surveillance_still_mezzanine_corridor_20260318_0249"
+      ]
+    }
+  ],
+  "AssetFull": [
+    {
+      "id": "asset.access_log",
+      "type": "digital",
+      "title": "Roseway 3PL Badge Reader Export \u2014 Staff Entrance \u0026 Mezzanine Office Door (03/18)",
+      "description": "Badge-reader exports for Roseway 3PL show an after-hours entry sequence for badge ID 004982 (labelled \u201CTRN-L\u201D) through Door E-Staff at 02:41:18 and Door MZ-Office at 02:49:02 on 2026-03-18. Also included are roster/camera-motion records placing overnight guard R. Ibarra at the gatehouse window around 04:05\u201304:08 during a courier pickup window.",
+      "visibility": "initial",
+      "category": "Digital",
+      "body": "",
+      "bodyDoc": {
+        "layout": "AccessLog",
+        "language": "en-US",
+        "title": "Roseway 3PL Access Control \u2014 Door E-Staff \u0026 Door MZ-Office",
+        "subtitle": "Badge reader export (03/18/2026) \u002B site security roster/camera-motion excerpt",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_204 \u2014 The Missing Pallet Ledger"
+          },
+          {
+            "label": "Location",
+            "value": "Daly City, California, USA"
+          },
+          {
+            "label": "Incident Window (anchoring)",
+            "value": "2026-03-18 02:41\u201304:08 (America/Los_Angeles)"
+          },
+          {
+            "label": "Custodian",
+            "value": "Roseway 3PL Security / Access Control System"
+          },
+          {
+            "label": "Collected By",
+            "value": "Det. Alana Ruiz (Daly City Police Department)"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "narrative",
+            "heading": "Scope",
+            "text": "- Exported access-control events for Door **E-Staff** (staff entrance) and Door **MZ-Office** (mezzanine office door) on **2026-03-18**.\n- Includes an excerpted **security shift roster** and **dock/gatehouse camera motion log** for the same date/time window (used here as a time/place record for the gatehouse).",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Door E-Staff \u2014 Reader Events (03/18)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Timestamp",
+                "Source IP",
+                "Method",
+                "Path",
+                "Status"
+              ],
+              "rows": [
+                [
+                  "2026-03-18 02:41:18 -07:00",
+                  "",
+                  "BADGE",
+                  "Door E-Staff",
+                  "GRANTED \u2014 Badge label: TRN-L; Badge ID: 004982"
+                ]
+              ],
+              "footnote": "Export fields provided by the access control system: event time, door/reader name, badge label/ID, and grant/deny result. Network fields (Source IP) are not present in this vendor export."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Door MZ-Office \u2014 Reader Events (03/18)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Timestamp",
+                "Source IP",
+                "Method",
+                "Path",
+                "Status"
+              ],
+              "rows": [
+                [
+                  "2026-03-18 02:49:02 -07:00",
+                  "",
+                  "BADGE",
+                  "Door MZ-Office",
+                  "GRANTED \u2014 Badge label: TRN-L; Badge ID: 004982"
+                ]
+              ],
+              "footnote": "Door/reader names are recorded verbatim as configured in the access control system."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Related record noted in case materials (not contained in this export)",
+            "text": "Case materials reference a shared-drive spreadsheet named **\u0022CycleCount_Adjustments_2026-03-18.xlsx\u0022** with file properties: **Last Modified: 2026-03-18 03:06:44** and **Last Modified By: LINH.T**. Those file properties are not generated by the badge system and are not shown in the tables above.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "keyValue",
+            "heading": "Security roster \u0026 gatehouse activity excerpt (for reference)",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Shift roster",
+                "value": "Guard listed: \u201CR. Ibarra\u201D; assignment: 22:00\u201306:00 (overnight) on 2026-03-18."
+              },
+              {
+                "label": "Camera motion log (gatehouse window)",
+                "value": "Motion activity recorded at the gatehouse window between 2026-03-18 04:05 and 04:08, coinciding with a courier pickup window referenced elsewhere as \u201CPeninsula SameDay\u201D."
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- Badge log entry \u0027TRN-L\u0027 shows badge ID 004982 opened Door E-Staff at 2026-03-18 02:41:18 and Door MZ-Office at 2026-03-18 02:49:02.\n- The spreadsheet \u0027CycleCount_Adjustments_2026-03-18.xlsx\u0027 on the shared drive shows \u0027Last Modified: 2026-03-18 03:06:44\u0027 and \u0027Last Modified By: LINH.T\u0027 in its file properties.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Supporting checks",
+            "text": "- Security shift roster shows guard \u0027R. Ibarra\u0027 assigned 22:00\u201306:00 and a separate dock camera motion log lists activity at Gatehouse window at 2026-03-18 04:05\u201304:08 coinciding with the \u0027Peninsula SameDay\u0027 entry.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": null
+      }
+    },
+    {
+      "id": "asset.email_export",
+      "type": "digital",
+      "title": "Email Export \u2014 Reconciliation Thread Referencing HHS-4102 Variance (03/18)",
+      "description": "Exported email thread from 2026-03-18 discussing a reconciliation discrepancy for SKU HHS-4102 (handheld scanners), including a noted -48 unit variance following the 03:12 adjustment batch. Includes header metadata from an approval-related message showing an earlier attachment hash that differs from the later shared-drive file hash.",
+      "visibility": "initial",
+      "category": "Communication",
+      "body": "",
+      "bodyDoc": {
+        "layout": "EmailExport",
+        "language": "en-US",
+        "title": "Email Export: Reconciliation Thread \u2014 HHS-4102 Variance (2026-03-18)",
+        "subtitle": "Ops / Inventory reconciliation messages; includes approval-email header metadata and variance snapshot reference",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_204 \u2014 The Missing Pallet Ledger"
+          },
+          {
+            "label": "Incident Date",
+            "value": "2026-03-18 (America/Los_Angeles)"
+          },
+          {
+            "label": "Location",
+            "value": "Daly City, California, USA"
+          },
+          {
+            "label": "Evidence Source",
+            "value": "document.email_export_reconciliation_thread_hhs_4102_20260318; object.attachment_variance_snapshot_20260318_xlsx"
+          },
+          {
+            "label": "Custodian",
+            "value": "Roseway 3PL \u2014 inventory@roseway3pl.com mailbox export"
+          },
+          {
+            "label": "Generated By/At",
+            "value": "Det. Alana Ruiz (Daly City Police Department) \u2014 compiled from provided mailbox export (case opened 2026-03-18 10:26 -07:00)"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "callout",
+            "heading": "Player-readable highlights",
+            "text": "- Thread dated **2026-03-18** references **SKU HHS-4102 (\u0022handheld scanners\u0022)** showing a **-48 unit variance** after the **03:12 adjustment batch**.\n- Included header metadata for **\u0022Re: Cycle Count 3/18 approvals\u0022** shows **Message-ID \u003Ccc0318-approval@warehouse.local\u003E** sent by **MAYA.K** at **2026-03-18 01:22:09** with an attachment hash **SHA256 9b1d...e20f**.\n- File server audit entry in the same exported context notes the shared-drive file hash **SHA256 4c7a...19d2** recorded at **2026-03-18 03:15:02** (different from the approval attachment hash).",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Email items (export index)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Timestamp",
+                "From",
+                "To",
+                "Subject",
+                "Snippet"
+              ],
+              "rows": [
+                [
+                  "2026-03-18 01:22:09 -07:00",
+                  "MAYA.K",
+                  "(distribution not specified in export excerpt)",
+                  "Re: Cycle Count 3/18 approvals",
+                  "Header metadata captured: Message-ID \u003Ccc0318-approval@warehouse.local\u003E; attached spreadsheet hash noted as SHA256 9b1d...e20f."
+                ],
+                [
+                  "2026-03-18 (time not specified in export excerpt)",
+                  "(not specified in export excerpt)",
+                  "(not specified in export excerpt)",
+                  "(Reconciliation thread \u2014 subject line not specified in export excerpt)",
+                  "Reconciliation discussion references SKU HHS-4102 \u0022handheld scanners\u0022 and notes a -48 unit variance after the 03:12 adjustment batch."
+                ]
+              ],
+              "footnote": "Some recipient lists, senders, and timestamps beyond those explicitly provided in the case draft are not present in the supplied excerpt and are therefore left unspecified here."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "keyValue",
+            "heading": "Approval-email header metadata (as provided)",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Message Subject",
+                "value": "Re: Cycle Count 3/18 approvals"
+              },
+              {
+                "label": "Message-ID",
+                "value": "\u003Ccc0318-approval@warehouse.local\u003E"
+              },
+              {
+                "label": "Sent (account / time)",
+                "value": "MAYA.K \u2014 2026-03-18 01:22:09 (-07:00)"
+              },
+              {
+                "label": "Attachment hash referenced in header",
+                "value": "SHA256 9b1d...e20f"
+              },
+              {
+                "label": "Shared-drive file hash noted by file server audit",
+                "value": "SHA256 4c7a...19d2 (recorded 2026-03-18 03:15:02)"
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Notes on scope/limitations",
+            "text": "- This asset reflects **exported email/thread content and cited header/audit values** only.\n- Hashes are shown exactly as provided (truncated with ellipses in the source).",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- A reconciliation email thread dated 2026-03-18 references SKU HHS-4102 \u0027handheld scanners\u0027 showing a -48 unit variance after the 03:12 adjustment batch.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Supporting checks",
+            "text": "- Email header on \u0027Re: Cycle Count 3/18 approvals\u0027 shows message-id \u003Ccc0318-approval@warehouse.local\u003E sent from MAYA.K at 2026-03-18 01:22:09 with the attached spreadsheet hash \u0027SHA256 9b1d...e20f\u0027 differing from the shared drive file hash \u0027SHA256 4c7a...19d2\u0027 recorded at 2026-03-18 03:15:02 by the file server audit.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": null
+      }
+    },
+    {
+      "id": "asset.chat_export",
+      "type": "digital",
+      "title": "Chat Export \u2014 Night Ops/IC Messages Around Auto-Post Window (03/18)",
+      "description": "Export of internal Night Ops/Inventory Control chat messages around the 03:12 auto-post window, including discussion of SKU HHS-4102 variance (-48) after the adjustment batch and mentions of outbound dock paperwork responsibility tied to the shipping supervisor role.",
+      "visibility": "initial",
+      "category": "Communication",
+      "body": "",
+      "bodyDoc": {
+        "layout": "ChatExport",
+        "language": "en-US",
+        "title": "Chat Export \u2014 Night Ops/IC Channel Messages (00:00\u201306:00, 2026-03-18)",
+        "subtitle": "Ops/IC coordination around the auto-post window; references to HHS-4102 variance and outbound paperwork handling",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_204 \u2014 The Missing Pallet Ledger"
+          },
+          {
+            "label": "Incident Date/Time",
+            "value": "2026-03-18 (America/Los_Angeles)"
+          },
+          {
+            "label": "Location",
+            "value": "Daly City, California, USA"
+          },
+          {
+            "label": "Channel / Source",
+            "value": "Night Ops / Inventory Control (exported chat log)"
+          },
+          {
+            "label": "Contained Object",
+            "value": "document.chat_export_ops_ic_channel_20260318_0000_0600"
+          },
+          {
+            "label": "Generated By/At",
+            "value": "Roseway 3PL messaging export (timestamp as provided in export header)"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "callout",
+            "heading": "Scope note",
+            "text": "This export reflects messages visible in the Night Ops/IC channel during the overnight window. Display names are shown as they appear in-chat; the export does not by itself verify a sender\u2019s physical location.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Messages (selected entries referencing variance/adjustment window and outbound paperwork handling)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Timestamp",
+                "Sender",
+                "Message"
+              ],
+              "rows": [
+                [
+                  "2026-03-18 03:18",
+                  "Inventory Ops",
+                  "\u201CRecon note: SKU HHS-4102 (handheld scanners) now showing -48 variance after the 03:12 adjustment batch. Flagging for discrepancy summary.\u201D"
+                ],
+                [
+                  "2026-03-18 03:26",
+                  "Night Ops",
+                  "\u201CIf anything moves as returns/exception, make sure paperwork doesn\u2019t stall at the dock. Shipping sup usually handles the outbound packet side.\u201D"
+                ],
+                [
+                  "2026-03-18 03:33",
+                  "Inventory Ops",
+                  "\u201CKeeping this in the morning recap. HHS-4102 is the one to watch; variance changed after 03:12.\u201D"
+                ]
+              ],
+              "footnote": "Timestamps are shown in local warehouse time (America/Los_Angeles) as rendered in the export."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Player-readable observations from this export",
+            "text": "- The chat includes an explicit reference to **SKU HHS-4102 (\u2018handheld scanners\u2019)** showing a **-48** unit variance **after the 03:12 adjustment batch** (message timestamped 2026-03-18 03:18).\n- Participants discuss dock-side paperwork as a control point and note that the **shipping supervisor role** typically handles outbound packet/documentation (message timestamped 2026-03-18 03:26).",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- A reconciliation email thread dated 2026-03-18 references SKU HHS-4102 \u0027handheld scanners\u0027 showing a -48 unit variance after the 03:12 adjustment batch.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Suspicion indicators",
+            "text": "- As shipping supervisor, Owen could alter outbound paperwork or stage pallets to leave through the dock without scrutiny.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": null
+      }
+    },
+    {
+      "id": "asset.witness_statement",
+      "type": "document",
+      "title": "Witness Statement \u2014 Ops Manager on HHS-4102 Variance \u0026 Overnight Controls",
+      "description": "Sworn statement from Roseway 3PL Operations Manager describing the overnight inventory-adjustment workflow and the operational sensitivity of the 03:00\u201304:00 auto-post window. Includes the manager\u2019s account of a reconciliation thread noting a -48 variance for SKU HHS-4102 after the 03:12 adjustment batch, and their understanding of when the cycle-count approvals were sent.",
+      "visibility": "initial",
+      "category": "Document",
+      "body": "",
+      "bodyDoc": {
+        "layout": "WitnessStatement",
+        "language": "en-US",
+        "title": "WITNESS STATEMENT",
+        "subtitle": "Roseway 3PL \u2014 Operations Manager Statement re: HHS-4102 Variance \u0026 Overnight Controls",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_204 \u2014 The Missing Pallet Ledger"
+          },
+          {
+            "label": "Location",
+            "value": "Daly City, California, USA"
+          },
+          {
+            "label": "Incident Date/Time (reference)",
+            "value": "2026-03-18 03:12 (America/Los_Angeles) \u2014 WMS adjustment batch post time referenced by witness"
+          },
+          {
+            "label": "Statement Taken By",
+            "value": "Det. Alana Ruiz, Daly City Police Department"
+          },
+          {
+            "label": "Statement Date/Time",
+            "value": "2026-03-19"
+          },
+          {
+            "label": "Witness",
+            "value": "Operations Manager (name on file with Roseway 3PL; provided to DCPD at intake)"
+          },
+          {
+            "label": "Document Ref",
+            "value": "document.witness_statement_ops_manager_variance_context_20260319"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "narrative",
+            "heading": "STATEMENT OF (Operations Manager)",
+            "text": "I am the Operations Manager at Roseway 3PL in Daly City. My responsibilities include oversight of inventory control processes, cycle counts, and escalation of discrepancies to leadership and to our inventory mailbox for reconciliation.\n\nI understand this statement concerns an inventory discrepancy involving SKU **HHS-4102 (handheld scanners)** and the overnight inventory adjustment workflow, including the period around the **03:00\u201304:00** window when adjustments are commonly posted and reconciled.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Oath / Affirmation",
+            "text": "I declare under penalty of perjury that the foregoing is true and correct to the best of my knowledge. I understand that making a false statement may subject me to criminal penalties.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Overnight controls and why the 03:00\u201304:00 window matters",
+            "text": "On our night operations flow, cycle count variances and adjustments are typically assembled and reviewed before they are posted in the WMS. There is an operational sensitivity to the **03:00\u201304:00** period because that is when the warehouse transitions toward the end-of-shift close-out and when automated posting/processing windows are expected.\n\nIn practice, discrepancies that are not addressed before that window can roll into day-shift reconciliation and stand out, while activity during that window can appear routine unless it is cross-checked against supporting documentation and file/version history.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "keyValue",
+            "heading": "Observed reconciliation reference to HHS-4102 variance",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Email thread date referenced",
+                "value": "2026-03-18"
+              },
+              {
+                "label": "SKU",
+                "value": "HHS-4102 (handheld scanners)"
+              },
+              {
+                "label": "Variance referenced in thread",
+                "value": "-48 units"
+              },
+              {
+                "label": "Adjustment batch referenced in thread",
+                "value": "03:12 adjustment batch (time as referenced in the thread)"
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "What I recall about approvals and version timing (context)",
+            "text": "I am aware the inventory control lead on nights may approve cycle count adjustments by email. In this instance, I was shown header details for an approval email thread titled **\u201CRe: Cycle Count 3/18 approvals\u201D** indicating **Message-ID \u003Ccc0318-approval@warehouse.local\u003E** sent from **MAYA.K** at **2026-03-18 01:22:09**.\n\nI was also shown documentation indicating the approved attachment referenced in that email carried a **SHA256 hash beginning \u201C9b1d...e20f\u201D**, while the shared-drive version later associated with the process carried a different **SHA256 hash beginning \u201C4c7a...19d2\u201D** recorded at **2026-03-18 03:15:02** by file server audit.\n\nI cannot personally compute those hashes; I am describing what was presented to me as the header and audit details. The difference in hashes indicates the attachment version referenced at 01:22:09 is not the same as the shared-drive version recorded at 03:15:02.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Operational note (as stated by witness)",
+            "text": "A later change to a shared-drive spreadsheet after an approval email is possible in our environment if someone has access to the file and saves a new version, even if the approval email itself was legitimately sent earlier.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- A reconciliation email thread dated 2026-03-18 references SKU HHS-4102 \u0027handheld scanners\u0027 showing a -48 unit variance after the 03:12 adjustment batch.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Suspicion indicators",
+            "text": "- As inventory control lead, Maya\u0027s approval authority could allow her to legitimize an improper cycle-count adjustment.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": {
+          "name": "Operations Manager (Roseway 3PL)",
+          "badge": null,
+          "title": "Operations Manager",
+          "signedAt": "2026-03-19"
+        }
+      }
+    },
+    {
+      "id": "asset.medical_report",
+      "type": "document",
+      "title": "Medical Report \u2014 Dock 1 Slip/Spill Evaluation (Night Shift, 03/18)",
+      "description": "On-site occupational health evaluation created after a reported Dock 1 slip/spill during the overnight shift on 2026-03-18. The record includes supervisor timing notes and an attached incident-context summary referencing the HHS-4102 handheld scanner variance following the 03:12 WMS adjustment batch, plus documentation that the overnight gatehouse guard was on post around the 04:06 courier pickup window.",
+      "visibility": "initial",
+      "category": "Document",
+      "body": "",
+      "bodyDoc": {
+        "layout": "MedicalReport",
+        "language": "en-US",
+        "title": "Dock 1 Slip/Spill Evaluation \u2014 Night Shift",
+        "subtitle": "Roseway 3PL \u00B7 Occupational Health / Incident Evaluation (On-Site)",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_204 \u2014 The Missing Pallet Ledger"
+          },
+          {
+            "label": "Facility",
+            "value": "Roseway 3PL Fulfillment Warehouse \u2014 Daly City, CA"
+          },
+          {
+            "label": "Record Type",
+            "value": "Slip/Spill Evaluation (Dock 1) \u2014 Night Shift"
+          },
+          {
+            "label": "Report Date",
+            "value": "2026-03-18"
+          },
+          {
+            "label": "Event Window Noted",
+            "value": "Safety incident acknowledged at 2026-03-18 02:09; radio note logged at 02:37"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "keyValue",
+            "heading": "History",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Reported incident",
+                "value": "Employee reported slip hazard associated with a spill at Dock 1 during the overnight shift."
+              },
+              {
+                "label": "Supervisor acknowledgement time (from shift safety log excerpt included on form)",
+                "value": "2026-03-18 02:09 \u2014 note recorded: \u201Cspill cleanup; remained at Dock 1 until 03:05\u201D"
+              },
+              {
+                "label": "Radio / floor note (as written on the incident evaluation sheet margin)",
+                "value": "2026-03-18 02:37 \u2014 \u201CDock 1 still blocked\u201D"
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "External Examination",
+            "text": "Brief on-site evaluation documents no emergent findings requiring ambulance transport. Work status and follow-up instructions are recorded as routine occupational health guidance for a slip/spill event.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Findings (Timeline Notes Captured on Evaluation Paperwork)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Timestamp (PT)",
+                "Source on Form",
+                "Recorded Note"
+              ],
+              "rows": [
+                [
+                  "2026-03-18 02:09",
+                  "Shift supervisor log excerpt",
+                  "\u201Cspill cleanup; remained at Dock 1 until 03:05\u201D"
+                ],
+                [
+                  "2026-03-18 02:37",
+                  "Radio check-in note",
+                  "\u201CDock 1 still blocked\u201D"
+                ]
+              ],
+              "footnote": "Times are transcribed as written on the evaluation packet; the medical form does not independently verify location beyond the Dock 1 context stated."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Incident-Context Summary (Stapled Note Included with the Medical Packet)",
+            "text": "A stapled incident-context note attached to the evaluation packet references internal reconciliation communications dated **2026-03-18** and states that **SKU HHS-4102 (\u201Chandheld scanners\u201D) shows a -48 unit variance after the 03:12 adjustment batch**.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "keyValue",
+            "heading": "Cause",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Incident type (as categorized on form)",
+                "value": "Slip/Spill hazard \u2014 Dock 1"
+              },
+              {
+                "label": "Immediate action recorded",
+                "value": "Spill cleanup initiated; dock lane marked as blocked in radio note."
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "keyValue",
+            "heading": "Disposition",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Work disposition (as recorded)",
+                "value": "Routine occupational health disposition; no emergency transport documented."
+              },
+              {
+                "label": "Overnight guard context (separate attached note copied into packet)",
+                "value": "Security shift roster lists guard \u201CR. Ibarra\u201D assigned 22:00\u201306:00. A dock-area camera motion log line is noted as showing activity at the gatehouse window during 2026-03-18 04:05\u201304:08, coinciding with the \u201CPeninsula SameDay\u201D gate entry time window."
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- A reconciliation email thread dated 2026-03-18 references SKU HHS-4102 \u0027handheld scanners\u0027 showing a -48 unit variance after the 03:12 adjustment batch.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Suspicion indicators",
+            "text": "- As the overnight guard, Rafael could wave through an unauthorized pickup or falsify the gate log.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": {
+          "name": "On-site Occupational Health Staff (signature on file)",
+          "badge": null,
+          "title": "Occupational Health",
+          "signedAt": "2026-03-18"
+        }
+      }
+    },
+    {
+      "id": "asset.bank_statement",
+      "type": "digital",
+      "title": "WMS Audit Export \u2014 Adjustment Batch ADJ-20260318-0312 (MZ-PC-03)",
+      "description": "Exported WMS audit records showing a specific inventory adjustment batch posted at 03:12 on 2026-03-18, including the initiating user and terminal name. Includes a separate dock-office kiosk scan excerpt showing the shipping supervisor login appears later in the morning, not during the overnight window.",
+      "visibility": "initial",
+      "category": "Digital",
+      "body": "",
+      "bodyDoc": {
+        "layout": "BankStatement",
+        "language": "en-US",
+        "title": "WMS Audit Export \u2014 Adjustment Batch ADJ-20260318-0312 (MZ-PC-03)",
+        "subtitle": "Roseway 3PL \u00B7 Daly City, CA \u00B7 Incident window 2026-03-18",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_204 \u2014 The Missing Pallet Ledger"
+          },
+          {
+            "label": "Exhibit Ref",
+            "value": "asset.bank_statement"
+          },
+          {
+            "label": "Source System",
+            "value": "Warehouse Management System (WMS) audit export"
+          },
+          {
+            "label": "Included Accounts/Users",
+            "value": "WMS user: rpt-floor"
+          },
+          {
+            "label": "Included Terminal/Device Names",
+            "value": "MZ-PC-03"
+          },
+          {
+            "label": "Generated At",
+            "value": "2026-03-18 (export time not listed in provided excerpt)"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "narrative",
+            "heading": "Overview",
+            "text": "- This exhibit contains an excerpted WMS audit export centered on an overnight adjustment batch.\n- The WMS export fields are mapped into the table below using the BankStatement layout (Date/Description/Debit/Credit/Balance) to preserve the exact timestamp and identifiers.\n- A separate excerpted log line list for the Dock Office kiosk (BOL packet scan) is included to show when login \u0022ODEL\u0022 appears on 2026-03-18.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "WMS Audit Export (excerpt)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Date",
+                "Description",
+                "Debit",
+                "Credit",
+                "Balance"
+              ],
+              "rows": [
+                [
+                  "2026-03-18 03:12:00 -07:00",
+                  "Inventory adjustment posted \u00B7 Batch: ADJ-20260318-0312 \u00B7 Initiated by user: rpt-floor \u00B7 Terminal: MZ-PC-03",
+                  "",
+                  "",
+                  ""
+                ]
+              ],
+              "footnote": "Note: Financial columns are intentionally left blank; this table represents an audit export record formatted with the BankStatement layout."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Dock Office Kiosk \u2014 BOL Packet Scan Log (excerpt for login ODEL)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Date",
+                "Description",
+                "Debit",
+                "Credit",
+                "Balance"
+              ],
+              "rows": [
+                [
+                  "2026-03-18 08:14:22 -07:00",
+                  "Dock Office kiosk login recorded \u00B7 Supervisor login: ODEL",
+                  "",
+                  "",
+                  ""
+                ],
+                [
+                  "2026-03-18 08:37:05 -07:00",
+                  "Dock Office kiosk login recorded \u00B7 Supervisor login: ODEL",
+                  "",
+                  "",
+                  ""
+                ],
+                [
+                  "2026-03-18 (01:00\u201306:00 window) -07:00",
+                  "No Dock Office kiosk entries tied to login ODEL appear in this excerpted window.",
+                  "",
+                  "",
+                  ""
+                ]
+              ],
+              "footnote": "This excerpt is limited to the Dock Office kiosk scan log lines described in the case materials; it reflects kiosk activity for the specified login, not a complete location record."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Timing note (as shown by records in this exhibit)",
+            "text": "The WMS audit record shows batch ADJ-20260318-0312 posted at 2026-03-18 03:12:00. The Dock Office kiosk scan log excerpt shows login ODEL later at 08:14:22 and 08:37:05, with no ODEL kiosk entries shown between 01:00 and 06:00.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- WMS audit log shows adjustment batch \u0027ADJ-20260318-0312\u0027 posted at 2026-03-18 03:12:00 and initiated by user \u0027rpt-floor\u0027 from terminal name \u0027MZ-PC-03\u0027.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Supporting checks",
+            "text": "- BOL packet scan log shows Owen\u0027s supervisor login \u0027ODEL\u0027 recorded at Dock Office kiosk at 2026-03-18 08:14:22 and 08:37:05, with no entries between 01:00 and 06:00.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": {
+          "name": "Det. Alana Ruiz",
+          "badge": null,
+          "title": "Daly City Police Department",
+          "signedAt": null
+        }
+      }
+    },
+    {
+      "id": "asset.gps_track",
+      "type": "digital",
+      "title": "Gatehouse/Gate Log Export \u2014 Bay 2 Courier Pickup RET-EXC-1187 (04:06)",
+      "description": "Exported gatehouse log entries for Bay 2 during the overnight window, including a 04:06 courier pickup entry for \u201CPeninsula SameDay\u201D referencing RET-EXC-1187 and a contact phone ending -5521. Includes roster/camera-note excerpts that place the overnight guard at the gatehouse window around the same time.",
+      "visibility": "initial",
+      "category": "Digital",
+      "body": "",
+      "bodyDoc": {
+        "layout": "GpsTrack",
+        "language": "en-US",
+        "title": "Gatehouse Log (Bay 2) \u2014 Courier Pickup Reference RET-EXC-1187",
+        "subtitle": "Roseway 3PL, Daly City, CA \u2014 2026-03-18 (00:00\u201306:00 local)",
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [
+          {
+            "label": "Case Ref",
+            "value": "case_graph_detective_204 \u2014 The Missing Pallet Ledger"
+          },
+          {
+            "label": "Location",
+            "value": "Daly City, California, USA"
+          },
+          {
+            "label": "Incident Window (case timeline)",
+            "value": "2026-03-18 03:12 (WMS batch) \u2192 04:06 (gate pickup entry) \u2192 09:47 (day-shift discovery report)"
+          },
+          {
+            "label": "Source",
+            "value": "Gatehouse / gate log export (Bay 2) \u2014 document.gate_log_export_bay2_20260318_0000_0600"
+          },
+          {
+            "label": "Time Zone",
+            "value": "America/Los_Angeles (UTC-07:00)"
+          },
+          {
+            "label": "Custodian",
+            "value": "Roseway 3PL Security Desk / Gatehouse"
+          }
+        ],
+        "sections": [
+          {
+            "kind": "narrative",
+            "heading": "Overview",
+            "text": "- This document is a structured export of gatehouse log entries for the Bay 2 lane during the overnight shift window on 2026-03-18.\n- The export includes a courier pickup entry shortly after the 03:12 adjustment window referenced elsewhere in the case materials.\n- Location fields in the original export are non-GPS gatehouse fields; Latitude/Longitude below are not present in the source and are recorded as unavailable.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "table",
+            "heading": "Bay 2 Gate Log Entries (00:00\u201306:00)",
+            "text": null,
+            "table": {
+              "columns": [
+                "Timestamp",
+                "Latitude",
+                "Longitude",
+                "Accuracy (m)",
+                "Notes"
+              ],
+              "rows": [
+                [
+                  "2026-03-18 04:06",
+                  "",
+                  "",
+                  "",
+                  "Gate log entry: \u201CBay 2 pickup\u201D \u2014 Courier: \u201CPeninsula SameDay\u201D \u2014 Reference: \u201CRET-EXC-1187\u201D \u2014 Contact phone: ending \u201C-5521\u201D."
+                ]
+              ],
+              "footnote": "Only the specific Bay 2 pickup entry relevant to the reported discrepancy is included here. The export does not provide GPS coordinates; blank cells indicate \u201Cnot provided in source.\u201D"
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Overnight Guard Context Noted in Security Records (excerpted)",
+            "text": "The same overnight window includes records indicating guard \u201CR. Ibarra\u201D was assigned 22:00\u201306:00, and a separate dock/gatehouse camera motion log notes activity at the gatehouse window from 2026-03-18 04:05 to 04:08, coinciding with the 04:06 \u201CPeninsula SameDay\u201D entry.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Limitations",
+            "text": "- The gate log documents what was entered at the gatehouse (courier name, reference, and phone fragment). It does not by itself identify who initiated any internal warehouse system actions.\n- The export does not include vehicle plate, driver ID, shipment contents, or a bill of lading scan reference for the pickup entry.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Documented observations",
+            "text": "- Gate log lists \u0027Bay 2 pickup\u0027 for courier \u0027Peninsula SameDay\u0027 at 2026-03-18 04:06 with reference \u0027RET-EXC-1187\u0027 and contact phone ending -5521.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Suspicion indicators",
+            "text": "- As the overnight guard, Rafael could wave through an unauthorized pickup or falsify the gate log.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": null
+      }
+    },
+    {
+      "id": "asset.surveillance_still",
+      "type": "photo",
+      "title": "Surveillance Still \u2014 Mezzanine Office Corridor Near Door MZ-Office (02:49)",
+      "description": "A grainy mezzanine office corridor CCTV still time-stamped 2026-03-18 02:49 shows a lone employee approaching the door labeled \u201CMZ-Office.\u201D A bottom overlay references the access-control event for badge ID 004982 at 02:49:02, and a separate on-screen note flags that shipping supervisor activity (user ODEL) appears later in the morning.",
+      "visibility": "initial",
+      "category": "Physical",
+      "body": "Photorealistic CCTV still frame from a fixed ceiling corner camera in a warehouse mezzanine office corridor at night. Cool fluorescent lighting, slight green tint, visible digital noise and compression artifacts, with a black timestamp overlay at the bottom reading: \u201C2026-03-18 02:49:02\u201D. The corridor is narrow with beige walls, gray industrial carpet tiles, and a red EXIT sign glowing at the far end. On the right side of frame, a metal door with a small wired-glass window is clearly labeled with a printed placard: \u201CMZ-Office\u201D. Next to the doorframe is a badge reader with a small LED. A single person (gender not clearly identifiable due to motion blur and hood up) is captured mid-step near the badge reader, wearing a dark hoodie under a high-visibility safety vest, carrying a slim folder or clipboard; face partially obscured by the hood brim and camera angle. Include a thin on-screen system overlay box in the upper-left corner as if from the security software, showing readable text: \u201CEvent: Door MZ-Office\u201D and \u201CBadge ID: 004982\u201D and \u201CLog ref: TRN-L\u201D. In the lower-right corner, include a small inset note panel (like an operator annotation) with readable text: \u201CBOL kiosk user \u2018ODEL\u2019 activity recorded 08:14:22 and 08:37:05 (no entries 01:00\u201306:00)\u201D\u2014presented as a neutral side note, not a conclusion. Composition: wide-angle lens distortion, straight-on view down the corridor, subject right of center, door label and badge reader sharply visible, overall mood quiet and after-hours.\n\n## Documented observations\n- Badge log entry \u0027TRN-L\u0027 shows badge ID 004982 opened Door E-Staff at 2026-03-18 02:41:18 and Door MZ-Office at 2026-03-18 02:49:02.\n\n## Suspicion indicators\n- As shipping supervisor, Owen could alter outbound paperwork or stage pallets to leave through the dock without scrutiny.",
+      "bodyDoc": null
+    }
+  ],
+  "ResultAssets": [
+    {
+      "id": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "type": "pdf",
+      "title": "Metadata Analysis Report \u2014 Medical Packet (Dock 1 Slip/Spill Evaluation) \u2014 MZ-PC-03 Correlation",
+      "description": "Report summarizing metadata-derived device and timestamp correlations extracted in association with the submitted medical evaluation packet, including correlations to terminal MZ-PC-03 and recorded session artifacts (LINH.T logon; WMS SessionToken=7c1b9a2e) during the incident window.",
+      "visibility": "hidden",
+      "category": null,
+      "body": "",
+      "bodyDoc": {
+        "layout": "ForensicReport",
+        "language": "en-US",
+        "title": "Metadata Analysis Report \u2014 Dock 1 Slip/Spill Evaluation Packet (Night Shift, 03/18)",
+        "subtitle": null,
+        "classification": "CONFIDENTIAL \u00B7 INTERNAL USE ONLY",
+        "header": [],
+        "sections": [
+          {
+            "kind": "keyValue",
+            "heading": "Items Submitted",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Submitting agency / case reference",
+                "value": "Daly City Police Department \u2014 case_graph_detective_204 (The Missing Pallet Ledger)"
+              },
+              {
+                "label": "Incident date (local)",
+                "value": "2026-03-18T03:12:00-07:00"
+              },
+              {
+                "label": "Case opened (local)",
+                "value": "2026-03-18T10:26:00-07:00"
+              },
+              {
+                "label": "Input asset",
+                "value": "asset.medical_report \u2014 Medical Report \u2014 Dock 1 Slip/Spill Evaluation (Night Shift, 03/18)"
+              },
+              {
+                "label": "Submitted object (inputObjectId)",
+                "value": "document.medical_report_dock1_spill_eval_20260318"
+              },
+              {
+                "label": "Requested analysis",
+                "value": "MetadataAnalysis (device and timestamp correlation as present in recorded metadata/artifacts)"
+              },
+              {
+                "label": "Chain of custody reference",
+                "value": "observation.context_variance_medical_report"
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Methodology",
+            "text": "A metadata analysis was performed on the submitted document (document.medical_report_dock1_spill_eval_20260318). The examination was limited to identifying and reporting recorded metadata and explicitly referenced system/artifact identifiers and timestamps as present in associated records provided for this analysis, with emphasis on producible properties: DeviceCorrelation and TimestampCorrelation. No inference of unrecorded user actions or operator identity was made beyond what is explicitly recorded in the artifacts.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Findings",
+            "text": "The following objective artifacts and timestamps were identified and recorded for correlation within the incident window anchored to 2026-03-18 (America/Los_Angeles):\n\n1) A Windows Event Log entry was identified: \u0022Microsoft-Windows-Security-Auditing 4624\u0022 with Logon ID 0x3F2A9 for user LINH.T at 2026-03-18 02:54:58 on terminal MZ-PC-03.\n\n2) A WMS client log line was identified on the same machine (MZ-PC-03) recording \u0022SessionToken=7c1b9a2e\u0022 at 2026-03-18 03:11:41.\n\nThese artifacts provide a time-proximate correlation between the authenticated endpoint session (LINH.T; Logon ID 0x3F2A9) and the WMS client session token (7c1b9a2e) on terminal MZ-PC-03.",
+            "table": {
+              "columns": [
+                "Artifact / Record",
+                "Identifier(s)",
+                "Timestamp (PT)",
+                "Device / Source Context"
+              ],
+              "rows": [
+                [
+                  "Windows Security Event Log",
+                  "Microsoft-Windows-Security-Auditing 4624; Logon ID 0x3F2A9; User LINH.T",
+                  "2026-03-18 02:54:58",
+                  "Terminal: MZ-PC-03"
+                ],
+                [
+                  "WMS client log",
+                  "SessionToken=7c1b9a2e",
+                  "2026-03-18 03:11:41",
+                  "Same machine as above: MZ-PC-03"
+                ]
+              ],
+              "footnote": "All timestamps are reported as stated in the recorded artifacts (PT, consistent with case locale)."
+            },
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Conclusions",
+            "text": "Recorded artifacts support DeviceCorrelation and TimestampCorrelation linking terminal MZ-PC-03 to an authenticated Windows session for user LINH.T at 2026-03-18 02:54:58 (Logon ID 0x3F2A9) and to a WMS client session token (SessionToken=7c1b9a2e) recorded at 2026-03-18 03:11:41 on the same machine. This report does not determine who physically operated the terminal at those times.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "callout",
+            "heading": "Limitations",
+            "text": "The artifact may correlate with a device or account but does not prove who operated it.\n\nMetadata can be changed by software, copying, or system processes.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "keyValue",
+            "heading": "Signature",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Examiner",
+                "value": "Digital Forensics Unit Examiner (signature on file)"
+              },
+              {
+                "label": "Report date (anchored to case opened)",
+                "value": "2026-03-18"
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "keyValue",
+            "heading": "Items Submitted",
+            "text": null,
+            "table": null,
+            "items": [
+              {
+                "label": "Items Submitted",
+                "value": "document.medical_report_dock1_spill_eval_20260318"
+              }
+            ],
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Findings",
+            "text": "- Forensic analysis of MZ-PC-03 shows Windows Event Log entry \u0027Microsoft-Windows-Security-Auditing 4624\u0027 with Logon ID 0x3F2A9 for user LINH.T at 2026-03-18 02:54:58 and WMS client log line \u0027SessionToken=7c1b9a2e\u0027 at 2026-03-18 03:11:41 on the same machine.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          },
+          {
+            "kind": "narrative",
+            "heading": "Limitations",
+            "text": "- The artifact may correlate with a device or account but does not prove who operated it.\n- Metadata can be changed by software, copying, or system processes.",
+            "table": null,
+            "items": null,
+            "transcript": null,
+            "code": null
+          }
+        ],
+        "signature": null
+      }
+    }
+  ],
+  "Timeline": [
+    {
+      "time": "2026-03-18T03:06:44-07:00",
+      "event": "The cycle-count adjustment spreadsheet shows edits during the 03:00 hour despite appearing approved.",
+      "source": "investigation",
+      "verified": true,
+      "importance": "high"
+    },
+    {
+      "time": "2026-03-18T03:12:00-07:00",
+      "event": "The WMS shows an adjustment batch posted at 03:12 that changed on-hand counts for the affected SKU.",
+      "source": "sensor",
+      "verified": true,
+      "importance": "critical"
+    },
+    {
+      "time": "2026-03-18T09:47:10-07:00",
+      "event": "At 09:47, day shift reported a high-value pallet location empty and requested a reconciliation review.",
+      "source": "witness",
+      "verified": true,
+      "importance": "high"
+    }
+  ],
+  "TemporalEvents": [],
+  "AnalysisTypes": [
+    {
+      "type": "MetadataAnalysis",
+      "durationMinutes": 90,
+      "availableFor": [
+        "digital",
+        "document",
+        "pdf",
+        "photo"
+      ]
+    }
+  ],
+  "ForensicStubs": [
+    {
+      "inputAssetId": "asset.medical_report",
+      "inputObjectId": "document.medical_report_dock1_spill_eval_20260318",
+      "analysisType": "MetadataAnalysis",
+      "findings": true,
+      "matchedSuspectId": "suspect.linh_tran",
+      "role": "Correlates the MZ-PC-03 workstation/session artifacts in the report metadata to LINH.T, bridging the opaque WMS session token to a specific authenticated endpoint identity.",
+      "supportsClueIds": [
+        "clue.forensic_session_link"
+      ],
+      "producedProperties": [
+        "DeviceCorrelation",
+        "TimestampCorrelation"
+      ],
+      "limitationKeys": [
+        "operator_not_proven",
+        "metadata_can_be_modified"
+      ],
+      "referenceSampleObjectId": null,
+      "chainOfCustodyObservationId": "observation.context_variance_medical_report",
+      "resultLayoutId": "ForensicReport"
+    }
+  ],
+  "ForensicFull": [
+    {
+      "inputAssetId": "asset.medical_report",
+      "analysisType": "MetadataAnalysis",
+      "findings": true,
+      "matchedSuspectId": "suspect.linh_tran",
+      "matchedAssetId": null,
+      "conclusionText": "Metadata analysis identified workstation/session artifacts attributable to terminal MZ-PC-03, including a Windows Security logon event for user LINH.T at 2026-03-18 02:54:58 and a WMS client log entry recording SessionToken=7c1b9a2e at 2026-03-18 03:11:41 on the same machine. These timestamps provide device- and time-correlation between the endpoint session and the recorded WMS session token; however, the artifacts do not establish the specific human operator.",
+      "resultAssetId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "resultEmailId": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+    }
+  ],
+  "ResultEmails": [
+    {
+      "id": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "from": "Digital Forensics Laboratory \u003Clab@dalycitypd.gov\u003E",
+      "subject": "Metadata analysis completed: Dock 1 Slip/Spill Evaluation packet \u2014 MZ-PC-03 / SessionToken correlation",
+      "body": "Detective Ruiz,\n\nOur lab completed the requested **metadata analysis** for the submitted item **document.medical_report_dock1_spill_eval_20260318** (from **asset.medical_report**) in case **case_graph_detective_204**. The work was limited to recorded metadata/artifact identifiers and timestamp correlations (no inference of an unrecorded human operator).\n\nWe identified a Windows Security logon artifact on terminal **MZ-PC-03**: **Microsoft-Windows-Security-Auditing 4624** with **Logon ID 0x3F2A9** for user **LINH.T** at **2026-03-18 02:54:58 (PT)**. We also identified a WMS client log entry on the same machine recording **SessionToken=7c1b9a2e** at **2026-03-18 03:11:41 (PT)**.\n\nThese two artifacts provide **device correlation** (same endpoint: **MZ-PC-03**) and **timestamp correlation** (both occurring during the overnight incident window) between the authenticated endpoint session (LINH.T) and the WMS client session token (7c1b9a2e).\n\nLimitations apply: the presence of an account/device artifact **does not prove who physically operated** the device, and **metadata can be modified** by software, copying, or system processes.\n\nThe full report is attached in the case file as **asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e**.\n\nRespectfully,\nDigital Forensics Unit Examiner\nDaly City Police Department",
+      "sentAt": "2026-03-18T10:26:00-07:00",
+      "priority": null,
+      "attachments": [
+        "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+      ],
+      "visibility": "hidden"
+    }
+  ],
+  "Briefing": {
+    "from": "Daly City Police Department",
+    "subject": "Assignment Briefing \u2014 Roseway 3PL \u201CMissing Pallet Ledger\u201D (Inventory Diversion / Cycle Count Manipulation)",
+    "body": "Det. Ruiz,\n\nRoseway 3PL in Daly City has reported a suspected inventory diversion tied to routine cycle-count activity. Records indicate an overnight WMS adjustment was made to a specific pallet (PLT-77431, tablets), and the pallet was subsequently reported \u201Cnot located\u201D during follow-up review. The working theory is that ordinary systems and a procedural gap were used to mask product removal.\n\nWhat we can place on record at this stage: verified WMS audit activity reflects an inventory adjustment (audit token ADJ-920771) during the overnight window, and access-control logs place an employee badge assigned to Alina Cho entering through the employee entrance and using the admin corridor door around the same timeframe. In addition, the \u201CDiscrepancy Summary\u201D spreadsheet distributed by the inventory mailbox later that morning shows file metadata indicating it was modified during the overnight hours and saved under the \u201Cacho\u201D user.\n\nWhat remains uncertain is whether the digital activity corresponds to a single operator versus credential/shared-session use, and how the pallet physically left controlled inventory (e.g., through dock/returns handling, standard outbound paperwork, or another pathway). While other personnel have roles that could touch labels, staging, or security rounds, currently available records do not independently establish their involvement in the overnight adjustment or document edits.\n\nThis matters now because the loss was initially concealed as routine cycle counts and only surfaced on reconciliation, increasing the risk of further diversion if the same gap remains in place. Immediate objective: secure and correlate the access-control exports, WMS audit trail, and the email/attachment metadata into a clear attribution timeline, then identify the most likely physical egress path for PLT-77431 so we can request targeted preservation from Roseway (dock/returns movement documentation and related logs) before routine retention cycles overwrite them."
+  },
+  "FollowUpEmails": [
+    {
+      "id": "email.inventory_mailbox_context",
+      "from": "Inventory Control Shared Mailbox \u003Cinventory@warehouse.local\u003E",
+      "subject": "Heads-up: HHS-4102 discrepancy flagged after overnight auto-post",
+      "body": "Det. Ruiz,\n\nFlagging what our team noticed on 2026-03-18: right after the 03:12 auto-post, the reconciliation chatter focused on SKU HHS-4102 (handheld scanners) showing a -48 unit variance. The adjustment trail being discussed was tied to batch ADJ-20260318-0312.\n\nThis is the same SKU that later showed up as an empty location when day shift checked staging.\n\n\u2014Inventory Control",
+      "sentAt": "2026-03-18T10:41:00-07:00",
+      "priority": null,
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.ops_manager_preservation_notice",
+      "from": "Roseway 3PL Ops Manager \u003Cops.manager@warehouse.local\u003E",
+      "subject": "Preservation request: keep MZ-PC-03 and cycle-count shared drive data unchanged",
+      "body": "Det. Ruiz,\n\nPer our internal incident protocol, we have asked IT and floor leadership to preserve (no changes, no reboots if avoidable) the mezzanine workstation referenced in the WMS audit as terminal MZ-PC-03, and to preserve the shared-drive folder containing \u0027CycleCount_Adjustments_2026-03-18.xlsx\u0027.\n\nWe are also instructing staff not to \u201Ccorrect\u201D the HHS-4102 numbers pending your review.\n\n\u2014Ops Manager, Roseway 3PL",
+      "sentAt": "2026-03-18T11:02:00-07:00",
+      "priority": null,
+      "attachments": [],
+      "visibility": "initial"
+    },
+    {
+      "id": "email.security_rounds_context",
+      "from": "Gatehouse Security Desk \u003Csecurity@warehouse.local\u003E",
+      "subject": "Bay 2 pickup logged 04:06 \u2014 Peninsula SameDay (RET-EXC-1187)",
+      "body": "Det. Ruiz,\n\nConfirming the gatehouse entry from the overnight shift: Bay 2 pickup for courier Peninsula SameDay was logged at 2026-03-18 04:06 with reference RET-EXC-1187 and a contact phone ending -5521.\n\nThis was handled as a routine pickup entry on our side.\n\n\u2014Gatehouse Security Desk",
+      "sentAt": "2026-03-18T10:58:00-07:00",
+      "priority": null,
+      "attachments": [],
+      "visibility": "initial"
+    }
+  ],
+  "Rules": [
+    {
+      "ruleId": "rule.reveal_asset_medical_report_metadataanalysis",
+      "description": "Reveal forensic outcome of asset.medical_report:MetadataAnalysis",
+      "trigger": {
+        "type": "forensics_complete",
+        "inputAssetId": "asset.medical_report",
+        "analysisType": "MetadataAnalysis",
+        "emailId": null,
+        "assetId": null,
+        "suspectId": null,
+        "atMinutes": null,
+        "operator": null,
+        "conditions": null
+      },
+      "actions": [
+        {
+          "type": "reveal_email",
+          "emailId": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+          "assetId": null,
+          "suspectId": null,
+          "level": null,
+          "message": null,
+          "status": null,
+          "verified": null
+        },
+        {
+          "type": "reveal_asset",
+          "emailId": null,
+          "assetId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+          "suspectId": null,
+          "level": null,
+          "message": null,
+          "status": null,
+          "verified": null
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.narrative_open_lab_result_next_steps",
+      "description": null,
+      "trigger": {
+        "type": "email_opened",
+        "inputAssetId": null,
+        "analysisType": null,
+        "emailId": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "assetId": null,
+        "suspectId": null,
+        "atMinutes": null,
+        "operator": null,
+        "conditions": null
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "emailId": null,
+          "assetId": null,
+          "suspectId": null,
+          "level": "info",
+          "message": "Lab results are in. Next step: correlate the device/session details with internal access records and communications from the same window (access logs, email export, and chat export). Look for a matching user, workstation, or unusual login pattern.",
+          "status": null,
+          "verified": null
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.narrative_view_metadata_asset_pivot",
+      "description": null,
+      "trigger": {
+        "type": "asset_viewed",
+        "inputAssetId": null,
+        "analysisType": null,
+        "emailId": null,
+        "assetId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "suspectId": null,
+        "atMinutes": null,
+        "operator": null,
+        "conditions": null
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "emailId": null,
+          "assetId": null,
+          "suspectId": null,
+          "level": "warn",
+          "message": "This metadata ties the report to a specific workstation session. Pull the access log and compare timestamps against GPS and surveillance, then review mailbox/chat exports for anyone discussing the report or requesting it during that period.",
+          "status": null,
+          "verified": null
+        }
+      ]
+    },
+    {
+      "ruleId": "rule.narrative_after_core_triage_prompt_suspect_review",
+      "description": null,
+      "trigger": {
+        "type": "multiple_conditions",
+        "inputAssetId": null,
+        "analysisType": null,
+        "emailId": null,
+        "assetId": null,
+        "suspectId": null,
+        "atMinutes": null,
+        "operator": null,
+        "conditions": [
+          {
+            "type": "asset_viewed",
+            "inputAssetId": null,
+            "analysisType": null,
+            "emailId": null,
+            "assetId": "asset.access_log",
+            "suspectId": null,
+            "atMinutes": null,
+            "operator": null,
+            "conditions": null
+          },
+          {
+            "type": "asset_viewed",
+            "inputAssetId": null,
+            "analysisType": null,
+            "emailId": null,
+            "assetId": "asset.chat_export",
+            "suspectId": null,
+            "atMinutes": null,
+            "operator": null,
+            "conditions": null
+          },
+          {
+            "type": "asset_viewed",
+            "inputAssetId": null,
+            "analysisType": null,
+            "emailId": null,
+            "assetId": "asset.gps_track",
+            "suspectId": null,
+            "atMinutes": null,
+            "operator": null,
+            "conditions": null
+          }
+        ]
+      },
+      "actions": [
+        {
+          "type": "send_notification",
+          "emailId": null,
+          "assetId": null,
+          "suspectId": null,
+          "level": "info",
+          "message": "You now have access activity, comms, and movement data. Re-check each suspect profile against these timelines and note any mismatches or gaps worth following up with surveillance stills or witness statements.",
+          "status": null,
+          "verified": null
+        }
+      ]
+    }
+  ],
+  "RequiredEvidenceIds": [
+    "asset.access_log",
+    "asset.bank_statement",
+    "asset.gps_track"
+  ],
+  "RequiredAnalysisIds": [
+    "asset.medical_report:MetadataAnalysis"
+  ],
+  "QuestionTopics": [
+    {
+      "id": "q.key_timestamps_sequence",
+      "topic": "What is the documented sequence of key events (badge access \u2192 WMS adjustment batch \u2192 courier pickup), including the recorded times?",
+      "weight": 0.36,
+      "supportingEvidenceIds": [
+        "asset.access_log",
+        "asset.bank_statement",
+        "asset.gps_track"
+      ]
+    },
+    {
+      "id": "q.wms_batch_identifiers",
+      "topic": "Which specific WMS adjustment batch was posted during the critical window, and what user and terminal are recorded as initiating it?",
+      "weight": 0.34,
+      "supportingEvidenceIds": [
+        "asset.bank_statement"
+      ]
+    },
+    {
+      "id": "q.gate_pickup_details",
+      "topic": "What details are recorded in the gatehouse log for the Bay 2 courier pickup (courier name, reference number, and phone fragment)?",
+      "weight": 0.3,
+      "supportingEvidenceIds": [
+        "asset.gps_track"
+      ]
+    }
+  ],
+  "Questions": [
+    {
+      "id": "q.key_timestamps_sequence",
+      "prompt": "Which sequence matches records: badge access \u2192 WMS adjustment batch \u2192 courier pickup, with times?",
+      "options": [
+        {
+          "id": "opt.badge_024118_wms_031200_pickup_0406",
+          "label": "Badge access 02:41:18 (then 02:49:02) \u2192 WMS batch posted 03:12:00 \u2192 courier pickup logged 04:06"
+        },
+        {
+          "id": "opt.badge_024902_wms_031200_pickup_0406",
+          "label": "Badge access 02:49:02 \u2192 WMS batch posted 03:12:00 \u2192 courier pickup logged 04:06"
+        },
+        {
+          "id": "opt.badge_024118_wms_0406_pickup_031200",
+          "label": "Badge access 02:41:18 (then 02:49:02) \u2192 courier pickup logged 04:06 \u2192 WMS batch posted 03:12:00"
+        },
+        {
+          "id": "opt.badge_024902_wms_031200_pickup_0418",
+          "label": "Badge access 02:49:02 \u2192 WMS batch posted 03:12:00 \u2192 courier pickup logged 04:18"
+        }
+      ],
+      "correctOptionId": "opt.badge_024118_wms_031200_pickup_0406",
+      "weight": 0.36
+    },
+    {
+      "id": "q.wms_batch_identifiers",
+      "prompt": "Which WMS adjustment batch was posted, and what initiating user and terminal are recorded?",
+      "options": [
+        {
+          "id": "opt.adj_20260318_0312_rpt_floor_mz_pc_03",
+          "label": "Batch ADJ-20260318-0312; user rpt-floor; terminal MZ-PC-03"
+        },
+        {
+          "id": "opt.adj_20260318_0306_rpt_floor_mz_pc_03",
+          "label": "Batch ADJ-20260318-0306; user rpt-floor; terminal MZ-PC-03"
+        },
+        {
+          "id": "opt.adj_20260318_0312_rpt_floor_mz_pc_02",
+          "label": "Batch ADJ-20260318-0312; user rpt-floor; terminal MZ-PC-02"
+        },
+        {
+          "id": "opt.adj_20260318_0312_rep_floor_mz_pc_03",
+          "label": "Batch ADJ-20260318-0312; user rep-floor; terminal MZ-PC-03"
+        }
+      ],
+      "correctOptionId": "opt.adj_20260318_0312_rpt_floor_mz_pc_03",
+      "weight": 0.34
+    },
+    {
+      "id": "q.gate_pickup_details",
+      "prompt": "For the Bay 2 courier pickup, what did the gatehouse log record (courier, reference, phone ending)?",
+      "options": [
+        {
+          "id": "opt.peninsula_sameday_ret_exc_1187_5521",
+          "label": "Peninsula SameDay \u2014 RET-EXC-1187 \u2014 ending -5521"
+        },
+        {
+          "id": "opt.peninsula_sameday_ret_exc_1187_5215",
+          "label": "Peninsula SameDay \u2014 RET-EXC-1187 \u2014 ending -5215"
+        },
+        {
+          "id": "opt.peninsula_sameday_ret_exe_1187_5521",
+          "label": "Peninsula SameDay \u2014 RET-EXE-1187 \u2014 ending -5521"
+        },
+        {
+          "id": "opt.peninsula_sameday_ret_exc_1871_5521",
+          "label": "Peninsula SameDay \u2014 RET-EXC-1871 \u2014 ending -5521"
+        }
+      ],
+      "correctOptionId": "opt.peninsula_sameday_ret_exc_1187_5521",
+      "weight": 0.3
+    }
+  ],
+  "Explanation": "Linh Tran badged in after hours, entered the mezzanine office, and used the shared workstation to alter the cycle-count adjustment spreadsheet at 03:06 so the HHS-4102 handheld scanners would be written down and reclassified as returns/damaged. Minutes later, an adjustment batch posted at 03:12 from terminal MZ-PC-03, and a courier pickup was logged at Bay 2 at 04:06, consistent with the pallet being physically removed under the weaker returns-exception lane. Two independent trails converge on Linh: the access logs place her badge at Door E-Staff and the MZ-Office during the relevant window, and the shared-drive file properties show the spreadsheet was last modified by LINH.T at the key time. The decisive analysis ties the MZ-PC-03 session artifacts (LINH.T Windows logon and the WMS session token timestamped just before the 03:12 post) to the same machine used for the adjustment, bridging identity, location, and system action\u2014while noting the forensic limitation that endpoint artifacts correlate a session/device and time, not the operator\u2019s hands with absolute certainty. The strongest red herrings fall away: Maya\u2019s \u201Capproval\u201D email referenced an earlier attachment hash, indicating the file was changed after she signed off, and Owen\u2019s dock-kiosk log activity begins hours later, missing the overnight window. Rafael\u2019s presence at the gatehouse explains the logged pickup but doesn\u2019t connect him to the mezzanine access, file edit, or WMS adjustment that made the pallet disappear on paper.",
+  "SolverTrace": {
+    "Entries": [
+      {
+        "Sequence": 1,
+        "Kind": 0,
+        "ActionId": "inspect:asset.access_log",
+        "TargetId": "asset.access_log",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 2,
+        "Kind": 0,
+        "ActionId": "inspect:asset.bank_statement",
+        "TargetId": "asset.bank_statement",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 3,
+        "Kind": 0,
+        "ActionId": "inspect:asset.chat_export",
+        "TargetId": "asset.chat_export",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 4,
+        "Kind": 0,
+        "ActionId": "inspect:asset.email_export",
+        "TargetId": "asset.email_export",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 5,
+        "Kind": 0,
+        "ActionId": "inspect:asset.gps_track",
+        "TargetId": "asset.gps_track",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 6,
+        "Kind": 0,
+        "ActionId": "inspect:asset.medical_report",
+        "TargetId": "asset.medical_report",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 7,
+        "Kind": 0,
+        "ActionId": "inspect:asset.surveillance_still",
+        "TargetId": "asset.surveillance_still",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 8,
+        "Kind": 0,
+        "ActionId": "inspect:asset.witness_statement",
+        "TargetId": "asset.witness_statement",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 9,
+        "Kind": 0,
+        "ActionId": "inspect:email.inventory_mailbox_context",
+        "TargetId": "email.inventory_mailbox_context",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 10,
+        "Kind": 0,
+        "ActionId": "inspect:email.ops_manager_preservation_notice",
+        "TargetId": "email.ops_manager_preservation_notice",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 11,
+        "Kind": 0,
+        "ActionId": "inspect:email.security_rounds_context",
+        "TargetId": "email.security_rounds_context",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 12,
+        "Kind": 2,
+        "ActionId": "action.analysis_medical_report_metadataanalysis",
+        "TargetId": "asset.medical_report",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [
+          "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+          "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e"
+        ],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 13,
+        "Kind": 0,
+        "ActionId": "inspect:asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "TargetId": "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 14,
+        "Kind": 0,
+        "ActionId": "inspect:email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "TargetId": "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 15,
+        "Kind": 4,
+        "ActionId": "accuse:suspect.linh_tran",
+        "TargetId": "suspect.linh_tran",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": [
+          "observation.action_file_metadata_access_log",
+          "observation.action_wms_batch_bank_statement",
+          "observation.benefit_courier_pickup_gps_track",
+          "observation.decoy_suspicion_rafael_ibarra_gps_track",
+          "observation.decoy_verification_owen_delgado_bank_statement",
+          "observation.decoy_verification_rafael_ibarra_access_log",
+          "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+          "observation.identity_badge_linh_access_log"
+        ]
+      },
+      {
+        "Sequence": 16,
+        "Kind": 5,
+        "ActionId": "answer:q.gate_pickup_details",
+        "TargetId": "q.gate_pickup_details",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 17,
+        "Kind": 5,
+        "ActionId": "answer:q.key_timestamps_sequence",
+        "TargetId": "q.key_timestamps_sequence",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      },
+      {
+        "Sequence": 18,
+        "Kind": 5,
+        "ActionId": "answer:q.wms_batch_identifiers",
+        "TargetId": "q.wms_batch_identifiers",
+        "Accepted": true,
+        "Code": "accepted",
+        "Message": "Action accepted.",
+        "RevealedSourceIds": [],
+        "CitedObservationIds": []
+      }
+    ],
+    "FinalReachableSourceIds": [
+      "asset.access_log",
+      "asset.bank_statement",
+      "asset.chat_export",
+      "asset.email_export",
+      "asset.gps_track",
+      "asset.medical_report",
+      "asset.report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "asset.surveillance_still",
+      "asset.witness_statement",
+      "email.inventory_mailbox_context",
+      "email.lab_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "email.ops_manager_preservation_notice",
+      "email.security_rounds_context"
+    ],
+    "FinalReachableObservationIds": [
+      "observation.action_file_metadata_access_log",
+      "observation.action_wms_batch_bank_statement",
+      "observation.benefit_courier_pickup_gps_track",
+      "observation.context_variance_chat_export",
+      "observation.context_variance_email_export",
+      "observation.context_variance_medical_report",
+      "observation.context_variance_witness_statement",
+      "observation.decoy_suspicion_maya_kline_witness_statement",
+      "observation.decoy_suspicion_owen_delgado_chat_export",
+      "observation.decoy_suspicion_owen_delgado_surveillance_still",
+      "observation.decoy_suspicion_rafael_ibarra_gps_track",
+      "observation.decoy_suspicion_rafael_ibarra_medical_report",
+      "observation.decoy_verification_maya_kline_email_export",
+      "observation.decoy_verification_owen_delgado_bank_statement",
+      "observation.decoy_verification_rafael_ibarra_access_log",
+      "observation.forensic_session_link_report_medical_report_metadataanalysis_mz_pc_03_sessiontoken_7c1b9a2e",
+      "observation.identity_badge_linh_access_log",
+      "observation.identity_badge_linh_surveillance_still"
+    ],
+    "LogicalProofPassed": true,
+    "NarrativeSimulationPassed": true
+  }
+}

@@ -64,7 +64,7 @@ The fundamental cycle that players repeat throughout their investigation:
     │ GET FEEDBACK     │  ← Resolution (2-5 min)
     │                  │     - Correct/Incorrect
     └──────┬───────────┘     - See actual solution
-           │                 - Earn XP and rank
+           │                 - Earn promotion credit and rank progress
            │
            ▼
     [Next Case or Retry]
@@ -208,7 +208,7 @@ How a typical play session unfolds:
 0:35 - Proofreads explanation
 0:38 - Clicks Submit (nervous!)
 0:40 - Feedback screen: "Correct!" + solution walkthrough
-0:42 - XP awarded, rank increases
+0:42 - Case result recorded, promotion progress updates
 0:45 - Returns to dashboard, sees next case unlocked
 ```
 
@@ -217,6 +217,8 @@ How a typical play session unfolds:
 ## 2.4 Difficulty Progression
 
 How challenge scales across experience:
+
+**Implementation note:** The live game uses seven canonical difficulty/rank levels shared across case difficulty and detective rank: `Rookie`, `Detective`, `Detective2`, `Sergeant`, `Lieutenant`, `Captain`, `Commander`. The Easy/Medium/Hard/Expert buckets below are design shorthand, not the canonical in-game enum.
 
 ### Easy Cases
 **Target Audience:** First-time players, casual investigators  
@@ -288,8 +290,8 @@ How does a player "win" a case?
 4. ✅ Submit within allowed attempts (typically 3)
 
 **Rewards:**
-- Full XP for case (based on difficulty)
-- Rank progress toward next tier
+- Counts as a graded-correct case resolve when the submitted solution is correct
+- Promotion thresholds advance at 3, 8, 16, 28, 44, and 65 cumulative graded-correct resolves (Rookie starts at 0)
 - Case marked as "Solved" in history
 - Solution walkthrough unlocked
 - Next case(s) unlocked
@@ -301,7 +303,7 @@ How does a player "win" a case?
 - Evidence interpretation was logical (even if incorrect)
 
 **Rewards:**
-- 50% XP (acknowledging effort)
+- No promotion credit under the current cumulative graded-correct promotion rules
 - Detailed feedback on what was missed
 - Can retry with new attempt
 
@@ -311,7 +313,7 @@ How does a player "win" a case?
 - Cannot solve case
 
 **Outcome:**
-- No XP awarded
+- No promotion credit awarded
 - Full solution revealed
 - Case marked as "Unsolved - Reviewed"
 - Can attempt again later (after solving other cases)
@@ -333,7 +335,7 @@ What CAN'T make you fail:
 ### Soft Fail: Running Out of Attempts
 **What happens:**
 - After 3 incorrect submissions, case is "locked"
-- Solution is revealed (can't claim XP)
+- Solution is revealed (doesn't count as a graded-correct resolve)
 - Must solve 2 other cases before retrying
 - Player learns from mistakes
 
@@ -407,7 +409,7 @@ What keeps players engaged?
 
 ### Long-Term Hooks (Across Cases)
 **"I'm becoming a better detective..."**
-- Rank progression (Rookie → Detective → Veteran → Master)
+- Rank progression (Rookie → Detective → Detective2 → Sergeant → Lieutenant → Captain → Commander)
 - Growing case library (solved 5, 10, 20 cases)
 - Improved success rate over time
 - Unlocking harder, more interesting cases
@@ -693,7 +695,7 @@ Handling unusual scenarios:
 
 **System Response:**
 - ✅ Solution still accepted
-- ✅ Full XP awarded
+- ✅ Still counts as a graded-correct resolve if the final submission is correct
 - 🎖️ Bonus: "Detective's Intuition" acknowledgment
 - Note: This is rare but should be rewarded
 
@@ -767,7 +769,7 @@ How gameplay might expand post-launch:
 ### Phase 4 (Long-term): Advanced Features
 - **Co-op Mode:** Two detectives share case (async collaboration)
 - **Custom Cases:** Community-created cases (curated)
-- **Case Generator:** Procedural case creation (very long-term)
+- **Player-Facing Case Generator:** UGC/procedural case creation (very long-term)
 
 **Important:** Core loop remains unchanged. Additions are enhancements, not replacements.
 
@@ -787,7 +789,7 @@ How gameplay might expand post-launch:
 **Player Experience:**
 - Sessions are 30-90 minutes
 - Cases take 3-5 sessions to complete
-- Difficulty scales from Easy (2-4h) to Expert (8-12h)
+- Difficulty scales across seven implemented levels, from Rookie to Commander
 - Autonomy and player-driven investigation throughout
 
 **Success Metrics:**

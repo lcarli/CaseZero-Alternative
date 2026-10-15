@@ -2,183 +2,258 @@
 
 ## Visão Geral
 
-O sistema `CaseDifficultyProfile` formaliza as regras de geração de casos baseadas em níveis de dificuldade, garantindo que cada nível tenha requisitos específicos de quantidade, complexidade e tipo de raciocínio necessário.
+A implementação atual de dificuldade de casos v2 não usa mais o modelo antigo com `Documents`, `Evidences`, `RedHerrings`, `EvidenceRoleBudget`, `MediaDeterminism` ou campos da antiga EPIC 1.1. O comportamento real está centralizado em `functions/CaseGen.Functions/Services/CaseV2/DifficultyProfileCatalog.cs` e é validado por `DifficultyTopologyValidator`, `PipelineStageValidator`, `EvidenceContractValidator`, `CaseBibleValidator` e `CaseV2FinalValidation`.
 
-## Estrutura do DifficultyProfile
+Hoje a dificuldade é composta por dois blocos:
 
-### Campos Originais
-- **Description**: Descrição textual do nível
-- **Suspects**: Faixa (min, max) de suspeitos
-- **Documents**: Faixa (min, max) de documentos
-- **Evidences**: Faixa (min, max) de evidências
-- **ComplexityFactors**: Array de fatores de complexidade
-- **EstimatedDurationMinutes**: Duração estimada (min, max)
-- **RedHerrings**: Quantidade de pistas falsas
-- **GatedDocuments**: Documentos com gating
-- **ForensicsComplexity**: Nível de complexidade forense
+1. `DifficultyProfile`: orçamento estrutural do caso.
 
-### Novos Campos (EPIC 1.1)
+2. `DifficultyTopology`: requisitos lógicos/topológicos do caminho de prova.
 
-#### 1. EvidenceRoles (Orçamento de Papéis de Evidência)
-Define quantas evidências de cada tipo devem existir:
-- **Conclusive**: Evidências conclusivas que provam algo definitivamente
-- **Supporting**: Evidências de apoio que corroboram outras evidências
-- **Ambiguous**: Evidências ambíguas que podem ter múltiplas interpretações
-- **RedHerring**: Pistas falsas que desviam a investigação
+## Estrutura atual de `DifficultyProfile`
 
 ```csharp
-EvidenceRoles = new EvidenceRoleBudget
+public sealed record DifficultyProfile(
+    string Name,
+    int MinAssets,
+    int MaxAssets,
+    int MinInvestigativeAssets,
+    int MaxInvestigativeAssets,
+    int MinScenePhotos,
+    int MaxScenePhotos,
+    int MinFamilies,
+    int MaxRarity,
+    int MinSuspects,
+    int MaxSuspects,
+    int MinAnalyses,
+    int MaxAnalyses,
+    int MinIndependentCulpritSources,
+    int MaxRepairIterations,
+    bool AllEvidenceInitial)
 {
-    Conclusive = (2, 3),
-    Supporting = (1, 2),
-    Ambiguous = (0, 0),
-    RedHerring = (0, 0)
+    public DifficultyTopology Topology { get; init; } = new();
 }
 ```
 
-#### 2. ReasoningRequirements (Requisitos de Raciocínio)
-Lista os tipos de raciocínio investigativo necessários:
-- `timeline_basic`: Análise básica de linha do tempo
-- `cross_document`: Correlação entre documentos
-- `evidence_correlation`: Correlação de evidências
-- `forensic_analysis`: Análise forense
-- `deep_inference`: Inferência profunda
-- `adversarial_reasoning`: Raciocínio adversarial
+### Significado dos campos
 
-#### 3. PlannedContradictions (Contradições Planejadas)
-Faixa de contradições intencionais que devem ser resolvidas:
-```csharp
-PlannedContradictions = (0, 1)  // 0 a 1 contradição planejada
-```
+- `MinAssets` / `MaxAssets`: total de assets no dossiê.
 
-#### 4. AlternativeInterpretations (Interpretações Alternativas)
-Faixa de interpretações alternativas válidas:
-```csharp
-AlternativeInterpretations = (0, 1)
-```
+- `MinInvestigativeAssets` / `MaxInvestigativeAssets`: assets investigativos (`primary` ou `corroborative`), excluindo contextuais.
 
-#### 5. MaxMediaVariantsPerEvidence (Variantes de Mídia)
-Número máximo de representações visuais diferentes para a mesma evidência:
-```csharp
-MaxMediaVariantsPerEvidence = 1  // Apenas uma foto por evidência
-```
+- `MinScenePhotos` / `MaxScenePhotos`: quantidade de fotos de cena.
 
-#### 6. MediaDeterminism (Determinismo de Mídia)
-Controla o grau de criatividade na geração de mídia:
+- `MinFamilies`: diversidade mínima de famílias de evidência (`official`, `testimonial`, `digital`, etc.).
+
+- `MaxRarity`: limite de raridade dos arquétipos usados como fillers.
+
+- `MinSuspects` / `MaxSuspects`: faixa obrigatória de suspeitos.
+
+- `MinAnalyses` / `MaxAnalyses`: quantidade de resultados forenses úteis (`findings == true`).
+
+- `MinIndependentCulpritSources`: número mínimo de origens independentes sustentando a culpa.
+
+- `MaxRepairIterations`: teto do loop de reparo/finalização.
+
+- `AllEvidenceInitial`: se toda a evidência resolutiva precisa estar disponível desde o início.
+
+## Estrutura atual de `DifficultyTopology`
 
 ```csharp
-public enum MediaDeterminismLevel
+public sealed class DifficultyTopology
 {
-    High,        // Sem variação, sem detalhes extras (Rookie/Detective)
-    Medium,      // Variação controlada (Detective2/Sergeant)
-    Controlled   // Variação apenas se role=ambiguous (Lieutenant+)
+    public int MinDerivationDepth { get; init; }
+    public int MaxDerivationDepth { get; init; } = int.MaxValue;
+    public int MinIndependentProofPaths { get; init; } = 1;
+    public int RequiredDecoyArcs { get; init; }
+    public int MinForensicHops { get; init; }
+    public int RedHerringResolutionDepth { get; init; } = 1;
+    public int RequiredCrossSourceCorrelations { get; init; }
+    public bool InitialSolutionAllowed { get; init; }
+    public bool RequiresConflictingObservation { get; init; }
+    public bool RequiresPartiallyOverlappingProofPaths { get; init; }
+    public int MinOptionalAnalyses { get; init; }
+    public int MinReliabilityLevels { get; init; } = 1;
+    public bool RequiresMeaningfulInvestigationOrder { get; init; }
 }
 ```
 
-## Perfis por Nível
+### Significado dos campos topológicos
 
-### Rookie
-- **Evidências**: Maioria conclusiva, zero ambíguas
-- **Raciocínio**: Timeline básico, evidência direta
-- **Contradições**: 0
-- **Determinismo**: Alto (sem variação)
+- `MinDerivationDepth` / `MaxDerivationDepth`: profundidade mínima/máxima da prova contra o culpado.
 
-### Detective
-- **Evidências**: Mix conclusivo/suporte, até 1 ambígua, 1-2 red herrings
-- **Raciocínio**: Timeline, cross-document, verificação de testemunhas
-- **Contradições**: 0-1
-- **Determinismo**: Alto
+- `MinIndependentProofPaths`: quantidade mínima de trilhas independentes de prova.
 
-### Detective2
-- **Evidências**: Balanceado, 1-2 ambíguas, 2-3 red herrings
-- **Raciocínio**: Análise de timeline, correlação, lógica ramificada
-- **Contradições**: 1-2
-- **Determinismo**: Médio
+- `RequiredDecoyArcs`: mínimo de arcos de suspeita falsa (`decoy arcs`).
 
-### Sergeant
-- **Evidências**: Mix variado, 2-3 ambíguas, 3-4 red herrings
-- **Raciocínio**: Correlação multi-fonte, análise forense, avaliação de confiabilidade
-- **Contradições**: 2-3
-- **Determinismo**: Médio
-- **Variantes**: Até 2 por evidência
+- `MinForensicHops`: número mínimo de passos forenses no caminho da prova.
 
-### Lieutenant
-- **Evidências**: Alta complexidade, 2-4 ambíguas, 4-5 red herrings
-- **Raciocínio**: Timeline em camadas, dependências, análise técnica, testes de hipóteses
-- **Contradições**: 3-4
-- **Determinismo**: Controlado
-- **Variantes**: Até 2 por evidência
+- `RedHerringResolutionDepth`: profundidade mínima para resolver pistas falsas.
 
-### Captain
-- **Evidências**: Muito complexo, 3-5 ambíguas, 5-6 red herrings
-- **Raciocínio**: Inferência profunda, contrainteligência, análise adversarial
-- **Contradições**: 4-5
-- **Determinismo**: Controlado
-- **Variantes**: Até 3 por evidência
+- `RequiredCrossSourceCorrelations`: correlações mínimas entre fontes distintas.
 
-### Commander
-- **Evidências**: Extremamente complexo, 4-6 ambíguas, 7-8 red herrings
-- **Raciocínio**: Padrões seriais, correlação global, jurisdição internacional
-- **Contradições**: 5-7
-- **Determinismo**: Controlado
-- **Variantes**: Até 3 por evidência
+- `InitialSolutionAllowed`: permite ou não solução puramente com evidência inicial.
 
-## Uso no Sistema
+- `RequiresConflictingObservation`: exige ao menos uma observação/fato conflitante, mas explicável.
 
-### Obter Profile
-```csharp
-var profile = DifficultyLevels.GetProfile(difficulty);
-```
+- `RequiresPartiallyOverlappingProofPaths`: exige caminhos de prova com sobreposição parcial.
 
-### Acessar Orçamento de Evidências
-```csharp
-var (minConclusive, maxConclusive) = profile.EvidenceRoles.Conclusive;
-```
+- `MinOptionalAnalyses`: quantidade mínima de análises opcionais além das obrigatórias.
 
-### Verificar Requisitos de Raciocínio
-```csharp
-if (profile.ReasoningRequirements.Contains("forensic_analysis"))
-{
-    // Incluir análise forense
-}
-```
+- `MinReliabilityLevels`: diversidade mínima de níveis de confiabilidade.
 
-### Aplicar Determinismo de Mídia
-```csharp
-switch (profile.MediaDeterminism)
-{
-    case MediaDeterminismLevel.High:
-        // Sem variação nos prompts
-        break;
-    case MediaDeterminismLevel.Medium:
-        // Variação controlada
-        break;
-    case MediaDeterminismLevel.Controlled:
-        // Variação apenas para evidências ambíguas
-        break;
-}
-```
+- `RequiresMeaningfulInvestigationOrder`: exige pré-requisitos reais na ordem de investigação.
 
-## Próximos Passos (EPIC 1.2)
+## Perfis por nível
 
-- [ ] Injetar o profile nos prompts de Plan
-- [ ] Injetar o profile nos prompts de Design
-- [ ] Injetar o profile nos prompts de Generate
-- [ ] Injetar o profile nos prompts de QA
-- [ ] Adicionar logging do profile em cada chamada LLM
+### Orçamento estrutural
 
-## Validações (EPIC 6)
+| Nível | Assets | Investigativos | Fotos de cena | Famílias mín. | Raridade máx. | Suspeitos | Resultados forenses úteis | Fontes independentes do culpado | Reparo máx. | Toda evidência inicial? |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| Rookie | 10-14 | 5-7 | 1-2 | 3 | 1 | 3-4 | 0-0 | 2 | 3 | Sim |
+| Detective | 12-16 | 6-8 | 1-2 | 5 | 2 | 3-4 | 1-2 | 2 | 3 | Não |
+| Detective2 | 13-17 | 7-9 | 1-2 | 5 | 2 | 4-5 | 1-2 | 2 | 3 | Não |
+| Sergeant | 14-18 | 8-10 | 2-3 | 6 | 3 | 4-5 | 1-3 | 2 | 3 | Não |
+| Lieutenant | 15-19 | 8-11 | 2-3 | 6 | 3 | 4-6 | 2-3 | 3 | 3 | Não |
+| Captain | 16-20 | 9-12 | 2-3 | 6 | 3 | 5-6 | 2-4 | 3 | 3 | Não |
+| Commander | 17-22 | 10-13 | 2-4 | 6 | 3 | 5-6 | 2-4 | 3 | 3 | Não |
 
-O Normalizer deve validar:
-- Contagem real de evidências por role vs budget do profile
-- Número de contradições dentro da faixa permitida
-- Número de interpretações alternativas dentro da faixa
-- Variantes de mídia não excedem o máximo permitido
+### Requisitos topológicos
 
-## Benefícios
+| Nível | Profundidade | Trilhas independentes | Decoys | Hops forenses | Prof. resolução de red herring | Correlações cross-source | Solução inicial? | Conflito obrigatório? | Sobreposição parcial? | Análises opcionais mín. | Níveis de confiabilidade | Ordem significativa? |
+|---|---|---:|---:|---:|---:|---:|---|---|---|---:|---:|---|
+| Rookie | 1-2 | 2 | 2 | 0 | 1 | 0 | Sim | Não | Não | 0 | 1 | Não |
+| Detective | 3-4 | 2 | 2 | 1 | 1 | 1 | Não | Não | Não | 0 | 1 | Sim |
+| Detective2 | 4-5 | 2 | 3 | 1 | 2 | 1 | Não | Sim | Sim | 1 | 2 | Sim |
+| Sergeant | 4-6 | 2 | 3 | 1 | 2 | 1 | Não | Sim | Sim | 1 | 2 | Sim |
+| Lieutenant | 5-7 | 3 | 3 | 2 | 2 | 2 | Não | Sim | Não | 1 | 3 | Sim |
+| Captain | 5-8 | 3 | 4 | 2 | 2 | 2 | Não | Sim | Não | 1 | 3 | Sim |
+| Commander | 6-9 | 3 | 4 | 3 | 2 | 2 | Não | Sim | Não | 1 | 3 | Sim |
 
-1. **Previsibilidade**: Cada nível segue regras formais
-2. **Consistência**: Todas as fases usam as mesmas definições
-3. **Qualidade**: Ambiguidade é intencional e controlada
-4. **Jogabilidade**: Casos são solucionáveis por raciocínio lógico
-5. **Serializável**: Profile pode ser exportado como JSON para debugging
+## Efeito real no pipeline
+
+### 1. Case Bible / blueprint
+
+`CaseBibleTask` injeta no prompt:
+
+- dificuldade canônica
+
+- faixa de suspeitos
+
+- mínimo de proof paths independentes
+
+- mínimo de origens não forenses para a culpa
+
+- mínimo de `decoyArcs`
+
+- mínimo de `forensicOpportunities`
+
+- flag `all_evidence_initial`
+
+- exigência de observação conflitante
+
+Além disso, `CaseBibleValidator` e `PipelineStageValidator` impõem regras extras por dificuldade:
+
+- sempre deve haver exatamente **um** clue decisivo contra o culpado;
+
+- em `Rookie`, nenhum clue/oportunidade forense é permitido;
+
+- fora de `Rookie`, o clue decisivo do culpado deve ser forense;
+
+- fora de `Rookie`, a cadeia do culpado precisa incluir pelo menos um clue de `identity`, um de `action` e um decisivo de `forensicAttribution`.
+
+### 2. Asset plan / dossiê
+
+`EvidenceArchetypeCatalog` usa o profile para definir:
+
+- total de assets;
+
+- total de assets investigativos;
+
+- quantidade de fotos de cena;
+
+- diversidade mínima de famílias de evidência;
+
+- raridade máxima de arquétipos filler.
+
+Regras estruturais atualmente obrigatórias:
+
+- sempre existe um `incident_report` inicial;
+
+- cada suspeito recebe exatamente **um** retrato (`suspect_portrait`) e **uma** entrevista/transcrição;
+
+- assets `contextual` não podem carregar clues resolutivos nem virar `requiredEvidenceIds`.
+
+### 3. Forense
+
+`CaseV2GeneratorService` pula toda a etapa forense quando o caso é `Rookie`.
+
+Para os demais níveis:
+
+- `ForensicsPlanTask` calcula a quantidade desejada de outcomes com base em `MinAnalyses`, `MaxAnalyses` e `Topology.MinOptionalAnalyses`;
+
+- `PipelineStageValidator.ValidateForensics` exige que a quantidade de outcomes úteis fique dentro da faixa do profile;
+
+- `SolutionSkeletonTask` reserva pelo menos `MinOptionalAnalyses` como opcionais, para não tornar toda análise obrigatória na solução.
+
+### 4. Topologia e validação final
+
+`DifficultyTopologyValidator` valida, no grafo final:
+
+- profundidade real da prova do culpado;
+
+- quantidade de proof paths independentes;
+
+- quantidade de decoys;
+
+- hops forenses reais;
+
+- correlação entre fontes;
+
+- existência de conflitos explicáveis;
+
+- sobreposição parcial (quando exigida);
+
+- número mínimo de níveis de confiabilidade;
+
+- ordem de investigação com pré-requisitos.
+
+`CaseV2FinalValidation` sempre executa essa checagem; para `Rookie`, ainda roda `RookieRegressionValidator`.
+
+## Contrato especial de Rookie
+
+`Rookie` é o único nível com comportamento funcional especial:
+
+- sem workflow forense;
+
+- `requiredAnalysisIds` deve ficar vazio;
+
+- toda evidência necessária à solução deve estar acessível desde o início;
+
+- `unlockMode` público deve ser `all_initial`;
+
+- regras `forensics_complete` são removidas do JSON final.
+
+Em outras palavras: `Rookie` não é só “mais fácil”; é um modo sem dependência de laboratório.
+
+## Resumo prático
+
+- A dificuldade atual é orientada por **orçamento estrutural + topologia de prova**, não por contadores genéricos de documentos.
+
+- O principal salto entre níveis altos não é apenas “mais assets”, mas sim:
+
+  - mais suspeitos;
+
+  - mais caminhos independentes;
+
+  - mais decoys;
+
+  - mais hops forenses;
+
+  - mais correlação entre fontes;
+
+  - maior profundidade lógica;
+
+  - maior necessidade de ordem investigativa real.
+
+- `MaxRepairIterations` está em **3** para todos os níveis no estado atual do código.

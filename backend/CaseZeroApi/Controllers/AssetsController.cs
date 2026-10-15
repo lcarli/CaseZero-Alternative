@@ -6,6 +6,7 @@ using CaseZeroApi.Data;
 using CaseZeroApi.DTOs;
 using CaseZeroApi.Models;
 using CaseZeroApi.Services;
+using Azure.Core;
 using Azure.Storage.Blobs;
 
 namespace CaseZeroApi.Controllers
@@ -27,7 +28,8 @@ namespace CaseZeroApi.Controllers
             ILogger<AssetsController> logger,
             IConfiguration configuration,
             IAuditLogService auditLogService, // P86
-            ICaseV2StorageService caseStorageService) // v2
+            ICaseV2StorageService caseStorageService, // v2
+            TokenCredential credential)
         {
             _context = context;
             _logger = logger;
@@ -35,12 +37,9 @@ namespace CaseZeroApi.Controllers
             _auditLogService = auditLogService; // P86
             _caseStorageService = caseStorageService; // P87
 
-            // Initialize BlobServiceClient for direct blob access
-            var connectionString = configuration["CaseGeneratorStorage:ConnectionString"]
-                ?? configuration["AzureWebJobsStorage"]
-                ?? Environment.GetEnvironmentVariable("AzureWebJobsStorage")
-                ?? "UseDevelopmentStorage=true";
-            _blobServiceClient = new BlobServiceClient(connectionString);
+            // Prefer managed identity when CaseGeneratorStorage:AccountName is set;
+            // fall back to connection string for local dev (Azurite).
+            _blobServiceClient = CaseGeneratorStorageFactory.CreateBlobServiceClient(configuration, credential);
         }
 
         /// <summary>

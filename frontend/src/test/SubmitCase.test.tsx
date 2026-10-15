@@ -1,9 +1,9 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import '@testing-library/jest-dom'
 
-import type { SubmitCaseRequest, SubmitCaseResult } from '../types/caseV2'
+import type { CaseDifficulty, SubmitCaseRequest, SubmitCaseResult } from '../types/caseV2'
 
 // ──────────────────────────────────────────────────────────────
 // Mutable mock state — updated by the mock's submitCase
@@ -43,7 +43,7 @@ const mockCase = {
   metadata: {
     title: 'The Missing Heir', description: 'A case.', location: 'Riverside',
     incidentDate: '2024-01-01', openedAt: '2024-01-01',
-    difficulty: 'Detective' as const, requiredRank: 'Rookie' as const,
+    difficulty: 'Detective' as CaseDifficulty, requiredRank: 'Detective' as CaseDifficulty,
   },
   assets: mockAssets,
   emails: [],
@@ -60,8 +60,10 @@ const mockSubmitCase = vi.fn(async (payload: SubmitCaseRequest): Promise<SubmitC
     correct: false,
     score: 0,
     breakdown: { culpritScore: 0, evidenceScore: 0, analysisScore: 0, questionsScore: 0 },
+    maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
     attemptsRemaining: 2,
-    feedbackText: 'wrong',
+    graded: true,
+    feedbackCode: 'incorrect_attempts_remaining',
     explanationMarkdown: undefined,
   }
 })
@@ -88,6 +90,12 @@ vi.mock('../contexts/CaseContext', () => ({
   useSubmission: () => mockSubmissionState,
 }))
 
+vi.mock('../services/api', () => ({
+  forensicRequestApi: {
+    getForensicRequests: vi.fn(async () => [] as unknown[]),
+  },
+}))
+
 vi.mock('../contexts/LanguageContext', () => ({
   useLanguage: () => ({ t: (key: string) => key, currentLanguage: mockLanguage }),
   LanguageProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -98,6 +106,7 @@ vi.mock('../contexts/LanguageContext', () => ({
 // ──────────────────────────────────────────────────────────────
 
 import SubmitCase from '../components/apps/SubmitCase'
+import { forensicRequestApi } from '../services/api'
 
 // ──────────────────────────────────────────────────────────────
 // Tests
@@ -108,14 +117,20 @@ describe('SubmitCase', () => {
     vi.clearAllMocks()
     mockSubmissionState = { attemptsUsed: 0, maxAttempts: 3, lastResult: undefined }
     mockLanguage = 'en-US'
+    mockCase.metadata.difficulty = 'Detective'
+    mockCase.metadata.requiredRank = 'Detective'
+    vi.mocked(forensicRequestApi.getForensicRequests).mockResolvedValue([])
   })
 
-  it('renders visible suspects as select options', () => {
+  it('renders visible suspects as selectable cards', () => {
     render(<SubmitCase />)
-    const select = screen.getByRole('combobox')
-    expect(select).toBeInTheDocument()
+    // Suspects are now rendered as radio buttons within a radiogroup
+    const group = screen.getByRole('radiogroup', { name: /suspect/i })
+    expect(group).toBeInTheDocument()
     expect(screen.getByText('Marcus Reeve')).toBeInTheDocument()
     expect(screen.getByText('Alice Turner')).toBeInTheDocument()
+    // Scope to the suspect group to avoid counting question-option radios too
+    expect(within(group).getAllByRole('radio')).toHaveLength(mockSuspects.length)
   })
 
   it('renders visible assets as evidence checkboxes', () => {
@@ -136,12 +151,13 @@ describe('SubmitCase', () => {
     mockSubmitCase.mockResolvedValueOnce({
       correct: true, score: 1.0,
       breakdown: { culpritScore: 0.4, evidenceScore: 0.2, analysisScore: 0.2, questionsScore: 0.2 },
-      attemptsRemaining: 2, feedbackText: 'Case solved.', explanationMarkdown: undefined,
+      maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
+      attemptsRemaining: 2, graded: true, feedbackCode: 'correct', explanationMarkdown: undefined,
     })
 
     render(<SubmitCase />)
 
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'suspect.marcus' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Marcus Reeve' }))
     fireEvent.click(screen.getAllByRole('checkbox')[0])
     fireEvent.click(screen.getByRole('button'))
 
@@ -155,12 +171,13 @@ describe('SubmitCase', () => {
   it('renders score after response', async () => {
     mockSubmitCase.mockResolvedValueOnce({
       correct: true, score: 0.9,
-      breakdown: { culpritScore: 0.4, evidenceScore: 0.1, analysisScore: 0.2, questionsScore: 0.2 },
-      attemptsRemaining: 2, feedbackText: 'Case solved!', explanationMarkdown: undefined,
+      breakdown: { culpritScore: 0.4, evidenceScore: 0.2, analysisScore: 0.1, questionsScore: 0.2 },
+      maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
+      attemptsRemaining: 2, graded: true, feedbackCode: 'correct', explanationMarkdown: undefined,
     })
 
     const { rerender } = render(<SubmitCase />)
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'suspect.marcus' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Marcus Reeve' }))
     fireEvent.click(screen.getByRole('button'))
 
     // Wait for submitCase to resolve and re-render with updated state
@@ -168,10 +185,10 @@ describe('SubmitCase', () => {
     rerender(<SubmitCase />)
 
     expect(screen.getByText(/0\.9/)).toBeInTheDocument()
-    expect(screen.getByText('submitCaseBreakdownCulprit: 0.4')).toBeInTheDocument()
-    expect(screen.getByText('submitCaseBreakdownEvidence: 0.1')).toBeInTheDocument()
-    expect(screen.getByText('submitCaseBreakdownAnalysis: 0.2')).toBeInTheDocument()
-    expect(screen.getByText('submitCaseBreakdownQuestions: 0.2')).toBeInTheDocument()
+    expect(screen.getByText('submitCaseBreakdownCulprit').parentElement).toHaveTextContent('100% (0.4 / 0.4)')
+    expect(screen.getByText('submitCaseBreakdownEvidence').parentElement).toHaveTextContent('100% (0.2 / 0.2)')
+    expect(screen.getByText('submitCaseBreakdownAnalysis').parentElement).toHaveTextContent('50% (0.1 / 0.2)')
+    expect(screen.getByText('submitCaseBreakdownQuestions').parentElement).toHaveTextContent('100% (0.2 / 0.2)')
   })
 
   it('button is disabled when no suspect is selected', () => {
@@ -179,34 +196,22 @@ describe('SubmitCase', () => {
     expect(screen.getByRole('button')).toBeDisabled()
   })
 
-  it.each([
-    ['pt-BR', '0,15'],
-    ['en-US', '0.15'],
-    ['es-ES', '0,15'],
-    ['fr-FR', '0,15'],
-  ])('formats numeric analysis credit in %s', (language, score) => {
-    mockLanguage = language
-    mockSubmissionState.lastResult = {
-      correct: false, score: 0.65,
-      breakdown: { culpritScore: 0.4, evidenceScore: 0.1, analysisScore: 0.15, questionsScore: 0 },
-      attemptsRemaining: 2, feedbackText: 'Not quite.',
-    }
-    render(<SubmitCase />)
-    expect(screen.getByText(`submitCaseBreakdownAnalysis: ${score}`)).toBeInTheDocument()
-  })
-
-  it('button is disabled when attemptsRemaining is 0', () => {
+  it('button stays enabled when attemptsRemaining is 0 (ungraded mode)', () => {
     mockSubmissionState = { attemptsUsed: 3, maxAttempts: 3, lastResult: undefined }
     render(<SubmitCase />)
+    // Player can keep submitting ungraded; only the missing-suspect rule disables the button.
     expect(screen.getByRole('button')).toBeDisabled()
+    fireEvent.click(screen.getByRole('radio', { name: 'Marcus Reeve' }))
+    expect(screen.getByRole('button')).not.toBeDisabled()
   })
 
-  it('renders explanationMarkdown when attemptsRemaining reaches 0', async () => {
+  it('renders explanationMarkdown when the case is solved on an ungraded attempt', async () => {
     const explanation = 'Marcus committed the crime because of blackmail.'
     mockSubmitCase.mockResolvedValueOnce({
-      correct: false, score: 0.3,
-      breakdown: { culpritScore: 0, evidenceScore: 0.1, analysisScore: 0, questionsScore: 0.2 },
-      attemptsRemaining: 0, feedbackText: 'Out of attempts.',
+      correct: true, score: 0.95,
+      breakdown: { culpritScore: 0.4, evidenceScore: 0.2, analysisScore: 0.2, questionsScore: 0.15 },
+      maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
+      attemptsRemaining: 0, graded: false, feedbackCode: 'correct_ungraded',
       explanationMarkdown: explanation,
     })
 
@@ -214,7 +219,7 @@ describe('SubmitCase', () => {
     mockSubmissionState = { attemptsUsed: 2, maxAttempts: 3, lastResult: undefined }
 
     const { rerender } = render(<SubmitCase />)
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'suspect.marcus' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Marcus Reeve' }))
     fireEvent.click(screen.getByRole('button'))
 
     await waitFor(() => expect(mockSubmitCase).toHaveBeenCalledOnce())
@@ -224,5 +229,58 @@ describe('SubmitCase', () => {
     await waitFor(() => {
       expect(screen.getByText(explanation)).toBeInTheDocument()
     })
+  })
+
+  it('submits only selected, completed forensic analyses using their real asset/type IDs', async () => {
+    vi.mocked(forensicRequestApi.getForensicRequests).mockResolvedValue([
+      {
+        id: 1, caseId: mockCase.caseId, userId: 'player', inputAssetId: 'asset.phone_data',
+        inputAssetName: 'Phone Data', analysisType: 'Digital', status: 'completed',
+        requestedAt: '2024-01-01T08:00:00Z', estimatedCompletionTime: '2024-01-01T08:15:00Z',
+      },
+      {
+        id: 2, caseId: mockCase.caseId, userId: 'player', inputAssetId: 'asset.phone_data',
+        analysisType: 'DNA', status: 'pending',
+        requestedAt: '2024-01-01T08:00:00Z', estimatedCompletionTime: '2024-01-01T09:00:00Z',
+      },
+    ])
+    render(<SubmitCase />)
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Phone Data — Digital' }))
+    expect(screen.queryByText('asset.phone_data:DNA')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: 'Marcus Reeve' }))
+    fireEvent.click(screen.getByRole('button'))
+    await waitFor(() => expect(mockSubmitCase).toHaveBeenCalledWith(expect.objectContaining({
+      analysisIds: ['asset.phone_data:Digital'],
+    })))
+  })
+
+  it('does not expose or request interactive analyses for Rookie cases', async () => {
+    mockCase.metadata.difficulty = 'Rookie'
+    mockCase.metadata.requiredRank = 'Rookie'
+    render(<SubmitCase />)
+    expect(screen.queryByText('submitCaseAnalysisLabel')).not.toBeInTheDocument()
+    expect(forensicRequestApi.getForensicRequests).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('radio', { name: 'Marcus Reeve' }))
+    fireEvent.click(screen.getByRole('button'))
+    await waitFor(() => expect(mockSubmitCase).toHaveBeenCalledWith(expect.objectContaining({ analysisIds: [] })))
+  })
+
+  it.each(['pt-BR', 'en-US', 'es-ES', 'fr-FR'])('preserves four-decimal partial credit in %s', async language => {
+    mockLanguage = language
+    mockSubmitCase.mockResolvedValueOnce({
+      correct: false, score: 0.6234,
+      breakdown: { culpritScore: 0.4, evidenceScore: 0.1234, analysisScore: 0.1, questionsScore: 0 },
+      maxScores: { culprit: 0.4, evidence: 0.2, analysis: 0.2, questions: 0.2 },
+      attemptsRemaining: 2, graded: true, feedbackCode: 'incorrect_attempts_remaining',
+    })
+    const { rerender } = render(<SubmitCase />)
+    fireEvent.click(screen.getByRole('radio', { name: 'Marcus Reeve' }))
+    fireEvent.click(screen.getByRole('button'))
+    await waitFor(() => expect(mockSubmitCase).toHaveBeenCalledOnce())
+    rerender(<SubmitCase />)
+    const format = new Intl.NumberFormat(language, { maximumFractionDigits: 4 })
+    expect(screen.getByText(`submitCaseScore: ${format.format(0.6234)}`)).toBeInTheDocument()
+    expect(screen.getByText('submitCaseBreakdownEvidence').parentElement)
+      .toHaveTextContent(`62% (${format.format(0.1234)} / ${format.format(0.2)})`)
   })
 })

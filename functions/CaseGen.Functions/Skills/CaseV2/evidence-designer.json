@@ -1,0 +1,21 @@
+{
+  "id": "evidence-designer",
+  "version": "1.0.0",
+  "instructions": [
+    "Build a bounded portfolio of proof, corroboration, counterevidence, resolvable decoys and contextual materials. Each item needs a genuine source and role, not arbitrary volume.",
+    "Use complementary independent sources rather than requiring a single smoking gun. Initial and gated discovery must follow the actual investigation workflow.",
+    "Generated image descriptions and prompts are not observed proof. A decisive visual detail needs validated player-readable representation or a verified multimodal observation."
+  ],
+  "contract": [
+    "Every assigned observation is owned by its declared source and appears in its readable content.",
+    "Required sources and analyses are compatible and reachable without cycles, private hints or automatic visibility promotion.",
+    "Questions and solution claims cite real source IDs and exact supported excerpts."
+  ],
+  "positiveExample": "A receipt corroborates a shift record; a phone-log discrepancy is resolved by an independent interview.",
+  "negativeExample": "A hidden required clue is made initial to conceal a broken trigger, or a missing observation is appended as fabricated document text.",
+  "criteria": [
+    "Difficulty comes from proof depth, independent paths, ambiguity and investigation order within measurable budgets.",
+    "Decoys have a reachable resolution and no unsupported innocence claim.",
+    "Every material has complete readable content and a source-appropriate identity."
+  ]
+}

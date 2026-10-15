@@ -17,9 +17,21 @@ public record SubmitCaseResult(
     bool Correct,
     double Score,
     ScoreBreakdown Breakdown,
+    ScoreWeights MaxScores,
     int AttemptsRemaining,
-    string FeedbackText,
-    string? ExplanationMarkdown);
+    bool Graded,
+    string FeedbackCode,
+    string? ExplanationMarkdown,
+    PromotionInfo? Promotion = null);
+
+/// <summary>
+/// Conveyed to the client when a graded submission triggers a rank change so the
+/// UI can surface a promotion toast.
+/// </summary>
+public record PromotionInfo(
+    bool Promoted,
+    string PreviousRank,
+    string NewRank);
 
 public record ScoreBreakdown(
     double CulpritScore,
@@ -27,6 +39,14 @@ public record ScoreBreakdown(
     double AnalysisScore,
     double QuestionsScore);
 
+public record ScoreWeights(
+    double Culprit,
+    double Evidence,
+    double Analysis,
+    double Questions);
+
+// Retained for backwards compatibility with callers/tests; the service no
+// longer throws this — out-of-attempt submissions are accepted but ungraded.
 public class MaxAttemptsExceededException : Exception
 {
     public int MaxAttempts { get; }

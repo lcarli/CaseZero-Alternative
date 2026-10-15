@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.37.4.10188",
-      "templateHash": "5499271454964420270"
+      "version": "0.41.2.15936",
+      "templateHash": "15676796614910882600"
     }
   },
   "parameters": {
@@ -20,6 +20,13 @@
       "defaultValue": "canadacentral",
       "metadata": {
         "description": "Location for all resources"
+      }
+    },
+    "apiLocation": {
+      "type": "string",
+      "defaultValue": "[parameters('location')]",
+      "metadata": {
+        "description": "Location for the API layer (App Service). Defaults to the primary location; set to the API region when it differs, e.g. canadaeast."
       }
     },
     "namePrefix": {
@@ -70,7 +77,32 @@
       "metadata": {
         "description": "GitHub Branch name"
       }
+    },
+    "enablePrivateNetworking": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Enable private networking (VNets, peering, private DNS and private endpoints for storage + SQL)"
+      }
+    },
+    "ccVnetAddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.30.0.0/16",
+      "metadata": {
+        "description": "Address space for the canadacentral VNet (storage + Function)"
+      }
+    },
+    "ceVnetAddressPrefix": {
+      "type": "string",
+      "defaultValue": "10.31.0.0/16",
+      "metadata": {
+        "description": "Address space for the canadaeast VNet (API)"
+      }
     }
+  },
+  "variables": {
+    "ccVnetName": "[format('vnet-{0}-cc-{1}', parameters('namePrefix'), parameters('environment'))]",
+    "ceVnetName": "[format('vnet-{0}-ce-{1}', parameters('namePrefix'), parameters('environment'))]"
   },
   "resources": [
     {
@@ -122,8 +154,535 @@
       }
     },
     {
+      "condition": "[parameters('enablePrivateNetworking')]",
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
+      "name": "cc-vnet-deployment",
+      "resourceGroup": "[format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "[variables('ccVnetName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "addressPrefix": {
+            "value": "[parameters('ccVnetAddressPrefix')]"
+          },
+          "subnets": {
+            "value": [
+              {
+                "name": "snet-pe",
+                "prefix": "[cidrSubnet(parameters('ccVnetAddressPrefix'), 24, 1)]",
+                "disablePeNetworkPolicies": true
+              },
+              {
+                "name": "snet-func-integration",
+                "prefix": "[cidrSubnet(parameters('ccVnetAddressPrefix'), 24, 2)]",
+                "delegation": "Microsoft.App/environments"
+              }
+            ]
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "3218625580507404513"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "VNet name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location"
+              }
+            },
+            "addressPrefix": {
+              "type": "string",
+              "metadata": {
+                "description": "Address space (single CIDR)"
+              }
+            },
+            "subnets": {
+              "type": "array",
+              "metadata": {
+                "description": "Subnets: [{ name, prefix, delegation (optional), disablePeNetworkPolicies (optional bool) }]"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2023-11-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "copy": [
+                  {
+                    "name": "subnets",
+                    "count": "[length(parameters('subnets'))]",
+                    "input": {
+                      "name": "[parameters('subnets')[copyIndex('subnets')].name]",
+                      "properties": {
+                        "addressPrefixes": [
+                          "[parameters('subnets')[copyIndex('subnets')].prefix]"
+                        ],
+                        "privateEndpointNetworkPolicies": "[if(coalesce(tryGet(parameters('subnets')[copyIndex('subnets')], 'disablePeNetworkPolicies'), false()), 'Disabled', 'Enabled')]",
+                        "delegations": "[if(empty(coalesce(tryGet(parameters('subnets')[copyIndex('subnets')], 'delegation'), '')), createArray(), createArray(createObject('name', 'delegation', 'properties', createObject('serviceName', parameters('subnets')[copyIndex('subnets')].delegation))))]"
+                      }
+                    }
+                  }
+                ],
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('addressPrefix')]"
+                  ]
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "subnetIds": {
+              "type": "object",
+              "metadata": {
+                "description": "Map of subnet name -> subnet resourceId"
+              },
+              "value": "[toObject(parameters('subnets'), lambda('s', lambdaVariables('s').name), lambda('s', resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('name'), lambdaVariables('s').name)))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment')))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enablePrivateNetworking')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "ce-vnet-deployment",
+      "resourceGroup": "[format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "[variables('ceVnetName')]"
+          },
+          "location": {
+            "value": "[parameters('apiLocation')]"
+          },
+          "addressPrefix": {
+            "value": "[parameters('ceVnetAddressPrefix')]"
+          },
+          "subnets": {
+            "value": [
+              {
+                "name": "snet-api-integration",
+                "prefix": "[cidrSubnet(parameters('ceVnetAddressPrefix'), 24, 1)]",
+                "delegation": "Microsoft.Web/serverFarms"
+              }
+            ]
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "3218625580507404513"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "VNet name"
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location"
+              }
+            },
+            "addressPrefix": {
+              "type": "string",
+              "metadata": {
+                "description": "Address space (single CIDR)"
+              }
+            },
+            "subnets": {
+              "type": "array",
+              "metadata": {
+                "description": "Subnets: [{ name, prefix, delegation (optional), disablePeNetworkPolicies (optional bool) }]"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2023-11-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "copy": [
+                  {
+                    "name": "subnets",
+                    "count": "[length(parameters('subnets'))]",
+                    "input": {
+                      "name": "[parameters('subnets')[copyIndex('subnets')].name]",
+                      "properties": {
+                        "addressPrefixes": [
+                          "[parameters('subnets')[copyIndex('subnets')].prefix]"
+                        ],
+                        "privateEndpointNetworkPolicies": "[if(coalesce(tryGet(parameters('subnets')[copyIndex('subnets')], 'disablePeNetworkPolicies'), false()), 'Disabled', 'Enabled')]",
+                        "delegations": "[if(empty(coalesce(tryGet(parameters('subnets')[copyIndex('subnets')], 'delegation'), '')), createArray(), createArray(createObject('name', 'delegation', 'properties', createObject('serviceName', parameters('subnets')[copyIndex('subnets')].delegation))))]"
+                      }
+                    }
+                  }
+                ],
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "[parameters('addressPrefix')]"
+                  ]
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "subnetIds": {
+              "type": "object",
+              "metadata": {
+                "description": "Map of subnet name -> subnet resourceId"
+              },
+              "value": "[toObject(parameters('subnets'), lambda('s', lambdaVariables('s').name), lambda('s', resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('name'), lambdaVariables('s').name)))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment')))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enablePrivateNetworking')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "peering-cc-to-ce-deployment",
+      "resourceGroup": "[format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "cc-to-ce"
+          },
+          "localVnetName": {
+            "value": "[variables('ccVnetName')]"
+          },
+          "remoteVnetId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'ce-vnet-deployment'), '2025-04-01').outputs.id.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "7074731612113735287"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the peering resource"
+              }
+            },
+            "localVnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the existing local VNet the peering is attached to"
+              }
+            },
+            "remoteVnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the remote VNet to peer with"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+              "apiVersion": "2023-11-01",
+              "name": "[format('{0}/{1}', parameters('localVnetName'), parameters('name'))]",
+              "properties": {
+                "remoteVirtualNetwork": {
+                  "id": "[parameters('remoteVnetId')]"
+                },
+                "allowVirtualNetworkAccess": true,
+                "allowForwardedTraffic": false,
+                "allowGatewayTransit": false,
+                "useRemoteGateways": false
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'ce-vnet-deployment')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment')))]"
+      ]
+    },
+    {
+      "condition": "[parameters('enablePrivateNetworking')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "peering-ce-to-cc-deployment",
+      "resourceGroup": "[format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "ce-to-cc"
+          },
+          "localVnetName": {
+            "value": "[variables('ceVnetName')]"
+          },
+          "remoteVnetId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment'), '2025-04-01').outputs.id.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "7074731612113735287"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the peering resource"
+              }
+            },
+            "localVnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the existing local VNet the peering is attached to"
+              }
+            },
+            "remoteVnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the remote VNet to peer with"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+              "apiVersion": "2023-11-01",
+              "name": "[format('{0}/{1}', parameters('localVnetName'), parameters('name'))]",
+              "properties": {
+                "remoteVirtualNetwork": {
+                  "id": "[parameters('remoteVnetId')]"
+                },
+                "allowVirtualNetworkAccess": true,
+                "allowForwardedTraffic": false,
+                "allowGatewayTransit": false,
+                "useRemoteGateways": false
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment')]"
+      ]
+    },
+    {
+      "condition": "[parameters('enablePrivateNetworking')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "private-dns-deployment",
+      "resourceGroup": "[format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "vnetLinks": {
+            "value": [
+              {
+                "name": "cc",
+                "id": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment'), '2025-04-01').outputs.id.value]"
+              },
+              {
+                "name": "ce",
+                "id": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'ce-vnet-deployment'), '2025-04-01').outputs.id.value]"
+              }
+            ]
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "14198804689145273189"
+            }
+          },
+          "parameters": {
+            "zoneNames": {
+              "type": "array",
+              "defaultValue": [
+                "[format('privatelink.blob.{0}', environment().suffixes.storage)]",
+                "[format('privatelink.queue.{0}', environment().suffixes.storage)]",
+                "[format('privatelink.table.{0}', environment().suffixes.storage)]",
+                "[format('privatelink{0}', environment().suffixes.sqlServerHostname)]"
+              ],
+              "metadata": {
+                "description": "Private DNS zone names to create (e.g. privatelink.blob.core.windows.net)"
+              }
+            },
+            "vnetLinks": {
+              "type": "array",
+              "metadata": {
+                "description": "VNet resource IDs to link the zones to: [{ name, id }]"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            }
+          },
+          "variables": {
+            "linkPairs": "[flatten(map(parameters('zoneNames'), lambda('zone', map(parameters('vnetLinks'), lambda('v', createObject('zone', lambdaVariables('zone'), 'vnetId', lambdaVariables('v').id, 'linkName', format('link-{0}', lambdaVariables('v').name)))))))]"
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "zones",
+                "count": "[length(parameters('zoneNames'))]"
+              },
+              "type": "Microsoft.Network/privateDnsZones",
+              "apiVersion": "2020-06-01",
+              "name": "[parameters('zoneNames')[copyIndex()]]",
+              "location": "global",
+              "tags": "[parameters('tags')]"
+            },
+            {
+              "copy": {
+                "name": "links",
+                "count": "[length(variables('linkPairs'))]"
+              },
+              "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+              "apiVersion": "2020-06-01",
+              "name": "[format('{0}/{1}', variables('linkPairs')[copyIndex()].zone, variables('linkPairs')[copyIndex()].linkName)]",
+              "location": "global",
+              "properties": {
+                "registrationEnabled": false,
+                "virtualNetwork": {
+                  "id": "[variables('linkPairs')[copyIndex()].vnetId]"
+                }
+              },
+              "dependsOn": [
+                "zones"
+              ]
+            }
+          ],
+          "outputs": {
+            "zoneIds": {
+              "type": "object",
+              "metadata": {
+                "description": "Map of zone name -> zone resourceId"
+              },
+              "value": "[toObject(parameters('zoneNames'), lambda('z', lambdaVariables('z')), lambda('z', resourceId('Microsoft.Network/privateDnsZones', lambdaVariables('z'))))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'ce-vnet-deployment')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
       "name": "shared-infrastructure-deployment",
       "resourceGroup": "[format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
       "properties": {
@@ -160,8 +719,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.37.4.10188",
-              "templateHash": "14851410719458326221"
+              "version": "0.41.2.15936",
+              "templateHash": "1894810252674673444"
             }
           },
           "parameters": {
@@ -232,7 +791,7 @@
           "resources": [
             {
               "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2022-09-01",
+              "apiVersion": "2025-04-01",
               "name": "keyvault-deployment",
               "properties": {
                 "expressionEvaluationOptions": {
@@ -3390,7 +3949,7 @@
             {
               "condition": "[parameters('enableMonitoring')]",
               "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2022-09-01",
+              "apiVersion": "2025-04-01",
               "name": "loganalytics-deployment",
               "properties": {
                 "expressionEvaluationOptions": {
@@ -6386,7 +6945,7 @@
             {
               "condition": "[parameters('enableMonitoring')]",
               "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2022-09-01",
+              "apiVersion": "2025-04-01",
               "name": "appinsights-deployment",
               "properties": {
                 "expressionEvaluationOptions": {
@@ -6403,7 +6962,7 @@
                   "tags": {
                     "value": "[variables('tags')]"
                   },
-                  "workspaceResourceId": "[if(parameters('enableMonitoring'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'loganalytics-deployment'), '2022-09-01').outputs.resourceId.value), createObject('value', ''))]",
+                  "workspaceResourceId": "[if(parameters('enableMonitoring'), createObject('value', reference(resourceId('Microsoft.Resources/deployments', 'loganalytics-deployment'), '2025-04-01').outputs.resourceId.value), createObject('value', ''))]",
                   "applicationType": {
                     "value": "web"
                   },
@@ -7049,7 +7608,7 @@
             {
               "condition": "[and(and(parameters('enableSqlDatabase'), not(empty(parameters('sqlAdminLogin')))), not(empty(parameters('sqlAdminPassword'))))]",
               "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2022-09-01",
+              "apiVersion": "2025-04-01",
               "name": "sqlserver-deployment",
               "properties": {
                 "expressionEvaluationOptions": {
@@ -7076,7 +7635,7 @@
                     "value": "1.2"
                   },
                   "publicNetworkAccess": {
-                    "value": "Enabled"
+                    "value": "Disabled"
                   },
                   "databases": {
                     "value": [
@@ -13796,47 +14355,51 @@
           "outputs": {
             "keyVaultName": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2022-09-01').outputs.name.value]"
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.name.value]"
             },
             "keyVaultId": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2022-09-01').outputs.resourceId.value]"
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.resourceId.value]"
             },
             "keyVaultUri": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2022-09-01').outputs.uri.value]"
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyvault-deployment'), '2025-04-01').outputs.uri.value]"
             },
             "logAnalyticsWorkspaceName": {
               "type": "string",
-              "value": "[if(parameters('enableMonitoring'), reference(resourceId('Microsoft.Resources/deployments', 'loganalytics-deployment'), '2022-09-01').outputs.name.value, '')]"
+              "value": "[if(parameters('enableMonitoring'), reference(resourceId('Microsoft.Resources/deployments', 'loganalytics-deployment'), '2025-04-01').outputs.name.value, '')]"
             },
             "logAnalyticsWorkspaceId": {
               "type": "string",
-              "value": "[if(parameters('enableMonitoring'), reference(resourceId('Microsoft.Resources/deployments', 'loganalytics-deployment'), '2022-09-01').outputs.resourceId.value, '')]"
+              "value": "[if(parameters('enableMonitoring'), reference(resourceId('Microsoft.Resources/deployments', 'loganalytics-deployment'), '2025-04-01').outputs.resourceId.value, '')]"
             },
             "applicationInsightsName": {
               "type": "string",
-              "value": "[if(parameters('enableMonitoring'), reference(resourceId('Microsoft.Resources/deployments', 'appinsights-deployment'), '2022-09-01').outputs.name.value, '')]"
+              "value": "[if(parameters('enableMonitoring'), reference(resourceId('Microsoft.Resources/deployments', 'appinsights-deployment'), '2025-04-01').outputs.name.value, '')]"
             },
             "applicationInsightsId": {
               "type": "string",
-              "value": "[if(parameters('enableMonitoring'), reference(resourceId('Microsoft.Resources/deployments', 'appinsights-deployment'), '2022-09-01').outputs.resourceId.value, '')]"
+              "value": "[if(parameters('enableMonitoring'), reference(resourceId('Microsoft.Resources/deployments', 'appinsights-deployment'), '2025-04-01').outputs.resourceId.value, '')]"
             },
             "instrumentationKey": {
               "type": "string",
-              "value": "[if(parameters('enableMonitoring'), reference(resourceId('Microsoft.Resources/deployments', 'appinsights-deployment'), '2022-09-01').outputs.instrumentationKey.value, '')]"
+              "value": "[if(parameters('enableMonitoring'), reference(resourceId('Microsoft.Resources/deployments', 'appinsights-deployment'), '2025-04-01').outputs.instrumentationKey.value, '')]"
             },
             "connectionString": {
               "type": "string",
-              "value": "[if(parameters('enableMonitoring'), reference(resourceId('Microsoft.Resources/deployments', 'appinsights-deployment'), '2022-09-01').outputs.connectionString.value, '')]"
+              "value": "[if(parameters('enableMonitoring'), reference(resourceId('Microsoft.Resources/deployments', 'appinsights-deployment'), '2025-04-01').outputs.connectionString.value, '')]"
             },
             "sqlServerName": {
               "type": "string",
-              "value": "[if(parameters('enableSqlDatabase'), reference(resourceId('Microsoft.Resources/deployments', 'sqlserver-deployment'), '2022-09-01').outputs.name.value, '')]"
+              "value": "[if(parameters('enableSqlDatabase'), reference(resourceId('Microsoft.Resources/deployments', 'sqlserver-deployment'), '2025-04-01').outputs.name.value, '')]"
+            },
+            "sqlServerId": {
+              "type": "string",
+              "value": "[if(parameters('enableSqlDatabase'), reference(resourceId('Microsoft.Resources/deployments', 'sqlserver-deployment'), '2025-04-01').outputs.resourceId.value, '')]"
             },
             "sqlServerFqdn": {
               "type": "string",
-              "value": "[if(parameters('enableSqlDatabase'), format('{0}.{1}', reference(resourceId('Microsoft.Resources/deployments', 'sqlserver-deployment'), '2022-09-01').outputs.name.value, environment().suffixes.sqlServerHostname), '')]"
+              "value": "[if(parameters('enableSqlDatabase'), format('{0}.{1}', reference(resourceId('Microsoft.Resources/deployments', 'sqlserver-deployment'), '2025-04-01').outputs.name.value, environment().suffixes.sqlServerHostname), '')]"
             },
             "sqlDatabaseName": {
               "type": "string",
@@ -13855,7 +14418,7 @@
     },
     {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "api-infrastructure-deployment",
       "resourceGroup": "[format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
       "properties": {
@@ -13868,7 +14431,7 @@
             "value": "[parameters('environment')]"
           },
           "location": {
-            "value": "[parameters('location')]"
+            "value": "[parameters('apiLocation')]"
           },
           "namePrefix": {
             "value": "[parameters('namePrefix')]"
@@ -13883,20 +14446,25 @@
           "useSqlite": {
             "value": "[not(parameters('enableSqlDatabase'))]"
           },
-          "sqlConnectionString": "[if(parameters('enableSqlDatabase'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.sqlConnectionString.value), createObject('value', ''))]",
+          "sqlConnectionString": "[if(parameters('enableSqlDatabase'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.sqlConnectionString.value), createObject('value', ''))]",
           "keyVaultUri": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.keyVaultUri.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.keyVaultUri.value]"
           },
           "keyVaultId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.keyVaultId.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.keyVaultId.value]"
           },
-          "appInsightsConnectionString": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.connectionString.value), createObject('value', ''))]",
-          "appInsightsInstrumentationKey": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.instrumentationKey.value), createObject('value', ''))]",
-          "corsAllowedOrigins": {
-            "value": [
-              "*"
-            ]
-          }
+          "appInsightsConnectionString": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.connectionString.value), createObject('value', ''))]",
+          "appInsightsInstrumentationKey": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.instrumentationKey.value), createObject('value', ''))]",
+          "caseGeneratorFunctionBaseUrl": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2025-04-01').outputs.functionAppUrl.value]"
+          },
+          "caseGeneratorStorageAccountName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2025-04-01').outputs.storageAccountName.value]"
+          },
+          "caseGeneratorStorageAccountId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2025-04-01').outputs.storageAccountId.value]"
+          },
+          "apiVnetSubnetId": "[if(parameters('enablePrivateNetworking'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'ce-vnet-deployment'), '2025-04-01').outputs.subnetIds.value['snet-api-integration']), createObject('value', ''))]"
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -13904,8 +14472,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.37.4.10188",
-              "templateHash": "16012289473249287040"
+              "version": "0.41.2.15936",
+              "templateHash": "5649513071453551004"
             }
           },
           "parameters": {
@@ -13983,10 +14551,39 @@
             "corsAllowedOrigins": {
               "type": "array",
               "defaultValue": [
-                "*"
+                "http://localhost:5173",
+                "https://localhost:5173"
               ],
               "metadata": {
-                "description": "CORS allowed origins"
+                "description": "CORS allowed origins surfaced into app settings as Cors__AllowedOrigins__N. Defaults to local dev only; the orchestrator should pass the SWA origin for deployed environments. App Service-level CORS is intentionally left empty so the .NET middleware is the single source of truth (App Service CORS does not support credentials, which SignalR requires)."
+              }
+            },
+            "caseGeneratorFunctionBaseUrl": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Function App base URL the API proxies case-generation requests to (e.g. https://casegen-func-dev.azurewebsites.net). Wired from the functions layer output by the orchestrator."
+              }
+            },
+            "caseGeneratorStorageAccountName": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Storage Account name the API reads case bundles from via managed identity. Wired from the functions layer output by the orchestrator."
+              }
+            },
+            "caseGeneratorStorageAccountId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Storage Account Resource ID for the case bundles storage (used to scope the RBAC assignment cross-RG)."
+              }
+            },
+            "apiVnetSubnetId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Resource ID of the subnet used for API App Service regional VNet integration (empty to disable)"
               }
             }
           },
@@ -14007,7 +14604,7 @@
           "resources": [
             {
               "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2022-09-01",
+              "apiVersion": "2025-04-01",
               "name": "api-app-service-plan-deployment",
               "properties": {
                 "expressionEvaluationOptions": {
@@ -14572,7 +15169,7 @@
             },
             {
               "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2022-09-01",
+              "apiVersion": "2025-04-01",
               "name": "api-app-service-deployment",
               "properties": {
                 "expressionEvaluationOptions": {
@@ -14593,12 +15190,16 @@
                     "value": "app,linux"
                   },
                   "serverFarmResourceId": {
-                    "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-plan-deployment'), '2022-09-01').outputs.resourceId.value]"
+                    "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-plan-deployment'), '2025-04-01').outputs.resourceId.value]"
                   },
                   "httpsOnly": {
                     "value": true
                   },
                   "clientAffinityEnabled": {
+                    "value": false
+                  },
+                  "virtualNetworkSubnetId": "[if(empty(parameters('apiVnetSubnetId')), createObject('value', null()), createObject('value', parameters('apiVnetSubnetId')))]",
+                  "vnetRouteAllEnabled": {
                     "value": false
                   },
                   "managedIdentities": {
@@ -14616,63 +15217,10 @@
                       "http20Enabled": true,
                       "healthCheckPath": "/health",
                       "cors": {
-                        "allowedOrigins": "[parameters('corsAllowedOrigins')]",
+                        "allowedOrigins": [],
                         "supportCredentials": false
                       },
-                      "appSettings": [
-                        {
-                          "name": "ASPNETCORE_ENVIRONMENT",
-                          "value": "[if(equals(parameters('environment'), 'prod'), 'Production', if(equals(parameters('environment'), 'staging'), 'Staging', 'Development'))]"
-                        },
-                        {
-                          "name": "WEBSITE_RUN_FROM_PACKAGE",
-                          "value": "1"
-                        },
-                        {
-                          "name": "JwtSettings__SecretKey",
-                          "value": "[format('@Microsoft.KeyVault(SecretUri={0}secrets/jwt-signing-key/)', parameters('keyVaultUri'))]"
-                        },
-                        {
-                          "name": "JwtSettings__Issuer",
-                          "value": "CaseZeroApi"
-                        },
-                        {
-                          "name": "JwtSettings__Audience",
-                          "value": "CaseZeroClient"
-                        },
-                        {
-                          "name": "JwtSettings__ExpirationInMinutes",
-                          "value": "[if(equals(parameters('environment'), 'prod'), '60', '1440')]"
-                        },
-                        {
-                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
-                          "value": "[parameters('appInsightsInstrumentationKey')]"
-                        },
-                        {
-                          "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
-                          "value": "[parameters('appInsightsConnectionString')]"
-                        },
-                        {
-                          "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
-                          "value": "~3"
-                        },
-                        {
-                          "name": "IpRateLimiting__EnableEndpointRateLimiting",
-                          "value": "true"
-                        },
-                        {
-                          "name": "IpRateLimiting__GeneralRules__0__Endpoint",
-                          "value": "*"
-                        },
-                        {
-                          "name": "IpRateLimiting__GeneralRules__0__Period",
-                          "value": "1m"
-                        },
-                        {
-                          "name": "IpRateLimiting__GeneralRules__0__Limit",
-                          "value": "[if(equals(parameters('environment'), 'prod'), '100', '200')]"
-                        }
-                      ],
+                      "appSettings": "[concat(createArray(createObject('name', 'ASPNETCORE_ENVIRONMENT', 'value', if(equals(parameters('environment'), 'prod'), 'Production', if(equals(parameters('environment'), 'staging'), 'Staging', 'Development'))), createObject('name', 'WEBSITE_RUN_FROM_PACKAGE', 'value', '1'), createObject('name', 'JwtSettings__SecretKey', 'value', format('@Microsoft.KeyVault(SecretUri={0}secrets/jwt-signing-key/)', parameters('keyVaultUri'))), createObject('name', 'JwtSettings__Issuer', 'value', 'CaseZeroApi'), createObject('name', 'JwtSettings__Audience', 'value', 'CaseZeroClient'), createObject('name', 'JwtSettings__ExpirationInMinutes', 'value', if(equals(parameters('environment'), 'prod'), '60', '1440')), createObject('name', 'APPINSIGHTS_INSTRUMENTATIONKEY', 'value', parameters('appInsightsInstrumentationKey')), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', parameters('appInsightsConnectionString')), createObject('name', 'ApplicationInsightsAgent_EXTENSION_VERSION', 'value', '~3'), createObject('name', 'IpRateLimiting__EnableEndpointRateLimiting', 'value', 'true'), createObject('name', 'IpRateLimiting__GeneralRules__0__Endpoint', 'value', '*'), createObject('name', 'IpRateLimiting__GeneralRules__0__Period', 'value', '1m'), createObject('name', 'IpRateLimiting__GeneralRules__0__Limit', 'value', if(equals(parameters('environment'), 'prod'), '100', '200')), createObject('name', 'CaseGenerator__FunctionBaseUrl', 'value', parameters('caseGeneratorFunctionBaseUrl')), createObject('name', 'CaseGeneratorStorage__AccountName', 'value', parameters('caseGeneratorStorageAccountName')), createObject('name', 'CaseGeneratorStorage__BundlesContainer', 'value', 'bundles'), createObject('name', 'CaseGeneratorStorage__CasesContainer', 'value', 'cases')), map(range(0, length(parameters('corsAllowedOrigins'))), lambda('i', createObject('name', format('Cors__AllowedOrigins__{0}', lambdaVariables('i')), 'value', parameters('corsAllowedOrigins')[lambdaVariables('i')]))))]",
                       "connectionStrings": [
                         {
                           "name": "DefaultConnection",
@@ -20111,7 +20659,7 @@
             },
             {
               "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2022-09-01",
+              "apiVersion": "2025-04-01",
               "name": "api-keyvault-rbac-deployment",
               "subscriptionId": "[split(parameters('keyVaultId'), '/')[2]]",
               "resourceGroup": "[split(parameters('keyVaultId'), '/')[4]]",
@@ -20125,7 +20673,7 @@
                     "value": "[parameters('keyVaultId')]"
                   },
                   "principalId": {
-                    "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2022-09-01').outputs.systemAssignedMIPrincipalId.value]"
+                    "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2025-04-01').outputs.systemAssignedMIPrincipalId.value]"
                   },
                   "principalType": {
                     "value": "ServicePrincipal"
@@ -20137,8 +20685,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.37.4.10188",
-                      "templateHash": "14309745749085647672"
+                      "version": "0.41.2.15936",
+                      "templateHash": "18320919358290852164"
                     }
                   },
                   "parameters": {
@@ -20169,7 +20717,7 @@
                     {
                       "type": "Microsoft.Authorization/roleAssignments",
                       "apiVersion": "2022-04-01",
-                      "scope": "[format('Microsoft.KeyVault/vaults/{0}', variables('keyVaultName'))]",
+                      "scope": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
                       "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), parameters('principalId'), 'Key Vault Secrets User')]",
                       "properties": {
                         "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
@@ -20189,44 +20737,198 @@
               "dependsOn": [
                 "[resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment')]"
               ]
+            },
+            {
+              "condition": "[not(empty(parameters('caseGeneratorStorageAccountId')))]",
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2025-04-01",
+              "name": "api-storage-rbac-deployment",
+              "subscriptionId": "[split(parameters('caseGeneratorStorageAccountId'), '/')[2]]",
+              "resourceGroup": "[split(parameters('caseGeneratorStorageAccountId'), '/')[4]]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "storageAccountName": {
+                    "value": "[parameters('caseGeneratorStorageAccountName')]"
+                  },
+                  "principalId": {
+                    "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2025-04-01').outputs.systemAssignedMIPrincipalId.value]"
+                  },
+                  "principalType": {
+                    "value": "ServicePrincipal"
+                  },
+                  "assignBlobReader": {
+                    "value": true
+                  },
+                  "assignQueueMessageSender": {
+                    "value": true
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.41.2.15936",
+                      "templateHash": "4857170831897342172"
+                    }
+                  },
+                  "parameters": {
+                    "storageAccountName": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Storage Account name (in the resource group this module is deployed to)"
+                      }
+                    },
+                    "principalId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Principal ID to grant access"
+                      }
+                    },
+                    "principalType": {
+                      "type": "string",
+                      "defaultValue": "ServicePrincipal",
+                      "metadata": {
+                        "description": "Principal Type (ServicePrincipal for managed identities)"
+                      }
+                    },
+                    "assignBlobReader": {
+                      "type": "bool",
+                      "defaultValue": true,
+                      "metadata": {
+                        "description": "Assign Storage Blob Data Reader role"
+                      }
+                    },
+                    "assignBlobContributor": {
+                      "type": "bool",
+                      "defaultValue": false,
+                      "metadata": {
+                        "description": "Assign Storage Blob Data Contributor role (broader than Reader)"
+                      }
+                    },
+                    "assignQueueMessageSender": {
+                      "type": "bool",
+                      "defaultValue": true,
+                      "metadata": {
+                        "description": "Assign Storage Queue Data Message Sender role (send-only)"
+                      }
+                    },
+                    "assignQueueContributor": {
+                      "type": "bool",
+                      "defaultValue": false,
+                      "metadata": {
+                        "description": "Assign Storage Queue Data Contributor role (queue management + messages)"
+                      }
+                    }
+                  },
+                  "variables": {
+                    "roleIds": {
+                      "blobDataReader": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+                      "blobDataContributor": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+                      "queueDataMessageSender": "c6a89b2d-59bc-44d0-9896-0f6e12d7b80a",
+                      "queueDataContributor": "974c5e8b-45b9-4653-ba55-5f855dd0fb88"
+                    }
+                  },
+                  "resources": [
+                    {
+                      "condition": "[parameters('assignBlobReader')]",
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+                      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), variables('roleIds').blobDataReader)]",
+                      "properties": {
+                        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleIds').blobDataReader)]",
+                        "principalId": "[parameters('principalId')]",
+                        "principalType": "[parameters('principalType')]"
+                      }
+                    },
+                    {
+                      "condition": "[parameters('assignBlobContributor')]",
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+                      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), variables('roleIds').blobDataContributor)]",
+                      "properties": {
+                        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleIds').blobDataContributor)]",
+                        "principalId": "[parameters('principalId')]",
+                        "principalType": "[parameters('principalType')]"
+                      }
+                    },
+                    {
+                      "condition": "[parameters('assignQueueMessageSender')]",
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+                      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), variables('roleIds').queueDataMessageSender)]",
+                      "properties": {
+                        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleIds').queueDataMessageSender)]",
+                        "principalId": "[parameters('principalId')]",
+                        "principalType": "[parameters('principalType')]"
+                      }
+                    },
+                    {
+                      "condition": "[parameters('assignQueueContributor')]",
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "scope": "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
+                      "name": "[guid(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), parameters('principalId'), variables('roleIds').queueDataContributor)]",
+                      "properties": {
+                        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleIds').queueDataContributor)]",
+                        "principalId": "[parameters('principalId')]",
+                        "principalType": "[parameters('principalType')]"
+                      }
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment')]"
+              ]
             }
           ],
           "outputs": {
             "appServicePlanId": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-plan-deployment'), '2022-09-01').outputs.resourceId.value]"
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-plan-deployment'), '2025-04-01').outputs.resourceId.value]"
             },
             "appServicePlanName": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-plan-deployment'), '2022-09-01').outputs.name.value]"
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-plan-deployment'), '2025-04-01').outputs.name.value]"
             },
             "apiAppServiceName": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2022-09-01').outputs.name.value]"
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2025-04-01').outputs.name.value]"
             },
             "apiAppServiceId": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2022-09-01').outputs.resourceId.value]"
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2025-04-01').outputs.resourceId.value]"
             },
             "apiAppServiceUrl": {
               "type": "string",
-              "value": "[format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2022-09-01').outputs.defaultHostname.value)]"
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2025-04-01').outputs.defaultHostname.value)]"
             },
             "apiAppServicePrincipalId": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2022-09-01').outputs.systemAssignedMIPrincipalId.value]"
+              "value": "[reference(resourceId('Microsoft.Resources/deployments', 'api-app-service-deployment'), '2025-04-01').outputs.systemAssignedMIPrincipalId.value]"
             }
           }
         }
       },
       "dependsOn": [
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'ce-vnet-deployment')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment')]"
       ]
     },
     {
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
       "name": "functions-infrastructure-deployment",
       "resourceGroup": "[format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
       "properties": {
@@ -20260,10 +20962,14 @@
             ]
           },
           "keyVaultUri": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.keyVaultUri.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.keyVaultUri.value]"
           },
-          "appInsightsConnectionString": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.connectionString.value), createObject('value', ''))]",
-          "appInsightsInstrumentationKey": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.instrumentationKey.value), createObject('value', ''))]"
+          "keyVaultId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.keyVaultId.value]"
+          },
+          "appInsightsConnectionString": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.connectionString.value), createObject('value', ''))]",
+          "appInsightsInstrumentationKey": "[if(parameters('enableMonitoring'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.instrumentationKey.value), createObject('value', ''))]",
+          "functionVnetSubnetId": "[if(parameters('enablePrivateNetworking'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment'), '2025-04-01').outputs.subnetIds.value['snet-func-integration']), createObject('value', ''))]"
         },
         "template": {
           "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
@@ -20272,8 +20978,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.37.4.10188",
-              "templateHash": "3935228819977192629"
+              "version": "0.41.2.15936",
+              "templateHash": "18253439586775253105"
             }
           },
           "parameters": {
@@ -20332,6 +21038,12 @@
                 "description": "Key Vault URI from shared infrastructure"
               }
             },
+            "keyVaultId": {
+              "type": "string",
+              "metadata": {
+                "description": "Key Vault Resource ID from shared infrastructure (used to grant the Function App MI access to secrets)"
+              }
+            },
             "appInsightsConnectionString": {
               "type": "string",
               "defaultValue": "",
@@ -20344,6 +21056,13 @@
               "defaultValue": "",
               "metadata": {
                 "description": "Application Insights Instrumentation Key from shared infrastructure"
+              }
+            },
+            "functionVnetSubnetId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Resource ID of the subnet used for Function App regional VNet integration (empty to disable)"
               }
             }
           },
@@ -20371,9 +21090,25 @@
                 "storageAccount"
               ]
             },
+            "queueService": {
+              "type": "Microsoft.Storage/storageAccounts/queueServices",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
+              "dependsOn": [
+                "storageAccount"
+              ]
+            },
+            "forensicRequestsQueue": {
+              "type": "Microsoft.Storage/storageAccounts/queueServices/queues",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', variables('storageAccountName'), 'default', 'forensic-requests')]",
+              "dependsOn": [
+                "queueService"
+              ]
+            },
             "storageAccount": {
               "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2022-09-01",
+              "apiVersion": "2025-04-01",
               "name": "functions-storage-deployment",
               "properties": {
                 "expressionEvaluationOptions": {
@@ -20397,7 +21132,7 @@
                     "value": true
                   },
                   "publicNetworkAccess": {
-                    "value": "Enabled"
+                    "value": "Disabled"
                   },
                   "minimumTlsVersion": {
                     "value": "TLS1_2"
@@ -20408,7 +21143,7 @@
                   "networkAcls": {
                     "value": {
                       "bypass": "AzureServices",
-                      "defaultAction": "Allow"
+                      "defaultAction": "Deny"
                     }
                   },
                   "blobServices": {
@@ -26090,7 +26825,7 @@
             },
             "appServicePlan": {
               "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2022-09-01",
+              "apiVersion": "2025-04-01",
               "name": "functions-app-service-plan-deployment",
               "properties": {
                 "expressionEvaluationOptions": {
@@ -26651,7 +27386,7 @@
             },
             "functionApp": {
               "type": "Microsoft.Resources/deployments",
-              "apiVersion": "2022-09-01",
+              "apiVersion": "2025-04-01",
               "name": "functions-app-deployment",
               "properties": {
                 "expressionEvaluationOptions": {
@@ -26680,6 +27415,7 @@
                   "publicNetworkAccess": {
                     "value": "Enabled"
                   },
+                  "virtualNetworkSubnetId": "[if(empty(parameters('functionVnetSubnetId')), createObject('value', null()), createObject('value', parameters('functionVnetSubnetId')))]",
                   "managedIdentities": {
                     "value": {
                       "systemAssigned": true
@@ -26741,6 +27477,10 @@
                           "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageAccountName'), listKeys('existingStorageAccount', '2023-05-01').keys[0].value, environment().suffixes.storage)]"
                         },
                         {
+                          "name": "CaseGeneratorStorage__AccountName",
+                          "value": "[variables('storageAccountName')]"
+                        },
+                        {
                           "name": "CaseGeneratorStorage__CasesContainer",
                           "value": "cases"
                         },
@@ -26757,16 +27497,24 @@
                           "value": "CaseGeneratorHub"
                         },
                         {
-                          "name": "AzureOpenAI__Endpoint",
-                          "value": "[format('@Microsoft.KeyVault(SecretUri={0}secrets/azure-openai-endpoint/)', parameters('keyVaultUri'))]"
+                          "name": "LLM__UseAzureFoundry",
+                          "value": "true"
                         },
                         {
-                          "name": "AzureOpenAI__ApiKey",
-                          "value": "[format('@Microsoft.KeyVault(SecretUri={0}secrets/azure-openai-api-key/)', parameters('keyVaultUri'))]"
+                          "name": "AzureFoundry__Endpoint",
+                          "value": "[format('@Microsoft.KeyVault(SecretUri={0}secrets/azure-foundry-endpoint/)', parameters('keyVaultUri'))]"
                         },
                         {
-                          "name": "AzureOpenAI__DeploymentName",
-                          "value": "[format('@Microsoft.KeyVault(SecretUri={0}secrets/azure-openai-deployment-name/)', parameters('keyVaultUri'))]"
+                          "name": "AzureFoundry__ApiKey",
+                          "value": "[format('@Microsoft.KeyVault(SecretUri={0}secrets/azure-foundry-api-key/)', parameters('keyVaultUri'))]"
+                        },
+                        {
+                          "name": "AzureFoundry__ModelName",
+                          "value": "[format('@Microsoft.KeyVault(SecretUri={0}secrets/azure-foundry-model-name/)', parameters('keyVaultUri'))]"
+                        },
+                        {
+                          "name": "AzureFoundry__ImageDeploymentName",
+                          "value": "[format('@Microsoft.KeyVault(SecretUri={0}secrets/azure-foundry-image-deployment-name/)', parameters('keyVaultUri'))]"
                         }
                       ]
                     }
@@ -32201,6 +32949,87 @@
                 "appServicePlan",
                 "storageAccount"
               ]
+            },
+            "functionsKeyVaultRoleAssignment": {
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2025-04-01",
+              "name": "functions-keyvault-rbac-deployment",
+              "subscriptionId": "[split(parameters('keyVaultId'), '/')[2]]",
+              "resourceGroup": "[split(parameters('keyVaultId'), '/')[4]]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "keyVaultId": {
+                    "value": "[parameters('keyVaultId')]"
+                  },
+                  "principalId": {
+                    "value": "[reference('functionApp').outputs.systemAssignedMIPrincipalId.value]"
+                  },
+                  "principalType": {
+                    "value": "ServicePrincipal"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.41.2.15936",
+                      "templateHash": "18320919358290852164"
+                    }
+                  },
+                  "parameters": {
+                    "keyVaultId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Key Vault Resource ID"
+                      }
+                    },
+                    "principalId": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Principal ID to grant access"
+                      }
+                    },
+                    "principalType": {
+                      "type": "string",
+                      "defaultValue": "ServicePrincipal",
+                      "metadata": {
+                        "description": "Principal Type"
+                      }
+                    }
+                  },
+                  "variables": {
+                    "keyVaultName": "[last(split(parameters('keyVaultId'), '/'))]"
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Authorization/roleAssignments",
+                      "apiVersion": "2022-04-01",
+                      "scope": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+                      "name": "[guid(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), parameters('principalId'), 'Key Vault Secrets User')]",
+                      "properties": {
+                        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
+                        "principalId": "[parameters('principalId')]",
+                        "principalType": "[parameters('principalType')]"
+                      }
+                    }
+                  ],
+                  "outputs": {
+                    "roleAssignmentId": {
+                      "type": "string",
+                      "value": "[extensionResourceId(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), 'Microsoft.Authorization/roleAssignments', guid(resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName')), parameters('principalId'), 'Key Vault Secrets User'))]"
+                    }
+                  }
+                }
+              },
+              "dependsOn": [
+                "functionApp"
+              ]
             }
           },
           "outputs": {
@@ -32240,13 +33069,213 @@
         }
       },
       "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment')]",
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment')))]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment')]"
       ]
     },
     {
+      "condition": "[parameters('enablePrivateNetworking')]",
       "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2022-09-01",
+      "apiVersion": "2025-04-01",
+      "name": "private-endpoints-deployment",
+      "resourceGroup": "[format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "subnetId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment'), '2025-04-01').outputs.subnetIds.value['snet-pe']]"
+          },
+          "storageAccountId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2025-04-01').outputs.storageAccountId.value]"
+          },
+          "sqlServerId": "[if(parameters('enableSqlDatabase'), createObject('value', reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.sqlServerId.value), createObject('value', ''))]",
+          "dnsZoneIds": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'private-dns-deployment'), '2025-04-01').outputs.zoneIds.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "11592937360076522165"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Location for the private endpoints"
+              }
+            },
+            "subnetId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the subnet that hosts the private endpoints"
+              }
+            },
+            "storageAccountId": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage Account resource ID"
+              }
+            },
+            "storageGroupIds": {
+              "type": "array",
+              "defaultValue": [
+                "blob",
+                "queue",
+                "table"
+              ],
+              "metadata": {
+                "description": "Storage sub-resources (group IDs) to create endpoints for"
+              }
+            },
+            "sqlServerId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Azure SQL Server resource ID (empty to skip the SQL private endpoint)"
+              }
+            },
+            "dnsZoneIds": {
+              "type": "object",
+              "metadata": {
+                "description": "Map of private DNS zone name -> zone resourceId"
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags"
+              }
+            }
+          },
+          "variables": {
+            "storageZoneSuffix": {
+              "blob": "[format('privatelink.blob.{0}', environment().suffixes.storage)]",
+              "queue": "[format('privatelink.queue.{0}', environment().suffixes.storage)]",
+              "table": "[format('privatelink.table.{0}', environment().suffixes.storage)]"
+            },
+            "sqlZoneName": "[format('privatelink{0}', environment().suffixes.sqlServerHostname)]"
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "storagePe",
+                "count": "[length(parameters('storageGroupIds'))]"
+              },
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2023-11-01",
+              "name": "[format('pe-st-{0}', parameters('storageGroupIds')[copyIndex()])]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[parameters('subnetId')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "[format('conn-{0}', parameters('storageGroupIds')[copyIndex()])]",
+                    "properties": {
+                      "privateLinkServiceId": "[parameters('storageAccountId')]",
+                      "groupIds": [
+                        "[parameters('storageGroupIds')[copyIndex()]]"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "copy": {
+                "name": "storageDnsGroup",
+                "count": "[length(parameters('storageGroupIds'))]"
+              },
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2023-11-01",
+              "name": "[format('{0}/{1}', format('pe-st-{0}', parameters('storageGroupIds')[copyIndex()]), format('zg-{0}', parameters('storageGroupIds')[copyIndex()]))]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "[parameters('storageGroupIds')[copyIndex()]]",
+                    "properties": {
+                      "privateDnsZoneId": "[parameters('dnsZoneIds')[variables('storageZoneSuffix')[parameters('storageGroupIds')[copyIndex()]]]]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateEndpoints', format('pe-st-{0}', parameters('storageGroupIds')[copyIndex()]))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('sqlServerId')))]",
+              "type": "Microsoft.Network/privateEndpoints",
+              "apiVersion": "2023-11-01",
+              "name": "pe-sql",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "subnet": {
+                  "id": "[parameters('subnetId')]"
+                },
+                "privateLinkServiceConnections": [
+                  {
+                    "name": "conn-sql",
+                    "properties": {
+                      "privateLinkServiceId": "[parameters('sqlServerId')]",
+                      "groupIds": [
+                        "sqlServer"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "condition": "[not(empty(parameters('sqlServerId')))]",
+              "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+              "apiVersion": "2023-11-01",
+              "name": "[format('{0}/{1}', 'pe-sql', 'zg-sql')]",
+              "properties": {
+                "privateDnsZoneConfigs": [
+                  {
+                    "name": "sql",
+                    "properties": {
+                      "privateDnsZoneId": "[parameters('dnsZoneIds')[variables('sqlZoneName')]]"
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/privateEndpoints', 'pe-sql')]"
+              ]
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'cc-vnet-deployment')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment')]",
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment')))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'private-dns-deployment')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
       "name": "frontend-infrastructure-deployment",
       "resourceGroup": "[format('{0}-web-{1}-rg', parameters('namePrefix'), parameters('environment'))]",
       "properties": {
@@ -32268,7 +33297,7 @@
             }
           },
           "backendApiUrl": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'api-infrastructure-deployment'), '2022-09-01').outputs.apiAppServiceUrl.value]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'api-infrastructure-deployment'), '2025-04-01').outputs.apiAppServiceUrl.value]"
           },
           "repositoryUrl": {
             "value": "[parameters('repositoryUrl')]"
@@ -32283,8 +33312,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.37.4.10188",
-              "templateHash": "12529005113727641418"
+              "version": "0.41.2.15936",
+              "templateHash": "11629848759132541252"
             }
           },
           "parameters": {
@@ -32436,68 +33465,68 @@
     },
     "keyVaultName": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.keyVaultName.value]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.keyVaultName.value]"
     },
     "keyVaultUri": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.keyVaultUri.value]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.keyVaultUri.value]"
     },
     "applicationInsightsName": {
       "type": "string",
-      "value": "[if(parameters('enableMonitoring'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.applicationInsightsName.value, '')]"
+      "value": "[if(parameters('enableMonitoring'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.applicationInsightsName.value, '')]"
     },
     "logAnalyticsWorkspaceName": {
       "type": "string",
-      "value": "[if(parameters('enableMonitoring'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.logAnalyticsWorkspaceName.value, '')]"
+      "value": "[if(parameters('enableMonitoring'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.logAnalyticsWorkspaceName.value, '')]"
     },
     "sqlServerName": {
       "type": "string",
-      "value": "[if(parameters('enableSqlDatabase'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.sqlServerName.value, '')]"
+      "value": "[if(parameters('enableSqlDatabase'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.sqlServerName.value, '')]"
     },
     "sqlServerFqdn": {
       "type": "string",
-      "value": "[if(parameters('enableSqlDatabase'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.sqlServerFqdn.value, '')]"
+      "value": "[if(parameters('enableSqlDatabase'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.sqlServerFqdn.value, '')]"
     },
     "sqlDatabaseName": {
       "type": "string",
-      "value": "[if(parameters('enableSqlDatabase'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2022-09-01').outputs.sqlDatabaseName.value, '')]"
+      "value": "[if(parameters('enableSqlDatabase'), reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-shared-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'shared-infrastructure-deployment'), '2025-04-01').outputs.sqlDatabaseName.value, '')]"
     },
     "apiAppServiceName": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'api-infrastructure-deployment'), '2022-09-01').outputs.apiAppServiceName.value]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'api-infrastructure-deployment'), '2025-04-01').outputs.apiAppServiceName.value]"
     },
     "apiAppServiceUrl": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'api-infrastructure-deployment'), '2022-09-01').outputs.apiAppServiceUrl.value]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'api-infrastructure-deployment'), '2025-04-01').outputs.apiAppServiceUrl.value]"
     },
     "functionAppName": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2022-09-01').outputs.functionAppName.value]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2025-04-01').outputs.functionAppName.value]"
     },
     "functionAppUrl": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2022-09-01').outputs.functionAppUrl.value]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2025-04-01').outputs.functionAppUrl.value]"
     },
     "functionsStorageAccountName": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2022-09-01').outputs.storageAccountName.value]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2025-04-01').outputs.storageAccountName.value]"
     },
     "staticWebAppName": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-web-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'frontend-infrastructure-deployment'), '2022-09-01').outputs.staticWebAppName.value]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-web-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'frontend-infrastructure-deployment'), '2025-04-01').outputs.staticWebAppName.value]"
     },
     "staticWebAppUrl": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-web-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'frontend-infrastructure-deployment'), '2022-09-01').outputs.staticWebAppUrl.value]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-web-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'frontend-infrastructure-deployment'), '2025-04-01').outputs.staticWebAppUrl.value]"
     },
     "deploymentSummary": {
       "type": "object",
       "value": {
         "environment": "[parameters('environment')]",
         "location": "[parameters('location')]",
-        "frontendUrl": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-web-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'frontend-infrastructure-deployment'), '2022-09-01').outputs.staticWebAppUrl.value]",
-        "apiUrl": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'api-infrastructure-deployment'), '2022-09-01').outputs.apiAppServiceUrl.value]",
-        "functionsUrl": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2022-09-01').outputs.functionAppUrl.value]",
+        "frontendUrl": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-web-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'frontend-infrastructure-deployment'), '2025-04-01').outputs.staticWebAppUrl.value]",
+        "apiUrl": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-api-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'api-infrastructure-deployment'), '2025-04-01').outputs.apiAppServiceUrl.value]",
+        "functionsUrl": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, format('{0}-func-{1}-rg', parameters('namePrefix'), parameters('environment'))), 'Microsoft.Resources/deployments', 'functions-infrastructure-deployment'), '2025-04-01').outputs.functionAppUrl.value]",
         "sqlEnabled": "[parameters('enableSqlDatabase')]",
         "monitoringEnabled": "[parameters('enableMonitoring')]"
       }

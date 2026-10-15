@@ -17,6 +17,8 @@ Este capítulo define o **roadmap do produto, o cronograma de desenvolvimento e 
 - Framework de priorização de features
 - Visão estratégica de 3 anos
 
+> **⚠️ Status de implementação:** Este capítulo é um **roadmap prospectivo**, escrito em grande parte antes do início da implementação — a maioria dos itens de checklist abaixo (`[ ]`) descreve trabalho **planejado/aspiracional**, não o estado atual do repositório. Onde a checklist já foi superada pelo que realmente está construído, uma nota foi adicionada in-line. Atualmente, os seguintes itens **já estão implementados** (não apenas planejados): autenticação JWT + ASP.NET Identity, a API de casos e a camada de dados EF Core (backend em **.NET 8**), o shell de frontend em React/Vite/TypeScript, um sistema de perícia assíncrono/baseado em timer, o formato canônico **`case.json` v2** e sua validação, uma **pipeline de geração Case v2** totalmente automatizada (Case Bible → prompts de agentes LLM externos → verificações de consistência via CaseGraph → portão de solver em 0.90 → validação em múltiplos estágios → publicação ordenada no Blob) rodando em **CaseGen.Functions (.NET 9, Durable Functions)**, o sistema de 7 patentes/dificuldades Rookie→Commander com limiares de promoção por resolução cumulativa, e uma UI com 4 idiomas (`en-US`, `pt-BR`, `es-ES`, `fr-FR`). Considere esses itens concluídos; o restante deste roadmap continua sendo um plano.
+
 ---
 
 ## 12.2 Fases de desenvolvimento
@@ -26,7 +28,7 @@ Este capítulo define o **roadmap do produto, o cronograma de desenvolvimento e 
 **Objetivo:** Construir a arquitetura e os sistemas centrais
 
 **Backend:**
-- [ ] Implementação do schema de banco (PostgreSQL)
+- [x] Implementação do schema de banco (**SQL Server** em produção, SQLite para dev local — não PostgreSQL como planejado originalmente)
 - [ ] Modelos do Entity Framework Core
 - [ ] Sistema de autenticação (JWT)
 - [ ] Endpoints principais da API (cases, sessions, users)
@@ -291,9 +293,9 @@ Este capítulo define o **roadmap do produto, o cronograma de desenvolvimento e 
 - Início da localização dos 3 casos mais populares (Francês, Espanhol)
 
 **Localização:**
-- [ ] Infraestrutura de i18n
-- [ ] Tradução de UI (4 idiomas)
-- [ ] Tradução de casos (top 3 casos, 2 idiomas)
+- [x] Infraestrutura de i18n — **já implementada** (`frontend/src/locales/`, `frontend/src/types/i18n.ts`)
+- [x] Tradução de UI (4 idiomas) — **já implementada e em produção**: `en-US`, `pt-BR`, `es-ES`, `fr-FR`
+- [ ] Tradução de casos (top 3 casos, 2 idiomas) — a pipeline de geração já tem um portão de validação de idioma, mas traduzir o *conteúdo* dos casos escritos manualmente ainda é um item planejado
 
 **Métricas de sucesso:**
 - Biblioteca total: 15-21 casos
@@ -944,7 +946,7 @@ Este capítulo define o **roadmap do produto, o cronograma de desenvolvimento e 
 
 ---
 
-**Próximo capítulo:** [13-GLOSSARIO.md](13-GLOSSARIO.md) – Termos e definições
+**Próximo capítulo:** [APENDICE-A-GLOSSARIO.md](APENDICE-A-GLOSSARIO.md) – Termos e definições
 
 **Documentos relacionados:**
 - [01-CONCEITO.md](01-CONCEITO.md) – Visão central

@@ -416,16 +416,17 @@ How do we know if CaseZero is achieving its goals?
 
 **Core Technologies:**
 - Frontend: React + TypeScript
-- Backend: C# .NET + Azure Functions
+- Backend Web API: C# .NET 8
+- Case-generation pipeline: C# .NET 9 Azure Durable Functions
 - Database: Azure SQL
-- Storage: Azure Blob Storage (for PDFs/images)
+- Storage: Azure Blob Storage (for PDFs/images and published case bundles)
 - Authentication: JWT-based sessions
 
 **Complexity Level:** Medium
 - No real-time multiplayer
 - No complex physics or 3D rendering
 - Primary challenge is content, not code
-- Backend is straightforward CRUD + time-based logic
+- Backend combines straightforward API CRUD with a more complex Durable Functions case-generation pipeline
 
 ---
 
@@ -493,8 +494,8 @@ How do we know if CaseZero is achieving its goals?
 ## 1.14 Long-Term Vision
 
 ### Year 1: Foundation
-- Launch with 3 cases (Easy, Medium, Hard)
-- Establish content pipeline
+- Launch with 3 cases spanning lower/mid/higher implemented difficulty tiers
+- Scale the existing content pipeline for regular releases
 - Build initial player base
 - Gather feedback and iterate
 
